@@ -26,7 +26,7 @@ class NodeEditor(MenuProviderBase):
 
 
     def add_menu(self, parent_tag : str) -> None:
-        with dpg.menu(label="Node Editor", parent=parent_tag):
+        with dpg.menu(label="Node Editor", parent=parent_tag, tag="node_editor_menu"):
             dpg.add_menu_item(label="Add Node", callback=self._on_add_node)
             dpg.add_menu_item(label="Clear All", callback=self._on_clear_nodes)
 
