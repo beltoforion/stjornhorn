@@ -16,6 +16,12 @@ class MainWindow:
                 dpg.add_menu_item(label="New", callback=self._on_new)
                 dpg.add_menu_item(label="Save As", callback=self._on_save)
 
+        self._start_page = StartPage(
+            parent="main_window",
+            menu_bar="main_menu",
+            on_create_flow=self._open_flow,
+            on_load_flow=self._on_load_flow,
+        )
         self._node_editor_page = NodeEditorPage(
             parent="main_window",
             menu_bar="main_menu",
@@ -23,12 +29,7 @@ class MainWindow:
         )
 
         self._pages = PageManager()
-        self._pages.register("start", StartPage(
-            parent="main_window",
-            menu_bar="main_menu",
-            on_create_flow=self._open_flow,
-            on_load_flow=self._on_load_flow,
-        ))
+        self._pages.register("start", self._start_page)
         self._pages.register("editor", self._node_editor_page)
         self._pages.activate("start")
 
