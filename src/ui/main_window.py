@@ -7,7 +7,7 @@ from ui.start_page import StartPage
 class MainWindow:
     def __init__(self):
         with dpg.window(label="App", tag="main_window"):
-            self._start_page = StartPage(parent="main_window", on_flow_selected=self._open_flow)
+            self._start_page = StartPage(parent="main_window", on_create_flow=self._open_flow)
 
             with dpg.child_window(tag="editor_page", show=False, border=False):
                 self._node_editor = NodeEditor(parent="editor_page")
@@ -20,7 +20,7 @@ class MainWindow:
         self._node_editor.add_menu("main_menu")
         dpg.hide_item("node_editor_menu")
 
-    def _open_flow(self, path: str) -> None:
+    def _open_flow(self) -> None:
         self._start_page.hide()
         dpg.show_item("editor_page")
         dpg.show_item("node_editor_menu")
