@@ -8,10 +8,10 @@ class PageManager:
         self._pages: dict[str, Page] = {}
         self._active: Page | None = None
 
-    def register(self, name: str, page: Page) -> None:
-        if name in self._pages:
-            raise ValueError(f"Page '{name}' is already registered")
-        self._pages[name] = page
+    def register(self, page: Page) -> None:
+        if page.name in self._pages:
+            raise ValueError(f"Page '{page.name}' is already registered")
+        self._pages[page.name] = page
 
     def activate(self, name: str) -> None:
         if name not in self._pages:

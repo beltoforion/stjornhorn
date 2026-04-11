@@ -11,7 +11,8 @@ class Page(ABC):
     deactivation. Only one page in the application should be active at any
     given time; the PageManager enforces this.
 
-    Subclasses implement:
+    Subclasses must define:
+        name             - unique string identifier used by PageManager.
         _build_ui()      - create the page content (use self._content_tag
                            as the root container tag, self._parent as the
                            parent, and pass show=False so the page starts
@@ -21,6 +22,8 @@ class Page(ABC):
                            self._menu_tags so the base class can remove
                            them automatically on deactivation.
     """
+
+    name: str
 
     def __init__(self, parent: str, menu_bar: str) -> None:
         self._parent: str = parent

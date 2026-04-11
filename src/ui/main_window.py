@@ -29,8 +29,8 @@ class MainWindow:
         )
 
         self._pages = PageManager()
-        self._pages.register("start", self._start_page)
-        self._pages.register("editor", self._node_editor_page)
+        self._pages.register(self._start_page)
+        self._pages.register(self._node_editor_page)
         self._pages.activate("start")
 
     def _open_flow(self, flow: Flow) -> None:
