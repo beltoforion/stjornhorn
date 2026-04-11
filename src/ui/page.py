@@ -1,6 +1,12 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 import dearpygui.dearpygui as dpg
+
+if TYPE_CHECKING:
+    from ui.page_manager import PageManager
 
 
 class Page(ABC):
@@ -25,9 +31,10 @@ class Page(ABC):
 
     name: str
 
-    def __init__(self, parent: int | str, menu_bar: int | str) -> None:
+    def __init__(self, parent: int | str, menu_bar: int | str, page_manager: PageManager) -> None:
         self._parent: int | str = parent
         self._menu_bar: int | str = menu_bar
+        self._page_manager: PageManager = page_manager
         self._content_tag: int | str = dpg.generate_uuid()
         self._menu_tags: list[int | str] = []
         self._active: bool = False

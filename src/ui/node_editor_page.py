@@ -1,18 +1,24 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import dearpygui.dearpygui as dpg
 
 from core.flow import Flow
 from ui.page import Page
 
+if TYPE_CHECKING:
+    from ui.page_manager import PageManager
+
 
 class NodeEditorPage(Page):
     name = "editor"
 
-    def __init__(self, parent: int | str, menu_bar: int | str, on_exit) -> None:
-        self._on_exit = on_exit
+    def __init__(self, parent: int | str, menu_bar: int | str, page_manager: PageManager) -> None:
         self._node_editor_tag: int | str = dpg.generate_uuid()
         self._node_count: int = 0
         self._flow: Flow | None = None
-        super().__init__(parent=parent, menu_bar=menu_bar)
+        super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager)
 
     def set_flow(self, flow: Flow) -> None:
         self._flow = flow
@@ -51,7 +57,6 @@ class NodeEditorPage(Page):
         children = dpg.get_item_children(self._node_editor_tag, 1)
         if children is None:
             return
-
         for child in children:
             dpg.delete_item(child)
         self._node_count = 0
@@ -71,4 +76,4 @@ class NodeEditorPage(Page):
 
     def _on_exit_clicked(self, sender) -> None:
         self._clear_nodes()
-        self._on_exit()
+        self._page_manager.activate(self._page_manager.start_page)
