@@ -10,7 +10,7 @@ class NodeEditorPage(Page):
         self._node_count: int = 0
         super().__init__(parent=parent, menu_bar=menu_bar)
 
-    def _build(self) -> None:
+    def _build_ui(self) -> None:
         with dpg.child_window(tag=self._content_tag, parent=self._parent, border=False, show=False):
             dpg.add_node_editor(
                 tag=self._node_editor_tag,

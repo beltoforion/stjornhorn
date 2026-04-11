@@ -8,7 +8,7 @@ class StartPage(Page):
         self._on_create_flow = on_create_flow
         super().__init__(parent=parent, menu_bar=menu_bar)
 
-    def _build(self) -> None:
+    def _build_ui(self) -> None:
         with dpg.child_window(tag=self._content_tag, parent=self._parent, border=False, show=False):
             dpg.add_spacer(height=60)
             dpg.add_text("Image Inquest", indent=20)
