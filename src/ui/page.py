@@ -12,7 +12,7 @@ class Page(ABC):
     given time; the PageManager enforces this.
 
     Subclasses implement:
-        _build()         - create the page content (use self._content_tag
+        _build_ui()      - create the page content (use self._content_tag
                            as the root container tag, self._parent as the
                            parent, and pass show=False so the page starts
                            hidden).
@@ -28,10 +28,10 @@ class Page(ABC):
         self._content_tag: int = dpg.generate_uuid()
         self._menu_tags: list[int | str] = []
         self._active: bool = False
-        self._build()
+        self._build_ui()
 
     @abstractmethod
-    def _build(self) -> None:
+    def _build_ui(self) -> None:
         ...
 
     @abstractmethod
