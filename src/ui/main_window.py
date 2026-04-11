@@ -31,14 +31,14 @@ class MainWindow:
             on_exit=self._close_flow,
         )
 
-    @property
-    def window_tag(self) -> int:
-        return self._window_tag
-
         self._pages = PageManager()
         self._pages.register(self._start_page)
         self._pages.register(self._node_editor_page)
         self._pages.activate(self._start_page)
+
+    @property
+    def window_tag(self) -> int:
+        return self._window_tag
 
     def _open_flow(self, flow: Flow) -> None:
         self._node_editor_page.set_flow(flow)
