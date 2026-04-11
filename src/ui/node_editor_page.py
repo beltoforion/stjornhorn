@@ -1,5 +1,6 @@
 import dearpygui.dearpygui as dpg
 
+from core.flow import Flow
 from ui.page import Page
 
 
@@ -8,7 +9,11 @@ class NodeEditorPage(Page):
         self._on_exit = on_exit
         self._node_editor_tag: int = dpg.generate_uuid()
         self._node_count: int = 0
+        self._flow: Flow | None = None
         super().__init__(parent=parent, menu_bar=menu_bar)
+
+    def set_flow(self, flow: Flow) -> None:
+        self._flow = flow
 
     def _build_ui(self) -> None:
         with dpg.child_window(tag=self._content_tag, parent=self._parent, border=False, show=False):
