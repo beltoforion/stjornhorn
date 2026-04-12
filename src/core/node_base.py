@@ -1,16 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from enum import Enum
 
-from core.io_data import IoData, IoDataType
+from core.io_data import IoData
 from core.port import InputPort, OutputPort
-
-
-class NodeKind(Enum):
-    SOURCE = "Source"
-    PROCESSING = "Processing"
-    SINK = "Sink"
 
 
 class NodeBase(ABC):
@@ -56,10 +49,6 @@ class NodeBase(ABC):
     def outputs(self) -> list[OutputPort]:
         return self._outputs
 
-    @property
-    @abstractmethod
-    def kind(self) -> NodeKind: ...
-
     # ── Internal signal handling ───────────────────────────────────────────────
 
     def _signal_input_ready(self) -> None:
@@ -89,23 +78,18 @@ class NodeBase(ABC):
     def _on_end_of_stream(self) -> None:
         """Called when any input receives EndOfStream.
 
-        Default behaviour: forward EndOfStream to all outputs so the signal
-        propagates through the graph.  Override in Sink nodes where there is
-        nothing to forward.
+        Default: forward EndOfStream to all outputs so the signal propagates
+        through the graph.  Override in SinkNode where there is nothing to forward.
         """
         eos = IoData.end_of_stream()
         for port in self._outputs:
             port.send(eos)
 
 
-# ── Concrete node kind base classes ───────────────────────────────────────────
+# ── Concrete node base classes ─────────────────────────────────────────────────
 
 class SourceNode(NodeBase):
     """A node with outputs only.  Drives the pipeline by calling start()."""
-
-    @property
-    def kind(self) -> NodeKind:
-        return NodeKind.SOURCE
 
     @abstractmethod
     def start(self) -> None:
@@ -125,20 +109,12 @@ class SourceNode(NodeBase):
 class ProcessingNode(NodeBase):
     """A node with both inputs and outputs.  Transforms data."""
 
-    @property
-    def kind(self) -> NodeKind:
-        return NodeKind.PROCESSING
-
     @abstractmethod
     def process(self) -> None: ...
 
 
 class SinkNode(NodeBase):
     """A node with inputs only.  Consumes data (file write, display, etc.)."""
-
-    @property
-    def kind(self) -> NodeKind:
-        return NodeKind.SINK
 
     @abstractmethod
     def process(self) -> None: ...

@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from core.io_data import IoDataType
-from core.node_base import NodeKind
 
 
 @dataclass(frozen=True)
@@ -22,7 +21,6 @@ class NodeDefinition:
     """Static description of a node class, produced by the NodeRegistry."""
     class_name: str
     display_name: str
-    kind: NodeKind
     inputs: list[PortDefinition] = field(default_factory=list)
     outputs: list[PortDefinition] = field(default_factory=list)
     parameters: list[str] = field(default_factory=list)
@@ -31,7 +29,6 @@ class NodeDefinition:
         return (
             f"NodeDefinition(class_name={self.class_name!r}, "
             f"display_name={self.display_name!r}, "
-            f"kind={self.kind.value}, "
             f"inputs={self.inputs!r}, "
             f"outputs={self.outputs!r}, "
             f"parameters={self.parameters!r})"
