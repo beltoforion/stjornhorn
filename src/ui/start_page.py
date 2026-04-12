@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import dearpygui.dearpygui as dpg
 
+from constants import APP_VERSION
 from core.flow import Flow
 from ui.page import Page
 
@@ -19,6 +20,7 @@ class StartPage(Page):
     def _build_ui(self) -> None:
         dpg.add_spacer(height=60)
         dpg.add_text("Image Inquest", indent=20)
+        dpg.add_text(f"v{APP_VERSION}", indent=20, color=(120, 120, 120, 255))
         dpg.add_spacer(height=20)
         
         with dpg.group(horizontal=True, indent=20):

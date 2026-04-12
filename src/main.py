@@ -2,14 +2,14 @@ import dearpygui.dearpygui as dpg
 import argparse
 
 from ui.main_window import *
-from constants import *
+from constants import APP_NAME, APP_VERSION, APP_WIDTH, APP_HEIGHT
 
 class App:
     def __init__(self):
         dpg.create_context()
         self._main_window = MainWindow()
 
-        dpg.create_viewport(title=APP_NAME, width=APP_WIDTH, height=APP_HEIGHT)
+        dpg.create_viewport(title=f"{APP_NAME} v{APP_VERSION}", width=APP_WIDTH, height=APP_HEIGHT)
 
     def run(self):
         dpg.setup_dearpygui()
