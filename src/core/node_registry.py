@@ -126,6 +126,7 @@ def _ensure_user_nodes_dir(folder: Path) -> None:
 # Maps base class name → palette category
 _CATEGORY_MAP: dict[str, str] = {
     "SourceNodeBase": "Sources",
+    "NodeBase":       "Filters",
     "SinkNodeBase":   "Sinks",
 }
 
