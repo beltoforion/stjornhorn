@@ -24,7 +24,7 @@ class NodeEditorPage(Page):
         self._flow = flow
 
     def _build_ui(self) -> None:
-        dpg.add_spacer(height=4)
+        dpg.add_spacer(height=20)
         with dpg.group(horizontal=True):
             dpg.add_button(label="Add Node", callback=self._on_add_node)
             dpg.add_button(label="Clear All", callback=self._on_clear_nodes)
