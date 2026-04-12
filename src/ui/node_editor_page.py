@@ -317,13 +317,10 @@ class NodeEditorPage(Page):
                 dpg.configure_item(self._node_ctx_tag, show=True)
                 return
 
-        # If the canvas is hovered and links are selected, offer link deletion
-        if not dpg.get_item_state(self._canvas_tag).get("hovered", False):
-            return
-        if dpg.get_selected_links(self._node_editor_tag):
-            self._hide_ctx_menus()
-            dpg.set_item_pos(self._link_ctx_tag, dpg.get_mouse_pos())
-            dpg.configure_item(self._link_ctx_tag, show=True)
+        # No node hovered — offer link deletion (select a link first, then right-click)
+        self._hide_ctx_menus()
+        dpg.set_item_pos(self._link_ctx_tag, dpg.get_mouse_pos())
+        dpg.configure_item(self._link_ctx_tag, show=True)
 
     def _on_left_click(self) -> None:
         """Dismiss context menus when clicking outside them."""
