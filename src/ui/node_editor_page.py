@@ -144,11 +144,14 @@ class NodeEditorPage(Page):
         if self._flow is not None:
             self._flow.add_node(node)
         node_tag = self._add_visual_node(node)
-        # Position the node at the drop location.
-        # local=True gives coordinates relative to the canvas child_window,
-        # which matches the node editor's own coordinate space.
-        mouse_pos = dpg.get_mouse_pos(local=True)
-        dpg.set_item_pos(node_tag, [mouse_pos[0], mouse_pos[1]])
+        # get_mouse_pos(local=True) is relative to the main window origin.
+        # Subtract the canvas child_window's offset to get node editor coordinates.
+        mouse_pos  = dpg.get_mouse_pos(local=True)
+        canvas_pos = dpg.get_item_pos(self._canvas_tag)
+        dpg.set_item_pos(node_tag, [
+            mouse_pos[0] - canvas_pos[0],
+            mouse_pos[1] - canvas_pos[1],
+        ])
 
     # ── Node creation ──────────────────────────────────────────────────────────
 
