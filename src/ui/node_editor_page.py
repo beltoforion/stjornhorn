@@ -78,9 +78,10 @@ class NodeEditorPage(Page):
         self._file_dialogs.append(dialog_tag)
 
         with dpg.node(label=node.display_name, parent=self._node_editor_tag):
-            for param in node.params:
+            for i, param in enumerate(node.params):
                 with dpg.node_attribute(label=param.name, attribute_type=dpg.mvNode_Attr_Static):
-                    dpg.add_spacer(height=5)
+                    if i > 0:
+                        dpg.add_spacer(height=2)
                     dpg.add_text(param.name)
                     if param.param_type == NodeParamType.FILE_PATH:
                         with dpg.group(horizontal=True):
@@ -103,9 +104,12 @@ class NodeEditorPage(Page):
                         )
 
             # Output ports
-            for port in node.outputs:
-                with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output):
-                    dpg.add_text(", ".join(t.value for t in port.emits))
+            if node.outputs:
+                for i, port in enumerate(node.outputs):
+                    with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output):
+                        if i == 0:
+                            dpg.add_spacer(height=6)
+                        dpg.add_text(", ".join(t.value for t in port.emits))
 
     # ── Link callbacks ─────────────────────────────────────────────────────────
 
