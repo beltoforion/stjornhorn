@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.node_base import NodeBase, SourceNode
+from core.node_base import NodeBase, SourceNodeBase
 from core.port import InputPort, OutputPort
 
 
@@ -83,5 +83,5 @@ class Flow:
         propagates data downstream automatically through connected ports.
         """
         for node in self._nodes:
-            if isinstance(node, SourceNode):
+            if isinstance(node, SourceNodeBase):
                 node.start()

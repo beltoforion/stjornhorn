@@ -79,7 +79,7 @@ class NodeBase(ABC):
         """Called when any input receives EndOfStream.
 
         Default: forward EndOfStream to all outputs so the signal propagates
-        through the graph.  Override in SinkNode where there is nothing to forward.
+        through the graph.  Override in SinkNodeBase where there is nothing to forward.
         """
         eos = IoData.end_of_stream()
         for port in self._outputs:
@@ -88,7 +88,7 @@ class NodeBase(ABC):
 
 # ── Concrete node base classes ─────────────────────────────────────────────────
 
-class SourceNode(NodeBase, ABC):
+class SourceNodeBase(NodeBase, ABC):
     """A node with outputs only.  Drives the pipeline by calling start()."""
 
     @abstractmethod
@@ -100,13 +100,13 @@ class SourceNode(NodeBase, ABC):
         ...
 
     def process(self) -> None:
-        raise RuntimeError("SourceNode has no inputs; call start() instead")
+        raise RuntimeError("SourceNodeBase has no inputs; call start() instead")
 
     def _on_end_of_stream(self) -> None:
         pass  # Sources have no inputs, so this is never triggered
 
 
-class SinkNode(NodeBase, ABC):
+class SinkNodeBase(NodeBase, ABC):
     """A node with inputs only.  Consumes data (file write, display, etc.)."""
 
     @abstractmethod
