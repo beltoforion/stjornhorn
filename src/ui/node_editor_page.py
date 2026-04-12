@@ -179,6 +179,11 @@ class NodeEditorPage(Page):
                             callback=lambda s, a, p=param: setattr(node, p.name, a),
                         )
 
+            if node.inputs:
+                for port in node.inputs:
+                    with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Input):
+                        dpg.add_text(", ".join(t.value for t in port.accepted_types))
+
             if node.outputs:
                 for i, port in enumerate(node.outputs):
                     with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output):
