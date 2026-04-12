@@ -90,6 +90,8 @@ class NodeEditorPage(Page):
                     tag=self._node_editor_tag,
                     callback=self._link,
                     delink_callback=self._delink,
+                    drop_callback=self._on_node_dropped,
+                    payload_type="NODE_PALETTE",
                     width=-1,
                     height=-1,
                 )
@@ -113,13 +115,13 @@ class NodeEditorPage(Page):
                     dpg.add_text("(none)", color=(120, 120, 120, 255))
                 for entry in entries:
                     tag = dpg.generate_uuid()
-                    dpg.add_button(
-                        label=entry.display_name,
-                        tag=tag,
-                        width=-1,
-                        callback=self._on_palette_add,
-                        user_data=entry,
-                    )
+                    dpg.add_button(label=entry.display_name, tag=tag, width=-1)
+                    with dpg.drag_payload(
+                        parent=tag,
+                        drag_data=entry,
+                        payload_type="NODE_PALETTE",
+                    ):
+                        dpg.add_text(f"+ {entry.display_name}")
                     self._palette_items.append((tag, entry.display_name.lower()))
 
     def _on_palette_search(self, sender: int | str, value: str) -> None:
@@ -127,17 +129,25 @@ class NodeEditorPage(Page):
         for tag, text in self._palette_items:
             dpg.configure_item(tag, show=(not query or query in text))
 
-    def _on_palette_add(self, sender: int | str, app_data, entry: NodeEntry) -> None:
+    def _on_node_dropped(self, sender: int | str, app_data) -> None:
+        entry: NodeEntry = app_data
         module = importlib.import_module(entry.module)
         cls = getattr(module, entry.class_name)
         node: NodeBase = cls()
         if self._flow is not None:
             self._flow.add_node(node)
-        self._add_visual_node(node)
+        node_tag = self._add_visual_node(node)
+        # Position the new node at the drop location
+        mouse_pos  = dpg.get_mouse_pos(local=False)
+        editor_min = dpg.get_item_rect_min(self._node_editor_tag)
+        dpg.set_item_pos(node_tag, [
+            mouse_pos[0] - editor_min[0],
+            mouse_pos[1] - editor_min[1],
+        ])
 
     # ── Node creation ──────────────────────────────────────────────────────────
 
-    def _add_visual_node(self, node: NodeBase) -> None:
+    def _add_visual_node(self, node: NodeBase) -> int | str:
         """Create a visual node driven by node.params, node.inputs, and node.outputs."""
         assert node is not None
 
@@ -230,6 +240,8 @@ class NodeEditorPage(Page):
                     if i == 0:
                         dpg.add_spacer(height=6)
                     dpg.add_text(", ".join(t.value for t in port.emits))
+
+        return node_tag
 
     # ── Link callbacks ─────────────────────────────────────────────────────────
 
