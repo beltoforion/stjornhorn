@@ -1,3 +1,5 @@
+import logging
+
 import dearpygui.dearpygui as dpg
 
 from constants import BUILTIN_NODES_DIR, USER_NODES_DIR
@@ -5,6 +7,8 @@ from core.node_registry import NodeRegistry
 from ui.node_editor_page import NodeEditorPage
 from ui.page_manager import PageManager
 from ui.start_page import StartPage
+
+logger = logging.getLogger(__name__)
 
 
 class MainWindow:
@@ -18,8 +22,11 @@ class MainWindow:
                 dpg.add_menu_item(label="Save As", callback=self._on_save)
 
         registry = NodeRegistry()
-        registry.scan_builtin(BUILTIN_NODES_DIR)
-        registry.scan_user(USER_NODES_DIR)
+        for err in registry.scan_builtin(BUILTIN_NODES_DIR):
+            logger.warning("Built-in node scan: %s", err)
+        for err in registry.scan_user(USER_NODES_DIR):
+            logger.warning("User node scan: %s", err)
+        logger.info("Registry: %d node(s) loaded", len(registry))
 
         self._pages = PageManager()
         with dpg.window(tag=self._window_tag):
@@ -41,7 +48,7 @@ class MainWindow:
         return self._window_tag
 
     def _on_new(self, sender):
-        print(f"New: {sender}")
+        logger.debug("File > New")
 
     def _on_save(self, sender):
-        print(f"Save As: {sender}")
+        logger.debug("File > Save As")

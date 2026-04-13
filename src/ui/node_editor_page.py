@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 from typing import TYPE_CHECKING
 
 import dearpygui.dearpygui as dpg
@@ -10,6 +11,8 @@ from core.node_base import NodeBase, NodeParamType
 from core.node_registry import NodeEntry, NodeRegistry
 from ui.node_editor_theme import NodeEditorTheme
 from ui.page import Page
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ui.page_manager import PageManager
@@ -155,6 +158,7 @@ class NodeEditorPage(Page):
         module = importlib.import_module(entry.module)
         cls = getattr(module, entry.class_name)
         node: NodeBase = cls()
+        logger.debug("Adding node '%s'", node.display_name)
         if self._flow is not None:
             self._flow.add_node(node)
         node_tag = self._add_visual_node(node)
@@ -318,7 +322,7 @@ class NodeEditorPage(Page):
                 if conf.get("attr_1") in attr_tags or conf.get("attr_2") in attr_tags:
                     dpg.delete_item(child)
             except Exception:
-                pass  # child may already be deleted or not a configurable link
+                logger.debug("Skipped child %s while deleting node links", child, exc_info=True)
 
         # Clean up file dialog owned by this node (if any)
         dialog_tag = self._node_dialog_map.pop(node_tag, None)
@@ -333,6 +337,7 @@ class NodeEditorPage(Page):
         self._node_map.pop(node_tag, None)
         if dpg.does_item_exist(node_tag):
             dpg.delete_item(node_tag)
+        logger.debug("Deleted node '%s'", node.display_name)
 
         # Remove from flow model
         if self._flow is not None:
@@ -399,5 +404,6 @@ class NodeEditorPage(Page):
         self._clear_nodes()
 
     def _on_exit_clicked(self, sender=None) -> None:
+        logger.info("Exiting node editor")
         self._clear_nodes()
         self._page_manager.activate(self._page_manager.start_page)
