@@ -9,6 +9,9 @@ API_URL:    str = "https://beltoforion.de"
 # Built-in nodes shipped with the application
 BUILTIN_NODES_DIR: Path = Path(__file__).parent / "nodes"
 
+# Default input folder for file dialogs
+INPUT_DIR: Path = Path(__file__).parent.parent / "input"
+
 # User-defined nodes (~/.image-inquest/user_nodes/)
 USER_CONFIG_DIR: Path = Path.home() / ".image-inquest"
 USER_NODES_DIR:  Path = USER_CONFIG_DIR / "user_nodes"
