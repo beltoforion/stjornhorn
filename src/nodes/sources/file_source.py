@@ -38,8 +38,10 @@ class FileSource(SourceNodeBase):
 
     @property
     def params(self) -> list[NodeParam]:
-        return [NodeParam("file_path", NodeParamType.FILE_PATH, {"default": "./input/example.jpg","extensions": [...]}),
-                NodeParam("max_num_frames", NodeParamType.INT, {"default": -1})]
+        return [
+            NodeParam("file_path",      NodeParamType.FILE_PATH, {"default": "./input/example.jpg"}),
+            NodeParam("max_num_frames", NodeParamType.INT,       {"default": -1}),
+        ]
 
     @property
     def file_path(self) -> Path:

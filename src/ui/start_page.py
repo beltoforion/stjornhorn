@@ -35,5 +35,4 @@ class StartPage(Page):
         self._page_manager.activate(self._page_manager.editor_page)
 
     def _on_load_flow_clicked(self, sender) -> None:
-        # TODO: implement flow loading (file dialog + deserialization).
-        print("Load Flow: not implemented yet")
+        pass  # TODO: implement flow loading (file dialog + deserialization)

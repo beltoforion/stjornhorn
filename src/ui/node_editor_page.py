@@ -6,54 +6,15 @@ from typing import TYPE_CHECKING
 import dearpygui.dearpygui as dpg
 
 from core.flow import Flow
-from core.node_base import NodeBase, NodeParamType, SourceNodeBase, SinkNodeBase
+from core.node_base import NodeBase, NodeParamType
 from core.node_registry import NodeEntry, NodeRegistry
+from ui.node_editor_theme import NodeEditorTheme
 from ui.page import Page
 
 if TYPE_CHECKING:
     from ui.page_manager import PageManager
 
 _PALETTE_WIDTH = 200
-
-# ── Node header colours (title, hovered, selected) ────────────────────────────
-_COL_SOURCE = ((30, 100, 180, 255), ( 50, 120, 200, 255), ( 60, 130, 210, 255))
-_COL_FILTER = ((30, 140,  60, 255), ( 40, 160,  70, 255), ( 50, 170,  80, 255))
-_COL_SINK   = ((180, 100,  20, 255), (200, 120,  30, 255), (210, 130,  40, 255))
-
-# ── Pin colours (normal, hovered) ─────────────────────────────────────────────
-_COL_PIN_INPUT  = ((210, 210, 210, 255), (255, 255, 255, 255))
-_COL_PIN_OUTPUT = ((220, 180,   0, 255), (240, 200,  30, 255))
-
-# ── Link colours (normal, hovered, selected) ──────────────────────────────────
-_COL_LINK          = (180, 180, 180, 255)   # neutral grey
-_COL_LINK_HOVERED  = (255, 255, 255, 255)   # bright white  – hover feedback
-_COL_LINK_SELECTED = (220, 160,   0, 255)   # gold/orange   – matches output pins
-
-
-def _make_node_theme(title, hovered, selected) -> int | str:
-    with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvAll):
-            dpg.add_theme_color(dpg.mvNodeCol_TitleBar,         title,    category=dpg.mvThemeCat_Nodes)
-            dpg.add_theme_color(dpg.mvNodeCol_TitleBarHovered,  hovered,  category=dpg.mvThemeCat_Nodes)
-            dpg.add_theme_color(dpg.mvNodeCol_TitleBarSelected, selected, category=dpg.mvThemeCat_Nodes)
-    return theme
-
-
-def _make_pin_theme(normal, hovered) -> int | str:
-    with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvAll):
-            dpg.add_theme_color(dpg.mvNodeCol_Pin,        normal,  category=dpg.mvThemeCat_Nodes)
-            dpg.add_theme_color(dpg.mvNodeCol_PinHovered, hovered, category=dpg.mvThemeCat_Nodes)
-    return theme
-
-
-def _make_link_theme(normal, hovered, selected) -> int | str:
-    with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvNodeLink):
-            dpg.add_theme_color(dpg.mvNodeCol_Link,         normal,   category=dpg.mvThemeCat_Nodes)
-            dpg.add_theme_color(dpg.mvNodeCol_LinkHovered,  hovered,  category=dpg.mvThemeCat_Nodes)
-            dpg.add_theme_color(dpg.mvNodeCol_LinkSelected, selected, category=dpg.mvThemeCat_Nodes)
-    return theme
 
 
 class NodeEditorPage(Page):
@@ -68,17 +29,11 @@ class NodeEditorPage(Page):
     ) -> None:
         self._node_editor_tag: int | str = dpg.generate_uuid()
         self._canvas_tag:      int | str = dpg.generate_uuid()
-        self._flow: Flow | None = None
-        self._file_dialogs: list[int | str] = []
-        self._registry: NodeRegistry = registry
+        self._flow:     Flow | None          = None
+        self._theme:    NodeEditorTheme | None = None   # created in _build_ui
+        self._registry: NodeRegistry         = registry
         self._palette_items: list[tuple[int | str, str]] = []
-        # Themes are created in _build_ui (DPG context must exist first)
-        self._theme_source:      int | str | None = None
-        self._theme_filter:      int | str | None = None
-        self._theme_sink:        int | str | None = None
-        self._theme_pin_input:   int | str | None = None
-        self._theme_pin_output:  int | str | None = None
-        self._theme_link:        int | str | None = None
+        self._file_dialogs:  list[int | str]             = []
         # Node tracking for delete / context-menu support
         self._node_map:        dict[int | str, NodeBase]         = {}
         self._node_dialog_map: dict[int | str, int | str | None] = {}
@@ -94,13 +49,9 @@ class NodeEditorPage(Page):
         self._flow = flow
 
     def _build_ui(self) -> None:
-        # Create shared themes once; reused for every node added later
-        self._theme_source     = _make_node_theme(*_COL_SOURCE)
-        self._theme_filter     = _make_node_theme(*_COL_FILTER)
-        self._theme_sink       = _make_node_theme(*_COL_SINK)
-        self._theme_pin_input  = _make_pin_theme(*_COL_PIN_INPUT)
-        self._theme_pin_output = _make_pin_theme(*_COL_PIN_OUTPUT)
-        self._theme_link       = _make_link_theme(_COL_LINK, _COL_LINK_HOVERED, _COL_LINK_SELECTED)
+        # Theme must be created after dpg.create_context(); owned here for the
+        # lifetime of this page.
+        self._theme = NodeEditorTheme()
 
         # ── Context menus (floating windows, shown/hidden on demand) ───────────
         with dpg.window(
@@ -221,14 +172,7 @@ class NodeEditorPage(Page):
     def _add_visual_node(self, node: NodeBase) -> int | str:
         """Create a visual node driven by node.params, node.inputs, and node.outputs."""
         assert node is not None
-
-        # Pick the right header theme for this node's category
-        if isinstance(node, SourceNodeBase):
-            node_theme = self._theme_source
-        elif isinstance(node, SinkNodeBase):
-            node_theme = self._theme_sink
-        else:
-            node_theme = self._theme_filter
+        assert self._theme is not None
 
         # Only create a file dialog if this node has FILE_PATH params
         has_file_param = any(p.param_type == NodeParamType.FILE_PATH for p in node.params)
@@ -262,7 +206,7 @@ class NodeEditorPage(Page):
             self._file_dialogs.append(dialog_tag)
 
         with dpg.node(label=node.display_name, parent=self._node_editor_tag) as node_tag:
-            dpg.bind_item_theme(node_tag, node_theme)
+            self._theme.apply_to_node(node_tag, node)
 
             # Static parameter attributes
             for i, param in enumerate(node.params):
@@ -301,13 +245,13 @@ class NodeEditorPage(Page):
             # Input ports
             for port in node.inputs:
                 with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Input) as attr_tag:
-                    dpg.bind_item_theme(attr_tag, self._theme_pin_input)
+                    self._theme.apply_to_input_pin(attr_tag)
                     dpg.add_text(", ".join(t.value for t in port.accepted_types))
 
             # Output ports
             for i, port in enumerate(node.outputs):
                 with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output) as attr_tag:
-                    dpg.bind_item_theme(attr_tag, self._theme_pin_output)
+                    self._theme.apply_to_output_pin(attr_tag)
                     if i == 0:
                         dpg.add_spacer(height=6)
                     dpg.add_text(", ".join(t.value for t in port.emits))
@@ -374,7 +318,7 @@ class NodeEditorPage(Page):
                 if conf.get("attr_1") in attr_tags or conf.get("attr_2") in attr_tags:
                     dpg.delete_item(child)
             except Exception:
-                pass
+                pass  # child may already be deleted or not a configurable link
 
         # Clean up file dialog owned by this node (if any)
         dialog_tag = self._node_dialog_map.pop(node_tag, None)
@@ -406,8 +350,8 @@ class NodeEditorPage(Page):
 
     def _link(self, sender, app_data) -> None:
         link_tag = dpg.add_node_link(app_data[0], app_data[1], parent=sender)
-        if self._theme_link is not None:
-            dpg.bind_item_theme(link_tag, self._theme_link)
+        if self._theme is not None:
+            self._theme.apply_to_link(link_tag)
 
     def _delink(self, sender, app_data) -> None:
         dpg.delete_item(app_data)

@@ -12,9 +12,6 @@ class MainWindow:
         self._window_tag: int | str = dpg.generate_uuid()
         self._menu_tag:   int | str = dpg.generate_uuid()
 
-        with dpg.window(tag=self._window_tag):
-            pass
-
         with dpg.viewport_menu_bar(tag=self._menu_tag):
             with dpg.menu(label="File"):
                 dpg.add_menu_item(label="New",     callback=self._on_new)
@@ -25,17 +22,18 @@ class MainWindow:
         registry.scan_user(USER_NODES_DIR)
 
         self._pages = PageManager()
-        self._pages.register(StartPage(
-            parent=self._window_tag,
-            menu_bar=self._menu_tag,
-            page_manager=self._pages,
-        ))
-        self._pages.register(NodeEditorPage(
-            parent=self._window_tag,
-            menu_bar=self._menu_tag,
-            page_manager=self._pages,
-            registry=registry,
-        ))
+        with dpg.window(tag=self._window_tag):
+            self._pages.register(StartPage(
+                parent=self._window_tag,
+                menu_bar=self._menu_tag,
+                page_manager=self._pages,
+            ))
+            self._pages.register(NodeEditorPage(
+                parent=self._window_tag,
+                menu_bar=self._menu_tag,
+                page_manager=self._pages,
+                registry=registry,
+            ))
         self._pages.activate(self._pages.start_page)
 
     @property
