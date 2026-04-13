@@ -28,7 +28,7 @@ class FileSink(SinkNodeBase):
 
     @property
     def params(self) -> list[NodeParam]:
-        return [NodeParam("output_path", NodeParamType.FILE_PATH, {"default": "output/out.png"})]
+        return [NodeParam("output_path", NodeParamType.FILE_PATH, {"default": "output/out.png", "mode": "save"})]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 
