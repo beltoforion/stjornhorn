@@ -232,22 +232,19 @@ class NodeEditorPage(Page):
                                 hint="Select a file…",
                                 callback=lambda s, a, p=param: setattr(node, p.name, a),
                             )
-                            def _open_browse(
-                                s=None, a=None,
-                                _p=param.name,
-                                _it=input_tag,
-                                _dt=dialog_tag,
-                            ):
-                                current = dpg.get_value(_it) or ""
-                                parent = Path(current).parent
-                                initial = str(parent) if parent.is_dir() else str(INPUT_DIR)
-                                dpg.configure_item(_dt, user_data=_p, default_path=initial)
-                                dpg.show_item(_dt)
+                            def _make_browse_cb(p: str, it: int | str, dt: int | str):
+                                def _browse(s=None, a=None) -> None:
+                                    current = dpg.get_value(it) or ""
+                                    folder = Path(current).parent.resolve()
+                                    initial = str(folder) if folder.is_dir() else str(INPUT_DIR)
+                                    logger.debug("File dialog initial path: %s", initial)
+                                    dpg.configure_item(dt, user_data=p, default_path=initial)
+                                    dpg.show_item(dt)
+                                return _browse
 
                             dpg.add_button(
                                 label="…",
-                                user_data=param.name,
-                                callback=_open_browse,
+                                callback=_make_browse_cb(param.name, input_tag, dialog_tag),
                             )
 
                     elif param.param_type == NodeParamType.INT:
