@@ -24,6 +24,11 @@ _COL_SINK   = ((180, 100,  20, 255), (200, 120,  30, 255), (210, 130,  40, 255))
 _COL_PIN_INPUT  = ((210, 210, 210, 255), (255, 255, 255, 255))
 _COL_PIN_OUTPUT = ((220, 180,   0, 255), (240, 200,  30, 255))
 
+# ── Link colours (normal, hovered, selected) ──────────────────────────────────
+_COL_LINK          = (180, 180, 180, 255)   # neutral grey
+_COL_LINK_HOVERED  = (255, 255, 255, 255)   # bright white  – hover feedback
+_COL_LINK_SELECTED = (220, 160,   0, 255)   # gold/orange   – matches output pins
+
 
 def _make_node_theme(title, hovered, selected) -> int | str:
     with dpg.theme() as theme:
@@ -39,6 +44,15 @@ def _make_pin_theme(normal, hovered) -> int | str:
         with dpg.theme_component(dpg.mvAll):
             dpg.add_theme_color(dpg.mvNodeCol_Pin,        normal,  category=dpg.mvThemeCat_Nodes)
             dpg.add_theme_color(dpg.mvNodeCol_PinHovered, hovered, category=dpg.mvThemeCat_Nodes)
+    return theme
+
+
+def _make_link_theme(normal, hovered, selected) -> int | str:
+    with dpg.theme() as theme:
+        with dpg.theme_component(dpg.mvNodeLink):
+            dpg.add_theme_color(dpg.mvNodeCol_Link,         normal,   category=dpg.mvThemeCat_Nodes)
+            dpg.add_theme_color(dpg.mvNodeCol_LinkHovered,  hovered,  category=dpg.mvThemeCat_Nodes)
+            dpg.add_theme_color(dpg.mvNodeCol_LinkSelected, selected, category=dpg.mvThemeCat_Nodes)
     return theme
 
 
@@ -64,6 +78,16 @@ class NodeEditorPage(Page):
         self._theme_sink:        int | str | None = None
         self._theme_pin_input:   int | str | None = None
         self._theme_pin_output:  int | str | None = None
+        self._theme_link:        int | str | None = None
+        # Node tracking for delete / context-menu support
+        self._node_map:        dict[int | str, NodeBase]         = {}
+        self._node_dialog_map: dict[int | str, int | str | None] = {}
+        self._ctx_target:      tuple[int | str, NodeBase] | None = None
+        self._ctx_links:       list[int | str]                   = []
+        # Context-menu window tags (created in _build_ui)
+        self._node_ctx_tag:    int | str = dpg.generate_uuid()
+        self._link_ctx_tag:    int | str = dpg.generate_uuid()
+        self._handler_reg_tag: int | str = dpg.generate_uuid()
         super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager)
 
     def set_flow(self, flow: Flow) -> None:
@@ -76,6 +100,45 @@ class NodeEditorPage(Page):
         self._theme_sink       = _make_node_theme(*_COL_SINK)
         self._theme_pin_input  = _make_pin_theme(*_COL_PIN_INPUT)
         self._theme_pin_output = _make_pin_theme(*_COL_PIN_OUTPUT)
+        self._theme_link       = _make_link_theme(_COL_LINK, _COL_LINK_HOVERED, _COL_LINK_SELECTED)
+
+        # ── Context menus (floating windows, shown/hidden on demand) ───────────
+        with dpg.window(
+            tag=self._node_ctx_tag,
+            show=False,
+            no_title_bar=True,
+            autosize=True,
+            no_scrollbar=True,
+            no_move=True,
+            no_resize=True,
+            no_collapse=True,
+            min_size=(10, 10),
+        ):
+            dpg.add_menu_item(label="Delete Node", callback=self._on_ctx_delete_node)
+
+        with dpg.window(
+            tag=self._link_ctx_tag,
+            show=False,
+            no_title_bar=True,
+            autosize=True,
+            no_scrollbar=True,
+            no_move=True,
+            no_resize=True,
+            no_collapse=True,
+            min_size=(10, 10),
+        ):
+            dpg.add_menu_item(label="Delete Connection(s)", callback=self._delete_selected_links)
+
+        # ── Global mouse handlers ──────────────────────────────────────────────
+        with dpg.handler_registry(tag=self._handler_reg_tag):
+            dpg.add_mouse_click_handler(
+                button=dpg.mvMouseButton_Right,
+                callback=self._on_right_click,
+            )
+            dpg.add_mouse_click_handler(
+                button=dpg.mvMouseButton_Left,
+                callback=self._on_left_click,
+            )
 
         dpg.add_spacer(height=20)
         with dpg.group(horizontal=True):
@@ -249,12 +312,102 @@ class NodeEditorPage(Page):
                         dpg.add_spacer(height=6)
                     dpg.add_text(", ".join(t.value for t in port.emits))
 
+        # Register node for context-menu / delete tracking
+        self._node_map[node_tag] = node
+        self._node_dialog_map[node_tag] = dialog_tag
+
         return node_tag
+
+    # ── Right-click / context menus ────────────────────────────────────────────
+
+    def _on_right_click(self) -> None:
+        """Show the appropriate context menu on right-click inside the editor."""
+        if not self._active:
+            return
+
+        # If a node is hovered, offer node deletion
+        for tag in self._node_map:
+            if dpg.does_item_exist(tag) and dpg.get_item_state(tag).get("hovered", False):
+                self._ctx_target = (tag, self._node_map[tag])
+                self._hide_ctx_menus()
+                dpg.set_item_pos(self._node_ctx_tag, dpg.get_mouse_pos())
+                dpg.configure_item(self._node_ctx_tag, show=True)
+                return
+
+        # No node hovered — snapshot selected links now (selection may clear later)
+        self._ctx_links = dpg.get_selected_links(self._node_editor_tag)
+        if not self._ctx_links:
+            return
+        self._hide_ctx_menus()
+        dpg.set_item_pos(self._link_ctx_tag, dpg.get_mouse_pos())
+        dpg.configure_item(self._link_ctx_tag, show=True)
+
+    def _on_left_click(self) -> None:
+        """Dismiss context menus when clicking outside them."""
+        if not self._active:
+            return
+        for tag in (self._node_ctx_tag, self._link_ctx_tag):
+            if dpg.does_item_exist(tag) and not dpg.get_item_state(tag).get("hovered", False):
+                dpg.configure_item(tag, show=False)
+
+    def _hide_ctx_menus(self) -> None:
+        dpg.configure_item(self._node_ctx_tag, show=False)
+        dpg.configure_item(self._link_ctx_tag, show=False)
+
+    def _on_ctx_delete_node(self) -> None:
+        dpg.configure_item(self._node_ctx_tag, show=False)
+        if self._ctx_target is not None:
+            self._delete_node(*self._ctx_target)
+            self._ctx_target = None
+
+    def _delete_node(self, node_tag: int | str, node: NodeBase) -> None:
+        """Remove a node and all its connected links from the canvas and flow."""
+        # Collect attribute tags so we can find connected links
+        attr_tags = set(dpg.get_item_children(node_tag, 1) or [])
+
+        # Delete any links that reference this node's attributes
+        for child in list(dpg.get_item_children(self._node_editor_tag, 1) or []):
+            if child in self._node_map:
+                continue  # it's a node, not a link
+            try:
+                conf = dpg.get_item_configuration(child)
+                if conf.get("attr_1") in attr_tags or conf.get("attr_2") in attr_tags:
+                    dpg.delete_item(child)
+            except Exception:
+                pass
+
+        # Clean up file dialog owned by this node (if any)
+        dialog_tag = self._node_dialog_map.pop(node_tag, None)
+        if dialog_tag is not None and dpg.does_item_exist(dialog_tag):
+            dpg.delete_item(dialog_tag)
+            try:
+                self._file_dialogs.remove(dialog_tag)
+            except ValueError:
+                pass
+
+        # Delete the visual node
+        self._node_map.pop(node_tag, None)
+        if dpg.does_item_exist(node_tag):
+            dpg.delete_item(node_tag)
+
+        # Remove from flow model
+        if self._flow is not None:
+            self._flow.remove_node(node)
+
+    def _delete_selected_links(self) -> None:
+        """Delete the links that were selected when the context menu was opened."""
+        dpg.configure_item(self._link_ctx_tag, show=False)
+        for link in self._ctx_links:
+            if dpg.does_item_exist(link):
+                dpg.delete_item(link)
+        self._ctx_links = []
 
     # ── Link callbacks ─────────────────────────────────────────────────────────
 
     def _link(self, sender, app_data) -> None:
-        dpg.add_node_link(app_data[0], app_data[1], parent=sender)
+        link_tag = dpg.add_node_link(app_data[0], app_data[1], parent=sender)
+        if self._theme_link is not None:
+            dpg.bind_item_theme(link_tag, self._theme_link)
 
     def _delink(self, sender, app_data) -> None:
         dpg.delete_item(app_data)
@@ -272,6 +425,11 @@ class NodeEditorPage(Page):
                 dpg.delete_item(dialog_tag)
 
         self._file_dialogs.clear()
+        self._node_map.clear()
+        self._node_dialog_map.clear()
+        self._ctx_target = None
+        self._ctx_links = []
+
         if self._flow is not None:
             for node in list(self._flow.nodes):
                 self._flow.remove_node(node)
