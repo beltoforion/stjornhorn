@@ -12,7 +12,8 @@ class MainWindow:
         self._window_tag: int | str = dpg.generate_uuid()
         self._menu_tag:   int | str = dpg.generate_uuid()
 
-        dpg.add_window(tag=self._window_tag)
+        with dpg.window(tag=self._window_tag):
+            pass
 
         with dpg.viewport_menu_bar(tag=self._menu_tag):
             with dpg.menu(label="File"):
