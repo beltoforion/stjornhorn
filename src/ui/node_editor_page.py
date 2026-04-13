@@ -38,8 +38,10 @@ class NodeEditorPage(Page):
         self._theme:    NodeEditorTheme | None = None   # created in _build_ui
         self._registry: NodeRegistry         = registry
         self._palette_items: list[tuple[int | str, str]] = []
+        self._file_dialogs:  list[int | str]             = []
         # Node tracking for delete / context-menu support
-        self._node_map: dict[int | str, NodeBase] = {}
+        self._node_map:        dict[int | str, NodeBase]         = {}
+        self._node_dialog_map: dict[int | str, int | str | None] = {}
         self._ctx_target:      tuple[int | str, NodeBase] | None = None
         self._ctx_links:       list[int | str]                   = []
         # Context-menu window tags (created in _build_ui)
@@ -52,11 +54,9 @@ class NodeEditorPage(Page):
         self._flow = flow
 
     def _build_ui(self) -> None:
-        # Theme must be created after dpg.create_context(); owned here for the
-        # lifetime of this page.
         self._theme = NodeEditorTheme()
 
-        # ── Context menus (floating windows, shown/hidden on demand) ───────────
+        # ── Context menus ──────────────────────────────────────────────────────
         with dpg.window(
             tag=self._node_ctx_tag,
             show=False,
@@ -96,11 +96,9 @@ class NodeEditorPage(Page):
 
         dpg.add_spacer(height=20)
         with dpg.group(horizontal=True):
-            # ── Left: node palette ─────────────────────────────────────────────
             with dpg.child_window(width=_PALETTE_WIDTH, height=-1, border=True):
                 self._build_palette()
 
-            # ── Right: node editor canvas ──────────────────────────────────────
             with dpg.group():
                 with dpg.group(horizontal=True):
                     dpg.add_button(label="Clear All", callback=self._on_clear_nodes)
@@ -162,8 +160,6 @@ class NodeEditorPage(Page):
         if self._flow is not None:
             self._flow.add_node(node)
         node_tag = self._add_visual_node(node)
-        # get_mouse_pos(local=True) is relative to the main window origin.
-        # Subtract the canvas child_window's offset to get node editor coordinates.
         mouse_pos  = dpg.get_mouse_pos(local=True)
         canvas_pos = dpg.get_item_pos(self._canvas_tag)
         dpg.set_item_pos(node_tag, [
@@ -178,6 +174,47 @@ class NodeEditorPage(Page):
         assert node is not None
         assert self._theme is not None
 
+        has_file_param = any(p.param_type == NodeParamType.FILE_PATH for p in node.params)
+        dialog_tag: int | str | None = None
+        path_input_tags: dict[str, int | str] = {}
+
+        if has_file_param:
+            dialog_tag = dpg.generate_uuid()
+            is_save = any(
+                p.metadata.get("mode") == "save"
+                for p in node.params
+                if p.param_type == NodeParamType.FILE_PATH
+            )
+
+            def on_file_selected(sender: int | str, app_data: dict) -> None:
+                path = app_data.get("file_path_name", "")
+                active_param = dpg.get_item_user_data(sender)
+                if active_param and active_param in path_input_tags:
+                    dpg.set_value(path_input_tags[active_param], path)
+                setattr(node, active_param or "file_path", path)
+
+            with dpg.file_dialog(
+                label="Save File As" if is_save else "Select File",
+                callback=on_file_selected,
+                tag=dialog_tag,
+                show=False,
+                width=700,
+                height=400,
+            ):
+                if is_save:
+                    dpg.add_file_extension(".png",  color=(0, 255, 0, 255),   custom_text="PNG Image")
+                    dpg.add_file_extension(".jpg",  color=(255, 255, 0, 255), custom_text="JPEG Image")
+                    dpg.add_file_extension(".jpeg", color=(255, 255, 0, 255), custom_text="JPEG Image")
+                else:
+                    dpg.add_file_extension(".*",    color=(200, 200, 200, 255), custom_text="All Files")
+                    dpg.add_file_extension(".png",  color=(0, 255, 0, 255),   custom_text="PNG Image")
+                    dpg.add_file_extension(".jpg",  color=(255, 255, 0, 255), custom_text="JPEG Image")
+                    dpg.add_file_extension(".jpeg", color=(255, 255, 0, 255), custom_text="JPEG Image")
+                    dpg.add_file_extension(".mp4",  color=(0, 200, 255, 255), custom_text="MP4 Video")
+                    dpg.add_file_extension(".cr2",  color=(255, 128, 0, 255), custom_text="RAW Image")
+
+            self._file_dialogs.append(dialog_tag)
+
         with dpg.node(label=node.display_name, parent=self._node_editor_tag) as node_tag:
             self._theme.apply_to_node(node_tag, node)
 
@@ -190,6 +227,7 @@ class NodeEditorPage(Page):
 
                     if param.param_type == NodeParamType.FILE_PATH:
                         input_tag = dpg.generate_uuid()
+                        path_input_tags[param.name] = input_tag
                         with dpg.group(horizontal=True):
                             dpg.add_input_text(
                                 tag=input_tag,
@@ -198,59 +236,24 @@ class NodeEditorPage(Page):
                                 hint="Select a file…",
                                 callback=lambda s, a, p=param: setattr(node, p.name, a),
                             )
-                            def _make_browse_cb(
-                                n: NodeBase, p: str, it: int | str, save: bool
-                            ):
+
+                            def _make_browse_cb(p: str, it: int | str, dt: int | str, save: bool):
                                 def _browse(s=None, a=None) -> None:
-                                    import tkinter as tk
-                                    from tkinter import filedialog
                                     current = dpg.get_value(it) or ""
                                     folder = Path(current).parent.resolve()
                                     fallback = OUTPUT_DIR if save else INPUT_DIR
                                     initial = str(folder) if folder.is_dir() else str(fallback)
                                     logger.debug("File dialog initial path: %s", initial)
-                                    root = tk.Tk()
-                                    root.withdraw()
-                                    root.lift()
-                                    if save:
-                                        path = filedialog.asksaveasfilename(
-                                            parent=root,
-                                            title="Save File",
-                                            initialdir=initial,
-                                            defaultextension=".png",
-                                            filetypes=[
-                                                ("PNG image",   "*.png"),
-                                                ("JPEG image",  "*.jpg *.jpeg"),
-                                                ("All files",   "*.*"),
-                                            ],
-                                        )
-                                    else:
-                                        path = filedialog.askopenfilename(
-                                            parent=root,
-                                            title="Select File",
-                                            initialdir=initial,
-                                            filetypes=[
-                                                ("Image & video files",
-                                                 "*.png *.jpg *.jpeg *.mp4 *.cr2"),
-                                                ("PNG images",  "*.png"),
-                                                ("JPEG images", "*.jpg *.jpeg"),
-                                                ("MP4 video",   "*.mp4"),
-                                                ("RAW images",  "*.cr2"),
-                                                ("All files",   "*.*"),
-                                            ],
-                                        )
-                                    root.destroy()
-                                    if path:
-                                        dpg.set_value(it, path)
-                                        setattr(n, p, path)
+                                    dpg.configure_item(dt, user_data=p, default_path=initial)
+                                    dpg.show_item(dt)
                                 return _browse
 
                             dpg.add_button(
                                 label="…",
                                 callback=_make_browse_cb(
-                                    node,
                                     param.name,
                                     input_tag,
+                                    dialog_tag,
                                     param.metadata.get("mode") == "save",
                                 ),
                             )
@@ -278,6 +281,7 @@ class NodeEditorPage(Page):
 
         # Register node for context-menu / delete tracking
         self._node_map[node_tag] = node
+        self._node_dialog_map[node_tag] = dialog_tag
 
         return node_tag
 
@@ -288,7 +292,6 @@ class NodeEditorPage(Page):
         if not self._active:
             return
 
-        # If a node is hovered, offer node deletion
         for tag in self._node_map:
             if dpg.does_item_exist(tag) and dpg.get_item_state(tag).get("hovered", False):
                 self._ctx_target = (tag, self._node_map[tag])
@@ -297,7 +300,6 @@ class NodeEditorPage(Page):
                 dpg.configure_item(self._node_ctx_tag, show=True)
                 return
 
-        # No node hovered — snapshot selected links now (selection may clear later)
         self._ctx_links = dpg.get_selected_links(self._node_editor_tag)
         if not self._ctx_links:
             return
@@ -325,13 +327,11 @@ class NodeEditorPage(Page):
 
     def _delete_node(self, node_tag: int | str, node: NodeBase) -> None:
         """Remove a node and all its connected links from the canvas and flow."""
-        # Collect attribute tags so we can find connected links
         attr_tags = set(dpg.get_item_children(node_tag, 1) or [])
 
-        # Delete any links that reference this node's attributes
         for child in list(dpg.get_item_children(self._node_editor_tag, 1) or []):
             if child in self._node_map:
-                continue  # it's a node, not a link
+                continue
             try:
                 conf = dpg.get_item_configuration(child)
                 if conf.get("attr_1") in attr_tags or conf.get("attr_2") in attr_tags:
@@ -339,13 +339,19 @@ class NodeEditorPage(Page):
             except Exception:
                 logger.debug("Skipped child %s while deleting node links", child, exc_info=True)
 
-        # Delete the visual node
+        dialog_tag = self._node_dialog_map.pop(node_tag, None)
+        if dialog_tag is not None and dpg.does_item_exist(dialog_tag):
+            dpg.delete_item(dialog_tag)
+            try:
+                self._file_dialogs.remove(dialog_tag)
+            except ValueError:
+                pass
+
         self._node_map.pop(node_tag, None)
         if dpg.does_item_exist(node_tag):
             dpg.delete_item(node_tag)
         logger.debug("Deleted node '%s'", node.display_name)
 
-        # Remove from flow model
         if self._flow is not None:
             self._flow.remove_node(node)
 
@@ -370,8 +376,6 @@ class NodeEditorPage(Page):
     # ── Clear ──────────────────────────────────────────────────────────────────
 
     def _clear_nodes(self) -> None:
-        # Links live in slot 0, nodes in slot 1.  Delete links first so that
-        # node-attribute references are never dangling when a node is removed.
         for link in dpg.get_item_children(self._node_editor_tag, 0) or []:
             if dpg.does_item_exist(link):
                 dpg.delete_item(link)
@@ -380,7 +384,13 @@ class NodeEditorPage(Page):
             if dpg.does_item_exist(node):
                 dpg.delete_item(node)
 
+        for dialog_tag in self._file_dialogs:
+            if dpg.does_item_exist(dialog_tag):
+                dpg.delete_item(dialog_tag)
+
+        self._file_dialogs.clear()
         self._node_map.clear()
+        self._node_dialog_map.clear()
         self._ctx_target = None
         self._ctx_links = []
 
