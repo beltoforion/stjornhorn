@@ -362,7 +362,8 @@ class NodeEditorPage(Page):
         children = dpg.get_item_children(self._node_editor_tag, 1)
         if children:
             for child in children:
-                dpg.delete_item(child)
+                if dpg.does_item_exist(child):
+                    dpg.delete_item(child)
 
         for dialog_tag in self._file_dialogs:
             if dpg.does_item_exist(dialog_tag):
