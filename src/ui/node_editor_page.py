@@ -12,14 +12,13 @@ from core.flow import Flow
 from core.node_base import NodeBase, NodeParamType
 from core.node_registry import NodeEntry, NodeRegistry
 from ui.node_editor_theme import NodeEditorTheme
+from ui.node_palette_widget import NodePaletteWidget
 from ui.page import Page
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ui.page_manager import PageManager
-
-_PALETTE_WIDTH = 200
 
 
 class NodeEditorPage(Page):
@@ -37,7 +36,6 @@ class NodeEditorPage(Page):
         self._flow:     Flow | None          = None
         self._theme:    NodeEditorTheme | None = None   # created in _build_ui
         self._registry: NodeRegistry         = registry
-        self._palette_items: list[tuple[int | str, str]] = []
         self._file_dialogs:  list[int | str]             = []
         # Node tracking for delete / context-menu support
         self._node_map:        dict[int | str, NodeBase]         = {}
@@ -96,8 +94,7 @@ class NodeEditorPage(Page):
 
         dpg.add_spacer(height=20)
         with dpg.group(horizontal=True):
-            with dpg.child_window(width=_PALETTE_WIDTH, height=-1, border=True):
-                self._build_palette()
+            NodePaletteWidget(self._registry)
 
             with dpg.group():
                 with dpg.group(horizontal=True):
@@ -105,7 +102,7 @@ class NodeEditorPage(Page):
                 with dpg.child_window(
                     tag=self._canvas_tag,
                     drop_callback=self._on_node_dropped,
-                    payload_type="NODE_PALETTE",
+                    payload_type=NodePaletteWidget.PAYLOAD_TYPE,
                     width=-1,
                     height=-1,
                     border=False,
@@ -117,39 +114,6 @@ class NodeEditorPage(Page):
                         width=-1,
                         height=-1,
                     )
-
-    # ── Palette ────────────────────────────────────────────────────────────────
-
-    def _build_palette(self) -> None:
-        dpg.add_input_text(
-            hint="Search…",
-            width=-1,
-            callback=self._on_palette_search,
-        )
-        dpg.add_separator()
-
-        categorized = self._registry.nodes_by_category()
-
-        for category in ("Sources", "Filters", "Sinks"):
-            entries = categorized.get(category, [])
-            with dpg.collapsing_header(label=f"{category}  ({len(entries)})", default_open=True):
-                if not entries:
-                    dpg.add_text("(none)", color=(120, 120, 120, 255))
-                for entry in entries:
-                    tag = dpg.generate_uuid()
-                    dpg.add_button(label=entry.display_name, tag=tag, width=-1)
-                    with dpg.drag_payload(
-                        parent=tag,
-                        drag_data=entry,
-                        payload_type="NODE_PALETTE",
-                    ):
-                        dpg.add_text(f"+ {entry.display_name}")
-                    self._palette_items.append((tag, entry.display_name.lower()))
-
-    def _on_palette_search(self, sender: int | str, value: str) -> None:
-        query = value.strip().lower()
-        for tag, text in self._palette_items:
-            dpg.configure_item(tag, show=(not query or query in text))
 
     def _on_node_dropped(self, sender: int | str, app_data) -> None:
         entry: NodeEntry = app_data
