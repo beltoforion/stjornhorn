@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import dearpygui.dearpygui as dpg
+from typing_extensions import override
 
 from constants import APP_VERSION
 from core.flow import Flow
@@ -17,6 +18,7 @@ class StartPage(Page):
     def __init__(self, parent: int | str, menu_bar: int | str, page_manager: PageManager) -> None:
         super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager)
 
+    @override
     def _build_ui(self) -> None:
         dpg.add_spacer(height=60)
         dpg.add_text("Image Inquest", indent=20)
@@ -27,6 +29,7 @@ class StartPage(Page):
             dpg.add_button(label="New Flow", callback=self._on_new_flow_clicked)
             dpg.add_button(label="Load Flow", callback=self._on_load_flow_clicked)
 
+    @override
     def _install_menus(self) -> None:
         pass
 

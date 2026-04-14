@@ -5,6 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Callable
 
 import dearpygui.dearpygui as dpg
+from typing_extensions import override
 
 from core.flow import Flow
 from core.node_base import NodeBase
@@ -54,6 +55,7 @@ class NodeEditorPage(Page):
 
     # ── UI construction ────────────────────────────────────────────────────────
 
+    @override
     def _build_ui(self) -> None:
         self._build_ctx_menu(self._node_ctx_tag, "Delete Node", self._on_ctx_delete_node)
         self._build_ctx_menu(self._link_ctx_tag, "Delete Connection(s)", self._delete_selected_links)
@@ -218,6 +220,7 @@ class NodeEditorPage(Page):
 
     # ── Menu ───────────────────────────────────────────────────────────────────
 
+    @override
     def _install_menus(self) -> None:
         menu_tag = dpg.generate_uuid()
         with dpg.menu(label="Node Editor", parent=self._menu_bar, tag=menu_tag):

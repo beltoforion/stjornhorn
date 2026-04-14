@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from enum import Enum
+from typing_extensions import override
+
 from core.io_data import IoData
 from core.port import InputPort, OutputPort
 
@@ -130,9 +132,11 @@ class SourceNodeBase(NodeBase, ABC):
         """
         ...
 
+    @override
     def process(self) -> None:
         raise RuntimeError("SourceNodeBase has no inputs; call start() instead")
 
+    @override
     def _on_end_of_stream(self) -> None:
         pass  # Sources have no inputs, so this is never triggered
 
@@ -145,7 +149,9 @@ class SinkNodeBase(NodeBase, ABC):
     """
 
     @abstractmethod
+    @override
     def process(self) -> None: ...
 
+    @override
     def _on_end_of_stream(self) -> None:
         pass  # Sinks have no outputs to forward to

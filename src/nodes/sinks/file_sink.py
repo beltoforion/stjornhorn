@@ -4,6 +4,7 @@ import os
 from enum import Enum
 
 import cv2
+from typing_extensions import override
 
 from core.io_data import IoDataType
 from core.node_base import SinkNodeBase, NodeParam, NodeParamType
@@ -27,6 +28,7 @@ class FileSink(SinkNodeBase):
     # ── Parameters ─────────────────────────────────────────────────────────────
 
     @property
+    @override
     def params(self) -> list[NodeParam]:
         return [NodeParam("output_path", NodeParamType.FILE_PATH, {"default": "output/out.png", "mode": "save"})]
 
@@ -50,6 +52,7 @@ class FileSink(SinkNodeBase):
 
     # ── SinkNodeBase interface ──────────────────────────────────────────────────
 
+    @override
     def process(self) -> None:
         file_name, file_ext = os.path.splitext(self._output_path)
 
