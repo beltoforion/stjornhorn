@@ -58,6 +58,12 @@ class Page(ABC):
         dpg.show_item(self._content_tag)
         self._install_menus()
         self._active = True
+        self._on_activated()
+
+    def _on_activated(self) -> None:
+        """Hook called after the page becomes active. Override to set focus,
+        refresh derived state, etc. Base implementation is a no-op."""
+        pass
 
     def deactivate(self) -> None:
         if not self._active:

@@ -1,7 +1,25 @@
 from __future__ import annotations
 
+import re
+
 from core.node_base import NodeBase, SourceNodeBase
 from core.port import InputPort, OutputPort
+
+
+DEFAULT_FLOW_NAME: str = "Untitled flow"
+
+# Characters that are invalid in filenames on at least one major platform
+# (Windows is the strictest here), plus ASCII control characters.
+_INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+
+
+def sanitize_flow_name(name: str) -> str:
+    """Return ``name`` stripped of filesystem-invalid characters and trimmed.
+
+    Falls back to :data:`DEFAULT_FLOW_NAME` if the sanitized result is empty.
+    """
+    cleaned = _INVALID_FILENAME_CHARS.sub("", name).strip()
+    return cleaned or DEFAULT_FLOW_NAME
 
 
 class Flow:
@@ -13,8 +31,20 @@ class Flow:
       - Run the flow by starting all source nodes in registration order.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, name: str = DEFAULT_FLOW_NAME) -> None:
+        self._name: str = sanitize_flow_name(name)
         self._nodes: list[NodeBase] = []
+
+    # ── Identity ───────────────────────────────────────────────────────────────
+
+    @property
+    def name(self) -> str:
+        """Human-readable flow name; always filesystem-safe."""
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        self._name = sanitize_flow_name(value)
 
     # ── Node management ────────────────────────────────────────────────────────
 

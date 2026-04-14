@@ -223,7 +223,8 @@ class NodeEditorPage(Page):
     @override
     def _install_menus(self) -> None:
         menu_tag = dpg.generate_uuid()
-        with dpg.menu(label="Node Editor", parent=self._menu_bar, tag=menu_tag):
+        label = f"Node Editor [{self._flow.name}]" if self._flow is not None else "Node Editor"
+        with dpg.menu(label=label, parent=self._menu_bar, tag=menu_tag):
             dpg.add_menu_item(label="Clear All", callback=self._clear_nodes)
             dpg.add_separator()
             dpg.add_menu_item(label="Exit", callback=self._on_exit_clicked)
