@@ -36,41 +36,6 @@ Optional arguments:
 4. Drag between node attributes to create links; drag an existing link to remove it.
 5. Use **Node Editor → Clear All** to remove all nodes, or **Node Editor → Exit** to return to the start page.
 
-## Project Structure
-
-```
-src/
-├── main.py                 # Entry point and viewport setup
-├── constants.py            # Global constants (app name, default size)
-├── core/
-│   └── flow.py             # Flow domain model (framework-agnostic)
-└── ui/
-    ├── page.py             # Page abstract base class
-    ├── page_manager.py     # Enforces single-active-page invariant
-    ├── main_window.py      # Top-level window, menu bar, page wiring
-    ├── start_page.py       # Start page (New Flow / Load Flow)
-    └── node_editor_page.py # Node editor page
-```
-
-## Architecture
-
-The UI is built around a `Page` abstraction. Each page owns a hidden content container and a list of menus it contributes to the viewport menu bar. `PageManager` ensures only one page is active at any time, deactivating the current page before activating the next.
-
-Adding a new page requires only subclassing `Page` and implementing two methods:
-
-```python
-class MyPage(Page):
-    def _build_ui(self) -> None:
-        # create widgets under self._parent, tag the root with self._content_tag, show=False
-        ...
-
-    def _install_menus(self) -> None:
-        # create menus under self._menu_bar, append their tags to self._menu_tags
-        ...
-```
-
-The domain layer lives under `src/core/` and has no UI framework dependencies.
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
