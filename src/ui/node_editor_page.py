@@ -75,16 +75,13 @@ class NodeEditorPage(Page):
     # ── UI construction ────────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
-        self._build_ctx_menus()
+        self._build_ctx_menu(self._node_ctx_tag, "Delete Node", self._on_ctx_delete_node)
+        self._build_ctx_menu(self._link_ctx_tag, "Delete Connection(s)", self._delete_selected_links)
         self._build_handler_registry()
         self._build_canvas()
 
-    def _build_ctx_menus(self) -> None:
-        self._build_ctx_window(self._node_ctx_tag, "Delete Node", self._on_ctx_delete_node)
-        self._build_ctx_window(self._link_ctx_tag, "Delete Connection(s)", self._delete_selected_links)
-
     @staticmethod
-    def _build_ctx_window(tag: DpgTag, item_label: str, callback: Callable[..., None]) -> None:
+    def _build_ctx_menu(tag: DpgTag, item_label: str, callback: Callable[..., None]) -> None:
         with dpg.window(
             tag=tag,
             show=False,
