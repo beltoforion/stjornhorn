@@ -58,8 +58,13 @@ class NodeEditorPage(Page):
         self._ctx_links:       list[DpgTag]                 = []
 
         # Context-menu window tags (windows populated in _build_ui)
-        self._node_ctx_tag: DpgTag = dpg.generate_uuid()
-        self._link_ctx_tag: DpgTag = dpg.generate_uuid()
+        self._node_ctx_tag:    DpgTag = dpg.generate_uuid()
+        self._link_ctx_tag:    DpgTag = dpg.generate_uuid()
+        # The Node Editor menu is re-created on every activation, but we
+        # keep a stable tag so the label can be refreshed in-place when
+        # the flow is swapped out (e.g. after an Open).
+        self._editor_menu_tag: DpgTag = dpg.generate_uuid()
+        self._open_dialog_tag: DpgTag = dpg.generate_uuid()
         super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager, themes=themes)
 
     def set_flow(self, flow: Flow) -> None:
@@ -82,10 +87,11 @@ class NodeEditorPage(Page):
             with dpg.group():
                 with dpg.group(horizontal=True):
                     dpg.add_button(label="Save",      callback=self._save_flow)
+                    dpg.add_button(label="Open",      callback=self._on_open_flow)
                     dpg.add_button(label="Clear All", callback=self._clear_nodes)
                     dpg.add_spacer(width=16)
-                    # Status readout updated by _save_flow. Empty until the
-                    # first save attempt.
+                    # Status readout updated by _save_flow / _load_flow.
+                    # Empty until the first save or open attempt.
                     dpg.add_text("", tag=self._save_status_tag)
 
                 with dpg.child_window(
@@ -101,6 +107,18 @@ class NodeEditorPage(Page):
                         delink_callback=self._delink,
                         width=-1,
                         height=-1)
+
+        # Persistent file dialog used by the Open button.
+        with dpg.file_dialog(
+            label="Open Flow",
+            tag=self._open_dialog_tag,
+            callback=self._on_flow_file_selected,
+            show=False,
+            modal=True,
+            width=700,
+            height=400,
+        ):
+            dpg.add_file_extension(".json", color=(0, 200, 255, 255), custom_text="Flow JSON")
 
     @staticmethod
     def _build_ctx_menu(tag: DpgTag, item_label: str, callback: Callable[..., None]) -> None:
@@ -255,19 +273,28 @@ class NodeEditorPage(Page):
 
         self._ctx_target = None
         self._ctx_links = []
+        # Wipe any stale save-status message so the readout matches the canvas.
+        self._set_save_status("", _SAVE_OK_COLOR)
 
     # ── Menu ───────────────────────────────────────────────────────────────────
 
     @override
     def _install_menus(self) -> None:
-        menu_tag = dpg.generate_uuid()
-        label = f"Node Editor [{self._flow.name}]" if self._flow is not None else "Node Editor"
-        with dpg.menu(label=label, parent=self._menu_bar, tag=menu_tag):
+        with dpg.menu(label=self._menu_label(), parent=self._menu_bar, tag=self._editor_menu_tag):
             dpg.add_menu_item(label="Save",      callback=self._save_flow)
+            dpg.add_menu_item(label="Open",      callback=self._on_open_flow)
             dpg.add_menu_item(label="Clear All", callback=self._clear_nodes)
             dpg.add_separator()
             dpg.add_menu_item(label="Exit", callback=self._on_exit_clicked)
-        self._menu_tags.append(menu_tag)
+        self._menu_tags.append(self._editor_menu_tag)
+
+    def _menu_label(self) -> str:
+        return f"Node Editor [{self._flow.name}]" if self._flow is not None else "Node Editor"
+
+    def _refresh_menu_label(self) -> None:
+        """Re-apply the menu label after self._flow has changed."""
+        if dpg.does_item_exist(self._editor_menu_tag):
+            dpg.configure_item(self._editor_menu_tag, label=self._menu_label())
 
     # ── Save ───────────────────────────────────────────────────────────────────
 
@@ -368,6 +395,135 @@ class NodeEditorPage(Page):
                 "dst_input":  dst[2],
             })
         return result
+
+    # ── Open ───────────────────────────────────────────────────────────────────
+
+    def _on_open_flow(self, *_: object) -> None:
+        """Show the Open-Flow file dialog, seeded at FLOW_DIR."""
+        FLOW_DIR.mkdir(parents=True, exist_ok=True)
+        dpg.configure_item(self._open_dialog_tag, default_path=str(FLOW_DIR))
+        dpg.show_item(self._open_dialog_tag)
+
+    def _on_flow_file_selected(self, sender: DpgTag, app_data: dict) -> None:
+        path_str = app_data.get("file_path_name", "")
+        if not path_str:
+            return
+        self._load_flow(Path(path_str))
+
+    def _load_flow(self, path: Path) -> None:
+        """Parse ``path`` as flow JSON and rebuild the editor to match."""
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as err:
+            logger.exception("Failed to read flow %s", path)
+            self._set_save_status(f"Open failed ({err.__class__.__name__})", _SAVE_FAIL_COLOR)
+            return
+
+        version = data.get("version")
+        if version != _FLOW_FORMAT_VERSION:
+            logger.warning("Flow %s has unsupported version %r", path, version)
+            self._set_save_status(f"Open failed (unsupported version {version!r})",
+                                  _SAVE_FAIL_COLOR)
+            return
+
+        # Replace the current canvas and flow.
+        self._clear_nodes()
+        flow = Flow(name=data.get("name", path.stem))
+        self.set_flow(flow)
+        self._refresh_menu_label()
+
+        # Materialise each node, remembering the JSON-id → (node_tag, NodeBase)
+        # mapping so connections can be resolved below.
+        id_to_node: dict[int, tuple[DpgTag, NodeBase]] = {}
+        for entry in data.get("nodes", []):
+            built = self._instantiate_node(entry)
+            if built is None:
+                continue
+            node, position = built
+            flow.add_node(node)
+            node_tag = self._add_visual_node(node)
+            dpg.set_item_pos(node_tag, list(position))
+            id_to_node[entry["id"]] = (node_tag, node)
+
+        # Restore connections as DPG links. Flow.connect is not yet wired
+        # from the UI, so we intentionally mirror the save-side behaviour
+        # and keep link state in DPG alone.
+        for conn in data.get("connections", []):
+            self._restore_connection(conn, id_to_node)
+
+        logger.info("Loaded flow from %s", path)
+        self._set_save_status(
+            f"Loaded {self._display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
+            _SAVE_OK_COLOR,
+        )
+
+    def _instantiate_node(self, entry: dict) -> tuple[NodeBase, tuple[float, float]] | None:
+        """Construct a NodeBase from a serialized node entry.
+
+        Returns None (and logs) if the module/class is unknown, so loading
+        can proceed with the remaining nodes instead of failing the whole
+        flow.
+        """
+        module_name = entry.get("module", "")
+        class_name  = entry.get("class", "")
+        try:
+            module = importlib.import_module(module_name)
+            cls    = getattr(module, class_name)
+        except (ImportError, AttributeError):
+            logger.exception("Cannot resolve node %s.%s", module_name, class_name)
+            return None
+
+        try:
+            node: NodeBase = cls()
+        except Exception:
+            logger.exception("Failed to instantiate %s.%s", module_name, class_name)
+            return None
+
+        for name, value in (entry.get("params") or {}).items():
+            try:
+                setattr(node, name, value)
+            except Exception:
+                logger.warning("Ignoring param %s on %s.%s (%r)",
+                               name, module_name, class_name, value)
+
+        pos = entry.get("position") or [0.0, 0.0]
+        return node, (float(pos[0]), float(pos[1]))
+
+    def _restore_connection(
+        self,
+        conn: dict,
+        id_to_node: dict[int, tuple[DpgTag, NodeBase]],
+    ) -> None:
+        src = id_to_node.get(conn.get("src_node"))
+        dst = id_to_node.get(conn.get("dst_node"))
+        if src is None or dst is None:
+            logger.debug("Skipping connection with unknown endpoint: %s", conn)
+            return
+        src_tag, src_node = src
+        dst_tag, dst_node = dst
+        src_attrs = self._port_attrs(src_tag, src_node, "output")
+        dst_attrs = self._port_attrs(dst_tag, dst_node, "input")
+        try:
+            src_attr = src_attrs[conn["src_output"]]
+            dst_attr = dst_attrs[conn["dst_input"]]
+        except (IndexError, KeyError):
+            logger.warning("Skipping connection with out-of-range port index: %s", conn)
+            return
+        link_tag = dpg.add_node_link(src_attr, dst_attr, parent=self._node_editor_tag)
+        self._themes.apply_to_link(link_tag)
+
+    def _port_attrs(self, node_tag: DpgTag, node: NodeBase, kind: _PortKind) -> list[DpgTag]:
+        """Return the ordered DPG attr tags for a node's input or output ports.
+
+        Mirrors the ordering in _index_node_attrs: params, then inputs,
+        then outputs.
+        """
+        children = dpg.get_item_children(node_tag, 1) or []
+        params_len = len(node.params)
+        inputs_len = len(node.inputs)
+        if kind == "input":
+            return list(children[params_len : params_len + inputs_len])
+        return list(children[params_len + inputs_len : params_len + inputs_len + len(node.outputs)])
 
     # ── Button / menu callbacks ────────────────────────────────────────────────
 
