@@ -57,11 +57,13 @@ class NodeEditorPage(Page):
         self._flow:     Flow | None    = None
         self._theme:    NodeEditorTheme = NodeEditorTheme()
         self._registry: NodeRegistry    = registry
+
         # Node tracking for delete / context-menu support
         self._node_map:        dict[DpgTag, NodeBase]       = {}
         self._node_dialog_map: dict[DpgTag, DpgTag | None]  = {}
         self._ctx_target:      tuple[DpgTag, NodeBase] | None = None
         self._ctx_links:       list[DpgTag]                 = []
+
         # Context-menu window tags (windows populated in _build_ui)
         self._node_ctx_tag: DpgTag = dpg.generate_uuid()
         self._link_ctx_tag: DpgTag = dpg.generate_uuid()
@@ -108,21 +110,20 @@ class NodeEditorPage(Page):
             with dpg.group():
                 with dpg.group(horizontal=True):
                     dpg.add_button(label="Clear All", callback=self._clear_nodes)
+
                 with dpg.child_window(
                     tag=self._canvas_tag,
                     drop_callback=self._on_node_dropped,
                     payload_type=NodePaletteWidget.PAYLOAD_TYPE,
                     width=-1,
                     height=-1,
-                    border=False,
-                ):
+                    border=False):
                     dpg.add_node_editor(
                         tag=self._node_editor_tag,
                         callback=self._link,
                         delink_callback=self._delink,
                         width=-1,
-                        height=-1,
-                    )
+                        height=-1)
 
     # ── Node creation ──────────────────────────────────────────────────────────
 
@@ -131,8 +132,10 @@ class NodeEditorPage(Page):
         cls = getattr(module, app_data.class_name)
         node: NodeBase = cls()
         logger.debug("Adding node '%s'", node.display_name)
+        
         if self._flow is not None:
             self._flow.add_node(node)
+        
         node_tag = self._add_visual_node(node)
         mouse_pos  = dpg.get_mouse_pos(local=True)
         canvas_pos = dpg.get_item_pos(self._canvas_tag)
@@ -170,6 +173,7 @@ class NodeEditorPage(Page):
         self._node_dialog_map[node_tag] = dialog_tag
         return node_tag
 
+
     def _build_file_dialog(self, node: NodeBase) -> tuple[DpgTag | None, dict[str, DpgTag]]:
         """Build the node's file dialog, if any. Returns (dialog_tag, path_input_tags)."""
         file_params = [p for p in node.params if p.param_type == NodeParamType.FILE_PATH]
@@ -206,8 +210,7 @@ class NodeEditorPage(Page):
         node: NodeBase,
         param: NodeParam,
         path_input_tags: dict[str, DpgTag],
-        dialog_tag: DpgTag,
-    ) -> None:
+        dialog_tag: DpgTag) -> None:
         input_tag: DpgTag = dpg.generate_uuid()
         path_input_tags[param.name] = input_tag
         is_save = param.metadata.get("mode") == "save"
@@ -230,8 +233,7 @@ class NodeEditorPage(Page):
         dpg.add_input_int(
             default_value=int(param.metadata.get("default", 0)),
             width=100,
-            callback=lambda s, a, p=param: setattr(node, p.name, a),
-        )
+            callback=lambda s, a, p=param: setattr(node, p.name, a))
 
     def _build_input_port(self, port: InputPort) -> None:
         with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Input) as attr_tag:
@@ -283,6 +285,7 @@ class NodeEditorPage(Page):
         self._hide_ctx_menus()
         dpg.set_item_pos(self._link_ctx_tag, dpg.get_mouse_pos())
         dpg.configure_item(self._link_ctx_tag, show=True)
+
 
     def _on_left_click(self) -> None:
         """Dismiss context menus when clicking outside them."""
