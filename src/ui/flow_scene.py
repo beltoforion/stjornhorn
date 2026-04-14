@@ -165,7 +165,7 @@ class FlowScene(QGraphicsScene):
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
         from PySide6.QtCore import Qt
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             port = self._port_at(event.scenePos())
             if port is not None:
                 # Start a pending link from this port. Swallow the press
@@ -269,7 +269,7 @@ class FlowScene(QGraphicsScene):
 
     def keyPressEvent(self, event) -> None:  # type: ignore[override]
         from PySide6.QtCore import Qt
-        if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
             for s in list(self.selectedItems()):
                 if isinstance(s, NodeItem):
                     self.remove_node_item(s)

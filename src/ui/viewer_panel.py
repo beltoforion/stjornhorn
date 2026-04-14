@@ -45,8 +45,8 @@ class ViewerPanel(QWidget):
 
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
-        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self._scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self._scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         outer.addWidget(self._scroll)
 
         self._content = QWidget()
@@ -131,7 +131,7 @@ class ViewerPanel(QWidget):
             h, w = rgba.shape[:2]
 
         rgba = np.ascontiguousarray(rgba)
-        qimg = QImage(rgba.data, w, h, rgba.strides[0], QImage.Format_RGBA8888).copy()
+        qimg = QImage(rgba.data, w, h, rgba.strides[0], QImage.Format.Format_RGBA8888).copy()
         pixmap = QPixmap.fromImage(qimg)
 
         title = QLabel(f"{port_name}  ({w}×{h})")
@@ -142,8 +142,8 @@ class ViewerPanel(QWidget):
 
         image_label = QLabel()
         image_label.setPixmap(pixmap)
-        image_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        image_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        image_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        image_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._content_layout.insertWidget(self._content_layout.count() - 1, image_label)
 
     @staticmethod

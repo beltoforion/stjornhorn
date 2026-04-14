@@ -55,7 +55,7 @@ class StartPage(Page):
         version.setProperty("muted", True)
         root.addWidget(version)
 
-        root.addSpacerItem(QSpacerItem(0, 20, QSizePolicy.Minimum, QSizePolicy.Fixed))
+        root.addSpacerItem(QSpacerItem(0, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
         # Name input + Create button.
         row = QHBoxLayout()
@@ -90,7 +90,7 @@ class StartPage(Page):
         return ""  # MainWindow shows the bare app name on the start page
 
     def on_activated(self) -> None:
-        self._name_input.setFocus(Qt.OtherFocusReason)
+        self._name_input.setFocus(Qt.FocusReason.OtherFocusReason)
         self._name_input.selectAll()
 
     # ── Callbacks ──────────────────────────────────────────────────────────────

@@ -73,7 +73,7 @@ def _build_int_param(node: NodeBase, param: NodeParam) -> QWidget:
     spin.setRange(-10_000_000, 10_000_000)
     spin.setValue(int(param.metadata.get("default", 0)))
     spin.valueChanged.connect(_make_setter(node, param.name))
-    spin.setAlignment(Qt.AlignRight)
+    spin.setAlignment(Qt.AlignmentFlag.AlignRight)
     spin.setMinimumWidth(96)
     return spin
 

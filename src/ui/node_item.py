@@ -77,9 +77,9 @@ class NodeItem(QGraphicsItem):
         self._body_height: float = 0.0
 
         self.setZValue(self.Z_VALUE)
-        self.setFlag(QGraphicsItem.ItemIsMovable, True)
-        self.setFlag(QGraphicsItem.ItemIsSelectable, True)
-        self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges, True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsScenePositionChanges, True)
 
         self._build_params_widget()
         self._build_ports()
@@ -118,7 +118,7 @@ class NodeItem(QGraphicsItem):
         return QRectF(-2, -2, self.WIDTH + 4, self._body_height + 4)
 
     def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
-        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         body_rect = QRectF(0, 0, self.WIDTH, self._body_height)
         border_pen = QPen(
@@ -140,7 +140,7 @@ class NodeItem(QGraphicsItem):
         painter.setPen(QPen(NODE_TITLE_TEXT_COLOR))
         painter.drawText(
             QRectF(self.PADDING, 0, self.WIDTH - 2 * self.PADDING, self.HEADER_HEIGHT),
-            Qt.AlignVCenter | Qt.AlignLeft,
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
             self._node.display_name,
         )
 
@@ -154,7 +154,7 @@ class NodeItem(QGraphicsItem):
             painter.drawText(
                 QRectF(label_margin, y - self.PORT_ROW_HEIGHT / 2,
                        self.WIDTH - 2 * label_margin, self.PORT_ROW_HEIGHT),
-                Qt.AlignVCenter | Qt.AlignLeft,
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                 port.name,
             )
         for i, port in enumerate(self._output_ports):
@@ -162,14 +162,14 @@ class NodeItem(QGraphicsItem):
             painter.drawText(
                 QRectF(label_margin, y - self.PORT_ROW_HEIGHT / 2,
                        self.WIDTH - 2 * label_margin, self.PORT_ROW_HEIGHT),
-                Qt.AlignVCenter | Qt.AlignRight,
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
                 port.name,
             )
 
     def itemChange(self, change, value):  # type: ignore[override]
         # When the node moves, reroute every attached link so they stay
         # glued to the port dots.
-        if change == QGraphicsItem.ItemScenePositionHasChanged:
+        if change == QGraphicsItem.GraphicsItemChange.ItemScenePositionHasChanged:
             self.refresh_all_links()
         return super().itemChange(change, value)
 
@@ -204,7 +204,7 @@ class NodeItem(QGraphicsItem):
         if not self._node.params:
             return
         w = QWidget()
-        w.setAttribute(Qt.WA_TranslucentBackground, True)
+        w.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         w.setStyleSheet("QWidget { background: transparent; }")
         layout = QVBoxLayout(w)
         layout.setContentsMargins(int(self.PADDING), int(self.PADDING), int(self.PADDING), 0)

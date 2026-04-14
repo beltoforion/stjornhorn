@@ -55,7 +55,7 @@ class PortItem(QGraphicsEllipseItem):
 
         self.setZValue(self.Z_VALUE)
         self.setAcceptHoverEvents(True)
-        self.setCursor(Qt.CrossCursor)
+        self.setCursor(Qt.CursorShape.CrossCursor)
         self.setPen(QPen(NODE_BORDER_COLOR, 1))
         self._apply_default_brush()
 

@@ -63,14 +63,14 @@ class PaletteWidget(QWidget):
             font = header.font()
             font.setBold(True)
             header.setFont(font)
-            header.setFlags(Qt.NoItemFlags)
-            header.setData(Qt.UserRole, None)
+            header.setFlags(Qt.ItemFlag.NoItemFlags)
+            header.setData(Qt.ItemDataRole.UserRole, None)
             self._list.addItem(header)
 
             if not entries:
                 placeholder = QListWidgetItem("    (none)")
-                placeholder.setFlags(Qt.NoItemFlags)
-                placeholder.setForeground(Qt.gray)
+                placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
+                placeholder.setForeground(Qt.GlobalColor.gray)
                 self._list.addItem(placeholder)
                 continue
 
@@ -82,7 +82,7 @@ class PaletteWidget(QWidget):
                     "display_name": entry.display_name,
                     "category":     entry.category,
                 })
-                item.setData(Qt.UserRole, payload)
+                item.setData(Qt.ItemDataRole.UserRole, payload)
                 item.setToolTip(f"{entry.module}.{entry.class_name}")
                 self._list.addItem(item)
 
@@ -91,7 +91,7 @@ class PaletteWidget(QWidget):
         for i in range(self._list.count()):
             item = self._list.item(i)
             # Never hide category headers — context matters.
-            if item.flags() == Qt.NoItemFlags:
+            if item.flags() == Qt.ItemFlag.NoItemFlags:
                 item.setHidden(False)
                 continue
             item.setHidden(bool(query) and query not in item.text().lower())
@@ -103,16 +103,16 @@ class _DraggableList(QListWidget):
     def __init__(self) -> None:
         super().__init__()
         self.setDragEnabled(True)
-        self.setDragDropMode(QAbstractItemView.DragOnly)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.setFocusPolicy(Qt.NoFocus)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setIconSize(QSize(0, 0))
 
     def startDrag(self, supported_actions) -> None:  # type: ignore[override]
         item = self.currentItem()
         if item is None:
             return
-        payload = item.data(Qt.UserRole)
+        payload = item.data(Qt.ItemDataRole.UserRole)
         if not payload:
             return
 
@@ -122,4 +122,4 @@ class _DraggableList(QListWidget):
 
         drag = QDrag(self)
         drag.setMimeData(mime)
-        drag.exec(Qt.CopyAction)
+        drag.exec(Qt.DropAction.CopyAction)

@@ -104,7 +104,7 @@ class MainWindow(QMainWindow):
         menu = self._menu_bar.addMenu("&File")
 
         quit_action = QAction("&Quit", self)
-        quit_action.setShortcut(QKeySequence.Quit)
+        quit_action.setShortcut(QKeySequence.StandardKey.Quit)
         quit_action.triggered.connect(self.close)
         menu.addAction(quit_action)
 

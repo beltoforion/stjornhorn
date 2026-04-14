@@ -64,7 +64,7 @@ class NodeEditorPage(Page):
         # ── Inner QMainWindow hosting the canvas + docks ──
         self._inner = QMainWindow()
         self._inner.setDockOptions(
-            QMainWindow.AllowTabbedDocks | QMainWindow.AllowNestedDocks
+            QMainWindow.DockOption.AllowTabbedDocks | QMainWindow.DockOption.AllowNestedDocks
         )
         outer.addWidget(self._inner)
 
@@ -78,21 +78,21 @@ class NodeEditorPage(Page):
         self._palette_dock = QDockWidget("Palette", self._inner)
         self._palette_dock.setObjectName("PaletteDock")
         self._palette_dock.setWidget(self._palette)
-        self._palette_dock.setAllowedAreas(Qt.AllDockWidgetAreas)
-        self._inner.addDockWidget(Qt.LeftDockWidgetArea, self._palette_dock)
+        self._palette_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
+        self._inner.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._palette_dock)
 
         # Viewer dock (bottom).
         self._viewer = ViewerPanel()
         self._viewer_dock = QDockWidget("Viewer", self._inner)
         self._viewer_dock.setObjectName("ViewerDock")
         self._viewer_dock.setWidget(self._viewer)
-        self._viewer_dock.setAllowedAreas(Qt.AllDockWidgetAreas)
-        self._inner.addDockWidget(Qt.BottomDockWidgetArea, self._viewer_dock)
+        self._viewer_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
+        self._inner.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._viewer_dock)
 
         # Toolbar.
         self._actions = self._build_actions()
         self._toolbar = self._build_toolbar()
-        self._inner.addToolBar(Qt.TopToolBarArea, self._toolbar)
+        self._inner.addToolBar(Qt.ToolBarArea.TopToolBarArea, self._toolbar)
 
         # Status bar at the bottom of the inner window.
         self._status_bar = QStatusBar(self._inner)
@@ -246,8 +246,9 @@ class NodeEditorPage(Page):
         if self._scene.iter_node_items() and QMessageBox.question(
             self, "Clear all?",
             "Remove every node and connection from this flow?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
-        ) != QMessageBox.Yes:
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
             return
         # Start from a fresh Flow with the same name so Save still targets
         # the same file. The scene clears via set_flow.

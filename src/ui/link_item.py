@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QPainterPath, QPen
+from PySide6.QtGui import QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsPathItem
 
 from ui.theme import LINK_COLOR, LINK_SELECTED_COLOR
@@ -27,7 +27,7 @@ class LinkItem(QGraphicsPathItem):
         self._src_port = src_port
         self._dst_port = dst_port
         self.setZValue(self.Z_VALUE)
-        self.setFlag(QGraphicsItem.ItemIsSelectable, True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setPen(QPen(LINK_COLOR, 2))
         self.setAcceptHoverEvents(False)
         src_port.add_link(self)
@@ -54,7 +54,7 @@ class LinkItem(QGraphicsPathItem):
 
     def paint(self, painter, option, widget=None) -> None:  # type: ignore[override]
         pen = QPen(LINK_SELECTED_COLOR if self.isSelected() else LINK_COLOR, 2)
-        painter.setRenderHint(painter.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setPen(pen)
         painter.drawPath(self.path())
 
@@ -89,7 +89,7 @@ class PendingLinkItem(QGraphicsPathItem):
     def __init__(self, start: QPointF) -> None:
         super().__init__()
         self.setZValue(self.Z_VALUE)
-        self.setPen(QPen(LINK_COLOR, 1, Qt.DashLine))
+        self.setPen(QPen(LINK_COLOR, 1, Qt.PenStyle.DashLine))
         self._start = start
         self._end = start
         self._rebuild()
