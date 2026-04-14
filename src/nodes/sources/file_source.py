@@ -5,6 +5,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import rawpy
+from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
 from core.node_base import SourceNodeBase, NodeParam, NodeParamType
@@ -37,6 +38,7 @@ class FileSource(SourceNodeBase):
     # ── Parameters ─────────────────────────────────────────────────────────────
 
     @property
+    @override
     def params(self) -> list[NodeParam]:
         return [
             NodeParam("file_path",      NodeParamType.FILE_PATH, {"default": "./input/example.jpg"}),
@@ -61,6 +63,7 @@ class FileSource(SourceNodeBase):
 
     # ── SourceNodeBase interface ────────────────────────────────────────────────
 
+    @override
     def start(self) -> None:
         if not self._file_path.exists():
             raise FileNotFoundError(f"Input file not found: {self._file_path}")
