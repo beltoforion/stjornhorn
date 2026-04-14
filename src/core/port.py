@@ -64,6 +64,10 @@ class OutputPort:
         self.name = name
         self.emits: frozenset[IoDataType] = frozenset(emits)
         self._connections: list[InputPort] = []
+        # Last IoData the port emitted via send(); None until the first
+        # send. Used by the viewer panel to show the current output of a
+        # node without needing the flow to re-run on every selection.
+        self._last_emitted: IoData | None = None
 
     # ── Connection management ──────────────────────────────────────────────────
 
@@ -91,8 +95,18 @@ class OutputPort:
     def connections(self) -> list[InputPort]:
         return list(self._connections)
 
+    @property
+    def last_emitted(self) -> IoData | None:
+        """Most recent ``IoData`` passed to :meth:`send`, or ``None`` if the
+        port has not emitted anything yet (or since the port was cleared)."""
+        return self._last_emitted
+
+    def clear_last_emitted(self) -> None:
+        self._last_emitted = None
+
     # ── Data flow ──────────────────────────────────────────────────────────────
 
     def send(self, data: IoData) -> None:
+        self._last_emitted = data
         for port in self._connections:
             port.receive(data)

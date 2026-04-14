@@ -23,8 +23,11 @@ class DpgNodeListBuilder:
 
     def __init__(self, registry: NodeRegistry, *, width: int = 200) -> None:
         self._items: list[tuple[DpgTag, str]] = []
+        # Expose the container tag so embedding pages can show/hide the
+        # whole palette with a single dpg.configure_item call.
+        self._container_tag: DpgTag = dpg.generate_uuid()
 
-        with dpg.child_window(width=width, height=-1, border=True):
+        with dpg.child_window(tag=self._container_tag, width=width, height=-1, border=True):
             dpg.add_input_text(hint="Search…", width=-1, callback=self._on_search)
             dpg.add_separator()
 
@@ -36,6 +39,13 @@ class DpgNodeListBuilder:
                         dpg.add_text("(none)", color=(120, 120, 120, 255))
                     for entry in entries:
                         self._add_draggable_entry(entry)
+
+    @property
+    def container_tag(self) -> DpgTag:
+        """Tag of the surrounding child window. Use with ``dpg.show_item`` /
+        ``dpg.hide_item`` or ``dpg.configure_item(tag, show=...)`` to
+        toggle palette visibility."""
+        return self._container_tag
 
     # ── Internals ──────────────────────────────────────────────────────────────
 

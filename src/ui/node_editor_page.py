@@ -15,6 +15,7 @@ from core.flow import Flow
 from core.node_base import NodeBase
 from core.node_registry import NodeEntry, NodeRegistry
 from ui._types import DpgTag
+from ui.dpg_flow_viewer_panel import DpgFlowViewerPanel
 from ui.dpg_node_builder import DpgNodeBuilder
 from ui.dpg_node_list_builder import DpgNodeListBuilder
 from ui.flow_file_dialog import FLOW_FILE_EXTENSION, make_open_flow_dialog
@@ -25,6 +26,9 @@ _PortKind = Literal["input", "output"]
 
 _SAVE_OK_COLOR   = ( 90, 200, 100, 255)
 _SAVE_FAIL_COLOR = (220,  80,  80, 255)
+
+# Fixed height of the viewer panel at the bottom of the editor page.
+_VIEWER_HEIGHT: int = 300
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +54,13 @@ class NodeEditorPage(Page):
         self._flow:     Flow | None    = None
         self._registry: NodeRegistry    = registry
         self._node_builder: DpgNodeBuilder = DpgNodeBuilder(self._node_editor_tag, themes)
+        # Palette widget and bottom viewer are created in _build_ui.
+        self._palette:  DpgNodeListBuilder | None = None
+        self._viewer:   DpgFlowViewerPanel  | None = None
+        self._palette_visible: bool = True
+        # Last polled node-editor selection, used to avoid rebuilding the
+        # viewer panel on every frame.
+        self._last_selected_nodes: tuple[DpgTag, ...] = ()
 
         # Node tracking for delete / context-menu / save support
         self._node_map:        dict[DpgTag, NodeBase]       = {}
@@ -82,36 +93,48 @@ class NodeEditorPage(Page):
             dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Right, callback=self._on_right_click)
             dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Left,  callback=self._on_left_click)
 
-        dpg.add_spacer(height=20)
+        dpg.add_spacer(height=8)
         with dpg.group(horizontal=True):
-            DpgNodeListBuilder(self._registry)
-            with dpg.group():
-                with dpg.group(horizontal=True):
-                    dpg.add_button(label="Save",      callback=self._save_flow)
-                    dpg.add_button(label="Open",      callback=self._on_open_flow)
-                    dpg.add_button(label="Clear All", callback=self._clear_nodes)
-                    dpg.add_spacer(width=16)
-                    # Status readout updated by _save_flow / _load_flow.
-                    # Empty until the first save or open attempt.
-                    dpg.add_text("", tag=self._save_status_tag)
+            dpg.add_button(label="Palette",   callback=self._toggle_palette)
+            dpg.add_button(label="Run",       callback=self._run_flow)
+            dpg.add_button(label="Save",      callback=self._save_flow)
+            dpg.add_button(label="Open",      callback=self._on_open_flow)
+            dpg.add_button(label="Clear All", callback=self._clear_nodes)
+            dpg.add_spacer(width=16)
+            # Status readout updated by _save_flow / load_flow / _run_flow.
+            # Empty until the first action attempt.
+            dpg.add_text("", tag=self._save_status_tag)
 
-                with dpg.child_window(
-                    tag=self._canvas_tag,
-                    drop_callback=self._on_node_dropped,
-                    payload_type=DpgNodeListBuilder.PAYLOAD_TYPE,
+        # Palette (left) + canvas (right), sized to leave room for the
+        # viewer panel below. Negative height means "fill minus N".
+        with dpg.group(horizontal=True, height=-_VIEWER_HEIGHT - 8):
+            self._palette = DpgNodeListBuilder(self._registry)
+            with dpg.child_window(
+                tag=self._canvas_tag,
+                drop_callback=self._on_node_dropped,
+                payload_type=DpgNodeListBuilder.PAYLOAD_TYPE,
+                width=-1,
+                height=-1,
+                border=False,
+            ):
+                dpg.add_node_editor(
+                    tag=self._node_editor_tag,
+                    callback=self._link,
+                    delink_callback=self._delink,
                     width=-1,
                     height=-1,
-                    border=False):
-                    dpg.add_node_editor(
-                        tag=self._node_editor_tag,
-                        callback=self._link,
-                        delink_callback=self._delink,
-                        width=-1,
-                        height=-1)
+                )
+
+        # Bottom: viewer panel. Shows every IoDataType.IMAGE output of
+        # the currently-selected node. Populated via selection polling.
+        self._viewer = DpgFlowViewerPanel(parent=self._content_tag, height=_VIEWER_HEIGHT)
 
         # Persistent file dialog used by the Open button. Shared factory
         # so StartPage and NodeEditorPage stay in sync on filter / layout.
         make_open_flow_dialog(self._open_dialog_tag, self._on_flow_file_selected)
+
+        # Start polling the node-editor selection so the viewer follows it.
+        self._schedule_selection_poll()
 
     @staticmethod
     def _build_ctx_menu(tag: DpgTag, item_label: str, callback: Callable[..., None]) -> None:
@@ -252,11 +275,61 @@ class NodeEditorPage(Page):
     # ── Link callbacks ─────────────────────────────────────────────────────────
 
     def _link(self, sender: DpgTag, app_data: tuple[DpgTag, DpgTag]) -> None:
+        """Create the visual link and mirror the connection into self._flow."""
+        endpoints = self._resolve_endpoints(app_data[0], app_data[1])
+        if endpoints is None:
+            return
+        src, dst = endpoints
+        if self._flow is not None:
+            try:
+                self._flow.connect(src[0], src[2], dst[0], dst[2])
+            except TypeError:
+                logger.warning("Rejected incompatible connection", exc_info=True)
+                return
         link_tag = dpg.add_node_link(app_data[0], app_data[1], parent=sender)
         self._themes.apply_to_link(link_tag)
 
     def _delink(self, sender: DpgTag, app_data: DpgTag) -> None:
-        dpg.delete_item(app_data)
+        """Delete the visual link and tear down the matching Flow connection."""
+        link_tag = app_data
+        endpoints = self._link_endpoints(link_tag)
+        if endpoints is not None and self._flow is not None:
+            src, dst = endpoints
+            try:
+                self._flow.disconnect(src[0], src[2], dst[0], dst[2])
+            except Exception:
+                logger.debug("Flow.disconnect failed on delink", exc_info=True)
+        if dpg.does_item_exist(link_tag):
+            dpg.delete_item(link_tag)
+
+    def _resolve_endpoints(
+        self,
+        attr_a: DpgTag,
+        attr_b: DpgTag,
+    ) -> tuple[tuple[NodeBase, _PortKind, int], tuple[NodeBase, _PortKind, int]] | None:
+        """Translate a pair of node_attribute tags to (output_endpoint, input_endpoint)
+        using self._attr_to_port. Returns None when the pair is invalid
+        (unknown attr, same-kind pair, etc.)."""
+        a = self._attr_to_port.get(attr_a)
+        b = self._attr_to_port.get(attr_b)
+        if a is None or b is None:
+            return None
+        if a[1] == "output" and b[1] == "input":
+            return a, b
+        if a[1] == "input" and b[1] == "output":
+            return b, a
+        return None
+
+    def _link_endpoints(
+        self,
+        link_tag: DpgTag,
+    ) -> tuple[tuple[NodeBase, _PortKind, int], tuple[NodeBase, _PortKind, int]] | None:
+        """Return (output, input) endpoints for an existing node_link."""
+        try:
+            conf = dpg.get_item_configuration(link_tag)
+        except SystemError:
+            return None
+        return self._resolve_endpoints(conf.get("attr_1"), conf.get("attr_2"))
 
     # ── Clear ──────────────────────────────────────────────────────────────────
 
@@ -497,11 +570,19 @@ class NodeEditorPage(Page):
         src_attrs = self._port_attrs(src_tag, src_node, "output")
         dst_attrs = self._port_attrs(dst_tag, dst_node, "input")
         try:
-            src_attr = src_attrs[conn["src_output"]]
-            dst_attr = dst_attrs[conn["dst_input"]]
+            src_idx = conn["src_output"]
+            dst_idx = conn["dst_input"]
+            src_attr = src_attrs[src_idx]
+            dst_attr = dst_attrs[dst_idx]
         except (IndexError, KeyError):
             logger.warning("Skipping connection with out-of-range port index: %s", conn)
             return
+        if self._flow is not None:
+            try:
+                self._flow.connect(src_node, src_idx, dst_node, dst_idx)
+            except TypeError:
+                logger.warning("Skipping incompatible connection: %s", conn, exc_info=True)
+                return
         link_tag = dpg.add_node_link(src_attr, dst_attr, parent=self._node_editor_tag)
         self._themes.apply_to_link(link_tag)
 
@@ -517,6 +598,53 @@ class NodeEditorPage(Page):
         if kind == "input":
             return list(children[params_len : params_len + inputs_len])
         return list(children[params_len + inputs_len : params_len + inputs_len + len(node.outputs)])
+
+    # ── Run / viewer / palette ─────────────────────────────────────────────────
+
+    def _run_flow(self, *_: object) -> None:
+        """Execute the active flow once and refresh the viewer panel."""
+        if self._flow is None:
+            self._set_save_status("No flow to run", _SAVE_FAIL_COLOR)
+            return
+        try:
+            self._flow.run()
+        except Exception as err:
+            logger.exception("Flow run failed")
+            self._set_save_status(f"Run failed ({type(err).__name__})", _SAVE_FAIL_COLOR)
+            return
+        self._set_save_status(
+            f"Ran at {datetime.now().strftime('%H:%M:%S')}",
+            _SAVE_OK_COLOR,
+        )
+        if self._viewer is not None:
+            self._viewer.refresh()
+
+    def _toggle_palette(self, *_: object) -> None:
+        if self._palette is None:
+            return
+        self._palette_visible = not self._palette_visible
+        dpg.configure_item(self._palette.container_tag, show=self._palette_visible)
+
+    def _schedule_selection_poll(self) -> None:
+        """Arrange for :meth:`_poll_selection` to run on the next DPG frame."""
+        dpg.set_frame_callback(dpg.get_frame_count() + 1, self._poll_selection)
+
+    def _poll_selection(self) -> None:
+        """Push the current node-editor selection into the viewer panel.
+
+        Re-schedules itself every frame. Cheap: ``get_selected_nodes`` is a
+        list lookup and we only touch the viewer on actual changes.
+        """
+        try:
+            if self._active and dpg.does_item_exist(self._node_editor_tag):
+                selected = tuple(dpg.get_selected_nodes(self._node_editor_tag) or ())
+                if selected != self._last_selected_nodes:
+                    self._last_selected_nodes = selected
+                    if self._viewer is not None:
+                        node = self._node_map.get(selected[0]) if selected else None
+                        self._viewer.show(node)
+        finally:
+            self._schedule_selection_poll()
 
     # ── Button / menu callbacks ────────────────────────────────────────────────
 
