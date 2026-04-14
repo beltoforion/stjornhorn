@@ -77,7 +77,11 @@ class NodeEditorPage(Page):
     def _build_ui(self) -> None:
         self._build_ctx_menu(self._node_ctx_tag, "Delete Node", self._on_ctx_delete_node)
         self._build_ctx_menu(self._link_ctx_tag, "Delete Connection(s)", self._delete_selected_links)
-        self._build_handler_registry()
+
+        with dpg.handler_registry():
+            dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Right, callback=self._on_right_click)
+            dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Left,  callback=self._on_left_click)
+
         self._build_canvas()
 
     @staticmethod
@@ -94,11 +98,6 @@ class NodeEditorPage(Page):
             min_size=(10, 10),
         ):
             dpg.add_menu_item(label=item_label, callback=callback)
-
-    def _build_handler_registry(self) -> None:
-        with dpg.handler_registry():
-            dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Right, callback=self._on_right_click)
-            dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Left,  callback=self._on_left_click)
 
     def _build_canvas(self) -> None:
         dpg.add_spacer(height=20)
