@@ -18,10 +18,8 @@ class MainWindow:
         self._window_tag: DpgTag = dpg.generate_uuid()
         self._menu_tag:   DpgTag = dpg.generate_uuid()
 
-        with dpg.viewport_menu_bar(tag=self._menu_tag):
-            with dpg.menu(label="File"):
-                dpg.add_menu_item(label="New",     callback=self._on_new)
-                dpg.add_menu_item(label="Save As", callback=self._on_save)
+        # Empty viewport menu bar; pages populate it on activation.
+        dpg.add_viewport_menu_bar(tag=self._menu_tag)
 
         registry = NodeRegistry()
         for err in registry.scan_builtin(BUILTIN_NODES_DIR):
@@ -53,9 +51,3 @@ class MainWindow:
     @property
     def window_tag(self) -> DpgTag:
         return self._window_tag
-
-    def _on_new(self, sender):
-        logger.debug("File > New")
-
-    def _on_save(self, sender):
-        logger.debug("File > Save As")

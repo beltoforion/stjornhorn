@@ -278,7 +278,7 @@ class NodeEditorPage(Page):
             dpg.add_menu_item(label="Open",      callback=self._on_open_flow)
             dpg.add_menu_item(label="Clear All", callback=self._clear_nodes)
             dpg.add_separator()
-            dpg.add_menu_item(label="Exit", callback=self._on_exit_clicked)
+            dpg.add_menu_item(label="Back",      callback=self._on_back_clicked)
         self._menu_tags.append(self._editor_menu_tag)
 
     def _menu_label(self) -> str:
@@ -520,8 +520,8 @@ class NodeEditorPage(Page):
 
     # ── Button / menu callbacks ────────────────────────────────────────────────
 
-    def _on_exit_clicked(self, sender: DpgTag | None = None) -> None:
-        logger.info("Exiting node editor")
+    def _on_back_clicked(self, sender: DpgTag | None = None) -> None:
+        logger.info("Returning to start page")
         self._clear_nodes()
         self._page_manager.activate(self._page_manager.start_page)
 
