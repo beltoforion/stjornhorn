@@ -12,7 +12,7 @@ from ui._types import DpgTag
 
 if TYPE_CHECKING:
     from core.port import InputPort, OutputPort
-    from ui.dpg_node_editor_themes import DpgNodeEditorThemes
+    from ui.dpg_themes import DpgThemes
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,9 @@ class DpgNodeBuilder:
     takes a :class:`NodeParam` and register it in ``self._param_builders``.
     """
 
-    def __init__(self, node_editor_tag: DpgTag, theme: DpgNodeEditorThemes) -> None:
+    def __init__(self, node_editor_tag: DpgTag, themes: DpgThemes) -> None:
         self._node_editor_tag: DpgTag = node_editor_tag
-        self._theme: DpgNodeEditorThemes = theme
+        self._themes: DpgThemes = themes
 
         # Per-build scratch state, reset at the start of build().
         self._current_node: NodeBase | None = None
@@ -72,7 +72,7 @@ class DpgNodeBuilder:
 
         try:
             with dpg.node(label=node.display_name, parent=self._node_editor_tag) as node_tag:
-                self._theme.apply_to_node(node_tag, node)
+                self._themes.apply_to_node(node_tag, node)
 
                 for i, param in enumerate(node.params):
                     with dpg.node_attribute(label=param.name, attribute_type=dpg.mvNode_Attr_Static):
@@ -137,12 +137,12 @@ class DpgNodeBuilder:
 
     def _build_input_port(self, port: InputPort) -> None:
         with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Input) as attr_tag:
-            self._theme.apply_to_input_pin(attr_tag)
+            self._themes.apply_to_input_pin(attr_tag)
             dpg.add_text(", ".join(t.value for t in port.accepted_types))
 
     def _build_output_port(self, port: OutputPort, *, is_first: bool) -> None:
         with dpg.node_attribute(label=port.name, attribute_type=dpg.mvNode_Attr_Output) as attr_tag:
-            self._theme.apply_to_output_pin(attr_tag)
+            self._themes.apply_to_output_pin(attr_tag)
             if is_first:
                 dpg.add_spacer(height=6)
             dpg.add_text(", ".join(t.value for t in port.emits))

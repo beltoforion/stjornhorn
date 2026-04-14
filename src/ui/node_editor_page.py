@@ -12,13 +12,13 @@ from core.node_base import NodeBase
 from core.node_registry import NodeEntry, NodeRegistry
 from ui._types import DpgTag
 from ui.dpg_node_builder import DpgNodeBuilder
-from ui.dpg_node_editor_themes import DpgNodeEditorThemes
 from ui.dpg_node_list_builder import DpgNodeListBuilder
 from ui.page import Page
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from ui.dpg_themes import DpgThemes
     from ui.page_manager import PageManager
 
 
@@ -31,13 +31,13 @@ class NodeEditorPage(Page):
         menu_bar: DpgTag,
         page_manager: PageManager,
         registry: NodeRegistry,
+        themes: DpgThemes,
     ) -> None:
         self._node_editor_tag: DpgTag = dpg.generate_uuid()
         self._canvas_tag:      DpgTag = dpg.generate_uuid()
         self._flow:     Flow | None    = None
-        self._theme:    DpgNodeEditorThemes = DpgNodeEditorThemes()
         self._registry: NodeRegistry    = registry
-        self._node_builder: DpgNodeBuilder = DpgNodeBuilder(self._node_editor_tag, self._theme)
+        self._node_builder: DpgNodeBuilder = DpgNodeBuilder(self._node_editor_tag, themes)
 
         # Node tracking for delete / context-menu support
         self._node_map:        dict[DpgTag, NodeBase]       = {}
@@ -48,7 +48,7 @@ class NodeEditorPage(Page):
         # Context-menu window tags (windows populated in _build_ui)
         self._node_ctx_tag: DpgTag = dpg.generate_uuid()
         self._link_ctx_tag: DpgTag = dpg.generate_uuid()
-        super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager)
+        super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager, themes=themes)
 
     def set_flow(self, flow: Flow) -> None:
         self._flow = flow
@@ -204,7 +204,7 @@ class NodeEditorPage(Page):
 
     def _link(self, sender: DpgTag, app_data: tuple[DpgTag, DpgTag]) -> None:
         link_tag = dpg.add_node_link(app_data[0], app_data[1], parent=sender)
-        self._theme.apply_to_link(link_tag)
+        self._themes.apply_to_link(link_tag)
 
     def _delink(self, sender: DpgTag, app_data: DpgTag) -> None:
         dpg.delete_item(app_data)
@@ -223,7 +223,8 @@ class NodeEditorPage(Page):
     @override
     def _install_menus(self) -> None:
         menu_tag = dpg.generate_uuid()
-        with dpg.menu(label="Node Editor", parent=self._menu_bar, tag=menu_tag):
+        label = f"Node Editor [{self._flow.name}]" if self._flow is not None else "Node Editor"
+        with dpg.menu(label=label, parent=self._menu_bar, tag=menu_tag):
             dpg.add_menu_item(label="Clear All", callback=self._clear_nodes)
             dpg.add_separator()
             dpg.add_menu_item(label="Exit", callback=self._on_exit_clicked)

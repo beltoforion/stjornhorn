@@ -1,7 +1,34 @@
 from __future__ import annotations
 
+import re
+
 from core.node_base import NodeBase, SourceNodeBase
 from core.port import InputPort, OutputPort
+
+
+DEFAULT_FLOW_NAME: str = "Untitled_flow"
+
+# Allowed flow-name characters: ASCII letters, digits, underscore, hash,
+# plus and minus. The set is intentionally narrow so that names are safe to
+# use as filename stems on every platform without further escaping.
+_DISALLOWED_NAME_CHARS = re.compile(r"[^a-zA-Z0-9_#+\-]")
+_VALID_NAME_RE = re.compile(r"\A[a-zA-Z0-9_#+\-]+\Z")
+
+
+def is_valid_flow_name(name: str) -> bool:
+    """Return True iff ``name`` is non-empty and only uses allowed chars."""
+    return _VALID_NAME_RE.match(name) is not None
+
+
+def sanitize_flow_name(name: str) -> str:
+    """Return ``name`` with disallowed characters stripped.
+
+    Falls back to :data:`DEFAULT_FLOW_NAME` if the sanitized result is empty.
+    Defensive helper: the UI should reject invalid names up-front, but code
+    paths that construct :class:`Flow` directly still get a safe value.
+    """
+    cleaned = _DISALLOWED_NAME_CHARS.sub("", name)
+    return cleaned or DEFAULT_FLOW_NAME
 
 
 class Flow:
@@ -13,8 +40,20 @@ class Flow:
       - Run the flow by starting all source nodes in registration order.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, name: str = DEFAULT_FLOW_NAME) -> None:
+        self._name: str = sanitize_flow_name(name)
         self._nodes: list[NodeBase] = []
+
+    # ── Identity ───────────────────────────────────────────────────────────────
+
+    @property
+    def name(self) -> str:
+        """Human-readable flow name; always filesystem-safe."""
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        self._name = sanitize_flow_name(value)
 
     # ── Node management ────────────────────────────────────────────────────────
 
