@@ -12,7 +12,7 @@ from core.node_base import NodeBase
 from core.node_registry import NodeEntry, NodeRegistry
 from ui._types import DpgTag
 from ui.dpg_node_builder import DpgNodeBuilder
-from ui.dpg_node_editor_themes import DpgNodeEditorThemes
+from ui.dpg_themes import DpgThemes
 from ui.dpg_node_list_builder import DpgNodeListBuilder
 from ui.page import Page
 
@@ -35,7 +35,7 @@ class NodeEditorPage(Page):
         self._node_editor_tag: DpgTag = dpg.generate_uuid()
         self._canvas_tag:      DpgTag = dpg.generate_uuid()
         self._flow:     Flow | None    = None
-        self._theme:    DpgNodeEditorThemes = DpgNodeEditorThemes()
+        self._theme:    DpgThemes = DpgThemes()
         self._registry: NodeRegistry    = registry
         self._node_builder: DpgNodeBuilder = DpgNodeBuilder(self._node_editor_tag, self._theme)
 

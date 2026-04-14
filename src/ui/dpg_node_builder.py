@@ -12,7 +12,7 @@ from ui._types import DpgTag
 
 if TYPE_CHECKING:
     from core.port import InputPort, OutputPort
-    from ui.dpg_node_editor_themes import DpgNodeEditorThemes
+    from ui.dpg_themes import DpgThemes
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,9 @@ class DpgNodeBuilder:
     takes a :class:`NodeParam` and register it in ``self._param_builders``.
     """
 
-    def __init__(self, node_editor_tag: DpgTag, theme: DpgNodeEditorThemes) -> None:
+    def __init__(self, node_editor_tag: DpgTag, theme: DpgThemes) -> None:
         self._node_editor_tag: DpgTag = node_editor_tag
-        self._theme: DpgNodeEditorThemes = theme
+        self._theme: DpgThemes = theme
 
         # Per-build scratch state, reset at the start of build().
         self._current_node: NodeBase | None = None
