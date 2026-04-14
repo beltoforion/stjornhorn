@@ -62,24 +62,6 @@ class NodeEditorPage(Page):
             dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Right, callback=self._on_right_click)
             dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Left,  callback=self._on_left_click)
 
-        self._build_canvas()
-
-    @staticmethod
-    def _build_ctx_menu(tag: DpgTag, item_label: str, callback: Callable[..., None]) -> None:
-        with dpg.window(
-            tag=tag,
-            show=False,
-            no_title_bar=True,
-            autosize=True,
-            no_scrollbar=True,
-            no_move=True,
-            no_resize=True,
-            no_collapse=True,
-            min_size=(10, 10),
-        ):
-            dpg.add_menu_item(label=item_label, callback=callback)
-
-    def _build_canvas(self) -> None:
         dpg.add_spacer(height=20)
         with dpg.group(horizontal=True):
             DpgNodeListBuilder(self._registry)
@@ -100,6 +82,21 @@ class NodeEditorPage(Page):
                         delink_callback=self._delink,
                         width=-1,
                         height=-1)
+
+    @staticmethod
+    def _build_ctx_menu(tag: DpgTag, item_label: str, callback: Callable[..., None]) -> None:
+        with dpg.window(
+            tag=tag,
+            show=False,
+            no_title_bar=True,
+            autosize=True,
+            no_scrollbar=True,
+            no_move=True,
+            no_resize=True,
+            no_collapse=True,
+            min_size=(10, 10),
+        ):
+            dpg.add_menu_item(label=item_label, callback=callback)
 
     # ── Node creation ──────────────────────────────────────────────────────────
 
