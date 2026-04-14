@@ -45,6 +45,7 @@ class StartPage(Page):
                 enabled=False,
                 callback=self._on_create_flow,
             )
+            dpg.bind_item_theme(self._create_button_tag, _make_disabled_button_theme())
 
         # Live-validate the name on every keystroke so the Create button's
         # enabled state stays in sync with the input.
@@ -82,3 +83,21 @@ class StartPage(Page):
 
     def _on_load_flow_clicked(self, sender: DpgTag | None = None) -> None:
         pass  # TODO: implement flow loading (file dialog + deserialization)
+
+
+# ── Themes ──────────────────────────────────────────────────────────────────────
+
+def _make_disabled_button_theme() -> DpgTag:
+    """Theme that visibly greys a button out while it is ``enabled=False``.
+
+    The color overrides only apply when the bound item is disabled
+    (``enabled_state=False``); in the enabled state the default DPG theme
+    still takes effect.
+    """
+    with dpg.theme() as theme:
+        with dpg.theme_component(dpg.mvButton, enabled_state=False):
+            dpg.add_theme_color(dpg.mvThemeCol_Text,          (120, 120, 120, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_Button,        ( 45,  45,  45, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, ( 45,  45,  45, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive,  ( 45,  45,  45, 255))
+    return theme
