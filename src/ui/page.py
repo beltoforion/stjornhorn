@@ -1,90 +1,61 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-import dearpygui.dearpygui as dpg
-
-from ui._types import DpgTag
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
-    from ui.dpg_themes import DpgThemes
-    from ui.page_manager import PageManager
+    from PySide6.QtGui import QAction
+    from PySide6.QtWidgets import QMenu
 
 
-class Page(ABC):
-    """Abstract base class for a top-level application page.
+class Page(QWidget):
+    """Base class for every top-level page stacked inside MainWindow.
 
-    A Page owns a content container built once under a parent and a set of
-    menus that are added to a menu bar on activation and removed on
-    deactivation. Only one page in the application should be active at any
-    given time; the PageManager enforces this.
+    A page owns a QWidget body (populated by the subclass) and optionally
+    a list of QMenus that the host main-window installs on the global
+    menu bar while the page is active, and removes when the page is
+    deactivated.
 
-    The shared :class:`DpgThemes` instance is owned by the MainWindow and
-    passed in so that all pages render against the same underlying DPG
-    theme handles.
+    The :attr:`title_changed` signal lets a page request that the main
+    window update the window title without knowing about the main window
+    directly.
 
-    Subclasses must define:
-        name             - unique string identifier used by PageManager.
-        _build_ui()      - add content widgets; the child window container
-                           is already created by the base class and is the
-                           implicit DearPyGUI parent when _build_ui() runs.
-        _install_menus() - create the page's menus under self._menu_bar
-                           and append each created menu's tag to
-                           self._menu_tags so the base class can remove
-                           them automatically on deactivation.
+    Subclasses should:
+
+    * build their widgets in ``__init__`` via a normal layout call,
+    * return their per-page menus from :meth:`page_menus`,
+    * emit :attr:`title_changed` whenever their context (e.g. current
+      flow name) changes.
     """
 
-    name : str
+    title_changed = Signal(str)
 
-    def __init__(
-        self,
-        parent: DpgTag,
-        menu_bar: DpgTag,
-        page_manager: PageManager,
-        themes: DpgThemes,
-    ) -> None:
-        self._parent: DpgTag = parent
-        self._menu_bar: DpgTag = menu_bar
-        self._page_manager: PageManager = page_manager
-        self._themes: DpgThemes = themes
-        self._content_tag: DpgTag = dpg.generate_uuid()
-        self._menu_tags: list[DpgTag] = []
-        self._active: bool = False
-        with dpg.child_window(tag=self._content_tag, parent=self._parent, border=False, show=False):
-            self._build_ui()
+    def page_menus(self) -> list[QMenu]:
+        """Return the menus this page contributes to the global menu bar.
 
-    @abstractmethod
-    def _build_ui(self) -> None:
-        ...
+        Default: empty. Override to attach Save/Run/etc. to the
+        application menu bar while the page is active.
+        """
+        return []
 
-    @abstractmethod
-    def _install_menus(self) -> None:
-        ...
+    def page_actions(self) -> list[QAction]:
+        """Optional list of toolbar actions the page contributes.
 
-    @property
-    def is_active(self) -> bool:
-        return self._active
+        Default: empty. MainWindow does not yet use this, but it keeps
+        the door open for shared toolbar slots.
+        """
+        return []
 
-    def activate(self) -> None:
-        if self._active:
-            return
-        dpg.show_item(self._content_tag)
-        self._install_menus()
-        self._active = True
-        self._on_activated()
+    def page_title(self) -> str:
+        """Human-readable page title used in the window caption."""
+        return ""
 
-    def _on_activated(self) -> None:
-        """Hook called after the page becomes active. Override to set focus,
-        refresh derived state, etc. Base implementation is a no-op."""
-        pass
+    # ── Lifecycle ──────────────────────────────────────────────────────────────
 
-    def deactivate(self) -> None:
-        if not self._active:
-            return
-        dpg.hide_item(self._content_tag)
-        for tag in self._menu_tags:
-            if dpg.does_item_exist(tag):
-                dpg.delete_item(tag)
-        self._menu_tags.clear()
-        self._active = False
+    def on_activated(self) -> None:
+        """Called by MainWindow immediately after the page is made visible."""
+
+    def on_deactivated(self) -> None:
+        """Called by MainWindow just before another page becomes visible."""

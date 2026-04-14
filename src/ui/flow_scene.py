@@ -1,0 +1,280 @@
+from __future__ import annotations
+
+import importlib
+import logging
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QPointF, Signal
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import (
+    QGraphicsScene,
+    QGraphicsSceneContextMenuEvent,
+    QGraphicsSceneMouseEvent,
+    QMenu,
+)
+
+from core.flow import Flow
+from core.node_base import NodeBase
+from ui.link_item import LinkItem, PendingLinkItem
+from ui.node_item import NodeItem
+from ui.port_item import PortItem
+
+if TYPE_CHECKING:
+    from core.node_registry import NodeEntry
+
+logger = logging.getLogger(__name__)
+
+
+class FlowScene(QGraphicsScene):
+    """Graphics scene mediating between the ``Flow`` model and its visual.
+
+    Owns every :class:`NodeItem` and :class:`LinkItem`. Handles:
+
+      - drag-from-palette drops → instantiating the right NodeBase and
+        registering it with the active Flow.
+      - drag-between-ports → creating both the visual LinkItem and the
+        underlying ``Flow.connect`` edge.
+      - right-click context menus on nodes (Delete) and links (Delete).
+
+    Emits :attr:`selected_node_changed` whenever the user's selection
+    settles on a different single node (None when nothing or multiple
+    things are selected).
+    """
+
+    selected_node_changed = Signal(object)   # NodeBase | None
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._flow: Flow | None = None
+        self._node_items: dict[int, NodeItem] = {}          # id(node_base) → NodeItem
+        self._links: list[LinkItem] = []
+        self._pending_link: PendingLinkItem | None = None
+        self._pending_src_port: PortItem | None = None
+        self._last_emitted_selected: NodeBase | None = None
+
+        self.selectionChanged.connect(self._on_selection_changed)
+
+    # ── Flow binding ───────────────────────────────────────────────────────────
+
+    def set_flow(self, flow: Flow) -> None:
+        """Replace the current flow and wipe the canvas."""
+        self.clear_scene()
+        self._flow = flow
+
+    @property
+    def flow(self) -> Flow | None:
+        return self._flow
+
+    def clear_scene(self) -> None:
+        """Remove every item and Flow connection. The Flow itself is left
+        in place by the caller (use :meth:`set_flow` to swap)."""
+        for link in list(self._links):
+            self._delete_link_item(link)
+        for item in list(self._node_items.values()):
+            self._delete_node_item(item)
+        self._node_items.clear()
+        self._links.clear()
+        self._pending_link = None
+        self._pending_src_port = None
+        self._last_emitted_selected = None
+
+    # ── Node operations ────────────────────────────────────────────────────────
+
+    def add_node(self, node: NodeBase, scene_pos: QPointF | None = None) -> NodeItem:
+        item = NodeItem(node)
+        self.addItem(item)
+        if scene_pos is not None:
+            item.setPos(scene_pos)
+        self._node_items[id(node)] = item
+        if self._flow is not None:
+            self._flow.add_node(node)
+        return item
+
+    def instantiate_and_add(self, entry: NodeEntry, scene_pos: QPointF | None = None) -> NodeItem | None:
+        """Import the class referenced by ``entry`` and add an instance."""
+        try:
+            module = importlib.import_module(entry.module)
+            cls    = getattr(module, entry.class_name)
+            node   = cls()
+        except Exception:
+            logger.exception("Failed to instantiate %s.%s", entry.module, entry.class_name)
+            return None
+        logger.debug("Adding node '%s'", node.display_name)
+        return self.add_node(node, scene_pos)
+
+    def remove_node_item(self, item: NodeItem) -> None:
+        """Remove a node and every link attached to its ports."""
+        # Delete attached links first so Flow.disconnect runs cleanly.
+        for port in [*item.input_ports, *item.output_ports]:
+            for link in list(port.links):
+                self._delete_link_item(link)
+        self._delete_node_item(item)
+
+    def _delete_node_item(self, item: NodeItem) -> None:
+        if self._flow is not None:
+            try:
+                self._flow.remove_node(item.node)
+            except ValueError:
+                pass
+        self._node_items.pop(id(item.node), None)
+        self.removeItem(item)
+
+    # ── Link operations ────────────────────────────────────────────────────────
+
+    def connect_ports(self, src: PortItem, dst: PortItem) -> LinkItem | None:
+        """Create a link from ``src`` (output) to ``dst`` (input) if the
+        port types are compatible and the link does not already exist."""
+        if src.kind != "output" or dst.kind != "input":
+            return None
+        if src.node_item is dst.node_item:
+            return None  # no self-loops
+        if any(link for link in src.links if link.dst_port is dst):
+            return None  # duplicate
+
+        src_node = src.node_item.node
+        dst_node = dst.node_item.node
+        if self._flow is not None:
+            try:
+                self._flow.connect(src_node, src.index, dst_node, dst.index)
+            except TypeError:
+                logger.info("Rejected incompatible connection: %s.%s -> %s.%s",
+                            type(src_node).__name__, src.name,
+                            type(dst_node).__name__, dst.name)
+                return None
+
+        link = LinkItem(src, dst)
+        self.addItem(link)
+        self._links.append(link)
+        return link
+
+    def _delete_link_item(self, link: LinkItem) -> None:
+        if self._flow is not None:
+            try:
+                self._flow.disconnect(
+                    link.src_port.node_item.node, link.src_port.index,
+                    link.dst_port.node_item.node, link.dst_port.index,
+                )
+            except Exception:
+                logger.debug("Flow.disconnect failed on link delete", exc_info=True)
+        link.detach()
+        if link in self._links:
+            self._links.remove(link)
+        self.removeItem(link)
+
+    # ── Pending-link drag ──────────────────────────────────────────────────────
+
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        from PySide6.QtCore import Qt
+        if event.button() == Qt.LeftButton:
+            port = self._port_at(event.scenePos())
+            if port is not None:
+                # Start a pending link from this port. Swallow the press
+                # so that neither the port nor the underlying node grabs
+                # the mouse — we want subsequent move / release events to
+                # reach the scene itself.
+                self._pending_src_port = port
+                self._pending_link = PendingLinkItem(port.scenePos())
+                self._pending_link.update_end(event.scenePos())
+                self.addItem(self._pending_link)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        if self._pending_link is not None:
+            self._pending_link.update_end(event.scenePos())
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        if self._pending_link is not None and self._pending_src_port is not None:
+            target = self._port_at(event.scenePos())
+            self.removeItem(self._pending_link)
+            self._pending_link = None
+            src = self._pending_src_port
+            self._pending_src_port = None
+
+            if target is not None and target is not src:
+                # Allow drag from either direction (output→input or input→output).
+                if src.kind == "output" and target.kind == "input":
+                    self.connect_ports(src, target)
+                elif src.kind == "input" and target.kind == "output":
+                    self.connect_ports(target, src)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def _port_at(self, scene_pos: QPointF) -> PortItem | None:
+        for item in self.items(scene_pos):
+            if isinstance(item, PortItem):
+                return item
+        return None
+
+    # ── Context menus ──────────────────────────────────────────────────────────
+
+    def contextMenuEvent(self, event: QGraphicsSceneContextMenuEvent) -> None:  # type: ignore[override]
+        from PySide6.QtGui import QTransform
+        views = self.views()
+        xform = views[0].transform() if views else QTransform()
+        item = self.itemAt(event.scenePos(), xform)
+        # Walk up to a NodeItem / LinkItem if a port or label was clicked.
+        while item is not None and not isinstance(item, (NodeItem, LinkItem)):
+            item = item.parentItem()
+
+        if isinstance(item, NodeItem):
+            self._node_context_menu(item, event)
+            return
+        if isinstance(item, LinkItem):
+            self._link_context_menu(item, event)
+            return
+        super().contextMenuEvent(event)
+
+    def _node_context_menu(self, item: NodeItem, event: QGraphicsSceneContextMenuEvent) -> None:
+        menu = QMenu()
+        delete = QAction("Delete Node", menu)
+        delete.triggered.connect(lambda: self.remove_node_item(item))
+        menu.addAction(delete)
+        menu.exec(event.screenPos())
+
+    def _link_context_menu(self, link: LinkItem, event: QGraphicsSceneContextMenuEvent) -> None:
+        menu = QMenu()
+        delete = QAction("Delete Connection", menu)
+        delete.triggered.connect(lambda: self._delete_link_item(link))
+        menu.addAction(delete)
+        menu.exec(event.screenPos())
+
+    # ── Selection → signal ─────────────────────────────────────────────────────
+
+    def _on_selection_changed(self) -> None:
+        selected = self.selectedItems()
+        node_items = [s for s in selected if isinstance(s, NodeItem)]
+        node = node_items[0].node if len(node_items) == 1 else None
+        if node is not self._last_emitted_selected:
+            self._last_emitted_selected = node
+            self.selected_node_changed.emit(node)
+
+    # ── Iteration helpers used by flow_io ──────────────────────────────────────
+
+    def iter_node_items(self) -> list[NodeItem]:
+        return list(self._node_items.values())
+
+    def node_item_for(self, node: NodeBase) -> NodeItem | None:
+        return self._node_items.get(id(node))
+
+    def iter_links(self) -> list[LinkItem]:
+        return list(self._links)
+
+    # ── Keyboard ───────────────────────────────────────────────────────────────
+
+    def keyPressEvent(self, event) -> None:  # type: ignore[override]
+        from PySide6.QtCore import Qt
+        if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+            for s in list(self.selectedItems()):
+                if isinstance(s, NodeItem):
+                    self.remove_node_item(s)
+                elif isinstance(s, LinkItem):
+                    self._delete_link_item(s)
+            event.accept()
+            return
+        super().keyPressEvent(event)

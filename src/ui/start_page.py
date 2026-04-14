@@ -3,109 +3,111 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import dearpygui.dearpygui as dpg
-from typing_extensions import override
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSizePolicy,
+    QSpacerItem,
+    QVBoxLayout,
+    QWidget,
+)
 
-from constants import APP_VERSION, FLOW_DIR
-from core.flow import DEFAULT_FLOW_NAME, Flow, is_valid_flow_name
-from ui._types import DpgTag
-from ui.flow_file_dialog import make_open_flow_dialog
+from constants import APP_NAME, APP_VERSION, FLOW_DIR
+from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
 from ui.page import Page
 
 if TYPE_CHECKING:
-    from ui.dpg_themes import DpgThemes
-    from ui.page_manager import PageManager
+    pass
+
+_FLOW_FILE_FILTER = "Flow (*.flowjs);;All files (*)"
 
 
 class StartPage(Page):
-    name : str = "start"
+    """Landing page. Lets the user create a new flow by name or open an
+    existing ``.flowjs`` file.
 
-    def __init__(
-        self,
-        parent: DpgTag,
-        menu_bar: DpgTag,
-        page_manager: PageManager,
-        themes: DpgThemes,
-    ) -> None:
-        self._flow_name_input_tag: DpgTag = dpg.generate_uuid()
-        self._create_button_tag:   DpgTag = dpg.generate_uuid()
-        self._open_dialog_tag:     DpgTag = dpg.generate_uuid()
-        super().__init__(parent=parent, menu_bar=menu_bar, page_manager=page_manager, themes=themes)
+    The **Create** button is only enabled while the flow-name input
+    contains a valid name (``a-zA-Z0-9_#+-``, non-empty).
+    """
 
-    @override
-    def _build_ui(self) -> None:
-        dpg.add_spacer(height=60)
-        dpg.add_text("Image Inquest", indent=20)
-        dpg.add_text(f"v{APP_VERSION}", indent=20, color=(120, 120, 120, 255))
-        dpg.add_spacer(height=20)
+    create_flow_requested = Signal(str)     # emits flow name
+    open_flow_requested   = Signal(Path)    # emits file path
 
-        # Primary action: name the flow then create it. Enter in the input
-        # also triggers creation. Create is disabled until the name is valid.
-        with dpg.group(horizontal=True, indent=20):
-            dpg.add_input_text(
-                tag=self._flow_name_input_tag,
-                hint=DEFAULT_FLOW_NAME,
-                width=220,
-                on_enter=True,
-                callback=self._on_create_flow,
-            )
-            dpg.add_button(
-                label="Create",
-                tag=self._create_button_tag,
-                enabled=False,
-                callback=self._on_create_flow,
-            )
-            self._themes.apply_to_disabled_button(self._create_button_tag)
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
 
-        # Live-validate the name on every keystroke so the Create button's
-        # enabled state stays in sync with the input.
-        with dpg.item_handler_registry() as handlers:
-            dpg.add_item_edited_handler(callback=self._on_name_edited)
-        dpg.bind_item_handler_registry(self._flow_name_input_tag, handlers)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(40, 60, 40, 40)
+        root.setSpacing(12)
 
-        dpg.add_spacer(height=8)
-        dpg.add_button(label="Open", indent=20, callback=self._on_open_clicked)
+        title = QLabel(APP_NAME)
+        title_font = title.font()
+        title_font.setPointSize(24)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        root.addWidget(title)
 
-        # Persistent file dialog used by the Open button. Same factory as
-        # NodeEditorPage so both pages share filter / layout.
-        make_open_flow_dialog(self._open_dialog_tag, self._on_flow_file_selected)
+        version = QLabel(f"v{APP_VERSION}")
+        version.setProperty("muted", True)
+        root.addWidget(version)
 
-    @override
-    def _install_menus(self) -> None:
-        pass
+        root.addSpacerItem(QSpacerItem(0, 20, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
-    @override
-    def _on_activated(self) -> None:
-        # Focus the input so typing a name works immediately on (re-)entry.
-        dpg.focus_item(self._flow_name_input_tag)
+        # Name input + Create button.
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        self._name_input = QLineEdit()
+        self._name_input.setPlaceholderText(DEFAULT_FLOW_NAME)
+        self._name_input.setMinimumWidth(240)
+        self._name_input.textChanged.connect(self._on_name_changed)
+        self._name_input.returnPressed.connect(self._on_create_clicked)
+        row.addWidget(self._name_input)
+
+        self._create_button = QPushButton("Create")
+        self._create_button.setEnabled(False)
+        self._create_button.clicked.connect(self._on_create_clicked)
+        row.addWidget(self._create_button)
+        row.addStretch(1)
+        root.addLayout(row)
+
+        # Open button.
+        open_row = QHBoxLayout()
+        open_button = QPushButton("Open")
+        open_button.clicked.connect(self._on_open_clicked)
+        open_row.addWidget(open_button)
+        open_row.addStretch(1)
+        root.addLayout(open_row)
+
+        root.addStretch(1)
+
+    # ── Page hooks ─────────────────────────────────────────────────────────────
+
+    def page_title(self) -> str:
+        return ""  # MainWindow shows the bare app name on the start page
+
+    def on_activated(self) -> None:
+        self._name_input.setFocus(Qt.OtherFocusReason)
+        self._name_input.selectAll()
 
     # ── Callbacks ──────────────────────────────────────────────────────────────
 
-    def _on_name_edited(self, sender: DpgTag, app_data: object) -> None:
-        name = dpg.get_value(self._flow_name_input_tag) or ""
-        dpg.configure_item(self._create_button_tag, enabled=is_valid_flow_name(name))
+    def _on_name_changed(self, text: str) -> None:
+        self._create_button.setEnabled(is_valid_flow_name(text))
 
-    def _on_create_flow(self, sender: DpgTag | None = None, app_data: object = None) -> None:
-        name = dpg.get_value(self._flow_name_input_tag) or ""
+    def _on_create_clicked(self) -> None:
+        name = self._name_input.text()
         if not is_valid_flow_name(name):
-            # Ignore Enter presses on an invalid/empty input; the Create
-            # button is already disabled for the same reason.
             return
-        flow = Flow(name=name)
-        self._page_manager.editor_page.set_flow(flow)
-        self._page_manager.activate(self._page_manager.editor_page)
+        self.create_flow_requested.emit(name)
 
-    def _on_open_clicked(self, sender: DpgTag | None = None) -> None:
+    def _on_open_clicked(self) -> None:
         FLOW_DIR.mkdir(parents=True, exist_ok=True)
-        dpg.configure_item(self._open_dialog_tag, default_path=str(FLOW_DIR))
-        dpg.show_item(self._open_dialog_tag)
-
-    def _on_flow_file_selected(self, sender: DpgTag, app_data: dict) -> None:
-        path_str = app_data.get("file_path_name", "")
-        if not path_str:
-            return
-        # Delegate to NodeEditorPage — single source of truth for the load
-        # routine (clears canvas, rebuilds nodes/links, refreshes menu).
-        editor = self._page_manager.editor_page
-        editor.load_flow(Path(path_str))
-        self._page_manager.activate(editor)
+        path_str, _ = QFileDialog.getOpenFileName(
+            self, "Open Flow", str(FLOW_DIR), _FLOW_FILE_FILTER,
+        )
+        if path_str:
+            self.open_flow_requested.emit(Path(path_str))

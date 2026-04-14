@@ -1,4 +1,5 @@
 rawpy
 numpy
 opencv-python
+PySide6
 typing_extensions
