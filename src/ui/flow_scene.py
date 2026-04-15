@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QPointF, Signal
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
+    QGraphicsProxyWidget,
     QGraphicsScene,
     QGraphicsSceneContextMenuEvent,
     QGraphicsSceneMouseEvent,
@@ -270,6 +271,13 @@ class FlowScene(QGraphicsScene):
     def keyPressEvent(self, event) -> None:  # type: ignore[override]
         from PySide6.QtCore import Qt
         if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            # If an embedded Qt widget (e.g. a node's path QLineEdit) holds
+            # focus, forward the key so the user can actually delete text.
+            # Otherwise Delete/Backspace would be swallowed here and the
+            # widget never sees it — instead deleting the selected node.
+            if isinstance(self.focusItem(), QGraphicsProxyWidget):
+                super().keyPressEvent(event)
+                return
             for s in list(self.selectedItems()):
                 if isinstance(s, NodeItem):
                     self.remove_node_item(s)
