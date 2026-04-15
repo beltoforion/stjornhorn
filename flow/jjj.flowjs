@@ -7,31 +7,21 @@
       "module": "nodes.sources.file_source",
       "class": "FileSource",
       "position": [
-        -861.0,
-        -410.0
+        -1340.0,
+        -441.0
       ],
       "params": {
-        "file_path": ".",
+        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/ship.jpg",
         "max_num_frames": -1
       }
     },
     {
       "id": 1,
-      "module": "nodes.filters.grayscale",
-      "class": "Grayscale",
-      "position": [
-        -508.0,
-        -329.0
-      ],
-      "params": {}
-    },
-    {
-      "id": 2,
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -108.0,
-        -299.0
+        -1003.0,
+        -398.0
       ],
       "params": {
         "output_path": "output/out.png"
@@ -43,12 +33,6 @@
       "src_node": 0,
       "src_output": 0,
       "dst_node": 1,
-      "dst_input": 0
-    },
-    {
-      "src_node": 1,
-      "src_output": 0,
-      "dst_node": 2,
       "dst_input": 0
     }
   ]
