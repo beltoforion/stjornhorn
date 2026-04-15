@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "name": "tt",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.file_source",
+      "class": "FileSource",
+      "position": [
+        -2036.0,
+        -500.0
+      ],
+      "params": {
+        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/ship.jpg",
+        "max_num_frames": -1
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -752.8864281250001,
+        -489.20442937499996
+      ],
+      "params": {
+        "output_path": "output/dither_rgbout.png"
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.rgb_split",
+      "class": "RgbSplit",
+      "position": [
+        -1718.0,
+        -484.0
+      ],
+      "params": {}
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1390.0,
+        -617.9886428125
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1390.0,
+        -485.0
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.rgb_join",
+      "class": "RgbJoin",
+      "position": [
+        -1069.9886428125,
+        -487.0
+      ],
+      "params": {
+        "three_color": false
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1391.0,
+        -341.0
+      ],
+      "params": {
+        "method": 6
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 1,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 1
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 2,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 2
+    }
+  ]
+}
