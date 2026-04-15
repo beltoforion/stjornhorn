@@ -54,6 +54,10 @@ class NodeBase(ABC):
 
     def _add_input(self, port: InputPort) -> None:
         self._inputs.append(port)
+        # Wire the port so that data arriving at it drives this node's
+        # dispatcher: _signal_input_ready checks whether every input has
+        # data and, if so, invokes process() (or _on_end_of_stream()).
+        port.set_on_data_received(self._signal_input_ready)
 
     def _add_output(self, port: OutputPort) -> None:
         self._outputs.append(port)
