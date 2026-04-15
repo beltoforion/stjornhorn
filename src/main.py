@@ -5,7 +5,7 @@ import logging
 import sys
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QCursor, QGuiApplication, QPixmap, QScreen
 from PySide6.QtWidgets import QApplication, QSplashScreen
 
 from constants import (
@@ -24,7 +24,20 @@ from ui.theme import apply_dark_theme
 logger = logging.getLogger(__name__)
 
 
-def _make_splash() -> QSplashScreen | None:
+def _target_screen() -> QScreen:
+    """Return the screen the app should launch on.
+
+    On multi-monitor setups we want the splash and the main window to
+    appear on the same display. The window manager typically puts new
+    windows on the screen under the cursor, so we mirror that choice.
+    Falls back to the primary screen if no screen is under the cursor
+    (e.g. headless / unusual setups).
+    """
+    screen = QGuiApplication.screenAt(QCursor.pos())
+    return screen if screen is not None else QGuiApplication.primaryScreen()
+
+
+def _make_splash(screen: QScreen) -> QSplashScreen | None:
     """Build the startup splash screen, or return ``None`` if the image
     is missing / unreadable. Never fatal — a missing splash should not
     prevent the app from launching.
@@ -38,7 +51,11 @@ def _make_splash() -> QSplashScreen | None:
         logger.warning("Splash image could not be loaded: %s", SPLASH_IMAGE_PATH)
         return None
 
-    splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
+    # Passing the screen explicitly pins the splash to the same monitor
+    # the main window will open on — otherwise Qt centers it on the
+    # primary screen, which may differ from the WM's choice for the
+    # main window.
+    splash = QSplashScreen(screen, pixmap, Qt.WindowStaysOnTopHint)
     splash.setAttribute(Qt.WA_DeleteOnClose)
     return splash
 
@@ -61,15 +78,26 @@ def main(argv: list[str]) -> int:
     app.setApplicationVersion(APP_VERSION)
     apply_dark_theme(app)
 
+    # Decide which monitor we're launching on before creating any
+    # top-level widgets so splash and main window stay together.
+    screen = _target_screen()
+
     # Show splash as early as possible so it's visible while the registry
     # scans and the main window is constructed.
-    splash = None if args.no_splash else _make_splash()
+    splash = None if args.no_splash else _make_splash(screen)
     if splash is not None:
         splash.show()
         app.processEvents()
 
     window = MainWindow()
     window.resize(args.width, args.height)
+    # Center the main window on the chosen screen so the window manager
+    # doesn't drop it on a different monitor than the splash.
+    geom = screen.availableGeometry()
+    window.move(
+        geom.x() + (geom.width()  - args.width)  // 2,
+        geom.y() + (geom.height() - args.height) // 2,
+    )
 
     if splash is not None:
         # Ensure the splash stays visible for at least SPLASH_DURATION_MS
