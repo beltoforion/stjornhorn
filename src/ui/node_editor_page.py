@@ -115,7 +115,7 @@ class NodeEditorPage(Page):
         # a View submenu to toggle the docks. The menu itself is rebuilt
         # on every activation because QMenu cannot be easily re-parented
         # across hosts.
-        menu = QMenu(self.page_title())
+        menu = QMenu("Node Editor")
         menu.addAction(self._actions["run"])
         menu.addAction(self._actions["save"])
         menu.addAction(self._actions["open"])
