@@ -54,7 +54,11 @@ def _build_file_path_param(node: NodeBase, param: NodeParam) -> QWidget:
 
     line = QLineEdit()
     line.setPlaceholderText("Select a file…")
-    line.setMinimumWidth(180)
+    # Min width must leave room for the 28 px browse button + spacing
+    # inside the fixed-width node body, otherwise the line edit overflows
+    # and visually overlaps the button. The stretch factor below already
+    # makes the field fill any extra horizontal space.
+    line.setMinimumWidth(80)
     line.textChanged.connect(_make_setter(node, param.name))
     # Set the initial text *after* connecting so loaded flows / declared
     # defaults visibly populate the widget. Reading from the node first
