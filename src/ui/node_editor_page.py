@@ -205,7 +205,8 @@ class NodeEditorPage(Page):
             self._flow.run()
         except Exception as err:
             logger.exception("Flow run failed")
-            self._set_status(f"Run failed ({type(err).__name__})", kind="fail")
+            detail = str(err).strip() or "(no message)"
+            self._set_status(f"Run failed ({type(err).__name__}): {detail}", kind="fail")
             return
         self._set_status(
             f"Ran at {datetime.now().strftime('%H:%M:%S')}",
@@ -222,10 +223,8 @@ class NodeEditorPage(Page):
             save_flow_to(path, self._scene, self._flow)
         except OSError as err:
             logger.exception("Failed to save flow '%s'", self._flow.name)
-            self._set_status(
-                f"Save failed ({err.strerror or err.__class__.__name__})",
-                kind="fail",
-            )
+            detail = err.strerror or str(err) or err.__class__.__name__
+            self._set_status(f"Save failed: {detail}", kind="fail")
             return
         self._set_status(
             f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
@@ -266,6 +265,9 @@ class NodeEditorPage(Page):
             "muted": STATUS_MUTED_COLOR,
         }.get(kind, STATUS_MUTED_COLOR)
         self._status_label.setText(message)
+        # Show the full message in a tooltip so long exception text isn't
+        # lost when the status bar truncates the label.
+        self._status_label.setToolTip(message)
         self._status_label.setStyleSheet(
             f"color: rgb({color.red()},{color.green()},{color.blue()});"
         )
