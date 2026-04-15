@@ -34,6 +34,10 @@ class FileSource(SourceNodeBase):
         self._file_path: Path = Path()
         self._max_num_frames: int = -1
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
+        # Push the declared NodeParam defaults onto the instance so the
+        # node's state matches what its params metadata promises (and
+        # what the UI displays) from the moment it is constructed.
+        self._apply_default_params()
 
     # ── Parameters ─────────────────────────────────────────────────────────────
 

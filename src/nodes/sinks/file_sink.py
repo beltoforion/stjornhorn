@@ -24,6 +24,9 @@ class FileSink(SinkNodeBase):
         self._output_format: OutputFormat = OutputFormat.SAME_AS_INPUT
 
         self._add_input(InputPort("image", {IoDataType.IMAGE}))
+        # Sync attributes with declared NodeParam defaults; see
+        # NodeBase._apply_default_params for rationale.
+        self._apply_default_params()
 
     # ── Parameters ─────────────────────────────────────────────────────────────
 
