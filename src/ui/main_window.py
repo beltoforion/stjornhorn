@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
     clears and re-installs them on every page switch.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, initial_flow_path: Path | None = None) -> None:
         super().__init__()
         self.setWindowTitle(APP_NAME)
 
@@ -68,6 +68,18 @@ class MainWindow(QMainWindow):
         self._installed_page_menus: list[QMenu] = []
 
         self._activate_page(self._start_page)
+
+        # If a flow was supplied on the command line, jump straight into
+        # the editor. Failure falls through to the start page (already
+        # active) so a bad CLI arg never blocks app launch.
+        if initial_flow_path is not None:
+            if self._editor_page.load_flow(initial_flow_path):
+                self._activate_page(self._editor_page)
+            else:
+                logger.warning(
+                    "Could not load initial flow %s; staying on start page",
+                    initial_flow_path,
+                )
 
     # ── Page switching ─────────────────────────────────────────────────────────
 

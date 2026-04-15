@@ -33,6 +33,7 @@ Optional arguments:
 | Argument | Default | Description |
 |---|---|---|
 | `--no-splash` | — | Skip the startup splash screen |
+| `--flow FILE` | — | Load a flow at startup and open it directly in the editor. Accepts a path to a `.flowjs` file or a bare flow name (looked up in `flow/`). |
 
 ## Usage
 

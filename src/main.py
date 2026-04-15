@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication, QPixmap, QScreen
@@ -11,6 +12,7 @@ from PySide6.QtWidgets import QApplication, QSplashScreen
 from constants import (
     APP_NAME,
     APP_VERSION,
+    FLOW_DIR,
     SPLASH_DURATION_MS,
     SPLASH_IMAGE_PATH,
     USER_CONFIG_DIR,
@@ -20,6 +22,38 @@ from ui.main_window import MainWindow
 from ui.theme import apply_dark_theme
 
 logger = logging.getLogger(__name__)
+
+
+_FLOW_EXT = ".flowjs"
+
+
+def _resolve_flow_arg(arg: str) -> Path | None:
+    """Resolve a ``--flow`` CLI argument to an existing flow file.
+
+    Tries, in order:
+      1. the literal path,
+      2. the literal path with ``.flowjs`` appended,
+      3. ``FLOW_DIR / arg`` (for bare names like ``my_flow``),
+      4. ``FLOW_DIR / arg.flowjs``.
+
+    Returns the first existing file (resolved absolute), or ``None``.
+    """
+    def _with_ext(p: Path) -> Path:
+        return p if p.suffix == _FLOW_EXT else Path(f"{p}{_FLOW_EXT}")
+
+    p = Path(arg)
+    candidates: list[Path] = [p, _with_ext(p)]
+    # Treat plain names (no directory component, not absolute) as
+    # references into FLOW_DIR so users can type "my_flow" or
+    # "my_flow.flowjs" without the flow/ prefix.
+    if not p.is_absolute() and p.parent == Path("."):
+        candidates.append(FLOW_DIR / arg)
+        candidates.append(_with_ext(FLOW_DIR / arg))
+
+    for c in candidates:
+        if c.is_file():
+            return c.resolve()
+    return None
 
 
 def _target_screen() -> QScreen:
@@ -61,10 +95,22 @@ def _make_splash(screen: QScreen) -> QSplashScreen | None:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Image Inquest Application")
     parser.add_argument("--no-splash", action="store_true", help="Skip the startup splash screen")
+    parser.add_argument(
+        "--flow",
+        metavar="FILE",
+        help="Load a flow at startup and open it directly in the editor. "
+             "Accepts a path to a .flowjs file or a bare flow name (looked up in flow/).",
+    )
     args, qt_args = parser.parse_known_args(argv)
 
     setup_logging(USER_CONFIG_DIR / "logs")
     logger.info("Starting %s v%s", APP_NAME, APP_VERSION)
+
+    initial_flow_path: Path | None = None
+    if args.flow:
+        initial_flow_path = _resolve_flow_arg(args.flow)
+        if initial_flow_path is None:
+            logger.warning("Flow not found: %r", args.flow)
 
     # Forward any unrecognised flags to Qt (e.g. -style, -platform) along
     # with the program name so QApplication.arguments() behaves normally.
@@ -85,7 +131,7 @@ def main(argv: list[str]) -> int:
         splash.show()
         app.processEvents()
 
-    window = MainWindow()
+    window = MainWindow(initial_flow_path=initial_flow_path)
     # Anchor the window on the chosen monitor before maximizing so the
     # window manager maximizes it there (not on the primary screen).
     geom = screen.availableGeometry()
