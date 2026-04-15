@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 
 from enum import Enum
@@ -7,6 +8,8 @@ from typing_extensions import override
 
 from core.io_data import IoData
 from core.port import InputPort, OutputPort
+
+logger = logging.getLogger(__name__)
 
 
 class NodeParamType(Enum):
@@ -57,6 +60,37 @@ class NodeBase(ABC):
 
     def _add_output(self, port: OutputPort) -> None:
         self._outputs.append(port)
+
+    # ── Param defaults ─────────────────────────────────────────────────────────
+
+    def _apply_default_params(self) -> None:
+        """Push every NodeParam's declared ``default`` metadata onto the
+        matching instance attribute via the normal property setter.
+
+        Call this at the end of a subclass ``__init__`` so the node's
+        attributes match the values it advertises in :attr:`params` from
+        the moment it is constructed — *before* any UI builder, save
+        routine or scheduler can read stale data.
+
+        Without this call, a node dropped onto the canvas and saved
+        immediately serialises whatever placeholder its ``__init__`` set
+        (e.g. ``Path()`` => ``"."``), not the value the params metadata
+        promised.
+        """
+        for p in self.params:
+            if "default" not in p.metadata:
+                continue
+            try:
+                setattr(self, p.name, p.metadata["default"])
+            except Exception:
+                # A property setter may legitimately reject some defaults
+                # (file dialogs validate paths, range setters clip, etc.).
+                # Log and keep whatever value the subclass __init__
+                # already wrote.
+                logger.exception(
+                    "Failed to apply declared default for %s.%s = %r",
+                    type(self).__name__, p.name, p.metadata["default"],
+                )
 
     # ── Public accessors ───────────────────────────────────────────────────────
 

@@ -51,10 +51,14 @@ def _build_file_path_param(node: NodeBase, param: NodeParam) -> QWidget:
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(4)
 
-    line = QLineEdit(str(param.metadata.get("default", "")))
+    line = QLineEdit()
     line.setPlaceholderText("Select a file…")
     line.setMinimumWidth(180)
     line.textChanged.connect(_make_setter(node, param.name))
+    # Set the initial text *after* connecting so loaded flows / declared
+    # defaults visibly populate the widget. Reading from the node first
+    # means the widget always mirrors the node's current attribute.
+    line.setText(str(_initial_value(node, param, "")))
     layout.addWidget(line, 1)
 
     browse = QPushButton("…")
@@ -71,8 +75,9 @@ def _build_file_path_param(node: NodeBase, param: NodeParam) -> QWidget:
 def _build_int_param(node: NodeBase, param: NodeParam) -> QWidget:
     spin = QSpinBox()
     spin.setRange(-10_000_000, 10_000_000)
-    spin.setValue(int(param.metadata.get("default", 0)))
     spin.valueChanged.connect(_make_setter(node, param.name))
+    # See _build_file_path_param for the order rationale.
+    spin.setValue(int(_initial_value(node, param, 0)))
     spin.setAlignment(Qt.AlignmentFlag.AlignRight)
     spin.setMinimumWidth(96)
     return spin
@@ -85,6 +90,19 @@ _PARAM_BUILDERS: dict[NodeParamType, Callable[[NodeBase, NodeParam], QWidget]] =
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _initial_value(node: NodeBase, param: NodeParam, fallback: object) -> object:
+    """Return the value the widget should display on first creation.
+
+    Prefers the node's current attribute (so loaded flows show their
+    saved values) and falls back to the metadata default (so
+    freshly-instantiated nodes still get the right starting text even if
+    the subclass forgot :meth:`NodeBase._apply_default_params`).
+    """
+    if hasattr(node, param.name):
+        return getattr(node, param.name)
+    return param.metadata.get("default", fallback)
+
 
 def _make_setter(node: NodeBase, name: str) -> Callable[[object], None]:
     """Return a slot that writes the received value into ``node.<name>``."""
