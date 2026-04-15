@@ -32,8 +32,6 @@ Optional arguments:
 
 | Argument | Default | Description |
 |---|---|---|
-| `--width N` | 1024 | Initial window width in pixels |
-| `--height N` | 768 | Initial window height in pixels |
 | `--no-splash` | — | Skip the startup splash screen |
 
 ## Usage

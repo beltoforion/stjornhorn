@@ -11,8 +11,6 @@ from PySide6.QtWidgets import QApplication, QSplashScreen
 from constants import (
     APP_NAME,
     APP_VERSION,
-    APP_WIDTH,
-    APP_HEIGHT,
     SPLASH_DURATION_MS,
     SPLASH_IMAGE_PATH,
     USER_CONFIG_DIR,
@@ -62,8 +60,6 @@ def _make_splash(screen: QScreen) -> QSplashScreen | None:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Image Inquest Application")
-    parser.add_argument("--width",  type=int, default=APP_WIDTH,  help="Initial window width")
-    parser.add_argument("--height", type=int, default=APP_HEIGHT, help="Initial window height")
     parser.add_argument("--no-splash", action="store_true", help="Skip the startup splash screen")
     args, qt_args = parser.parse_known_args(argv)
 
@@ -90,25 +86,21 @@ def main(argv: list[str]) -> int:
         app.processEvents()
 
     window = MainWindow()
-    window.resize(args.width, args.height)
-    # Center the main window on the chosen screen so the window manager
-    # doesn't drop it on a different monitor than the splash.
+    # Anchor the window on the chosen monitor before maximizing so the
+    # window manager maximizes it there (not on the primary screen).
     geom = screen.availableGeometry()
-    window.move(
-        geom.x() + (geom.width()  - args.width)  // 2,
-        geom.y() + (geom.height() - args.height) // 2,
-    )
+    window.setGeometry(geom)
 
     if splash is not None:
         # Ensure the splash stays visible for at least SPLASH_DURATION_MS
         # even on fast machines, then hand off to the main window.
         def _reveal_main() -> None:
-            window.show()
+            window.showMaximized()
             splash.finish(window)
 
         QTimer.singleShot(SPLASH_DURATION_MS, _reveal_main)
     else:
-        window.show()
+        window.showMaximized()
 
     rc = app.exec()
     logger.info("Shutdown complete (rc=%d)", rc)
