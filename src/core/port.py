@@ -47,6 +47,14 @@ class InputPort:
         if self._on_data_received is not None:
             self._on_data_received()
 
+    def set_on_data_received(self, callback: Callable[[], None]) -> None:
+        """Set the callback invoked each time new data arrives at this port.
+
+        NodeBase uses this during port registration to wire every input to
+        the owning node's ``_signal_input_ready`` dispatcher.
+        """
+        self._on_data_received = callback
+
     def clear(self) -> None:
         self._data = None
 

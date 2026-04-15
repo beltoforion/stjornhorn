@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from core.node_base import NodeBase, SourceNodeBase
+from core.node_base import NodeBase, SinkNodeBase, SourceNodeBase
 from core.port import InputPort, OutputPort
 
 
@@ -115,12 +115,32 @@ class Flow:
 
     # ── Execution ──────────────────────────────────────────────────────────────
 
-    def run(self) -> None:
-        """Start all source nodes in registration order.
+    @property
+    def sources(self) -> list[SourceNodeBase]:
+        """Return the flow's source nodes in registration order."""
+        return [n for n in self._nodes if isinstance(n, SourceNodeBase)]
 
-        The push-based execution model means calling start() on each source
-        propagates data downstream automatically through connected ports.
+    @property
+    def sinks(self) -> list[SinkNodeBase]:
+        """Return the flow's sink nodes in registration order."""
+        return [n for n in self._nodes if isinstance(n, SinkNodeBase)]
+
+    def run(self) -> None:
+        """Start every source node in the flow.
+
+        A runnable flow must contain at least one source (an entry point
+        that drives data through the graph) and at least one sink (a node
+        that consumes the result). Multi-source flows are legal — e.g.
+        three file sources feeding an RGB-join filter — so every source is
+        started in registration order. In the push-based execution model,
+        each start() propagates data downstream through connected ports.
+
+        Raises:
+            RuntimeError: if the flow has no source node or no sink node.
         """
-        for node in self._nodes:
-            if isinstance(node, SourceNodeBase):
-                node.start()
+        if not self.sources:
+            raise RuntimeError("Flow has no source node; at least one is required")
+        if not self.sinks:
+            raise RuntimeError("Flow has no sink node; at least one is required")
+        for source in self.sources:
+            source.start()

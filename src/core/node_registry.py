@@ -143,13 +143,20 @@ def _parse_node_file(
     except OSError as e:
         return [], [ScanError(file=path, message=f"Could not read file: {e}")]
 
-    results = []
+    results: list[tuple[str, str, str]] = []
+    errors: list[ScanError] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
             entry = _extract_node_entry(node)
-            if entry is not None:
-                results.append(entry)
-    return results, []
+            if entry is None:
+                continue
+            validation_errors = _validate_node_class(node, entry[2], path)
+            if validation_errors:
+                # Reject invalid node classes so they never reach the palette.
+                errors.extend(validation_errors)
+                continue
+            results.append(entry)
+    return results, errors
 
 
 def _extract_node_entry(
@@ -177,6 +184,38 @@ def _detect_category(class_node: ast.ClassDef) -> str:
         if name and name in _CATEGORY_MAP:
             return _CATEGORY_MAP[name]
     return "Filters"
+
+
+def _validate_node_class(
+    class_node: ast.ClassDef,
+    category: str,
+    path: Path,
+) -> list[ScanError]:
+    """Return structural errors for a node class.
+
+    Enforced rules:
+      - ``start()`` is only valid on source nodes. Only source nodes can be
+        entry points for a flow (see :meth:`Flow.run`), so a non-source class
+        that defines ``start()`` would silently never be called. Reject it.
+    """
+    errors: list[ScanError] = []
+    if category != "Sources" and _has_method(class_node, "start"):
+        errors.append(ScanError(
+            file=path,
+            message=(
+                f"'{class_node.name}' defines start(), but start() is only "
+                f"valid on source nodes. Only source nodes can be entry "
+                f"points for a flow."
+            ),
+        ))
+    return errors
+
+
+def _has_method(class_node: ast.ClassDef, method_name: str) -> bool:
+    for item in class_node.body:
+        if isinstance(item, ast.FunctionDef) and item.name == method_name:
+            return True
+    return False
 
 
 def _find_init(class_node: ast.ClassDef) -> ast.FunctionDef | None:
