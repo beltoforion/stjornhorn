@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from constants import APP_NAME, APP_VERSION, FLOW_DIR
+from constants import APP_DISPLAY_NAME, APP_VERSION, FLOW_DIR
 from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
 from ui.page import Page
 
@@ -44,7 +44,7 @@ class StartPage(Page):
         root.setContentsMargins(40, 60, 40, 40)
         root.setSpacing(12)
 
-        title = QLabel(APP_NAME)
+        title = QLabel(APP_DISPLAY_NAME)
         title_font = title.font()
         title_font.setPointSize(24)
         title_font.setBold(True)

@@ -1,7 +1,8 @@
 from pathlib import Path
 
-APP_NAME:    str = "Image-Inquest"
-APP_VERSION: str = "0.1.0"
+APP_NAME:         str = "Image-Inquest"
+APP_DISPLAY_NAME: str = "Sparklehoof"
+APP_VERSION:      str = "0.1.0"
 APP_WIDTH:  int = 1024
 APP_HEIGHT: int = 768
 API_URL:    str = "https://beltoforion.de"
