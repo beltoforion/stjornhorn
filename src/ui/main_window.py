@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QToolButton,
 )
 
-from constants import APP_NAME, BUILTIN_NODES_DIR, USER_NODES_DIR
+from constants import APP_DISPLAY_NAME, BUILTIN_NODES_DIR, USER_NODES_DIR
 from core.flow import Flow
 from core.node_registry import NodeRegistry
 from ui.node_editor_page import NodeEditorPage
@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, initial_flow_path: Path | None = None) -> None:
         super().__init__()
-        self.setWindowTitle(APP_NAME)
+        self.setWindowTitle(APP_DISPLAY_NAME)
 
         # ── Node registry ──
         self._registry = NodeRegistry()
@@ -249,6 +249,6 @@ class MainWindow(QMainWindow):
 
     def _update_window_title(self, page_title: str) -> None:
         if page_title:
-            self.setWindowTitle(f"{APP_NAME} — {page_title}")
+            self.setWindowTitle(f"{APP_DISPLAY_NAME} — {page_title}")
         else:
-            self.setWindowTitle(APP_NAME)
+            self.setWindowTitle(APP_DISPLAY_NAME)

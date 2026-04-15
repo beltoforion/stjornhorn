@@ -102,9 +102,12 @@ class NodeEditorPage(Page):
     # ── Page hooks ─────────────────────────────────────────────────────────────
 
     def page_title(self) -> str:
+        # Return just the flow name (or empty) so MainWindow renders a
+        # title like "Sparklehoof — MyFlow" rather than embedding the
+        # page's role in the window caption.
         if self._flow is not None:
-            return f"Node Editor [{self._flow.name}]"
-        return "Node Editor"
+            return self._flow.name
+        return ""
 
     def page_selector_label(self) -> str:
         return "Editor"

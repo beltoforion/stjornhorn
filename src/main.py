@@ -10,6 +10,7 @@ from PySide6.QtGui import QCursor, QGuiApplication, QPixmap, QScreen
 from PySide6.QtWidgets import QApplication, QSplashScreen
 
 from constants import (
+    APP_DISPLAY_NAME,
     APP_NAME,
     APP_VERSION,
     FLOW_DIR,
@@ -116,7 +117,7 @@ def main(argv: list[str]) -> int:
     # with the program name so QApplication.arguments() behaves normally.
     app = QApplication([sys.argv[0], *qt_args])
     app.setApplicationName(APP_NAME)
-    app.setApplicationDisplayName(APP_NAME)
+    app.setApplicationDisplayName(APP_DISPLAY_NAME)
     app.setApplicationVersion(APP_VERSION)
     apply_dark_theme(app)
 
