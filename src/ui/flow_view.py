@@ -151,6 +151,10 @@ class FlowView(QGraphicsView):
         entry = NodeEntry(
             display_name=data.get("display_name", ""),
             category=data.get("category", ""),
+            # NodeList started carrying ``section`` in its drag payload in
+            # #52; default to the category so drops from stale payloads
+            # still instantiate cleanly instead of raising TypeError.
+            section=data.get("section", data.get("category", "")),
             module=data["module"],
             class_name=data["class_name"],
         )
