@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 from abc import abstractmethod
+
+from typing_extensions import override
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -94,9 +96,11 @@ class IntParamWidgetBase(ParamWidgetBase):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._spin)
 
+    @override
     def set_value(self, value: object) -> None:
         self._spin.setValue(int(value))
 
+    @override
     def get_value(self) -> object:
         return self._spin.value()
 
@@ -114,9 +118,11 @@ class BoolParamWidgetBase(ParamWidgetBase):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._check)
 
+    @override
     def set_value(self, value: object) -> None:
         self._check.setChecked(bool(value))
 
+    @override
     def get_value(self) -> object:
         return self._check.isChecked()
 
@@ -147,9 +153,11 @@ class FilePathParamWidgetBase(ParamWidgetBase):
         layout.addWidget(self._line, 1)
         layout.addWidget(browse, 0)
 
+    @override
     def set_value(self, value: object) -> None:
         self._line.setText(str(value))
 
+    @override
     def get_value(self) -> object:
         return self._line.text()
 
