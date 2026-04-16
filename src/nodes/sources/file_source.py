@@ -30,7 +30,7 @@ class FileSource(SourceNodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("File Source")
+        super().__init__("File Source", section="Sources")
         self._file_path: Path = Path()
         self._max_num_frames: int = -1
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))

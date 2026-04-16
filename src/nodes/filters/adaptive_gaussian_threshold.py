@@ -24,7 +24,7 @@ class AdaptiveGaussianThreshold(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Adaptive Gaussian Threshold")
+        super().__init__("Adaptive Gaussian Threshold", section="Processing")
         self._block_size: int = 101
         self._c: int = -32
 

@@ -18,7 +18,7 @@ class OutputFormat(Enum):
 
 class FileSink(SinkNodeBase):
     def __init__(self):
-        super().__init__("File Sink")
+        super().__init__("File Sink", section="Sinks")
 
         self._output_path: str = "output/out.png"
         self._output_format: OutputFormat = OutputFormat.SAME_AS_INPUT

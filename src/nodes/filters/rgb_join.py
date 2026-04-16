@@ -19,7 +19,7 @@ class RgbJoin(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("RGB Join")
+        super().__init__("RGB Join", section="Color Spaces")
         self._three_color: bool = False
 
         self._add_input(InputPort("B", {IoDataType.IMAGE}))

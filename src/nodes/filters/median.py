@@ -17,7 +17,7 @@ class Median(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Median")
+        super().__init__("Median", section="Processing")
         self._size: int = 3
 
         self._add_input(InputPort("image", {IoDataType.IMAGE}))

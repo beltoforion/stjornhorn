@@ -18,7 +18,7 @@ class RgbSplit(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("RGB Split")
+        super().__init__("RGB Split", section="Color Spaces")
         self._add_input(InputPort("image", {IoDataType.IMAGE}))
         self._add_output(OutputPort("B", {IoDataType.IMAGE}))
         self._add_output(OutputPort("G", {IoDataType.IMAGE}))

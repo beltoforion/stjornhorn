@@ -29,7 +29,7 @@ from ui.icons import material_icon
 from typing_extensions import override
 
 from ui.page import PageBase, ToolbarSection
-from ui.palette_widget import PaletteWidget
+from ui.node_list import NodeList
 from ui.theme import STATUS_FAIL_COLOR, STATUS_MUTED_COLOR, STATUS_OK_COLOR
 from ui.viewer_panel import ViewerPanel
 
@@ -75,13 +75,13 @@ class NodeEditorPage(PageBase):
         self._view  = FlowView(self._scene)
         self._inner.setCentralWidget(self._view)
 
-        # Palette dock (left).
-        self._palette = PaletteWidget(registry)
-        self._palette_dock = QDockWidget("Palette", self._inner)
-        self._palette_dock.setObjectName("PaletteDock")
-        self._palette_dock.setWidget(self._palette)
-        self._palette_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
-        self._inner.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._palette_dock)
+        # Node list dock (left, formerly "Palette").
+        self._node_list = NodeList(registry)
+        self._node_list_dock = QDockWidget("Node List", self._inner)
+        self._node_list_dock.setObjectName("NodeListDock")
+        self._node_list_dock.setWidget(self._node_list)
+        self._node_list_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
+        self._inner.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._node_list_dock)
 
         # Viewer dock (bottom).
         self._viewer = ViewerPanel()
@@ -160,7 +160,7 @@ class NodeEditorPage(PageBase):
         menu.addSeparator()
 
         view_menu = menu.addMenu("View")
-        view_menu.addAction(self._palette_dock.toggleViewAction())
+        view_menu.addAction(self._node_list_dock.toggleViewAction())
         view_menu.addAction(self._viewer_dock.toggleViewAction())
         return [menu]
 

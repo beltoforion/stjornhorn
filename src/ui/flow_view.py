@@ -8,7 +8,7 @@ from PySide6.QtCore import QMarginsF, QPoint, Qt
 from PySide6.QtGui import QPainter, QPen
 from PySide6.QtWidgets import QGraphicsView
 
-from ui.palette_widget import NODE_LIST_MIME_TYPE
+from ui.node_list import NODE_LIST_MIME_TYPE
 from ui.theme import CANVAS_BACKGROUND_COLOR, CANVAS_GRID_COLOR
 
 if TYPE_CHECKING:

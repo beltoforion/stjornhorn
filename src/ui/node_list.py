@@ -20,20 +20,30 @@ if TYPE_CHECKING:
 #: Custom MIME type carrying a JSON-encoded NodeEntry descriptor.
 NODE_LIST_MIME_TYPE: str = "application/x-image-inquest-node"
 
+#: Canonical display order for the well-known palette sections. Any
+#: section not listed here (e.g. defined by a user-provided plugin node)
+#: is appended after these in the order the registry reports them.
+_SECTION_ORDER: tuple[str, ...] = (
+    "Sources",
+    "Sinks",
+    "Color Spaces",
+    "Transform",
+    "Processing",
+)
 
-class PaletteWidget(QWidget):
-    """Palette listing every registered node by category.
+
+class NodeList(QWidget):
+    """Palette listing every registered node grouped by the ``section``
+    string each node declares in its constructor.
 
     Each entry is a :class:`QListWidgetItem` that emits a drag with the
     :data:`NODE_LIST_MIME_TYPE` MIME type carrying a JSON descriptor of
-    the node (module, class_name, display_name, category). The flow
-    canvas reads that payload on drop and instantiates the node.
+    the node (module, class_name, display_name, category, section). The
+    flow canvas reads that payload on drop and instantiates the node.
 
     A search box filters the list live; matching falls back to case-
     insensitive ``in`` on display names.
     """
-
-    _CATEGORIES: tuple[str, ...] = ("Sources", "Filters", "Sinks")
 
     def __init__(self, registry: NodeRegistry, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -55,11 +65,24 @@ class PaletteWidget(QWidget):
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _populate(self, registry: NodeRegistry) -> None:
-        categorized = registry.nodes_by_category()
-        for category in self._CATEGORIES:
-            entries = categorized.get(category, [])
-            # Category header is a non-selectable, non-draggable item.
-            header = QListWidgetItem(f"{category}  ({len(entries)})")
+        grouped = registry.nodes_by_section()
+        # Render well-known sections first in canonical order, then any
+        # novel sections (e.g. from user plugins) in registry order.
+        seen: set[str] = set()
+        ordered_sections: list[str] = []
+        for name in _SECTION_ORDER:
+            if name in grouped:
+                ordered_sections.append(name)
+                seen.add(name)
+        for name in grouped.keys():
+            if name not in seen:
+                ordered_sections.append(name)
+                seen.add(name)
+
+        for section in ordered_sections:
+            entries = grouped.get(section, [])
+            # Section header is a non-selectable, non-draggable item.
+            header = QListWidgetItem(f"{section}  ({len(entries)})")
             font = header.font()
             font.setBold(True)
             header.setFont(font)
@@ -81,6 +104,7 @@ class PaletteWidget(QWidget):
                     "class_name":   entry.class_name,
                     "display_name": entry.display_name,
                     "category":     entry.category,
+                    "section":      entry.section,
                 })
                 item.setData(Qt.ItemDataRole.UserRole, payload)
                 item.setToolTip(f"{entry.module}.{entry.class_name}")
@@ -90,7 +114,7 @@ class PaletteWidget(QWidget):
         query = text.strip().lower()
         for i in range(self._list.count()):
             item = self._list.item(i)
-            # Never hide category headers — context matters.
+            # Never hide section headers — context matters.
             if item.flags() == Qt.ItemFlag.NoItemFlags:
                 item.setHidden(False)
                 continue

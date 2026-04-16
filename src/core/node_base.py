@@ -49,8 +49,15 @@ class NodeBase(ABC):
         outputs so the signal propagates to the end of the graph.
     """
 
-    def __init__(self, display_name: str) -> None:
+    #: Default palette section for this class. Subclasses may override to
+    #: keep the ``section`` parameter optional for tests / ad-hoc nodes;
+    #: production nodes should pass ``section=...`` explicitly so the
+    #: NodeList palette picks it up via AST scanning.
+    DEFAULT_SECTION: str = "Filters"
+
+    def __init__(self, display_name: str, section: str | None = None) -> None:
         self._display_name = display_name
+        self._section = section if section is not None else self.DEFAULT_SECTION
         self._inputs: list[InputPort] = []
         self._outputs: list[OutputPort] = []
 
@@ -107,6 +114,11 @@ class NodeBase(ABC):
     @property
     def display_name(self) -> str:
         return self._display_name
+
+    @property
+    def section(self) -> str:
+        """Palette section this node belongs to (e.g. ``"Processing"``)."""
+        return self._section
 
     @property
     def inputs(self) -> list[InputPort]:
@@ -168,6 +180,8 @@ class SourceNodeBase(NodeBase, ABC):
     live-coding feel.
     """
 
+    DEFAULT_SECTION: str = "Sources"
+
     @property
     def is_reactive(self) -> bool:
         """Return True if this source should trigger an auto-run on any param change.
@@ -201,6 +215,8 @@ class SinkNodeBase(NodeBase, ABC):
     A sink has inputs only — it consumes data as a side effect (writing to
     a file, displaying to screen, etc.) and does not propagate data further.
     """
+
+    DEFAULT_SECTION: str = "Sinks"
 
     @abstractmethod
     @override

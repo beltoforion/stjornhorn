@@ -27,7 +27,7 @@ class VideoSource(SourceNodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Video Source")
+        super().__init__("Video Source", section="Sources")
         self._file_path: Path = Path()
         self._max_num_frames: int = -1
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))

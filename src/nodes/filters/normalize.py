@@ -19,7 +19,7 @@ class Normalize(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Normalize")
+        super().__init__("Normalize", section="Processing")
         self._add_input(InputPort("image", {IoDataType.IMAGE}))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
 

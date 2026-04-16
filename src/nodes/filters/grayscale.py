@@ -18,7 +18,7 @@ class Grayscale(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Grayscale")
+        super().__init__("Grayscale", section="Color Spaces")
         self._add_input(InputPort("image",  {IoDataType.IMAGE}))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
 

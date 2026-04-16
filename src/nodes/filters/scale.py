@@ -29,7 +29,7 @@ class Scale(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Scale")
+        super().__init__("Scale", section="Transform")
         self._scale_percent: int = 100
         self._interpolation: int = 1  # Linear
 

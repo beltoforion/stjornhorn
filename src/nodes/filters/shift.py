@@ -20,7 +20,7 @@ class Shift(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Shift")
+        super().__init__("Shift", section="Transform")
         self._offset_x: int = 0
         self._offset_y: int = 0
 

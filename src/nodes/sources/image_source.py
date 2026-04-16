@@ -28,7 +28,7 @@ class ImageSource(SourceNodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Image Source")
+        super().__init__("Image Source", section="Sources")
         self._file_path: Path = Path()
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
