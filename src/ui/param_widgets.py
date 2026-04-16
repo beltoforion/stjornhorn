@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from enum import Enum
 from pathlib import Path
 
 from typing_extensions import override
@@ -8,6 +9,7 @@ from typing_extensions import override
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QLineEdit,
@@ -138,6 +140,93 @@ class BoolParamWidget(ParamWidgetBase):
         return self._check.isChecked()
 
 
+class EnumParamWidget(ParamWidgetBase):
+    """Combo-box editor for :attr:`NodeParamType.ENUM` parameters.
+
+    The param's ``metadata["enum"]`` must hold the :class:`enum.Enum`
+    subclass whose members are the legal values.  The combo lists every
+    member (in declaration order) using its ``name`` formatted for
+    readability (``FLOYD_STEINBERG`` → ``Floyd Steinberg``).  Selection
+    writes the enum *member* back to the node; value round-trips through
+    the setter even if the node stores it as an int internally (works
+    seamlessly for :class:`enum.IntEnum`).
+    """
+
+    def __init__(self, node: NodeBase, param: NodeParam) -> None:
+        super().__init__(node, param)
+        enum_cls = param.metadata.get("enum")
+        if not (isinstance(enum_cls, type) and issubclass(enum_cls, Enum)):
+            raise ValueError(
+                f"NodeParam {param.name!r}: ENUM params require "
+                f"metadata['enum'] to be an Enum subclass "
+                f"(got {enum_cls!r})."
+            )
+        self._enum_cls: type[Enum] = enum_cls
+
+        self._combo = QComboBox()
+        self._combo.setMinimumWidth(96)
+        for member in self._enum_cls:
+            self._combo.addItem(self._label_for(member), member)
+
+        initial = self._coerce(self._initial_value(next(iter(self._enum_cls))))
+        idx = self._combo.findData(initial)
+        if idx >= 0:
+            self._combo.setCurrentIndex(idx)
+        # Connect after the initial setCurrentIndex so we don't echo the
+        # initial value back to the node via the setter (and fire a
+        # spurious param_changed).
+        self._combo.currentIndexChanged.connect(self._on_index_changed)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._combo)
+
+    def _on_index_changed(self, _index: int) -> None:
+        member = self._combo.currentData()
+        if member is None:
+            return
+        self._write_to_node(member)
+        self.value_changed.emit(member)
+
+    @override
+    def set_value(self, value: object) -> None:
+        member = self._coerce(value)
+        idx = self._combo.findData(member)
+        if idx >= 0:
+            self._combo.setCurrentIndex(idx)
+
+    @override
+    def get_value(self) -> object:
+        return self._combo.currentData()
+
+    # ── Helpers ────────────────────────────────────────────────────────────
+
+    def _coerce(self, value: object) -> Enum:
+        """Return *value* as an instance of ``self._enum_cls``.
+
+        Accepts the enum member itself, its ``value`` (int/str), or its
+        ``name``. Falls back to the first declared member on failure so
+        the combo always has a defined current row.
+        """
+        if isinstance(value, self._enum_cls):
+            return value
+        try:
+            return self._enum_cls(value)
+        except (ValueError, KeyError):
+            pass
+        if isinstance(value, str):
+            try:
+                return self._enum_cls[value]
+            except KeyError:
+                pass
+        return next(iter(self._enum_cls))
+
+    @staticmethod
+    def _label_for(member: Enum) -> str:
+        """Humanise an enum member's ``SHOUTY_SNAKE`` name for display."""
+        return member.name.replace("_", " ").title()
+
+
 class FilePathParamWidget(ParamWidgetBase):
     """Line-edit + browse-button editor for :attr:`NodeParamType.FILE_PATH` parameters."""
 
@@ -200,6 +289,7 @@ _PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
     NodeParamType.FILE_PATH: FilePathParamWidget,
     NodeParamType.INT:       IntParamWidget,
     NodeParamType.BOOL:      BoolParamWidget,
+    NodeParamType.ENUM:      EnumParamWidget,
 }
 
 
@@ -207,10 +297,19 @@ def build_param_widget(node: NodeBase, param: NodeParam) -> ParamWidgetBase | No
     """Return a :class:`ParamWidgetBase` that edits *param* on *node*.
 
     Returns ``None`` for unsupported param types, so callers can render a
-    placeholder label instead of crashing.
+    placeholder label instead of crashing.  Also returns ``None`` (with
+    a log) when a widget constructor raises — misconfigured metadata
+    should not bring the node editor down.
     """
     cls = _PARAM_WIDGET_CLASSES.get(param.param_type)
     if cls is None:
         logger.warning("No widget class registered for param type %s", param.param_type)
         return None
-    return cls(node, param)
+    try:
+        return cls(node, param)
+    except Exception:
+        logger.exception(
+            "Failed to build %s widget for %s.%s",
+            cls.__name__, type(node).__name__, param.name,
+        )
+        return None

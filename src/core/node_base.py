@@ -20,6 +20,7 @@ class NodeParamType(Enum):
     FLOAT = 3,
     STRING = 4,
     BOOL = 5,
+    ENUM = 6,
 
 
 class NodeParam:

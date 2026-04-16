@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -158,6 +159,11 @@ def _jsonable(value: object) -> object:
     """Coerce ``value`` to a JSON-serialisable form (recursive for containers)."""
     if isinstance(value, Path):
         return str(value)
+    if isinstance(value, Enum):
+        # Persist the underlying value (e.g. IntEnum → int, str-backed Enum
+        # → str) so the node setter can reconstruct the member on load,
+        # and saved flows stay human-readable.
+        return _jsonable(value.value)
     if isinstance(value, (list, tuple)):
         return [_jsonable(v) for v in value]
     if isinstance(value, dict):

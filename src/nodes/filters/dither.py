@@ -16,9 +16,10 @@ from core.port import InputPort, OutputPort
 class DitherMethod(IntEnum):
     """Dithering algorithms supported by :class:`Dither`.
 
-    The integer values match the ``method`` parameter so the node can
-    be driven from a plain INT UI control until a dedicated enum param
-    type exists.
+    Backed by :class:`IntEnum` so the integer representation (persisted
+    in saved flows) round-trips cleanly: JSON stores the int, the
+    setter accepts both ints and enum members, and the ``ENUM`` param
+    widget renders a combo box of ``name``-based labels.
     """
     BAYER2          = 1
     BAYER4          = 2
@@ -112,7 +113,7 @@ class Dither(NodeBase):
 
     def __init__(self) -> None:
         super().__init__("Dither")
-        self._method: int = int(DitherMethod.STUCKI)
+        self._method: DitherMethod = DitherMethod.STUCKI
 
         self._add_input(InputPort("image", {IoDataType.IMAGE}))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
@@ -124,26 +125,28 @@ class Dither(NodeBase):
     @property
     @override
     def params(self) -> list[NodeParam]:
-        # 1=Bayer2  2=Bayer4  3=Bayer8  4=Noise  5=Floyd-Steinberg
-        # 6=Stucki  7=Atkinson  8=Burkes  9=Sierra  10=DiffusionX  11=DiffusionXY
-        return [NodeParam("method", NodeParamType.INT, {"default": int(DitherMethod.STUCKI)})]
+        return [NodeParam(
+            "method",
+            NodeParamType.ENUM,
+            {"default": DitherMethod.STUCKI, "enum": DitherMethod},
+        )]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 
     @property
-    def method(self) -> int:
+    def method(self) -> DitherMethod:
         return self._method
 
     @method.setter
-    def method(self, value: int) -> None:
-        v = int(value)
+    def method(self, value: int | DitherMethod) -> None:
         try:
-            DitherMethod(v)
+            # DitherMethod(int) validates the integer and raises on unknown
+            # values; passing a DitherMethod member just returns itself.
+            self._method = DitherMethod(value)
         except ValueError as e:
             raise ValueError(
-                f"method must be one of {[m.value for m in DitherMethod]} (got {v})"
+                f"method must be one of {[m.value for m in DitherMethod]} (got {value!r})"
             ) from e
-        self._method = v
 
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
@@ -156,7 +159,7 @@ class Dither(NodeBase):
         else:
             gray = image
 
-        method = DitherMethod(self._method)
+        method = self._method
         if method == DitherMethod.NOISE:
             out = _dither_noise(gray)
         elif method in _BAYER_MATRICES:
