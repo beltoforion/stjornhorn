@@ -154,8 +154,8 @@ class FilePathParamWidget(ParamWidgetBase):
         self._line.textChanged.connect(self._on_value_changed)
         self._line.setText(str(self._initial_value("")))
 
-        browse = QPushButton("…")
-        browse.setFixedWidth(28)
+        browse = QPushButton("...")
+        browse.setFixedWidth(36)
         browse.clicked.connect(self._browse)
 
         layout = QHBoxLayout(self)
