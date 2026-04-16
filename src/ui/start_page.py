@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -29,10 +29,16 @@ if TYPE_CHECKING:
 
 _FLOW_FILE_FILTER = "Flow (*.flowjs);;All files (*)"
 
+# Match the main toolbar button dimensions so the client-area Create
+# button visually aligns with the page-selector / Open buttons above it.
+# Kept in sync with _TOOLBAR_BUTTON_SIZE / _TOOLBAR_ICON_SIZE in main_window.
+_CREATE_BUTTON_SIZE = QSize(72, 72)
+_CREATE_ICON_SIZE   = QSize(40, 40)
+
 
 class StartPage(PageBase):
-    """Landing page. Lets the user create a new flow by name or open an
-    existing ``.flowjs`` file.
+    """Landing page. Lets the user create a new flow by name. Existing
+    flows are opened via the Open action in the main toolbar.
 
     The **Create** button is only enabled while the flow-name input
     contains a valid name (``a-zA-Z0-9_#+-``, non-empty).
@@ -70,7 +76,10 @@ class StartPage(PageBase):
 
         root.addSpacerItem(QSpacerItem(0, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
-        # Name input + Create button.
+        # Name input + Create button.  The Open button that used to live
+        # beneath Create was removed because the main toolbar already
+        # exposes an Open action (see _open_action above); keeping both
+        # was duplicate UI.
         row = QHBoxLayout()
         row.setSpacing(6)
         self._name_input = QLineEdit()
@@ -80,20 +89,18 @@ class StartPage(PageBase):
         self._name_input.returnPressed.connect(self._on_create_clicked)
         row.addWidget(self._name_input)
 
+        # Give the Create button the same visual weight (size + icon) as
+        # the main toolbar buttons it sits beside in the page hierarchy.
         self._create_button = QPushButton("Create")
+        self._create_button.setIcon(material_icon("add"))
+        self._create_button.setIconSize(_CREATE_ICON_SIZE)
+        self._create_button.setFixedSize(_CREATE_BUTTON_SIZE)
+        self._create_button.setToolTip("Create a new flow with the name on the left")
         self._create_button.setEnabled(False)
         self._create_button.clicked.connect(self._on_create_clicked)
         row.addWidget(self._create_button)
         row.addStretch(1)
         root.addLayout(row)
-
-        # Open button.
-        open_row = QHBoxLayout()
-        open_button = QPushButton("Open")
-        open_button.clicked.connect(self._on_open_clicked)
-        open_row.addWidget(open_button)
-        open_row.addStretch(1)
-        root.addLayout(open_row)
 
         root.addStretch(1)
 
