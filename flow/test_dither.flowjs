@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "name": "test_dither",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.file_source",
+      "class": "FileSource",
+      "position": [
+        -2049.0,
+        -602.0
+      ],
+      "params": {
+        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/ship.jpg",
+        "max_num_frames": -1
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1747.0,
+        -559.0
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -1432.0,
+        -562.0
+      ],
+      "params": {
+        "output_path": "output/out.png"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    }
+  ]
+}
