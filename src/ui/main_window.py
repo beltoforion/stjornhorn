@@ -27,9 +27,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Size of icons rendered inside every toolbar button. Buttons render the
-# label beneath the icon, so this size also drives the button height.
-_TOOLBAR_ICON_SIZE = QSize(32, 32)
+# Icon size and fixed button dimensions for the main toolbar.
+_TOOLBAR_ICON_SIZE   = QSize(40, 40)
+_TOOLBAR_BUTTON_SIZE = QSize(72, 72)
 
 
 class MainWindow(QMainWindow):
@@ -194,32 +194,13 @@ class MainWindow(QMainWindow):
         self._apply_consistent_button_sizes()
 
     def _apply_consistent_button_sizes(self) -> None:
-        """Force every QToolButton in the main toolbar to the same size.
-
-        Computed as the max size hint across all buttons so the longest
-        label (plus icon) fits, and every button matches.
-        """
-        buttons: list[QToolButton] = []
+        """Apply a uniform fixed size to every QToolButton in the main toolbar."""
         for action in self._toolbar.actions():
             if action.isSeparator():
                 continue
             widget = self._toolbar.widgetForAction(action)
             if isinstance(widget, QToolButton):
-                # Clear any previously-set fixed size so sizeHint reflects
-                # the button's natural content for the current action set.
-                widget.setMinimumSize(0, 0)
-                widget.setMaximumSize(16777215, 16777215)
-                widget.adjustSize()
-                buttons.append(widget)
-
-        if not buttons:
-            return
-
-        max_w = max(b.sizeHint().width()  for b in buttons)
-        max_h = max(b.sizeHint().height() for b in buttons)
-        size  = QSize(max_w, max_h)
-        for b in buttons:
-            b.setFixedSize(size)
+                widget.setFixedSize(_TOOLBAR_BUTTON_SIZE)
 
     # ── Menus ──────────────────────────────────────────────────────────────────
 
