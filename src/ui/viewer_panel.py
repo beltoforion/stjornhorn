@@ -78,7 +78,7 @@ class ViewerPanel(QWidget):
                 continue
 
             data = port.last_emitted
-            if data is None or data.is_end_of_stream() or data.type != IoDataType.IMAGE:
+            if data is None or data.type != IoDataType.IMAGE:
                 self._placeholder(f"{port.name}: (no data — click Run)", muted=True)
                 continue
 
@@ -87,6 +87,11 @@ class ViewerPanel(QWidget):
             except Exception:
                 logger.exception("Viewer failed to render port '%s'", port.name)
                 self._placeholder(f"{port.name}: (render error — see log)", error=True)
+
+    @property
+    def current_node(self) -> NodeBase | None:
+        """The node currently displayed in the viewer, or ``None``."""
+        return self._current_node
 
     def refresh(self) -> None:
         """Re-render the currently-shown node (called after Run)."""

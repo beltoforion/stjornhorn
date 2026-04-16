@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
 
 from constants import FLOW_DIR
 from core.flow import Flow, is_valid_flow_name
+from core.io_data import IoDataType
+from core.node_base import SinkNodeBase
 from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
 from ui.flow_scene import FlowScene
 from ui.flow_view import FlowView
@@ -223,7 +225,32 @@ class NodeEditorPage(PageBase):
             f"Ran at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
         )
-        self._viewer.refresh()
+        if self._viewer.current_node is None:
+            # Nothing selected yet — auto-show the most downstream node
+            # that produced image data so the user sees a result immediately.
+            best = self._best_viewer_node()
+            if best is not None:
+                self._viewer.show_node(best)
+        else:
+            self._viewer.refresh()
+
+    def _best_viewer_node(self):
+        """Return the most downstream non-sink node with IMAGE output data.
+
+        Iterates the flow's nodes in reverse registration order (later-added
+        nodes tend to be further downstream) and returns the first one that
+        has at least one IMAGE output port with data after a run.  Returns
+        ``None`` when the flow has no such node.
+        """
+        if self._flow is None:
+            return None
+        for node in reversed(self._flow.nodes):
+            if isinstance(node, SinkNodeBase):
+                continue
+            for port in node.outputs:
+                if IoDataType.IMAGE in port.emits and port.last_emitted is not None:
+                    return node
+        return None
 
     def _on_save_clicked(self) -> None:
         if self._flow is None:
