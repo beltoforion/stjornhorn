@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import NamedTuple, TYPE_CHECKING
 
 from PySide6.QtCore import Signal
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QAction
     from PySide6.QtWidgets import QMenu
+
+
+class ToolbarSection(NamedTuple):
+    """A named group of toolbar actions separated by a divider."""
+    name: str
+    actions: list[QAction]
 
 
 class PageBase(QWidget):
@@ -68,12 +73,13 @@ class PageBase(QWidget):
         """
         return []
 
-    def page_toolbar_actions(self) -> list[QAction]:
-        """Return the actions this page contributes to the main toolbar.
+    def page_toolbar_sections(self) -> list[ToolbarSection]:
+        """Return named groups of actions for the main toolbar.
 
         MainWindow installs these next to the page-selector radio group
         while the page is active and removes them when the page is
-        deactivated. Default: empty.
+        deactivated. Each section is separated by a divider.
+        Default: empty.
         """
         return []
 

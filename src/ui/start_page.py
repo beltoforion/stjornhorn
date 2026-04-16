@@ -22,7 +22,7 @@ from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
 from ui.icons import material_icon
 from typing_extensions import override
 
-from ui.page import PageBase
+from ui.page import PageBase, ToolbarSection
 
 if TYPE_CHECKING:
     pass
@@ -110,8 +110,8 @@ class StartPage(PageBase):
     def page_selector_icon(self) -> QIcon:
         return material_icon("home")
 
-    def page_toolbar_actions(self) -> list[QAction]:
-        return [self._open_action]
+    def page_toolbar_sections(self) -> list[ToolbarSection]:
+        return [ToolbarSection("File", [self._open_action])]
 
     def on_activated(self) -> None:
         self._name_input.setFocus(Qt.FocusReason.OtherFocusReason)

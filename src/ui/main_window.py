@@ -180,16 +180,23 @@ class MainWindow(QMainWindow):
         self._activate_page(page)
 
     def _install_page_toolbar_actions(self, page: PageBase) -> None:
-        # Remove previously-installed page-specific actions. These
-        # QActions are owned by the page, so we only detach them from the
-        # toolbar — do not deleteLater.
-        for action in self._installed_page_actions:
-            self._toolbar.removeAction(action)
+        # Remove previously-installed page-specific items (actions and
+        # separators). QActions are owned by the page, so we only detach
+        # them from the toolbar — do not deleteLater. Separators are
+        # owned by us, so we delete them.
+        for item in self._installed_page_actions:
+            self._toolbar.removeAction(item)
+            if item.isSeparator():
+                item.deleteLater()
         self._installed_page_actions = []
 
-        for action in page.page_toolbar_actions():
-            self._toolbar.addAction(action)
-            self._installed_page_actions.append(action)
+        for i, section in enumerate(page.page_toolbar_sections()):
+            if i > 0:
+                sep = self._toolbar.addSeparator()
+                self._installed_page_actions.append(sep)
+            for action in section.actions:
+                self._toolbar.addAction(action)
+                self._installed_page_actions.append(action)
 
         self._apply_consistent_button_sizes()
 

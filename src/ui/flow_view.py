@@ -4,7 +4,7 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QMarginsF, QPoint, Qt
 from PySide6.QtGui import QPainter, QPen
 from PySide6.QtWidgets import QGraphicsView
 
@@ -54,6 +54,23 @@ class FlowView(QGraphicsView):
         if new_scale < self._ZOOM_MIN or new_scale > self._ZOOM_MAX:
             return
         self.scale(factor, factor)
+
+    def fit_to_contents(self) -> None:
+        """Zoom and scroll so that all scene items are visible."""
+        rect = self.scene().itemsBoundingRect()
+        if rect.isNull():
+            return
+        # Add a small margin so nodes don't touch the viewport edges.
+        rect = rect.marginsAdded(QMarginsF(40, 40, 40, 40))
+        self.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
+        # Clamp if fitInView zoomed beyond our limits.
+        scale = self.transform().m11()
+        if scale > self._ZOOM_MAX:
+            self.reset_zoom()
+
+    def reset_zoom(self) -> None:
+        """Reset the view transform to the default 1:1 scale."""
+        self.resetTransform()
 
     # ── Middle-mouse pan ───────────────────────────────────────────────────────
 

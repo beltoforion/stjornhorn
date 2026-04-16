@@ -26,7 +26,7 @@ from ui.flow_view import FlowView
 from ui.icons import material_icon
 from typing_extensions import override
 
-from ui.page import PageBase
+from ui.page import PageBase, ToolbarSection
 from ui.palette_widget import PaletteWidget
 from ui.theme import STATUS_FAIL_COLOR, STATUS_MUTED_COLOR, STATUS_OK_COLOR
 from ui.viewer_panel import ViewerPanel
@@ -119,13 +119,19 @@ class NodeEditorPage(PageBase):
     def page_selector_icon(self) -> QIcon:
         return material_icon("account_tree")
 
-    def page_toolbar_actions(self) -> list[QAction]:
+    def page_toolbar_sections(self) -> list[ToolbarSection]:
         return [
-            self._actions["run"],
-            self._actions["save"],
-            self._actions["save_as"],
-            self._actions["open"],
-            self._actions["clear"],
+            ToolbarSection("Flow", [
+                self._actions["run"],
+                self._actions["save"],
+                self._actions["save_as"],
+                self._actions["open"],
+                self._actions["clear"],
+            ]),
+            ToolbarSection("View", [
+                self._actions["fit"],
+                self._actions["reset_zoom"],
+            ]),
         ]
 
     def page_menus(self) -> list[QMenu]:
@@ -196,6 +202,8 @@ class NodeEditorPage(PageBase):
             "save_as": mk("Save As…", "save_as",     self._on_save_as_clicked),
             "open":    mk("Open",     "folder_open", self._on_open_clicked),
             "clear":   mk("Clear",    "delete",      self._on_clear_clicked),
+            "fit":     mk("Fit",      "zoom_out_map",    self._view.fit_to_contents),
+            "reset_zoom": mk("1:1", "fullscreen_exit", self._view.reset_zoom),
         }
 
     # ── Action handlers ────────────────────────────────────────────────────────
