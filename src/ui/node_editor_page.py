@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QStatusBar,
-    QStyle,
     QVBoxLayout,
 )
 
@@ -24,6 +23,7 @@ from core.flow import Flow, is_valid_flow_name
 from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
 from ui.flow_scene import FlowScene
 from ui.flow_view import FlowView
+from ui.icons import material_icon
 from ui.page import Page
 from ui.palette_widget import PaletteWidget
 from ui.theme import STATUS_FAIL_COLOR, STATUS_MUTED_COLOR, STATUS_OK_COLOR
@@ -113,7 +113,7 @@ class NodeEditorPage(Page):
         return "Editor"
 
     def page_selector_icon(self) -> QIcon:
-        return self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
+        return material_icon("account_tree")
 
     def page_toolbar_actions(self) -> list[QAction]:
         return [
@@ -181,19 +181,17 @@ class NodeEditorPage(Page):
     # ── Actions ────────────────────────────────────────────────────────────────
 
     def _build_actions(self) -> dict[str, QAction]:
-        style = self.style()
-
-        def mk(text: str, icon_id: QStyle.StandardPixmap, slot) -> QAction:
-            a = QAction(style.standardIcon(icon_id), text, self)
+        def mk(text: str, icon_name: str, slot) -> QAction:
+            a = QAction(material_icon(icon_name), text, self)
             a.triggered.connect(slot)
             return a
 
         return {
-            "run":     mk("Run",      QStyle.StandardPixmap.SP_MediaPlay,        self._on_run_clicked),
-            "save":    mk("Save",     QStyle.StandardPixmap.SP_DialogSaveButton, self._on_save_clicked),
-            "save_as": mk("Save As…", QStyle.StandardPixmap.SP_DriveFDIcon,      self._on_save_as_clicked),
-            "open":    mk("Open",     QStyle.StandardPixmap.SP_DirOpenIcon,      self._on_open_clicked),
-            "clear":   mk("Clear",    QStyle.StandardPixmap.SP_TrashIcon,        self._on_clear_clicked),
+            "run":     mk("Run",      "play_arrow",  self._on_run_clicked),
+            "save":    mk("Save",     "save",        self._on_save_clicked),
+            "save_as": mk("Save As…", "save_as",     self._on_save_as_clicked),
+            "open":    mk("Open",     "folder_open", self._on_open_clicked),
+            "clear":   mk("Clear",    "delete",      self._on_clear_clicked),
         }
 
     # ── Action handlers ────────────────────────────────────────────────────────

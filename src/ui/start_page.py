@@ -13,13 +13,13 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpacerItem,
-    QStyle,
     QVBoxLayout,
     QWidget,
 )
 
 from constants import APP_DISPLAY_NAME, APP_VERSION, FLOW_DIR
 from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
+from ui.icons import material_icon
 from ui.page import Page
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class StartPage(Page):
         # Toolbar action: mirrors the "Open" button in the body so the
         # start page contributes at least one item to the main toolbar.
         self._open_action = QAction(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon),
+            material_icon("folder_open"),
             "Open",
             self,
         )
@@ -104,7 +104,7 @@ class StartPage(Page):
         return "Start"
 
     def page_selector_icon(self) -> QIcon:
-        return self.style().standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon)
+        return material_icon("home")
 
     def page_toolbar_actions(self) -> list[QAction]:
         return [self._open_action]
