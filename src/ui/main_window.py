@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -15,7 +16,7 @@ from PySide6.QtWidgets import (
     QToolButton,
 )
 
-from constants import APP_DISPLAY_NAME, BUILTIN_NODES_DIR, USER_NODES_DIR
+from constants import APP_DISPLAY_NAME, BUILTIN_NODES_DIR, USER_CONFIG_DIR, USER_NODES_DIR
 from core.flow import Flow
 from core.node_registry import NodeRegistry
 from ui.node_editor_page import NodeEditorPage
@@ -30,6 +31,9 @@ logger = logging.getLogger(__name__)
 # Icon size and fixed button dimensions for the main toolbar.
 _TOOLBAR_ICON_SIZE   = QSize(40, 40)
 _TOOLBAR_BUTTON_SIZE = QSize(72, 72)
+
+_RECENT_FILES_PATH = USER_CONFIG_DIR / "recent_flows.json"
+_MAX_RECENT_FILES  = 5
 
 
 class MainWindow(QMainWindow):
@@ -80,6 +84,7 @@ class MainWindow(QMainWindow):
         self._start_page.open_flow_requested.connect(self._on_open_flow_from_start)
         for page in (self._start_page, self._editor_page):
             page.title_changed.connect(self._update_window_title)
+        self._editor_page.flow_opened.connect(self._on_flow_opened)
 
         # ── Menu bar ──
         self._menu_bar: QMenuBar = self.menuBar()
@@ -212,8 +217,13 @@ class MainWindow(QMainWindow):
     # ── Menus ──────────────────────────────────────────────────────────────────
 
     def _build_app_menu(self) -> QMenu:
-        """Always-visible application menu (Quit, About)."""
+        """Always-visible application menu (Recent Files, Quit)."""
         menu = self._menu_bar.addMenu("&File")
+
+        self._recent_menu = menu.addMenu("Recently Used Files")
+        self._refresh_recent_menu()
+
+        menu.addSeparator()
 
         quit_action = QAction("&Quit", self)
         quit_action.setShortcut(QKeySequence.StandardKey.Quit)
@@ -221,6 +231,64 @@ class MainWindow(QMainWindow):
         menu.addAction(quit_action)
 
         return menu
+
+    # ── Recently used files ────────────────────────────────────────────────────
+
+    def _load_recent_files(self) -> list[Path]:
+        """Return the persisted recently-used flow paths (most recent first)."""
+        try:
+            data = json.loads(_RECENT_FILES_PATH.read_text(encoding="utf-8"))
+            return [Path(p) for p in data if isinstance(p, str)]
+        except Exception:
+            return []
+
+    def _save_recent_files(self, paths: list[Path]) -> None:
+        """Persist *paths* to disk, creating the config directory if needed."""
+        try:
+            USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            _RECENT_FILES_PATH.write_text(
+                json.dumps([str(p) for p in paths], indent=2),
+                encoding="utf-8",
+            )
+        except Exception:
+            logger.warning("Could not save recent files list", exc_info=True)
+
+    def _add_to_recent(self, path: Path) -> None:
+        """Prepend *path* to the recent files list (max 5 entries, no duplicates)."""
+        recent = [p for p in self._load_recent_files() if p != path]
+        recent.insert(0, path)
+        recent = recent[:_MAX_RECENT_FILES]
+        self._save_recent_files(recent)
+        self._refresh_recent_menu()
+
+    def _refresh_recent_menu(self) -> None:
+        """Rebuild the Recently Used Files submenu from persisted data."""
+        self._recent_menu.clear()
+        recent = self._load_recent_files()
+        if not recent:
+            placeholder = QAction("(empty)", self)
+            placeholder.setEnabled(False)
+            self._recent_menu.addAction(placeholder)
+            return
+        for path in recent:
+            action = QAction(path.name, self)
+            action.setToolTip(str(path))
+            action.triggered.connect(lambda checked=False, p=path: self._open_recent(p))
+            self._recent_menu.addAction(action)
+
+    def _open_recent(self, path: Path) -> None:
+        """Load a recently used flow and switch to the editor."""
+        if not path.exists():
+            logger.warning("Recent file no longer exists: %s", path)
+            self._refresh_recent_menu()
+            return
+        ok = self._editor_page.load_flow(path)
+        if ok:
+            self._activate_page(self._editor_page)
+
+    def _on_flow_opened(self, path: Path) -> None:
+        """Called whenever the editor successfully loads a flow from disk."""
+        self._add_to_recent(path)
 
     # ── Navigation callbacks ───────────────────────────────────────────────────
 

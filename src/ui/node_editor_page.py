@@ -52,7 +52,12 @@ class NodeEditorPage(PageBase):
 
     Signal :attr:`title_changed` fires up to MainWindow whenever the active
     flow name changes.
+    Signal :attr:`flow_opened` fires with the file path whenever a flow is
+    successfully loaded from disk (useful for tracking recently used files).
     """
+
+    #: Emitted with the absolute path of a flow that was just successfully loaded.
+    flow_opened = Signal(Path)
 
     def __init__(self, registry: NodeRegistry) -> None:
         super().__init__()
@@ -197,6 +202,7 @@ class NodeEditorPage(PageBase):
             f"Loaded {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
         )
+        self.flow_opened.emit(path.resolve())
         return True
 
     # ── Actions ────────────────────────────────────────────────────────────────
