@@ -47,6 +47,11 @@ class PageBase(QWidget):
 
     title_changed = Signal(str)
 
+    def __init__(self, parent: QWidget | None = None) -> None:
+        if type(self) is PageBase:
+            raise TypeError("PageBase cannot be instantiated directly")
+        super().__init__(parent)
+
     # ── Abstract interface ─────────────────────────────────────────────────────
 
     def page_selector_label(self) -> str:
