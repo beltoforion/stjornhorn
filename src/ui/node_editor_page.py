@@ -126,6 +126,8 @@ class NodeEditorPage(PageBase):
             self._actions["save_as"],
             self._actions["open"],
             self._actions["clear"],
+            self._actions["fit"],
+            self._actions["reset_zoom"],
         ]
 
     def page_menus(self) -> list[QMenu]:
@@ -196,6 +198,8 @@ class NodeEditorPage(PageBase):
             "save_as": mk("Save As…", "save_as",     self._on_save_as_clicked),
             "open":    mk("Open",     "folder_open", self._on_open_clicked),
             "clear":   mk("Clear",    "delete",      self._on_clear_clicked),
+            "fit":     mk("Fit",      "zoom_out_map",    self._view.fit_to_contents),
+            "reset_zoom": mk("1:1", "fullscreen_exit", self._view.reset_zoom),
         }
 
     # ── Action handlers ────────────────────────────────────────────────────────

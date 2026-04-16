@@ -40,6 +40,8 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "save":         "e161",
     "save_as":      "eb60",
     "delete":       "e872",
+    "zoom_out_map": "e56b",
+    "fullscreen_exit": "e5d1",
 }
 
 
