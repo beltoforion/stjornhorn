@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QDockWidget,
@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 from constants import FLOW_DIR
 from core.flow import Flow, is_valid_flow_name
 from core.io_data import IoDataType
-from core.node_base import SinkNodeBase
+from core.node_base import SinkNodeBase, SourceNodeBase
 from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
 from ui.flow_scene import FlowScene
 from ui.flow_view import FlowView
@@ -102,6 +102,15 @@ class NodeEditorPage(PageBase):
 
         # Wire scene → viewer.
         self._scene.selected_node_changed.connect(self._viewer.show_node)
+
+        # Debounce timer for reactive (auto-run) flows.  A 300 ms single-shot
+        # timer is restarted on every param change; it fires _on_run_clicked
+        # only after the user pauses editing.
+        self._live_timer = QTimer(self)
+        self._live_timer.setSingleShot(True)
+        self._live_timer.setInterval(300)
+        self._live_timer.timeout.connect(self._on_run_clicked)
+        self._scene.param_changed.connect(self._on_param_changed)
 
     # ── Page hooks ─────────────────────────────────────────────────────────────
 
@@ -251,6 +260,27 @@ class NodeEditorPage(PageBase):
                 if IoDataType.IMAGE in port.emits and port.last_emitted is not None:
                     return node
         return None
+
+    def _on_param_changed(self) -> None:
+        """Restart the debounce timer whenever any node parameter changes.
+
+        The timer fires :meth:`_on_run_clicked` after 300 ms of inactivity,
+        but only when the flow contains at least one reactive source (i.e. a
+        still-image source).  Video and other non-reactive sources are not
+        auto-run so that editing their parameters does not restart a lengthy
+        decode on every keystroke.
+        """
+        if self._flow is not None and self._has_reactive_source():
+            self._live_timer.start()
+
+    def _has_reactive_source(self) -> bool:
+        """Return True if the flow has at least one reactive source node."""
+        if self._flow is None:
+            return False
+        return any(
+            isinstance(n, SourceNodeBase) and n.is_reactive
+            for n in self._flow.nodes
+        )
 
     def _on_save_clicked(self) -> None:
         if self._flow is None:
