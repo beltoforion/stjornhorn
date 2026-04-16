@@ -55,7 +55,12 @@ class FileSource(SourceNodeBase):
 
     @file_path.setter
     def file_path(self, path: str | Path) -> None:
-        self._file_path = Path(path)
+        p = Path(path)
+        self._file_path = p
+        if p.name and not p.exists():
+            self.set_error(f"File not found: {p}")
+        else:
+            self.clear_error()
 
     @property
     def max_num_frames(self) -> int:

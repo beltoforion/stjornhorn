@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 
 from enum import Enum
 from typing_extensions import override
@@ -52,6 +53,12 @@ class NodeBase(ABC):
         self._display_name = display_name
         self._inputs: list[InputPort] = []
         self._outputs: list[OutputPort] = []
+        self._has_error: bool = False
+        self._error_message: str = ""
+        # Optional callback invoked whenever error state changes; set by the
+        # UI (NodeItem) to trigger a repaint. Keep as a plain callable so
+        # NodeBase stays Qt-free.
+        self._on_error_state_changed: Callable[[], None] | None = None
 
     # ── Port registration (called from subclass __init__) ──────────────────────
 
@@ -108,6 +115,32 @@ class NodeBase(ABC):
         return self._display_name
 
     @property
+    def has_error(self) -> bool:
+        """True when the node is in an error state (bad config or failed execution)."""
+        return self._has_error
+
+    @property
+    def error_message(self) -> str:
+        """Human-readable description of the current error, or empty string."""
+        return self._error_message
+
+    def set_error(self, message: str) -> None:
+        """Mark this node as errored and notify the UI."""
+        self._has_error = True
+        self._error_message = message
+        if self._on_error_state_changed is not None:
+            self._on_error_state_changed()
+
+    def clear_error(self) -> None:
+        """Clear any previous error state and notify the UI."""
+        if not self._has_error:
+            return
+        self._has_error = False
+        self._error_message = ""
+        if self._on_error_state_changed is not None:
+            self._on_error_state_changed()
+
+    @property
     def inputs(self) -> list[InputPort]:
         return self._inputs
 
@@ -129,7 +162,12 @@ class NodeBase(ABC):
         if any(p.data.is_end_of_stream() for p in self._inputs):
             self._on_end_of_stream()
         else:
-            self.process()
+            try:
+                self.process()
+                self.clear_error()
+            except Exception as exc:
+                logger.exception("Error in %s.process()", type(self).__name__)
+                self.set_error(str(exc) or type(exc).__name__)
 
         for p in self._inputs:
             p.clear()

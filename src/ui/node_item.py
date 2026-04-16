@@ -25,6 +25,7 @@ from ui.theme import (
     FILTER_HEADER_COLOR,
     NODE_BODY_COLOR,
     NODE_BORDER_COLOR,
+    NODE_BORDER_ERROR,
     NODE_BORDER_SELECTED,
     NODE_PARAM_LABEL_COLOR,
     NODE_TITLE_TEXT_COLOR,
@@ -51,6 +52,9 @@ class _NodeSignals(QObject):
 
     #: Emitted when any parameter widget on the owning node changes value.
     param_changed = Signal()
+
+    #: Emitted when the owning node's error state changes.
+    error_changed = Signal()
 
 
 class NodeItem(QGraphicsItem):
@@ -85,6 +89,10 @@ class NodeItem(QGraphicsItem):
         super().__init__()
         self._node = node
         self._signals = _NodeSignals()
+        # Wire the node's error-state callback to the signal so a repaint
+        # is triggered whenever the node enters or leaves an error state.
+        self._node._on_error_state_changed = self._signals.error_changed.emit
+        self._signals.error_changed.connect(self._on_error_state_changed)
         self._input_ports: list[PortItem] = []
         self._output_ports: list[PortItem] = []
         self._params_widget: QWidget | None = None  # container; holds ParamWidgetBases
@@ -133,6 +141,13 @@ class NodeItem(QGraphicsItem):
         for p in self._output_ports:
             p.refresh_links()
 
+    # ── Slots ──────────────────────────────────────────────────────────────────
+
+    def _on_error_state_changed(self) -> None:
+        """Update the node's tooltip and schedule a repaint when error state changes."""
+        self.setToolTip(self._node.error_message if self._node.has_error else "")
+        self.update()
+
     # ── Graphics item overrides ────────────────────────────────────────────────
 
     def boundingRect(self) -> QRectF:  # type: ignore[override]
@@ -142,10 +157,13 @@ class NodeItem(QGraphicsItem):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         body_rect = QRectF(0, 0, self.WIDTH, self._body_height)
-        border_pen = QPen(
-            NODE_BORDER_SELECTED if self.isSelected() else NODE_BORDER_COLOR,
-            2 if self.isSelected() else 1,
-        )
+        if self.isSelected():
+            border_color, border_width = NODE_BORDER_SELECTED, 2
+        elif self._node.has_error:
+            border_color, border_width = NODE_BORDER_ERROR, 2
+        else:
+            border_color, border_width = NODE_BORDER_COLOR, 1
+        border_pen = QPen(border_color, border_width)
 
         # ── body ──
         painter.setPen(border_pen)

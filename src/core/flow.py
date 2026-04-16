@@ -142,5 +142,13 @@ class Flow:
             raise RuntimeError("Flow has no source node; at least one is required")
         if not self.sinks:
             raise RuntimeError("Flow has no sink node; at least one is required")
+        # Clear stale error state from any previous run so nodes that
+        # succeed this time don't keep displaying a red border.
+        for node in self._nodes:
+            node.clear_error()
         for source in self.sources:
-            source.start()
+            try:
+                source.start()
+            except Exception as exc:
+                source.set_error(str(exc) or type(exc).__name__)
+                raise

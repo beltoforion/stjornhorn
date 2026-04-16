@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from enum import Enum
+from pathlib import Path
 
 import cv2
 from typing_extensions import override
@@ -52,6 +53,11 @@ class FileSink(SinkNodeBase):
     @output_path.setter
     def output_path(self, output_path: str) -> None:
         self._output_path = output_path
+        parent = Path(output_path).parent
+        if parent.name and not parent.exists():
+            self.set_error(f"Output directory not found: {parent}")
+        else:
+            self.clear_error()
 
     # ── SinkNodeBase interface ──────────────────────────────────────────────────
 
