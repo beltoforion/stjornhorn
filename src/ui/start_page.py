@@ -80,20 +80,13 @@ class StartPage(PageBase):
         self._name_input.returnPressed.connect(self._on_create_clicked)
         row.addWidget(self._name_input)
 
-        self._create_button = QPushButton("Create")
+        self._create_button = QPushButton(material_icon("add"), "Create")
         self._create_button.setEnabled(False)
+        self._create_button.setFixedSize(120, 40)
         self._create_button.clicked.connect(self._on_create_clicked)
         row.addWidget(self._create_button)
         row.addStretch(1)
         root.addLayout(row)
-
-        # Open button.
-        open_row = QHBoxLayout()
-        open_button = QPushButton("Open")
-        open_button.clicked.connect(self._on_open_clicked)
-        open_row.addWidget(open_button)
-        open_row.addStretch(1)
-        root.addLayout(open_row)
 
         root.addStretch(1)
 
