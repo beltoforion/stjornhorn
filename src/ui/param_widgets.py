@@ -29,7 +29,7 @@ _OPEN_FILTER = (
 )
 
 
-class ParamWidget(QWidget, metaclass=_WidgetMeta):
+class ParamWidgetBase(QWidget, metaclass=_WidgetMeta):
     """Base class for all parameter editor widgets embedded in a NodeItem.
 
     Each subclass binds to a single :class:`NodeParam` on a
@@ -78,7 +78,7 @@ class ParamWidget(QWidget, metaclass=_WidgetMeta):
 
 # ── Concrete widgets ───────────────────────────────────────────────────────────
 
-class IntParamWidget(ParamWidget):
+class IntParamWidgetBase(ParamWidgetBase):
     """Spin-box editor for :attr:`NodeParamType.INT` parameters."""
 
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
@@ -101,7 +101,7 @@ class IntParamWidget(ParamWidget):
         return self._spin.value()
 
 
-class BoolParamWidget(ParamWidget):
+class BoolParamWidgetBase(ParamWidgetBase):
     """Check-box editor for :attr:`NodeParamType.BOOL` parameters."""
 
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
@@ -121,7 +121,7 @@ class BoolParamWidget(ParamWidget):
         return self._check.isChecked()
 
 
-class FilePathParamWidget(ParamWidget):
+class FilePathParamWidgetBase(ParamWidgetBase):
     """Line-edit + browse-button editor for :attr:`NodeParamType.FILE_PATH` parameters."""
 
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
@@ -173,15 +173,15 @@ class FilePathParamWidget(ParamWidget):
 
 # ── Registry & factory ─────────────────────────────────────────────────────────
 
-_PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidget]] = {
-    NodeParamType.FILE_PATH: FilePathParamWidget,
-    NodeParamType.INT:       IntParamWidget,
-    NodeParamType.BOOL:      BoolParamWidget,
+_PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
+    NodeParamType.FILE_PATH: FilePathParamWidgetBase,
+    NodeParamType.INT:       IntParamWidgetBase,
+    NodeParamType.BOOL:      BoolParamWidgetBase,
 }
 
 
-def build_param_widget(node: NodeBase, param: NodeParam) -> ParamWidget | None:
-    """Return a :class:`ParamWidget` that edits *param* on *node*.
+def build_param_widget(node: NodeBase, param: NodeParam) -> ParamWidgetBase | None:
+    """Return a :class:`ParamWidgetBase` that edits *param* on *node*.
 
     Returns ``None`` for unsupported param types, so callers can render a
     placeholder label instead of crashing.

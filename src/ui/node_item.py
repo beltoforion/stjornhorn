@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.node_base import NodeBase, SinkNodeBase, SourceNodeBase
-from ui.param_widgets import ParamWidget, build_param_widget
+from ui.param_widgets import ParamWidgetBase, build_param_widget
 from ui.port_item import PortItem
 from ui.theme import (
     FILTER_HEADER_COLOR,
@@ -71,7 +71,7 @@ class NodeItem(QGraphicsItem):
         self._node = node
         self._input_ports: list[PortItem] = []
         self._output_ports: list[PortItem] = []
-        self._params_widget: QWidget | None = None  # container; holds ParamWidgets
+        self._params_widget: QWidget | None = None  # container; holds ParamWidgetBases
         self._proxy: QGraphicsProxyWidget | None = None
         self._params_height: float = 0.0
         self._body_height: float = 0.0
@@ -214,7 +214,7 @@ class NodeItem(QGraphicsItem):
             name_label = QLabel(param.name)
             name_label.setProperty("muted", True)
             layout.addWidget(name_label)
-            editor: ParamWidget | None = build_param_widget(self._node, param)
+            editor: ParamWidgetBase | None = build_param_widget(self._node, param)
             if editor is not None:
                 layout.addWidget(editor)
             else:
