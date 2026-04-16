@@ -115,6 +115,9 @@ class OutputPort:
     # ── Data flow ──────────────────────────────────────────────────────────────
 
     def send(self, data: IoData) -> None:
-        self._last_emitted = data
+        # Only cache real payload; EOS is a control signal and should not
+        # overwrite the last meaningful result the viewer wants to display.
+        if not data.is_end_of_stream():
+            self._last_emitted = data
         for port in self._connections:
             port.receive(data)

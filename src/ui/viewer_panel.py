@@ -78,7 +78,7 @@ class ViewerPanel(QWidget):
                 continue
 
             data = port.last_emitted
-            if data is None or data.is_end_of_stream() or data.type != IoDataType.IMAGE:
+            if data is None or data.type != IoDataType.IMAGE:
                 self._placeholder(f"{port.name}: (no data — click Run)", muted=True)
                 continue
 

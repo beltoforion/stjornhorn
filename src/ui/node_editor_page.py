@@ -248,11 +248,7 @@ class NodeEditorPage(PageBase):
             if isinstance(node, SinkNodeBase):
                 continue
             for port in node.outputs:
-                if (
-                    IoDataType.IMAGE in port.emits
-                    and port.last_emitted is not None
-                    and not port.last_emitted.is_end_of_stream()
-                ):
+                if IoDataType.IMAGE in port.emits and port.last_emitted is not None:
                     return node
         return None
 
