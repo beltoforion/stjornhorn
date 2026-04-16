@@ -5,7 +5,7 @@ from pathlib import Path
 
 from typing_extensions import override
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -37,6 +37,9 @@ class ParamWidgetBase(QWidget):
     :meth:`set_value` / :meth:`get_value` interface so callers can
     refresh or read widget state without knowing the concrete type.
     """
+
+    #: Emitted after any user interaction that commits a new value.
+    value_changed = Signal(object)
 
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
         if type(self) is ParamWidgetBase:
@@ -89,12 +92,16 @@ class IntParamWidget(ParamWidgetBase):
         self._spin.setRange(-10_000_000, 10_000_000)
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._spin.setMinimumWidth(96)
-        self._spin.valueChanged.connect(self._write_to_node)
+        self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(int(self._initial_value(0)))
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._spin)
+
+    def _on_value_changed(self, value: int) -> None:
+        self._write_to_node(value)
+        self.value_changed.emit(value)
 
     @override
     def set_value(self, value: object) -> None:
@@ -111,12 +118,16 @@ class BoolParamWidget(ParamWidgetBase):
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
         super().__init__(node, param)
         self._check = QCheckBox()
-        self._check.toggled.connect(self._write_to_node)
+        self._check.toggled.connect(self._on_value_changed)
         self._check.setChecked(bool(self._initial_value(False)))
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._check)
+
+    def _on_value_changed(self, value: bool) -> None:
+        self._write_to_node(value)
+        self.value_changed.emit(value)
 
     @override
     def set_value(self, value: object) -> None:
@@ -140,7 +151,7 @@ class FilePathParamWidget(ParamWidgetBase):
         # inside the fixed-width node body, otherwise the line edit overflows
         # and visually overlaps the button.
         self._line.setMinimumWidth(80)
-        self._line.textChanged.connect(self._write_to_node)
+        self._line.textChanged.connect(self._on_value_changed)
         self._line.setText(str(self._initial_value("")))
 
         browse = QPushButton("…")
@@ -152,6 +163,10 @@ class FilePathParamWidget(ParamWidgetBase):
         layout.setSpacing(4)
         layout.addWidget(self._line, 1)
         layout.addWidget(browse, 0)
+
+    def _on_value_changed(self, value: str) -> None:
+        self._write_to_node(value)
+        self.value_changed.emit(value)
 
     @override
     def set_value(self, value: object) -> None:

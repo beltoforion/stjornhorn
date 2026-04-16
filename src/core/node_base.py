@@ -160,7 +160,22 @@ class SourceNodeBase(NodeBase, ABC):
     A source has outputs only — it produces data and drives the pipeline by
     implementing start(). Subclasses must call OutputPort.send() for each
     frame and send IoData.end_of_stream() on all outputs when done.
+
+    Override :attr:`is_reactive` to ``True`` in sources that produce a single
+    static result (e.g. a still image). The node editor will automatically
+    re-run the flow whenever any parameter on any node changes, giving a
+    live-coding feel.
     """
+
+    @property
+    def is_reactive(self) -> bool:
+        """Return True if this source should trigger an auto-run on any param change.
+
+        Default is False (explicit Run button only).  Still-image sources
+        override this to True so the flow re-executes whenever a parameter
+        is edited.
+        """
+        return False
 
     @abstractmethod
     def start(self) -> None:

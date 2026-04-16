@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QBrush,
     QPainter,
@@ -12,6 +12,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QGraphicsItem,
+    QGraphicsObject,
     QGraphicsProxyWidget,
     QLabel,
     QVBoxLayout,
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class NodeItem(QGraphicsItem):
+class NodeItem(QGraphicsObject):
     """A single node drawn on the flow canvas.
 
     Visual layout (top to bottom):
@@ -65,6 +66,9 @@ class NodeItem(QGraphicsItem):
     PARAM_GAP: float = 4.0
 
     Z_VALUE = 1
+
+    #: Emitted when any parameter widget on this node changes value.
+    param_changed = Signal()
 
     def __init__(self, node: NodeBase) -> None:
         super().__init__()
@@ -216,6 +220,7 @@ class NodeItem(QGraphicsItem):
             layout.addWidget(name_label)
             editor: ParamWidgetBase | None = build_param_widget(self._node, param)
             if editor is not None:
+                editor.value_changed.connect(lambda _v: self.param_changed.emit())
                 layout.addWidget(editor)
             else:
                 layout.addWidget(QLabel(f"(unsupported: {param.param_type.name})"))
