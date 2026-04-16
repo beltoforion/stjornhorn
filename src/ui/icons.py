@@ -42,6 +42,8 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "delete":       "e872",
     "zoom_out_map": "e56b",
     "fullscreen_exit": "e5d1",
+    "article":      "ef42",
+    "refresh":      "e5d5",
 }
 
 
