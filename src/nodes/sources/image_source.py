@@ -7,6 +7,7 @@ import numpy as np
 import rawpy
 from typing_extensions import override
 
+from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
 from core.node_base import SourceNodeBase, NodeParam, NodeParamType
 from core.port import OutputPort
@@ -19,12 +20,18 @@ class ImageSource(SourceNodeBase):
 
     Supported formats: JPEG, PNG, CR2 (RAW).
 
+    Paths inside the application's :data:`INPUT_DIR` are stored — and
+    therefore displayed — relative to that folder. Anything outside is kept
+    as an absolute path. Relative paths are resolved against ``INPUT_DIR``
+    at run time, which keeps saved flows portable across machines that
+    share the same input layout.
+
     This source is *reactive*: the node editor automatically re-runs the
     flow whenever any parameter on any node is edited, so changes take
     effect immediately without pressing Run.
 
     Parameters:
-      file_path -- path to the input image
+      file_path -- path to the input image (relative to INPUT_DIR when possible)
     """
 
     def __init__(self) -> None:
@@ -39,7 +46,7 @@ class ImageSource(SourceNodeBase):
     @override
     def params(self) -> list[NodeParam]:
         return [
-            NodeParam("file_path", NodeParamType.FILE_PATH, {"default": "./input/example.jpg"}),
+            NodeParam("file_path", NodeParamType.FILE_PATH, {"default": "example.jpg"}),
         ]
 
     @property
@@ -48,7 +55,13 @@ class ImageSource(SourceNodeBase):
 
     @file_path.setter
     def file_path(self, path: str | Path) -> None:
-        self._file_path = Path(path)
+        p = Path(path)
+        if p.is_absolute():
+            try:
+                p = p.resolve().relative_to(INPUT_DIR.resolve())
+            except (OSError, ValueError):
+                pass  # outside INPUT_DIR — keep absolute
+        self._file_path = p
 
     # ── SourceNodeBase interface ────────────────────────────────────────────────
 
@@ -59,10 +72,11 @@ class ImageSource(SourceNodeBase):
 
     @override
     def start(self) -> None:
-        if not self._file_path.exists():
-            raise FileNotFoundError(f"Input file not found: {self._file_path}")
+        resolved = self._resolved_path()
+        if not resolved.exists():
+            raise FileNotFoundError(f"Input file not found: {resolved}")
 
-        ext = self._file_path.suffix.lower()
+        ext = resolved.suffix.lower()
         if ext not in _SUPPORTED_EXTS:
             raise ValueError(
                 f"Unsupported file type '{ext}'. "
@@ -70,11 +84,19 @@ class ImageSource(SourceNodeBase):
             )
 
         if ext == ".cr2":
-            image: np.ndarray = rawpy.imread(str(self._file_path)).postprocess()
+            image: np.ndarray = rawpy.imread(str(resolved)).postprocess()
         else:
-            image = cv2.imread(str(self._file_path))
+            image = cv2.imread(str(resolved))
             if image is None:
-                raise OSError(f"cv2 could not read: {self._file_path}")
+                raise OSError(f"cv2 could not read: {resolved}")
 
         self.outputs[0].send(IoData.from_image(image))
         self.outputs[0].send(IoData.end_of_stream())
+
+    # ── Internals ──────────────────────────────────────────────────────────────
+
+    def _resolved_path(self) -> Path:
+        """Return an absolute path; relative values are joined with INPUT_DIR."""
+        if self._file_path.is_absolute():
+            return self._file_path
+        return INPUT_DIR / self._file_path
