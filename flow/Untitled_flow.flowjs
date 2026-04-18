@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "name": "Untitled_flow",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1404.0,
+        -755.0
+      ],
+      "params": {
+        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/ship.jpg"
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.throw_exception",
+      "class": "ThrowException",
+      "position": [
+        -1086.0,
+        -704.0
+      ],
+      "params": {}
+    },
+    {
+      "id": 2,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -779.0,
+        -758.0
+      ],
+      "params": {
+        "output_path": "output/out.png"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    }
+  ]
+}
