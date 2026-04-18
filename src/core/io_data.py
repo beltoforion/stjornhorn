@@ -7,6 +7,7 @@ import numpy as np
 
 class IoDataType(Enum):
     IMAGE = "Image"
+    IMAGE_GREY = "ImageGrey"
     END_OF_STREAM = "EndOfStream"
 
 
