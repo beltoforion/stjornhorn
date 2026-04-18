@@ -31,7 +31,8 @@ from typing_extensions import override
 from ui.page import PageBase, ToolbarSection
 from ui.node_list import NodeList
 from ui.recent_flows import RecentFlowsManager
-from ui.theme import STATUS_FAIL_COLOR, STATUS_MUTED_COLOR, STATUS_OK_COLOR
+from ui.error_banner import ErrorBanner
+from ui.theme import STATUS_MUTED_COLOR, STATUS_OK_COLOR
 from ui.viewer_panel import ViewerPanel
 
 if TYPE_CHECKING:
@@ -112,6 +113,11 @@ class NodeEditorPage(PageBase):
         self._status_label = QLabel("")
         self._status_bar.addWidget(self._status_label, 1)
         self._inner.setStatusBar(self._status_bar)
+
+        # Floating error banner anchored to the top-right of the page's
+        # client area. Used instead of the status bar for failures because
+        # error messages can be long and multi-line.
+        self._error_banner = ErrorBanner(self._inner)
 
         # Wire scene → viewer.
         self._scene.selected_node_changed.connect(self._viewer.show_node)
@@ -397,18 +403,24 @@ class NodeEditorPage(PageBase):
     # ── Status line ────────────────────────────────────────────────────────────
 
     def _set_status(self, message: str, *, kind: str) -> None:
+        # Failures go to the floating error banner so long / multi-line
+        # messages are readable. The status bar keeps the last success or
+        # informational message so the user can still glance at it.
+        if kind == "fail":
+            self._error_banner.show_error(message)
+            return
         color = {
             "ok":    STATUS_OK_COLOR,
-            "fail":  STATUS_FAIL_COLOR,
             "muted": STATUS_MUTED_COLOR,
         }.get(kind, STATUS_MUTED_COLOR)
         self._status_label.setText(message)
-        # Show the full message in a tooltip so long exception text isn't
-        # lost when the status bar truncates the label.
         self._status_label.setToolTip(message)
         self._status_label.setStyleSheet(
             f"color: rgb({color.red()},{color.green()},{color.blue()});"
         )
+        # A successful action implicitly clears any stale error.
+        if kind == "ok":
+            self._error_banner.hide()
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
