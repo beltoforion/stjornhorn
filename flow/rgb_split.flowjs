@@ -4,19 +4,6 @@
   "nodes": [
     {
       "id": 0,
-      "module": "nodes.sources.file_source",
-      "class": "FileSource",
-      "position": [
-        -1743.0,
-        -651.0
-      ],
-      "params": {
-        "file_path": ".",
-        "max_num_frames": -1
-      }
-    },
-    {
-      "id": 1,
       "module": "nodes.filters.rgb_split",
       "class": "RgbSplit",
       "position": [
@@ -26,7 +13,7 @@
       "params": {}
     },
     {
-      "id": 2,
+      "id": 1,
       "module": "nodes.filters.grayscale",
       "class": "Grayscale",
       "position": [
@@ -36,7 +23,7 @@
       "params": {}
     },
     {
-      "id": 3,
+      "id": 2,
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
@@ -48,7 +35,7 @@
       }
     },
     {
-      "id": 4,
+      "id": 3,
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
@@ -57,6 +44,18 @@
       ],
       "params": {
         "output_path": "output/out.png"
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1749.5255474452551,
+        -646.2773722627737
+      ],
+      "params": {
+        "file_path": "example.jpg"
       }
     }
   ],
@@ -74,27 +73,27 @@
       "dst_input": 0
     },
     {
+      "src_node": 0,
+      "src_output": 1,
+      "dst_node": 2,
+      "dst_input": 1
+    },
+    {
+      "src_node": 0,
+      "src_output": 2,
+      "dst_node": 2,
+      "dst_input": 2
+    },
+    {
       "src_node": 2,
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 0
     },
     {
-      "src_node": 1,
-      "src_output": 1,
-      "dst_node": 3,
-      "dst_input": 1
-    },
-    {
-      "src_node": 1,
-      "src_output": 2,
-      "dst_node": 3,
-      "dst_input": 2
-    },
-    {
-      "src_node": 3,
+      "src_node": 4,
       "src_output": 0,
-      "dst_node": 4,
+      "dst_node": 0,
       "dst_input": 0
     }
   ]
