@@ -134,20 +134,16 @@ def test_normalize_passes_through_grayscale_input() -> None:
 
 # ── AdaptiveGaussianThreshold ─────────────────────────────────────────────────
 
-def test_agauss_threshold_produces_bgr_binary_output() -> None:
+def test_agauss_threshold_produces_greyscale_binary_output() -> None:
     rng = np.random.default_rng(2)
     image = rng.integers(0, 256, size=(128, 128, 3), dtype=np.uint8)
 
     node = AdaptiveGaussianThreshold()
     out = _run(node, image)
 
-    assert out.shape == (128, 128, 3)
-    # Binary output: every channel is either 0 or 255, and all three
-    # channels are equal (GRAY2BGR).
-    unique = np.unique(out)
-    assert set(unique.tolist()).issubset({0, 255})
-    np.testing.assert_array_equal(out[..., 0], out[..., 1])
-    np.testing.assert_array_equal(out[..., 1], out[..., 2])
+    # Now a single-channel IMAGE_GREY payload.
+    assert out.shape == (128, 128)
+    assert set(np.unique(out).tolist()).issubset({0, 255})
 
 
 def test_agauss_threshold_coerces_even_block_size() -> None:
@@ -165,21 +161,20 @@ def test_agauss_threshold_rejects_tiny_block_size() -> None:
 # ── Dither ────────────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("method", list(DitherMethod))
-def test_dither_produces_bgr_binary_output(method: DitherMethod) -> None:
+def test_dither_produces_greyscale_binary_output(method: DitherMethod) -> None:
     image = _gradient(h=8, w=8)
 
     node = Dither()
     node.method = int(method)
     out = _run(node, image)
 
-    assert out.shape == (8, 8, 3)
+    # Dither emits a single-channel IMAGE_GREY payload.
+    assert out.shape == (8, 8)
     assert set(np.unique(out).tolist()).issubset({0, 255})
-    np.testing.assert_array_equal(out[..., 0], out[..., 1])
-    np.testing.assert_array_equal(out[..., 1], out[..., 2])
 
 
 def test_dither_accepts_bgr_input() -> None:
-    # Gradient broadcast to 3 channels — the node should grayscale it.
+    # Gradient broadcast to 3 channels — the node should greyscale it.
     gray = _gradient(h=8, w=8)
     bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
@@ -187,7 +182,7 @@ def test_dither_accepts_bgr_input() -> None:
     node.method = int(DitherMethod.BAYER4)
     out = _run(node, bgr)
 
-    assert out.shape == (8, 8, 3)
+    assert out.shape == (8, 8)
     assert set(np.unique(out).tolist()).issubset({0, 255})
 
 

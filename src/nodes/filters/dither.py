@@ -8,7 +8,7 @@ import numba
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IoData, IoDataType
+from core.io_data import IMAGE_TYPES, IoData, IoDataType
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
 
@@ -103,8 +103,8 @@ class Dither(NodeBase):
 
     Reduces an image to two levels (0 / 255) using one of the classic
     ordered or error-diffusion schemes. Colour inputs are converted to
-    grayscale first; the binary result is broadcast back to BGR so
-    downstream nodes receive the expected 3-channel format.
+    greyscale first; the output is always a single-channel
+    :data:`IoDataType.IMAGE_GREY` payload.
 
     The error-diffusion inner loop is JIT-compiled by numba on first use
     (``@njit(cache=True)``), making it comparable in speed to the
@@ -115,8 +115,8 @@ class Dither(NodeBase):
         super().__init__("Dither", section="Processing")
         self._method: DitherMethod = DitherMethod.STUCKI
 
-        self._add_input(InputPort("image", {IoDataType.IMAGE}))
-        self._add_output(OutputPort("image", {IoDataType.IMAGE}))
+        self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
 
         self._apply_default_params()
 
@@ -167,8 +167,7 @@ class Dither(NodeBase):
         else:
             out = _dither_diffusion(gray, _DIFFUSION_KERNELS[method])
 
-        out_bgr = cv2.cvtColor(out, cv2.COLOR_GRAY2BGR)
-        self.outputs[0].send(IoData.from_image(out_bgr))
+        self.outputs[0].send(IoData.from_greyscale(out))
 
 
 # ── Dithering kernels ─────────────────────────────────────────────────────────

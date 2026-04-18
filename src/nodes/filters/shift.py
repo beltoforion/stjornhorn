@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IoData, IoDataType
+from core.io_data import IMAGE_TYPES
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
 
@@ -24,8 +24,8 @@ class Shift(NodeBase):
         self._offset_x: int = 0
         self._offset_y: int = 0
 
-        self._add_input(InputPort("image", {IoDataType.IMAGE}))
-        self._add_output(OutputPort("image", {IoDataType.IMAGE}))
+        self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
 
@@ -61,9 +61,10 @@ class Shift(NodeBase):
 
     @override
     def process(self) -> None:
-        image: np.ndarray = self.inputs[0].data.image
+        in_data = self.inputs[0].data
+        image: np.ndarray = in_data.image
         h, w = image.shape[:2]
         matrix = np.float32([[1, 0, self._offset_x],
                              [0, 1, self._offset_y]])
         shifted = cv2.warpAffine(image, matrix, (w, h))
-        self.outputs[0].send(IoData.from_image(shifted))
+        self.outputs[0].send(in_data.with_image(shifted))

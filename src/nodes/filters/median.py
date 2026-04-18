@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IoData, IoDataType
+from core.io_data import IMAGE_TYPES
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
 
@@ -13,15 +13,17 @@ class Median(NodeBase):
     """Apply a median blur with a square kernel.
 
     Wraps ``cv2.medianBlur``; the kernel ``size`` must be odd and ≥ 1.
-    Ported from the original OCVL ``MedianProcessor``.
+    Accepts both colour (``IMAGE``) and greyscale (``IMAGE_GREY``) inputs
+    and emits the same type on the output. Ported from the original OCVL
+    ``MedianProcessor``.
     """
 
     def __init__(self) -> None:
         super().__init__("Median", section="Processing")
         self._size: int = 3
 
-        self._add_input(InputPort("image", {IoDataType.IMAGE}))
-        self._add_output(OutputPort("image", {IoDataType.IMAGE}))
+        self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
 
@@ -54,6 +56,6 @@ class Median(NodeBase):
 
     @override
     def process(self) -> None:
-        image: np.ndarray = self.inputs[0].data.image
-        blurred = cv2.medianBlur(image, self._size)
-        self.outputs[0].send(IoData.from_image(blurred))
+        in_data = self.inputs[0].data
+        blurred = cv2.medianBlur(in_data.image, self._size)
+        self.outputs[0].send(in_data.with_image(blurred))

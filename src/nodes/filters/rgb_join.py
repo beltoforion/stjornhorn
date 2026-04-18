@@ -22,9 +22,9 @@ class RgbJoin(NodeBase):
         super().__init__("RGB Join", section="Color Spaces")
         self._three_color: bool = False
 
-        self._add_input(InputPort("B", {IoDataType.IMAGE}))
-        self._add_input(InputPort("G", {IoDataType.IMAGE}))
-        self._add_input(InputPort("R", {IoDataType.IMAGE}))
+        self._add_input(InputPort("B", {IoDataType.IMAGE_GREY}))
+        self._add_input(InputPort("G", {IoDataType.IMAGE_GREY}))
+        self._add_input(InputPort("R", {IoDataType.IMAGE_GREY}))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
 
         # Sync attributes with declared NodeParam defaults; see

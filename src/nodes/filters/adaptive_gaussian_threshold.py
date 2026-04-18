@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IoData, IoDataType
+from core.io_data import IMAGE_TYPES, IoData, IoDataType
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
 
@@ -18,9 +18,9 @@ class AdaptiveGaussianThreshold(NodeBase):
     weighted mean. Ported from the original OCVL
     ``AdaptiveGuaussianThresholdProcessor`` [sic].
 
-    3-channel inputs are converted to grayscale first and the binary
-    result is re-broadcast to BGR so downstream nodes get the expected
-    3-channel format.
+    Accepts colour or greyscale inputs; 3-channel inputs are internally
+    converted to greyscale first. The output is always a single-channel
+    binary :data:`IoDataType.IMAGE_GREY` payload.
     """
 
     def __init__(self) -> None:
@@ -28,8 +28,8 @@ class AdaptiveGaussianThreshold(NodeBase):
         self._block_size: int = 101
         self._c: int = -32
 
-        self._add_input(InputPort("image", {IoDataType.IMAGE}))
-        self._add_output(OutputPort("image", {IoDataType.IMAGE}))
+        self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
 
         self._apply_default_params()
 
@@ -86,5 +86,4 @@ class AdaptiveGaussianThreshold(NodeBase):
             self._block_size,
             self._c,
         )
-        out = cv2.cvtColor(th, cv2.COLOR_GRAY2BGR)
-        self.outputs[0].send(IoData.from_image(out))
+        self.outputs[0].send(IoData.from_greyscale(th))

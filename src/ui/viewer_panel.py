@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.io_data import IoDataType
+from core.io_data import IMAGE_TYPES
 from core.node_base import NodeBase
 from ui.theme import STATUS_FAIL_COLOR, STATUS_MUTED_COLOR
 
@@ -85,12 +85,12 @@ class ViewerPanel(QWidget):
             return
 
         for port in node.outputs:
-            if IoDataType.IMAGE not in port.emits:
+            if not (port.emits & IMAGE_TYPES):
                 self._placeholder(f"{port.name}: (non-image output)", muted=True)
                 continue
 
             data = port.last_emitted
-            if data is None or data.type != IoDataType.IMAGE:
+            if data is None or data.type not in IMAGE_TYPES:
                 self._placeholder(f"{port.name}: (no data — click Run)", muted=True)
                 continue
 

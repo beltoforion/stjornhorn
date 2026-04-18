@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 from constants import FLOW_DIR
 from core.flow import Flow, is_valid_flow_name
-from core.io_data import IoDataType
+from core.io_data import IMAGE_TYPES
 from core.node_base import SinkNodeBase, SourceNodeBase
 from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
 from ui.flow_scene import FlowScene
@@ -303,7 +303,7 @@ class NodeEditorPage(PageBase):
             if isinstance(node, SinkNodeBase):
                 continue
             for port in node.outputs:
-                if IoDataType.IMAGE in port.emits and port.last_emitted is not None:
+                if (port.emits & IMAGE_TYPES) and port.last_emitted is not None:
                     return node
         return None
 
