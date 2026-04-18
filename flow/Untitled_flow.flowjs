@@ -7,8 +7,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1404.0,
-        -755.0
+        -1311.0,
+        -747.0
       ],
       "params": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/ship.jpg"
@@ -19,8 +19,8 @@
       "module": "nodes.filters.throw_exception",
       "class": "ThrowException",
       "position": [
-        -1086.0,
-        -704.0
+        -973.0,
+        -703.0
       ],
       "params": {}
     },
@@ -29,8 +29,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -779.0,
-        -758.0
+        -631.0,
+        -652.0
       ],
       "params": {
         "output_path": "output/out.png"
