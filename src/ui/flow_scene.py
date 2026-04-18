@@ -119,6 +119,32 @@ class FlowScene(QGraphicsScene):
                 self._delete_link_item(link)
         self._delete_node_item(item)
 
+    # ── Layout helpers ─────────────────────────────────────────────────────────
+
+    STACK_GAP: float = 16.0
+
+    def stack_selected_vertically(self) -> int:
+        """Align selected nodes on a single X axis and stack them vertically.
+
+        Preserves the current top-to-bottom order (nodes higher on the canvas
+        stay on top in the new stack). All selected nodes are anchored to the
+        leftmost selected X so they share a vertical axis; each subsequent
+        node is placed beneath the previous one with a fixed :data:`STACK_GAP`
+        between their bounding boxes. Returns the number of nodes that were
+        moved (two or more selected nodes required — otherwise a no-op).
+        """
+        items = [s for s in self.selectedItems() if isinstance(s, NodeItem)]
+        if len(items) < 2:
+            return 0
+        items.sort(key=lambda it: it.pos().y())
+        x = min(it.pos().x() for it in items)
+        y = items[0].pos().y()
+        for item in items:
+            item.setPos(x, y)
+            item.refresh_all_links()
+            y += item.boundingRect().height() + self.STACK_GAP
+        return len(items)
+
     def _delete_node_item(self, item: NodeItem) -> None:
         if self._flow is not None:
             try:

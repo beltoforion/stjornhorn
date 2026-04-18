@@ -107,6 +107,10 @@ class NodeEditorPage(PageBase):
 
         # Actions: reused by both the page menu and the main toolbar.
         self._actions = self._build_actions()
+        # V-Stack needs at least two selected nodes; keep it disabled until
+        # that is true and toggle it on selection changes.
+        self._actions["stack_vertical"].setEnabled(False)
+        self._scene.selectionChanged.connect(self._update_selection_actions)
 
         # Status bar at the bottom of the inner window.
         self._status_bar = QStatusBar(self._inner)
@@ -164,6 +168,7 @@ class NodeEditorPage(PageBase):
             ToolbarSection("View", [
                 self._actions["fit"],
                 self._actions["reset_zoom"],
+                self._actions["stack_vertical"],
             ]),
         ]
 
@@ -261,9 +266,24 @@ class NodeEditorPage(PageBase):
             "clear":   mk("Clear",    "delete",      self._on_clear_clicked),
             "fit":     mk("Fit",      "zoom_out_map",    self._view.fit_to_contents),
             "reset_zoom": mk("1:1", "fullscreen_exit", self._view.reset_zoom),
+            "stack_vertical": mk(
+                "V-Stack", "view_stream", self._on_stack_vertical_clicked,
+            ),
         }
 
     # ── Action handlers ────────────────────────────────────────────────────────
+
+    def _update_selection_actions(self) -> None:
+        """Enable/disable selection-dependent actions based on node count."""
+        from ui.node_item import NodeItem
+        selected_nodes = sum(
+            1 for s in self._scene.selectedItems() if isinstance(s, NodeItem)
+        )
+        self._actions["stack_vertical"].setEnabled(selected_nodes >= 2)
+
+    def _on_stack_vertical_clicked(self) -> None:
+        """Align selected nodes on a shared X axis and stack them vertically."""
+        self._scene.stack_selected_vertically()
 
     def _on_run_clicked(self) -> None:
         if self._flow is None:
