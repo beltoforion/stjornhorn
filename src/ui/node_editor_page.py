@@ -430,8 +430,13 @@ class NodeEditorPage(PageBase):
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _display_path(path: Path) -> str:
-    """Return ``path`` relative to cwd when possible, otherwise absolute."""
+    """Return ``path`` relative to cwd when possible, otherwise absolute.
+
+    Resolves symlinks on both sides so a path that differs from cwd only
+    via a symlink (e.g. ``~/Desktop/repo`` → ``~/Code/repo``) is still
+    shown in the shorter relative form.
+    """
     try:
-        return str(path.relative_to(Path.cwd()))
-    except ValueError:
+        return str(path.resolve().relative_to(Path.cwd().resolve()))
+    except (OSError, ValueError):
         return str(path)
