@@ -164,6 +164,7 @@ class NodeEditorPage(PageBase):
             ToolbarSection("View", [
                 self._actions["fit"],
                 self._actions["reset_zoom"],
+                self._actions["stack_vertical"],
             ]),
         ]
 
@@ -261,9 +262,21 @@ class NodeEditorPage(PageBase):
             "clear":   mk("Clear",    "delete",      self._on_clear_clicked),
             "fit":     mk("Fit",      "zoom_out_map",    self._view.fit_to_contents),
             "reset_zoom": mk("1:1", "fullscreen_exit", self._view.reset_zoom),
+            "stack_vertical": mk(
+                "Stack Vertically", "view_stream", self._on_stack_vertical_clicked,
+            ),
         }
 
     # ── Action handlers ────────────────────────────────────────────────────────
+
+    def _on_stack_vertical_clicked(self) -> None:
+        """Align selected nodes on a shared X axis and stack them vertically."""
+        moved = self._scene.stack_selected_vertically()
+        if moved == 0:
+            self._set_status(
+                "Select two or more nodes to stack them vertically.",
+                kind="muted",
+            )
 
     def _on_run_clicked(self) -> None:
         if self._flow is None:
