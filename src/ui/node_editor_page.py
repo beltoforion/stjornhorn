@@ -230,6 +230,10 @@ class NodeEditorPage(PageBase):
         self._flow = flow
         self._viewer.show_node(None)
         self.title_changed.emit(self.page_title())
+        # Fit the freshly-loaded graph into the view. Deferred so it runs
+        # after pending layout events settle — viewport geometry isn't
+        # final yet when load_flow runs during the first paint.
+        QTimer.singleShot(0, self._view.fit_to_contents)
         self._set_status(
             f"Loaded {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
