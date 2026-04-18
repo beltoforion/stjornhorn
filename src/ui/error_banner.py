@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtWidgets import (
     QFrame,
+    QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
     QScrollArea,
@@ -27,12 +28,19 @@ class ErrorBanner(QFrame):
     MAX_HEIGHT_FRACTION: float = 0.6
     MIN_WIDTH: int = 240
     MIN_HEIGHT: int = 120
+    OPACITY: float = 0.85
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
         self.setObjectName("ErrorBanner")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # Let the red backdrop blend slightly with whatever is underneath
+        # (canvas, docks) so the banner reads as an overlay rather than an
+        # opaque panel.
+        opacity = QGraphicsOpacityEffect(self)
+        opacity.setOpacity(self.OPACITY)
+        self.setGraphicsEffect(opacity)
         self.setStyleSheet(
             """
             QFrame#ErrorBanner {
