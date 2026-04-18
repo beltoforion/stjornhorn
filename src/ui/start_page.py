@@ -89,9 +89,6 @@ class StartPage(PageBase):
 
         # Open button.
         open_row = QHBoxLayout()
-        open_button = QPushButton("Open")
-        open_button.clicked.connect(self._on_open_clicked)
-        open_row.addWidget(open_button)
         open_row.addStretch(1)
         root.addLayout(open_row)
 
