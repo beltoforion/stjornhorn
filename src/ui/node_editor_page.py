@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -104,6 +104,19 @@ class NodeEditorPage(PageBase):
             self._node_list_dock, self._viewer_dock, Qt.Orientation.Vertical,
         )
         self._initial_split_applied = False
+        # A floating QDockWidget defaults to a Qt.Tool window, which on most
+        # desktop environments lacks maximise / fullscreen affordances.
+        # Promote it to a regular top-level window when it floats so the
+        # user can inspect large outputs in full screen; F11 toggles
+        # fullscreen while the dock is detached.
+        self._viewer_dock.topLevelChanged.connect(self._on_viewer_top_level_changed)
+        self._viewer_fullscreen_shortcut = QShortcut(
+            QKeySequence(Qt.Key.Key_F11), self._viewer_dock
+        )
+        self._viewer_fullscreen_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self._viewer_fullscreen_shortcut.activated.connect(
+            self._toggle_viewer_fullscreen
+        )
 
         # Actions: reused by both the page menu and the main toolbar.
         self._actions = self._build_actions()
@@ -284,6 +297,32 @@ class NodeEditorPage(PageBase):
     def _on_stack_vertical_clicked(self) -> None:
         """Align selected nodes on a shared X axis and stack them vertically."""
         self._scene.stack_selected_vertically()
+
+    def _on_viewer_top_level_changed(self, floating: bool) -> None:
+        """Promote the floating Output Inspector to a real top-level window.
+
+        QDockWidget's default floating style is Qt.Tool, which most window
+        managers render without maximise / fullscreen controls. Re-flag the
+        window so the OS chrome offers those affordances, then re-show it
+        (Qt hides a widget whenever its window flags change).
+        """
+        if not floating:
+            return
+        self._viewer_dock.setWindowFlags(
+            Qt.WindowType.Window
+            | Qt.WindowType.WindowMinMaxButtonsHint
+            | Qt.WindowType.WindowCloseButtonHint
+        )
+        self._viewer_dock.show()
+
+    def _toggle_viewer_fullscreen(self) -> None:
+        """F11 handler: toggle fullscreen on the floating Output Inspector."""
+        if not self._viewer_dock.isFloating():
+            return
+        if self._viewer_dock.isFullScreen():
+            self._viewer_dock.showNormal()
+        else:
+            self._viewer_dock.showFullScreen()
 
     def _on_run_clicked(self) -> None:
         if self._flow is None:
