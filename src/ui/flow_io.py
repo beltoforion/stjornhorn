@@ -117,7 +117,13 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
         except (IndexError, KeyError):
             logger.warning("Skipping connection with out-of-range port index: %s", conn)
             continue
-        scene.connect_ports(src_port, dst_port)
+        try:
+            scene.connect_ports(src_port, dst_port)
+        except TypeError as err:
+            # Incompatible port types (e.g. a saved flow routing IMAGE_GREY
+            # into an IMAGE-only port). Log and continue so the rest of the
+            # flow still loads rather than aborting the whole file.
+            logger.warning("Skipping incompatible connection %s: %s", conn, err)
 
     return flow
 

@@ -46,6 +46,10 @@ class FlowScene(QGraphicsScene):
     selected_node_changed = Signal(object)   # NodeBase | None
     #: Emitted when any parameter widget on any node in the scene changes value.
     param_changed = Signal()
+    #: Emitted when an interactive connection attempt raises a user-actionable
+    #: error (e.g. incompatible port types). Carries the exception's message so
+    #: the host page can surface it in the error banner.
+    connection_error = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -127,8 +131,16 @@ class FlowScene(QGraphicsScene):
     # ── Link operations ────────────────────────────────────────────────────────
 
     def connect_ports(self, src: PortItem, dst: PortItem) -> LinkItem | None:
-        """Create a link from ``src`` (output) to ``dst`` (input) if the
-        port types are compatible and the link does not already exist."""
+        """Create a link from ``src`` (output) to ``dst`` (input).
+
+        Returns ``None`` for trivial rejections (wrong direction, self-loop,
+        duplicate) and raises :class:`TypeError` when the underlying
+        :meth:`Flow.connect` rejects the edge as type-incompatible. Callers
+        are expected to surface that error to the user (the interactive
+        drag path in :meth:`mouseReleaseEvent` emits
+        :attr:`connection_error`; the flow-loader in ``flow_io`` logs and
+        skips the edge).
+        """
         if src.kind != "output" or dst.kind != "input":
             return None
         if src.node_item is dst.node_item:
@@ -139,13 +151,7 @@ class FlowScene(QGraphicsScene):
         src_node = src.node_item.node
         dst_node = dst.node_item.node
         if self._flow is not None:
-            try:
-                self._flow.connect(src_node, src.index, dst_node, dst.index)
-            except TypeError:
-                logger.info("Rejected incompatible connection: %s.%s -> %s.%s",
-                            type(src_node).__name__, src.name,
-                            type(dst_node).__name__, dst.name)
-                return None
+            self._flow.connect(src_node, src.index, dst_node, dst.index)
 
         link = LinkItem(src, dst)
         self.addItem(link)
@@ -202,10 +208,15 @@ class FlowScene(QGraphicsScene):
 
             if target is not None and target is not src:
                 # Allow drag from either direction (output→input or input→output).
-                if src.kind == "output" and target.kind == "input":
-                    self.connect_ports(src, target)
-                elif src.kind == "input" and target.kind == "output":
-                    self.connect_ports(target, src)
+                try:
+                    if src.kind == "output" and target.kind == "input":
+                        self.connect_ports(src, target)
+                    elif src.kind == "input" and target.kind == "output":
+                        self.connect_ports(target, src)
+                except TypeError as err:
+                    # Surface incompatible-port errors through the UI so
+                    # the user sees why the edge was rejected.
+                    self.connection_error.emit(str(err))
             event.accept()
             return
         super().mouseReleaseEvent(event)

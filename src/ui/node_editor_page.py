@@ -121,6 +121,9 @@ class NodeEditorPage(PageBase):
 
         # Wire scene → viewer.
         self._scene.selected_node_changed.connect(self._viewer.show_node)
+        # Surface interactive-connection errors (type mismatches) in the
+        # error banner instead of swallowing them inside FlowScene.
+        self._scene.connection_error.connect(self._on_connection_error)
 
         # Debounce timer for reactive (auto-run) flows.  A 300 ms single-shot
         # timer is restarted on every param change; it fires _on_run_clicked
@@ -403,6 +406,12 @@ class NodeEditorPage(PageBase):
         # Start from a fresh Flow with the same name so Save still targets
         # the same file. The scene clears via set_flow.
         self.set_flow(Flow(name=self._flow.name))
+
+    # ── Scene error handlers ───────────────────────────────────────────────────
+
+    def _on_connection_error(self, message: str) -> None:
+        """Surface a FlowScene connection rejection in the error banner."""
+        self._set_status(message, kind="fail")
 
     # ── Status line ────────────────────────────────────────────────────────────
 
