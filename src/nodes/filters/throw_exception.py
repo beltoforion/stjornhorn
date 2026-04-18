@@ -29,4 +29,13 @@ class ThrowException(NodeBase):
 
     @override
     def process(self) -> None:
-        raise RuntimeError("Throw Exception node: intentional failure")
+        raise RuntimeError(
+            "Throw Exception node: intentional failure triggered to exercise "
+            "the pipeline's exception-handling path.\n"
+            "This is line two of the message, long enough to make sure the "
+            "status bar truncates it and the tooltip shows the full text.\n"
+            "Line three carries more filler so the log entry wraps across "
+            "several lines and proves that multi-line messages render correctly.\n"
+            "Line four: if you are reading this in the UI, the Throw Exception "
+            "node is working exactly as intended — there is no bug to fix here."
+        )
