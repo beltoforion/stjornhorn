@@ -44,12 +44,14 @@ _FLOW_FILE_FILTER    = "Flow (*.flowjs);;All files (*)"
 
 
 class NodeEditorPage(PageBase):
-    """The editor. Central canvas + palette dock (left) + viewer dock (bottom).
+    """The editor. Central canvas + palette dock (left) + Output Inspector (left).
 
     Dockable panels are hosted on an inner QMainWindow so the palette and
-    viewer can be dragged around, floated, or closed by the user. Toolbar
-    actions are exposed via :meth:`page_toolbar_actions` so MainWindow can
-    render them in the global toolbar next to the page-selector radio group.
+    Output Inspector can be dragged around, floated, or closed by the user.
+    By default the Node List and Output Inspector share the left dock area
+    with an equal 50/50 vertical split. Toolbar actions are exposed via
+    :meth:`page_toolbar_actions` so MainWindow can render them in the
+    global toolbar next to the page-selector radio group.
 
     Signal :attr:`title_changed` fires up to MainWindow whenever the active
     flow name changes.
@@ -89,13 +91,18 @@ class NodeEditorPage(PageBase):
         self._node_list_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
         self._inner.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._node_list_dock)
 
-        # Viewer dock (bottom).
+        # Output Inspector dock — also on the left, stacked under the Node
+        # List with a 50/50 vertical split applied after the widget is shown.
         self._viewer = ViewerPanel()
-        self._viewer_dock = QDockWidget("Viewer", self._inner)
-        self._viewer_dock.setObjectName("ViewerDock")
+        self._viewer_dock = QDockWidget("Output Inspector", self._inner)
+        self._viewer_dock.setObjectName("OutputInspectorDock")
         self._viewer_dock.setWidget(self._viewer)
         self._viewer_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
-        self._inner.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._viewer_dock)
+        self._inner.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._viewer_dock)
+        self._inner.splitDockWidget(
+            self._node_list_dock, self._viewer_dock, Qt.Orientation.Vertical,
+        )
+        self._initial_split_applied = False
 
         # Actions: reused by both the page menu and the main toolbar.
         self._actions = self._build_actions()
@@ -176,6 +183,24 @@ class NodeEditorPage(PageBase):
         # currently selected (nothing, typically).
         self.title_changed.emit(self.page_title())
         self._viewer.refresh()
+
+    def showEvent(self, event) -> None:  # type: ignore[override]
+        super().showEvent(event)
+        # Qt only honours resizeDocks after the main window has real geometry,
+        # so defer the 50/50 split until the first show.
+        if not self._initial_split_applied:
+            self._initial_split_applied = True
+            QTimer.singleShot(0, self._equalize_left_docks)
+
+    def _equalize_left_docks(self) -> None:
+        """Give the Node List and Output Inspector equal height in the left area."""
+        h = max(self._inner.height(), 2)
+        half = h // 2
+        self._inner.resizeDocks(
+            [self._node_list_dock, self._viewer_dock],
+            [half, h - half],
+            Qt.Orientation.Vertical,
+        )
 
     # ── Public API (called by MainWindow) ──────────────────────────────────────
 
