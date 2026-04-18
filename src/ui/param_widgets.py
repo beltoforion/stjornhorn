@@ -280,7 +280,19 @@ class FilePathParamWidget(ParamWidgetBase):
                 self._line, "Select File", initial, _OPEN_FILTER,
             )
         if path:
-            self._line.setText(path)
+            # Run the value through the node setter (which may normalise it
+            # — e.g. ImageSource shortens paths inside INPUT_DIR) and then
+            # mirror the canonical form into the line edit so the user sees
+            # what is actually stored. blockSignals avoids re-triggering the
+            # textChanged → setter loop with the already-normalised value.
+            self._write_to_node(path)
+            canonical = str(getattr(self._node, self._param.name, path))
+            self._line.blockSignals(True)
+            try:
+                self._line.setText(canonical)
+            finally:
+                self._line.blockSignals(False)
+            self.value_changed.emit(canonical)
 
 
 # ── Registry & factory ─────────────────────────────────────────────────────────
