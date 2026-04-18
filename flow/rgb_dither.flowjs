@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "name": "rgb_split",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.filters.rgb_split",
+      "class": "RgbSplit",
+      "position": [
+        -1509.4279939393775,
+        -639.4775833967562
+      ],
+      "params": {}
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.rgb_join",
+      "class": "RgbJoin",
+      "position": [
+        -893.9002165396971,
+        -637.5054134924299
+      ],
+      "params": {
+        "three_color": false
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -613.0,
+        -600.0
+      ],
+      "params": {
+        "output_path": "output/out.png"
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1788.9559912621874,
+        -669.0594064681123
+      ],
+      "params": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1196.0567957802757,
+        -781.5990196600775
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1194.256362700881,
+        -648.6988031203803
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1196.0567957802757,
+        -517.5990196600775
+      ],
+      "params": {
+        "method": 6
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 0,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 1,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 2,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 2
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 1
+    }
+  ]
+}
