@@ -7,8 +7,8 @@
       "module": "nodes.filters.rgb_split",
       "class": "RgbSplit",
       "position": [
-        -1454.5147850178485,
-        -613.3713037455377
+        -1509.4279939393775,
+        -639.4775833967562
       ],
       "params": {}
     },
@@ -17,8 +17,8 @@
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
-        -893.0,
-        -615.0
+        -893.9002165396971,
+        -637.5054134924299
       ],
       "params": {
         "three_color": false
@@ -65,8 +65,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1181.1608503383236,
-        -615.114923544142
+        -1196.0567957802757,
+        -649.5990196600775
       ],
       "params": {
         "method": 6
@@ -77,8 +77,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1174.150993659758,
-        -449.50705951302666
+        -1196.0567957802757,
+        -517.5990196600775
       ],
       "params": {
         "method": 6
