@@ -32,9 +32,11 @@ class ErrorBanner(QFrame):
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
+
         self.setObjectName("ErrorBanner")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
         # Let the red backdrop blend slightly with whatever is underneath
         # (canvas, docks) so the banner reads as an overlay rather than an
         # opaque panel.
@@ -98,9 +100,7 @@ class ErrorBanner(QFrame):
         self._message.setObjectName("ErrorBannerMessage")
         self._message.setWordWrap(True)
         self._message.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self._message.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
+        self._message.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
         self._scroll = QScrollArea()
         self._scroll.setObjectName("ErrorBannerScroll")
@@ -123,6 +123,7 @@ class ErrorBanner(QFrame):
 
     def show_error(self, message: str, *, title: str = "Error") -> None:
         """Display ``message`` in the banner and bring it to the front."""
+        
         self._title.setText(title)
         self._message.setText(message)
         self._reposition()
@@ -140,14 +141,17 @@ class ErrorBanner(QFrame):
         parent = self.parentWidget()
         if parent is None:
             return
+        
         margin = self.MARGIN
         max_w = min(self.MAX_WIDTH, max(self.MIN_WIDTH, parent.width() - 2 * margin))
         max_h = max(self.MIN_HEIGHT, int(parent.height() * self.MAX_HEIGHT_FRACTION))
         self.setFixedWidth(max_w)
         self.setMaximumHeight(max_h)
+
         # adjustSize lets the banner shrink-to-fit short messages and keeps
         # the scroll area kicking in only when the message would exceed max_h.
         self.adjustSize()
+        
         x = parent.width() - self.width() - margin
         y = margin
         self.move(max(margin, x), y)
