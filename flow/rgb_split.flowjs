@@ -7,8 +7,8 @@
       "module": "nodes.filters.rgb_split",
       "class": "RgbSplit",
       "position": [
-        -1509.4279939393775,
-        -639.4775833967562
+        -1528.89820793437,
+        -610.2722624042669
       ],
       "params": {}
     },
@@ -17,8 +17,8 @@
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
-        -905.6030315557606,
-        -645.6073623497045
+        -1134.6228622959716,
+        -626.0002870408433
       ],
       "params": {}
     },
@@ -27,8 +27,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -613.0,
-        -600.0
+        -961.6938324557797,
+        -635.4003890818051
       ],
       "params": {
         "output_path": "output/out.png"
@@ -39,8 +39,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1788.9559912621874,
-        -669.0594064681123
+        -1767.7157578131046,
+        -604.4536963938181
       ],
       "params": {
         "file_path": "ship.jpg"
@@ -51,8 +51,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1196.0567957802757,
-        -781.5990196600775
+        -1347.3934591049922,
+        -768.3238737544004
       ],
       "params": {
         "method": 6
@@ -63,8 +63,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1194.256362700881,
-        -648.6988031203803
+        -1345.5930260255975,
+        -635.4236572147033
       ],
       "params": {
         "method": 6
@@ -75,28 +75,21 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1196.0567957802757,
-        -517.5990196600775
+        -1347.3934591049922,
+        -504.3238737544005
       ],
       "params": {
         "method": 6
       }
-    },
-    {
-      "id": 7,
-      "module": "nodes.filters.subpixel_mosaic",
-      "class": "SubpixelMosaic",
-      "position": [
-        -608.5463808353032,
-        -852.5050630932429
-      ],
-      "params": {
-        "keep_aspect": true,
-        "output_grayscale": true
-      }
     }
   ],
   "connections": [
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
     {
       "src_node": 3,
       "src_output": 0,
@@ -138,18 +131,6 @@
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 1
-    },
-    {
-      "src_node": 1,
-      "src_output": 0,
-      "dst_node": 7,
-      "dst_input": 0
-    },
-    {
-      "src_node": 7,
-      "src_output": 0,
-      "dst_node": 2,
-      "dst_input": 0
     }
   ]
 }
