@@ -26,3 +26,5 @@ FLOW_DIR:   Path = Path(__file__).parent.parent / "flow"
 # User-defined nodes (~/.image-inquest/user_nodes/)
 USER_CONFIG_DIR: Path = Path.home() / ".image-inquest"
 USER_NODES_DIR:  Path = USER_CONFIG_DIR / "user_nodes"
+LOG_DIR:  Path = USER_CONFIG_DIR / "logs"
+LOG_FILE: Path = LOG_DIR / "image-inquest.log"

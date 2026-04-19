@@ -14,6 +14,42 @@ import logging.handlers
 from pathlib import Path
 
 
+_STARTUP_BANNER = r"""
+  _________                   __   .__         .__                   _____
+ /   _____/__________ _______|  | _|  |   ____ |  |__   ____   _____/ ____\
+ \_____  \\____ \__  \\_  __ \  |/ /  | _/ __ \|  |  \ /  _ \ /  _ \   __\
+ /        \  |_> > __ \|  | \/    <|  |_\  ___/|   Y  (  <_> |  <_> )  |
+/_______  /   __(____  /__|  |__|_ \____/\___  >___|  /\____/ \____/|__|
+        \/|__|       \/           \/         \/     \/
+"""
+
+
+# Width of the logger-name column. Names longer than this are truncated
+# with an ellipsis so the message column always starts at the same
+# offset.
+_NAME_WIDTH = 24
+
+
+class _FixedWidthFormatter(logging.Formatter):
+    """Formatter that pads/truncates ``record.name`` to ``_NAME_WIDTH``.
+
+    Every field before the message (``asctime`` → 19 chars,
+    ``levelname`` → 8, ``name`` → 24) has a fixed width, so the message
+    column lines up regardless of which module logged the record.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        name = record.name
+        if len(name) > _NAME_WIDTH:
+            name = name[: _NAME_WIDTH - 1] + "…"
+        else:
+            name = name.ljust(_NAME_WIDTH)
+        # Copy so other handlers still see the original unpadded name.
+        rec = logging.makeLogRecord(record.__dict__)
+        rec.name = name
+        return super().format(rec)
+
+
 def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     """Configure the root logger.
 
@@ -24,7 +60,7 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "image-inquest.log"
 
-    fmt = logging.Formatter(
+    fmt = _FixedWidthFormatter(
         fmt="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
@@ -46,4 +82,12 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     root.addHandler(file_handler)
     root.addHandler(console_handler)
 
-    logging.getLogger(__name__).info("Logging initialised → %s", log_file)
+    logger = logging.getLogger(__name__)
+    # Each banner line goes through the standard formatter so the log
+    # format stays consistent. INFO is below the console handler's
+    # threshold, so the banner lands in the file only.
+    for line in _STARTUP_BANNER.splitlines():
+        if line:
+            logger.info(line)
+
+    logger.info("Logging initialised → %s", log_file)
