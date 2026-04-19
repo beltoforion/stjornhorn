@@ -7,11 +7,13 @@ from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
+    QFontMetricsF,
     QPainter,
     QPainterPath,
     QPen,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QGraphicsItem,
     QGraphicsProxyWidget,
     QLabel,
@@ -144,13 +146,15 @@ class NodeItem(QGraphicsItem):
     behave exactly as they would in any dialog.
     """
 
-    WIDTH: float = 220.0
+    MIN_WIDTH: float = 120.0
+    MAX_WIDTH: float = 220.0
     HEADER_HEIGHT: float = 28.0
     PORT_ROW_HEIGHT: float = 22.0
     CORNER_RADIUS: float = 5.0
     PADDING: float = 8.0
     PARAM_GAP: float = 4.0
     CLOSE_BUTTON_SIZE: float = 14.0
+    PORT_LABEL_GAP: float = 12.0  # min gap between paired input/output labels
 
     Z_VALUE = 1
 
@@ -164,6 +168,7 @@ class NodeItem(QGraphicsItem):
         self._proxy: QGraphicsProxyWidget | None = None
         self._params_height: float = 0.0
         self._body_height: float = 0.0
+        self._width: float = self.MAX_WIDTH
 
         self.setZValue(self.Z_VALUE)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
@@ -171,13 +176,14 @@ class NodeItem(QGraphicsItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsScenePositionChanges, True)
 
         self._close_button = _CloseButtonItem(self)
-        self._close_button.setPos(
-            self.WIDTH - self.PADDING - self.CLOSE_BUTTON_SIZE,
-            (self.HEADER_HEIGHT - self.CLOSE_BUTTON_SIZE) / 2,
-        )
 
         self._build_params_widget()
         self._build_ports()
+        self._width = self._compute_width()
+        self._close_button.setPos(
+            self._width - self.PADDING - self.CLOSE_BUTTON_SIZE,
+            (self.HEADER_HEIGHT - self.CLOSE_BUTTON_SIZE) / 2,
+        )
         self._do_layout()
 
     # ── Public API ─────────────────────────────────────────────────────────────
@@ -214,13 +220,18 @@ class NodeItem(QGraphicsItem):
 
     # ── Graphics item overrides ────────────────────────────────────────────────
 
+    @property
+    def width(self) -> float:
+        """The node's current body width (clamped to MAX_WIDTH)."""
+        return self._width
+
     def boundingRect(self) -> QRectF:  # type: ignore[override]
-        return QRectF(-2, -2, self.WIDTH + 4, self._body_height + 4)
+        return QRectF(-2, -2, self._width + 4, self._body_height + 4)
 
     def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-        body_rect = QRectF(0, 0, self.WIDTH, self._body_height)
+        body_rect = QRectF(0, 0, self._width, self._body_height)
         border_pen = QPen(
             NODE_BORDER_SELECTED if self.isSelected() else NODE_BORDER_COLOR,
             2 if self.isSelected() else 1,
@@ -254,7 +265,7 @@ class NodeItem(QGraphicsItem):
             QRectF(
                 self.PADDING,
                 0,
-                self.WIDTH - 2 * self.PADDING - title_right_reserve,
+                self._width - 2 * self.PADDING - title_right_reserve,
                 self.HEADER_HEIGHT,
             ),
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
@@ -270,7 +281,7 @@ class NodeItem(QGraphicsItem):
             y = io_top + (i + 0.5) * self.PORT_ROW_HEIGHT
             painter.drawText(
                 QRectF(label_margin, y - self.PORT_ROW_HEIGHT / 2,
-                       self.WIDTH - 2 * label_margin, self.PORT_ROW_HEIGHT),
+                       self._width - 2 * label_margin, self.PORT_ROW_HEIGHT),
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                 port.name,
             )
@@ -278,7 +289,7 @@ class NodeItem(QGraphicsItem):
             y = io_top + (i + 0.5) * self.PORT_ROW_HEIGHT
             painter.drawText(
                 QRectF(label_margin, y - self.PORT_ROW_HEIGHT / 2,
-                       self.WIDTH - 2 * label_margin, self.PORT_ROW_HEIGHT),
+                       self._width - 2 * label_margin, self.PORT_ROW_HEIGHT),
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
                 port.name,
             )
@@ -303,7 +314,7 @@ class NodeItem(QGraphicsItem):
 
     def _header_path(self) -> QPainterPath:
         """Path for the header: top corners rounded, bottom corners square."""
-        w = self.WIDTH
+        w = self._width
         h = self.HEADER_HEIGHT
         r = self.CORNER_RADIUS
         path = QPainterPath()
@@ -318,6 +329,39 @@ class NodeItem(QGraphicsItem):
 
     def _io_top(self) -> float:
         return self.HEADER_HEIGHT + self._params_height + (self.PARAM_GAP if self._params_height else 0)
+
+    def _compute_width(self) -> float:
+        """Pick a body width that fits the node's content, clamped to MAX_WIDTH.
+
+        Considers the header title (plus close button), each paired
+        input/output port label row, and the params widget's sizeHint.
+        The MAX_WIDTH clamp matches the legacy fixed layout width so
+        long labels never blow past the expected canvas budget.
+        """
+        padding = self.PADDING
+        metrics = QFontMetricsF(QApplication.font())
+
+        title_w = metrics.horizontalAdvance(self._node.display_name)
+        header_need = 2 * padding + title_w + padding + self.CLOSE_BUTTON_SIZE
+
+        port_margin = PortItem.RADIUS + 6.0
+        port_need = 0.0
+        rows = max(len(self._input_ports), len(self._output_ports))
+        for i in range(rows):
+            in_w = (metrics.horizontalAdvance(self._input_ports[i].name)
+                    if i < len(self._input_ports) else 0.0)
+            out_w = (metrics.horizontalAdvance(self._output_ports[i].name)
+                     if i < len(self._output_ports) else 0.0)
+            row_need = 2 * port_margin + in_w + self.PORT_LABEL_GAP + out_w
+            port_need = max(port_need, row_need)
+
+        params_need = 0.0
+        if self._params_widget is not None:
+            # +2 mirrors the 1px left/right inset applied in _do_layout.
+            params_need = float(self._params_widget.sizeHint().width()) + 2.0
+
+        content = max(header_need, port_need, params_need)
+        return max(self.MIN_WIDTH, min(self.MAX_WIDTH, content))
 
     def _build_params_widget(self) -> None:
         if not self._node.params:
@@ -355,7 +399,7 @@ class NodeItem(QGraphicsItem):
     def _do_layout(self) -> None:
         # Parameter widget sized to the node width.
         if self._params_widget is not None and self._proxy is not None:
-            self._params_widget.setFixedWidth(int(self.WIDTH - 2))
+            self._params_widget.setFixedWidth(int(self._width - 2))
             self._params_height = float(self._params_widget.sizeHint().height())
             self._proxy.setPos(1.0, self.HEADER_HEIGHT)
 
@@ -364,7 +408,7 @@ class NodeItem(QGraphicsItem):
         for i, port in enumerate(self._input_ports):
             port.setPos(0.0, io_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
         for i, port in enumerate(self._output_ports):
-            port.setPos(self.WIDTH, io_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
+            port.setPos(self._width, io_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
 
         n_rows = max(len(self._input_ports), len(self._output_ports), 0)
         io_height = n_rows * self.PORT_ROW_HEIGHT
