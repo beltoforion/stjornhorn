@@ -34,11 +34,6 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "image-inquest.log"
 
-    # Stamp a session header directly into the file (bypassing the
-    # logger) so the ASCII banner only hits disk, not the console.
-    with log_file.open("a", encoding="utf-8") as fh:
-        fh.write(_STARTUP_BANNER)
-
     fmt = logging.Formatter(
         fmt="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -60,5 +55,14 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     root.setLevel(level)
     root.addHandler(file_handler)
     root.addHandler(console_handler)
+
+    # Emit the session banner through the standard formatter so every
+    # line carries a timestamp and keeps the log format consistent.
+    # INFO is below the console handler's threshold, so the banner
+    # only lands in the file.
+    banner = logging.getLogger("banner")
+    for line in _STARTUP_BANNER.splitlines():
+        if line:
+            banner.info(line)
 
     logging.getLogger(__name__).info("Logging initialised → %s", log_file)
