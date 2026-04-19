@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 from core.io_data import IoData, IoDataType
+
+if TYPE_CHECKING:
+    pass
 
 
 class InputPort:
@@ -14,6 +17,11 @@ class InputPort:
 
     on_data_received is a zero-argument callback invoked each time new data
     arrives; nodes use it to trigger their processing logic.
+
+    An input port can be fed by **at most one** upstream OutputPort —
+    fan-in is not supported. The binding is maintained by
+    :meth:`OutputPort.connect` / :meth:`OutputPort.disconnect` and
+    exposed read-only through :attr:`upstream`.
     """
 
     def __init__(
@@ -26,6 +34,7 @@ class InputPort:
         self.accepted_types: frozenset[IoDataType] = frozenset(accepted_types)
         self._on_data_received = on_data_received
         self._data: IoData | None = None
+        self._upstream: "OutputPort | None" = None
 
     @property
     def has_data(self) -> bool:
@@ -36,6 +45,11 @@ class InputPort:
         if self._data is None:
             raise RuntimeError(f"Input port '{self.name}' has no data yet")
         return self._data
+
+    @property
+    def upstream(self) -> "OutputPort | None":
+        """The OutputPort currently feeding this input, if any."""
+        return self._upstream
 
     def receive(self, data: IoData) -> None:
         if not data.is_end_of_stream() and data.type not in self.accepted_types:
@@ -66,6 +80,10 @@ class OutputPort:
     Flow use this to validate connections before they are made: a connection
     is only allowed if the output's emits set and the input's accepted_types
     set have at least one type in common.
+
+    Fan-out is allowed — one output can drive any number of inputs — but
+    each input may have at most one upstream output (enforced by
+    :meth:`connect`).
     """
 
     def __init__(self, name: str, emits: set[IoDataType]) -> None:
@@ -80,23 +98,39 @@ class OutputPort:
     # ── Connection management ──────────────────────────────────────────────────
 
     def can_connect(self, input_port: InputPort) -> bool:
-        """Return True if type sets are compatible."""
-        return bool(self.emits & input_port.accepted_types)
+        """Return True if type sets are compatible and the input is free
+        (not already fed by another output)."""
+        if not (self.emits & input_port.accepted_types):
+            return False
+        if input_port.upstream is not None and input_port.upstream is not self:
+            return False
+        return True
 
     def connect(self, input_port: InputPort) -> None:
-        if not self.can_connect(input_port):
+        if not (self.emits & input_port.accepted_types):
             raise TypeError(
                 f"Cannot connect output '{self.name}' (emits {set(self.emits)}) "
                 f"to input '{input_port.name}' (accepts {set(input_port.accepted_types)})"
             )
+        if input_port.upstream is not None and input_port.upstream is not self:
+            raise TypeError(
+                f"Input '{input_port.name}' is already connected to "
+                f"'{input_port.upstream.name}'. Disconnect it first."
+            )
         if input_port not in self._connections:
             self._connections.append(input_port)
+            input_port._upstream = self
 
     def disconnect(self, input_port: InputPort) -> None:
         if input_port in self._connections:
             self._connections.remove(input_port)
+            if input_port.upstream is self:
+                input_port._upstream = None
 
     def disconnect_all(self) -> None:
+        for input_port in self._connections:
+            if input_port.upstream is self:
+                input_port._upstream = None
         self._connections.clear()
 
     @property
