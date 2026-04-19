@@ -6,11 +6,14 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QCursor, QGuiApplication, QPixmap, QScreen
+from PySide6.QtGui import QCursor, QGuiApplication, QIcon, QPixmap, QScreen
 from PySide6.QtWidgets import QApplication, QSplashScreen
 
 from constants import (
+    APP_ICON_FALLBACK_PATH,
+    APP_ICON_PATH,
     APP_NAME,
+    APP_USER_MODEL_ID,
     APP_VERSION,
     FLOW_DIR,
     LOG_DIR,
@@ -54,6 +57,40 @@ def _resolve_flow_arg(arg: str) -> Path | None:
         if c.is_file():
             return c.resolve()
     return None
+
+
+def _set_windows_app_user_model_id() -> None:
+    """On Windows, declare an explicit AppUserModelID for the process.
+
+    Without this, a Python-hosted app inherits ``python.exe``'s identity
+    and the taskbar shows the generic Python icon regardless of what we
+    set via :meth:`QApplication.setWindowIcon`. Harmless (and silently
+    skipped) on every other platform.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+    except Exception:
+        logger.debug("Could not set AppUserModelID; taskbar icon may fall back to python.exe")
+
+
+def _load_app_icon() -> QIcon:
+    """Return the application icon, preferring the multi-resolution ``.ico``.
+
+    Falls back to the ``.png`` if the ``.ico`` is missing or unreadable,
+    and to an empty icon as a last resort so startup never fails over a
+    missing asset.
+    """
+    for path in (APP_ICON_PATH, APP_ICON_FALLBACK_PATH):
+        if path.exists():
+            icon = QIcon(str(path))
+            if not icon.isNull():
+                return icon
+            logger.warning("App icon at %s could not be loaded", path)
+    logger.debug("No app icon found; using Qt default")
+    return QIcon()
 
 
 def _target_screen() -> QScreen:
@@ -106,6 +143,10 @@ def main(argv: list[str]) -> int:
     setup_logging(LOG_DIR)
     logger.info("Starting %s v%s", APP_NAME, APP_VERSION)
 
+    # Must happen before QApplication so Windows associates our icon with
+    # the process's taskbar entry from the very first window.
+    _set_windows_app_user_model_id()
+
     initial_flow_path: Path | None = None
     if args.flow:
         initial_flow_path = _resolve_flow_arg(args.flow)
@@ -122,6 +163,7 @@ def main(argv: list[str]) -> int:
     # build the full caption ourselves, so clear the display name.
     app.setApplicationDisplayName("")
     app.setApplicationVersion(APP_VERSION)
+    app.setWindowIcon(_load_app_icon())
     apply_dark_theme(app)
 
     # Decide which monitor we're launching on before creating any

@@ -10,6 +10,17 @@ ASSETS_DIR:        Path = Path(__file__).parent.parent / "assets"
 SPLASH_IMAGE_PATH: Path = ASSETS_DIR / "title.png"
 SPLASH_DURATION_MS: int = 1800
 
+# Application window / taskbar icon. Prefer the .ico (multi-resolution,
+# correct on Windows title bars and taskbar) with the .png as a fallback
+# for platforms or toolchains that don't pick up ICO.
+APP_ICON_PATH:          Path = ASSETS_DIR / "app_icon.ico"
+APP_ICON_FALLBACK_PATH: Path = ASSETS_DIR / "app_icon.png"
+
+# Windows groups taskbar entries by AppUserModelID and uses it to find
+# the right icon. Without this, Python-hosted apps inherit the generic
+# python.exe icon in the taskbar.
+APP_USER_MODEL_ID: str = "Beltoforion.Sparklehoof.ImageInquest.0.1.1"
+
 # Google Material Icons font, rendered into QIcons by ``ui.icons``.
 MATERIAL_ICONS_FONT_PATH: Path = ASSETS_DIR / "fonts" / "MaterialIcons-Regular.ttf"
 
