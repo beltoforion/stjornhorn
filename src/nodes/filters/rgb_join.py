@@ -33,7 +33,7 @@ class RgbJoin(NodeBase):
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         b = self.inputs[0].data.image
         g = self.inputs[1].data.image
         r = self.inputs[2].data.image

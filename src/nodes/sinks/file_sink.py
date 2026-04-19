@@ -56,7 +56,7 @@ class FileSink(SinkNodeBase):
     # ── SinkNodeBase interface ──────────────────────────────────────────────────
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         file_name, file_ext = os.path.splitext(self._output_path)
 
         if self._output_format == OutputFormat.SAME_AS_INPUT:

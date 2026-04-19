@@ -29,7 +29,7 @@ class Grayscale(NodeBase):
         return []
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         image: np.ndarray = self.inputs[0].data.image
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         self.outputs[0].send(IoData.from_greyscale(gray))

@@ -30,7 +30,7 @@ class RgbSplit(NodeBase):
         return []
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         image: np.ndarray = self.inputs[0].data.image
         b, g, r = cv2.split(image)
         self.outputs[0].send(IoData.from_greyscale(b))

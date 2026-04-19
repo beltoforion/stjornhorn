@@ -70,7 +70,7 @@ class AdaptiveGaussianThreshold(NodeBase):
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         image: np.ndarray = self.inputs[0].data.image
 
         if image.ndim == 3:

@@ -28,7 +28,7 @@ class ThrowException(NodeBase):
         return []
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         raise RuntimeError(
             "Throw Exception node: intentional failure triggered to exercise "
             "the pipeline's exception-handling path.\n"

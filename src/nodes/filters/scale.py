@@ -78,7 +78,7 @@ class Scale(NodeBase):
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         in_data = self.inputs[0].data
         image: np.ndarray = in_data.image
         h, w = image.shape[:2]

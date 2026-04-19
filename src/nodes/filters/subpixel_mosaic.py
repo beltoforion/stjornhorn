@@ -69,7 +69,7 @@ class SubpixelMosaic(NodeBase):
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         image: np.ndarray = self.inputs[0].data.image
         if image.ndim != 3 or image.shape[2] != 3:
             raise ValueError("Subpixel Mosaic requires a 3-channel BGR image")

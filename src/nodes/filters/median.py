@@ -55,7 +55,7 @@ class Median(NodeBase):
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         in_data = self.inputs[0].data
         blurred = cv2.medianBlur(in_data.image, self._size)
         self.outputs[0].send(in_data.with_image(blurred))

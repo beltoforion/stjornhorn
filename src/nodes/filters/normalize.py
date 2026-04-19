@@ -30,7 +30,7 @@ class Normalize(NodeBase):
         return []
 
     @override
-    def process(self) -> None:
+    def process_impl(self) -> None:
         in_data = self.inputs[0].data
         image = in_data.image
 
