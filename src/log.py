@@ -14,6 +14,16 @@ import logging.handlers
 from pathlib import Path
 
 
+_STARTUP_BANNER = r"""
+  _________                   __   .__         .__                   _____
+ /   _____/__________ _______|  | _|  |   ____ |  |__   ____   _____/ ____\
+ \_____  \\____ \__  \\_  __ \  |/ /  | _/ __ \|  |  \ /  _ \ /  _ \   __\
+ /        \  |_> > __ \|  | \/    <|  |_\  ___/|   Y  (  <_> |  <_> )  |
+/_______  /   __(____  /__|  |__|_ \____/\___  >___|  /\____/ \____/|__|
+        \/|__|       \/           \/         \/     \/
+"""
+
+
 def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     """Configure the root logger.
 
@@ -23,6 +33,11 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     """
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "image-inquest.log"
+
+    # Stamp a session header directly into the file (bypassing the
+    # logger) so the ASCII banner only hits disk, not the console.
+    with log_file.open("a", encoding="utf-8") as fh:
+        fh.write(_STARTUP_BANNER)
 
     fmt = logging.Formatter(
         fmt="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
