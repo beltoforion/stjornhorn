@@ -22,6 +22,7 @@ from ui.node_editor_page import NodeEditorPage
 from ui.page import PageBase
 from ui.recent_flows import RecentFlowsManager
 from ui.start_page import StartPage
+from ui.log_page import LogPage
 
 if TYPE_CHECKING:
     pass
@@ -72,19 +73,26 @@ class MainWindow(QMainWindow):
 
         self._start_page  = StartPage()
         self._editor_page = NodeEditorPage(self._registry, self._recent_flows)
-        # Seed the editor with an empty flow so the user can switch to it
-        # via the page-selector radio group at any time without first
-        # visiting the start page to create one.
-        self._editor_page.set_flow(Flow())
+        self._log_page    = LogPage()
 
-        self._pages.addWidget(self._start_page)
-        self._pages.addWidget(self._editor_page)
+        # Single source of truth for the set of pages. Adding a new page
+        # means: construct it, append it here, and every loop below —
+        # stack registration, signal wiring, page-selector actions —
+        # picks it up automatically.
+        self._pages_list: list[PageBase] = [
+            self._start_page,
+            self._editor_page,
+            self._log_page,
+        ]
 
-        # Wire page signals.
+        for page in self._pages_list:
+            self._pages.addWidget(page)
+            page.title_changed.connect(self._update_window_title)
+
+        # Per-page signals that only make sense on one page live outside
+        # the iteration above.
         self._start_page.create_flow_requested.connect(self._on_create_flow)
         self._start_page.open_flow_requested.connect(self._on_open_flow_from_start)
-        for page in (self._start_page, self._editor_page):
-            page.title_changed.connect(self._update_window_title)
 
         # ── Menu bar ──
         self._menu_bar: QMenuBar = self.menuBar()
@@ -99,8 +107,9 @@ class MainWindow(QMainWindow):
         self._page_selector_group = QActionGroup(self)
         self._page_selector_group.setExclusive(True)
         self._page_selector_actions: dict[PageBase, QAction] = {}
-        for page in (self._start_page, self._editor_page):
+        for page in self._pages_list:
             self._add_page_selector_action(page)
+
         # Separator between the page-selector radio group and the
         # page-specific toolbar actions.
         self._page_separator = self._toolbar.addSeparator()

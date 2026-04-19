@@ -13,9 +13,9 @@ from constants import (
     APP_NAME,
     APP_VERSION,
     FLOW_DIR,
+    LOG_DIR,
     SPLASH_DURATION_MS,
     SPLASH_IMAGE_PATH,
-    USER_CONFIG_DIR,
 )
 from log import setup_logging
 from ui.main_window import MainWindow
@@ -103,7 +103,7 @@ def main(argv: list[str]) -> int:
     )
     args, qt_args = parser.parse_known_args(argv)
 
-    setup_logging(USER_CONFIG_DIR / "logs")
+    setup_logging(LOG_DIR)
     logger.info("Starting %s v%s", APP_NAME, APP_VERSION)
 
     initial_flow_path: Path | None = None
