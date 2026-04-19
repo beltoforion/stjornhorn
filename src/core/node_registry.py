@@ -1,8 +1,11 @@
+import logging
 import ast
 import sys
+
 from dataclasses import dataclass
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ScanError:
@@ -69,11 +72,16 @@ class NodeRegistry:
 
     def _scan(self, folder: Path, src_root: Path, reject_conflicts: bool) -> list[ScanError]:
         errors: list[ScanError] = []
+        
+        logger.info(f"Scanning for nodes in {folder} (reject_conflicts={reject_conflicts})")
+        
         for path in sorted(folder.rglob("*.py")):
             module = ".".join(path.relative_to(src_root).with_suffix("").parts)
             found, file_errors = _parse_node_file(path)
             errors.extend(file_errors)
             for class_name, display_name, category, section in found:
+                logger.info(f"  - {class_name} (display_name={display_name}, category={category}, section={section}, module={module})")
+
                 if reject_conflicts and class_name in self._nodes:
                     errors.append(ScanError(
                         file=path,
@@ -90,6 +98,7 @@ class NodeRegistry:
                         section=section,
                         module=module,
                     )
+
         return errors
 
     # ── Access ─────────────────────────────────────────────────────────────────

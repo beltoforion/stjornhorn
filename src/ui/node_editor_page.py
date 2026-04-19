@@ -235,6 +235,12 @@ class NodeEditorPage(PageBase):
 
     def set_flow(self, flow: Flow) -> None:
         """Replace the editor's current flow with a fresh empty one."""
+
+        if self._flow is not None:        
+            logger.info(f"Setting active flow to: {flow.name}")
+        else:
+            logger.info("Setting active flow to: <None>")
+
         self._flow = flow
         self._scene.set_flow(flow)
         self._viewer.show_node(None)
@@ -244,15 +250,18 @@ class NodeEditorPage(PageBase):
     def load_flow(self, path: Path) -> bool:
         """Load a flow from disk. Returns True on success, False on failure
         (status line shows the reason)."""
+        
         try:
             flow = load_flow_into(path, self._scene)
         except FlowIoError as err:
-            logger.warning("Failed to load flow from %s: %s", path, err)
+            logger.warning(f"Failed to load flow from {path}: {err}")
             self._set_status(f"Open failed ({err})", kind="fail")
             return False
+        
         self._flow = flow
         self._viewer.show_node(None)
         self.title_changed.emit(self.page_title())
+        
         # Fit the freshly-loaded graph into the view. Deferred so it runs
         # after pending layout events settle — viewport geometry isn't
         # final yet when load_flow runs during the first paint.
@@ -330,6 +339,7 @@ class NodeEditorPage(PageBase):
         if self._flow is None:
             self._set_status("No flow to run", kind="fail")
             return
+        
         try:
             self._flow.run()
         except Exception as err:
@@ -337,10 +347,12 @@ class NodeEditorPage(PageBase):
             detail = str(err).strip() or "(no message)"
             self._set_status(f"Run failed ({type(err).__name__}): {detail}", kind="fail")
             return
+        
         self._set_status(
             f"Ran at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
         )
+
         if self._viewer.current_node is None:
             # Nothing selected yet — auto-show the most downstream node
             # that produced image data so the user sees a result immediately.
@@ -483,15 +495,18 @@ class NodeEditorPage(PageBase):
         if kind == "fail":
             self._error_banner.show_error(message)
             return
+        
         color = {
             "ok":    STATUS_OK_COLOR,
             "muted": STATUS_MUTED_COLOR,
         }.get(kind, STATUS_MUTED_COLOR)
+
         self._status_label.setText(message)
         self._status_label.setToolTip(message)
         self._status_label.setStyleSheet(
             f"color: rgb({color.red()},{color.green()},{color.blue()});"
         )
+
         # A successful action implicitly clears any stale error.
         if kind == "ok":
             self._error_banner.hide()

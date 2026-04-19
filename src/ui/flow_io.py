@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -23,7 +24,9 @@ class FlowIoError(Exception):
 
 
 def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
-    """Return a JSON-compatible snapshot of ``flow`` as shown in ``scene``."""
+    """ Return a JSON-compatible snapshot of ``flow`` as shown in ``scene``.
+    """
+    
     node_items = scene.iter_node_items()
     node_ids = {id(item.node): idx for idx, item in enumerate(node_items)}
 
@@ -74,12 +77,13 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
     (with its restored name) so the caller can hand it to
     :meth:`scene.set_flow` *after* passing unit tests for the file, etc.
     """
+
+    logger.info(f'Loading flow from "{path}"')
     try:
         raw = path.read_text(encoding="utf-8")
+        data = json.loads(raw)        
     except OSError as err:
         raise FlowIoError(f"Cannot read file: {err}") from err
-    try:
-        data = json.loads(raw)
     except json.JSONDecodeError as err:
         raise FlowIoError(f"Invalid JSON: {err}") from err
 
@@ -97,6 +101,7 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
         node = _instantiate_node(entry)
         if node is None:
             continue
+
         pos = entry.get("position") or [0.0, 0.0]
         scene.add_node(node, QPointF(float(pos[0]), float(pos[1])))
         id_to_node[entry["id"]] = node
@@ -104,29 +109,30 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
     for conn in data.get("connections", []):
         src = id_to_node.get(conn.get("src_node"))
         dst = id_to_node.get(conn.get("dst_node"))
+        
         if src is None or dst is None:
-            logger.debug("Skipping connection with unknown endpoint: %s", conn)
+            logger.debug(f"Skipping connection with unknown endpoint: {conn}")
             continue
+
         src_item = scene.node_item_for(src)
         dst_item = scene.node_item_for(dst)
         if src_item is None or dst_item is None:
             continue
+        
         try:
             src_port = src_item.output_port(conn["src_output"])
             dst_port = dst_item.input_port(conn["dst_input"])
-        except (IndexError, KeyError):
-            logger.warning("Skipping connection with out-of-range port index: %s", conn)
-            continue
-        try:
             scene.connect_ports(src_port, dst_port)
+        except (IndexError, KeyError):
+            logger.warning(f"Skipping connection with out-of-range port index: {conn}")
+            continue
         except TypeError as err:
             # Incompatible port types (e.g. a saved flow routing IMAGE_GREY
             # into an IMAGE-only port). Log and continue so the rest of the
             # flow still loads rather than aborting the whole file.
-            logger.warning("Skipping incompatible connection %s: %s", conn, err)
+            logger.warning(f"Skipping incompatible connection {conn}: {err}")
 
     return flow
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -137,41 +143,43 @@ def _instantiate_node(entry: dict) -> NodeBase | None:
     can proceed with the remaining nodes instead of failing the whole
     flow.
     """
+
     module_name = entry.get("module", "")
     class_name  = entry.get("class",  "")
+
     try:
         module = importlib.import_module(module_name)
         cls    = getattr(module, class_name)
-    except (ImportError, AttributeError):
-        logger.exception("Cannot resolve node %s.%s", module_name, class_name)
-        return None
-
-    try:
-        node: NodeBase = cls()
+        node: NodeBase = cls()        
     except Exception:
-        logger.exception("Failed to instantiate %s.%s", module_name, class_name)
+        logger.exception(f"Failed to instantiate {module_name}.{class_name}")
         return None
 
     for name, value in (entry.get("params") or {}).items():
         try:
             setattr(node, name, value)
         except Exception:
-            logger.warning("Ignoring param %s on %s.%s (%r)",
-                           name, module_name, class_name, value)
+            logger.warning(f"Ignoring param {name} on {module_name}.{class_name} ({value!r})")
+    
     return node
 
 
 def _jsonable(value: object) -> object:
     """Coerce ``value`` to a JSON-serialisable form (recursive for containers)."""
+
     if isinstance(value, Path):
         return str(value)
+
     if isinstance(value, Enum):
         # Persist the underlying value (e.g. IntEnum → int, str-backed Enum
         # → str) so the node setter can reconstruct the member on load,
         # and saved flows stay human-readable.
         return _jsonable(value.value)
+
     if isinstance(value, (list, tuple)):
         return [_jsonable(v) for v in value]
+
     if isinstance(value, dict):
         return {str(k): _jsonable(v) for k, v in value.items()}
+
     return value
