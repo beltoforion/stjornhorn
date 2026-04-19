@@ -95,7 +95,18 @@ class RecentFlowsManager(QObject):
                 _RECENT_FLOWS_FILE, type(data).__name__,
             )
             return
-        self._paths = [Path(item) for item in data if isinstance(item, str)][:MAX_RECENT_FLOWS]
+        parsed = [Path(item) for item in data if isinstance(item, str)][:MAX_RECENT_FLOWS]
+        # Drop entries whose file has since been moved/deleted so the UI
+        # never shows a recent flow the user can't actually open.
+        existing = [p for p in parsed if p.exists()]
+        self._paths = existing
+        if len(existing) != len(parsed):
+            logger.info(
+                "Pruned %d missing entr%s from recent flows",
+                len(parsed) - len(existing),
+                "y" if len(parsed) - len(existing) == 1 else "ies",
+            )
+            self._save()
 
     def _save(self) -> None:
         try:

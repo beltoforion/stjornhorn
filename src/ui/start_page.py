@@ -3,29 +3,32 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from constants import APP_DISPLAY_NAME, APP_VERSION, FLOW_DIR
 from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
+from ui.flow_layout import FlowLayout
 from ui.icons import material_icon
 from typing_extensions import override
 
 from ui.page import PageBase, ToolbarSection
 
 if TYPE_CHECKING:
-    pass
+    from ui.recent_flows import RecentFlowsManager
 
 _FLOW_FILE_FILTER = "Flow (*.flowjs);;All files (*)"
 
@@ -41,8 +44,19 @@ class StartPage(PageBase):
     create_flow_requested = Signal(str)     # emits flow name
     open_flow_requested   = Signal(Path)    # emits file path
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    #: Pixel side length of each recent-flow tile icon. Matches the grid
+    #: spacing used by typical OS file explorers (just large enough for
+    #: the text underneath to read comfortably).
+    _RECENT_ICON_SIZE = 48
+    _RECENT_TILE_WIDTH = 120
+
+    def __init__(
+        self,
+        recent_flows: "RecentFlowsManager | None" = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
+        self._recent_flows = recent_flows
 
         # Toolbar action: mirrors the "Open" button in the body so the
         # start page contributes at least one item to the main toolbar.
@@ -92,6 +106,29 @@ class StartPage(PageBase):
         open_row.addStretch(1)
         root.addLayout(open_row)
 
+        # Recent flows wrap panel.
+        root.addSpacerItem(QSpacerItem(0, 24, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
+
+        self._recent_heading = QLabel("Recent Flows")
+        heading_font = self._recent_heading.font()
+        heading_font.setPointSize(14)
+        heading_font.setBold(True)
+        self._recent_heading.setFont(heading_font)
+        root.addWidget(self._recent_heading)
+
+        self._recent_panel = QFrame()
+        self._recent_panel.setFrameShape(QFrame.Shape.NoFrame)
+        self._recent_layout = FlowLayout(self._recent_panel, margin=0, spacing=12)
+        root.addWidget(self._recent_panel)
+
+        self._recent_empty_label = QLabel("No recent flows")
+        self._recent_empty_label.setProperty("muted", True)
+        root.addWidget(self._recent_empty_label)
+
+        self._rebuild_recent_tiles()
+        if self._recent_flows is not None:
+            self._recent_flows.changed.connect(self._rebuild_recent_tiles)
+
         root.addStretch(1)
 
     # ── Page hooks ─────────────────────────────────────────────────────────────
@@ -132,3 +169,37 @@ class StartPage(PageBase):
         )
         if path_str:
             self.open_flow_requested.emit(Path(path_str))
+
+    # ── Recent flows ───────────────────────────────────────────────────────────
+
+    def _rebuild_recent_tiles(self) -> None:
+        """Clear and repopulate the recent-flows wrap panel.
+
+        Called once at construction and whenever the backing
+        RecentFlowsManager emits ``changed``.
+        """
+        while (item := self._recent_layout.takeAt(0)) is not None:
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+
+        paths = self._recent_flows.paths if self._recent_flows is not None else []
+        for path in paths:
+            self._recent_layout.addWidget(self._make_recent_tile(path))
+
+        has_any = bool(paths)
+        self._recent_panel.setVisible(has_any)
+        self._recent_empty_label.setVisible(not has_any)
+
+    def _make_recent_tile(self, path: Path) -> QToolButton:
+        """Build a file-explorer-style tile (icon above label) for ``path``."""
+        btn = QToolButton()
+        btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+        btn.setIcon(material_icon("description"))
+        btn.setIconSize(QSize(self._RECENT_ICON_SIZE, self._RECENT_ICON_SIZE))
+        btn.setAutoRaise(True)
+        btn.setText(path.stem)
+        btn.setToolTip(str(path))
+        btn.setFixedWidth(self._RECENT_TILE_WIDTH)
+        btn.clicked.connect(lambda _=False, p=path: self.open_flow_requested.emit(p))
+        return btn

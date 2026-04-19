@@ -71,7 +71,7 @@ class MainWindow(QMainWindow):
         self._pages = QStackedWidget()
         self.setCentralWidget(self._pages)
 
-        self._start_page  = StartPage()
+        self._start_page  = StartPage(self._recent_flows)
         self._editor_page = NodeEditorPage(self._registry, self._recent_flows)
         self._log_page    = LogPage()
 
