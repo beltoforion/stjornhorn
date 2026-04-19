@@ -82,6 +82,10 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     root.addHandler(file_handler)
     root.addHandler(console_handler)
 
+    # numba.core.ssa emits a torrent of DEBUG records during JIT compilation
+    # that drowns out everything else in the log file. Cap it at INFO.
+    logging.getLogger("numba.core.ssa").setLevel(logging.INFO)
+
     logger = logging.getLogger(__name__)
     # Each banner line goes through the standard formatter so the log
     # format stays consistent. INFO is below the console handler's
