@@ -39,8 +39,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1765.0607286319691,
-        -646.0491535649392
+        -1738.5104368206155,
+        -642.5091146567586
       ],
       "params": {
         "file_path": "ship.jpg"
@@ -51,8 +51,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1325.268215928864,
-        -803.7242628362059
+        -1326.1532256559092,
+        -803.7242628362058
       ],
       "params": {
         "method": 6
@@ -63,8 +63,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1325.268215928864,
-        -671.7242628362059
+        -1326.1532256559092,
+        -671.7242628362058
       ],
       "params": {
         "method": 6
@@ -75,8 +75,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1325.268215928864,
-        -539.7242628362059
+        -1326.1532256559092,
+        -539.7242628362058
       ],
       "params": {
         "method": 6
