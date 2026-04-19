@@ -74,7 +74,7 @@ class LogPage(PageBase):
 
     @override
     def page_selector_icon(self) -> QIcon:
-        return material_icon("home")
+        return material_icon("description")
 
     def page_toolbar_sections(self) -> list[ToolbarSection]:
         return []
