@@ -7,8 +7,8 @@
       "module": "nodes.filters.rgb_split",
       "class": "RgbSplit",
       "position": [
-        -1558.3072315045752,
-        -647.3613313911429
+        -1509.4279939393775,
+        -639.4775833967562
       ],
       "params": {}
     },
@@ -17,8 +17,8 @@
       "module": "nodes.filters.rgb_join",
       "class": "RgbJoin",
       "position": [
-        -1169.3419442284467,
-        -647.1591809409068
+        -1120.4627066632493,
+        -639.27543294652
       ],
       "params": {}
     },
@@ -27,8 +27,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -837.9961732471778,
-        -669.8344288875459
+        -752.8516949078014,
+        -725.8090396476915
       ],
       "params": {
         "output_path": "out.png"
@@ -39,8 +39,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1830.084343524355,
-        -853.1925410592211
+        -1781.2051059591581,
+        -866.5949126496788
       ],
       "params": {
         "file_path": "ship.jpg"
@@ -51,8 +51,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1375.0324632211068,
-        -811.6080108305924
+        -1326.1532256559092,
+        -803.7242628362058
       ],
       "params": {
         "method": 6
@@ -63,8 +63,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1375.0324632211068,
-        -679.6080108305924
+        -1326.1532256559092,
+        -671.7242628362058
       ],
       "params": {
         "method": 6
@@ -75,8 +75,8 @@
       "module": "nodes.filters.dither",
       "class": "Dither",
       "position": [
-        -1375.0324632211068,
-        -547.6080108305924
+        -1326.1532256559092,
+        -539.7242628362058
       ],
       "params": {
         "method": 6
@@ -87,8 +87,8 @@
       "module": "nodes.filters.subpixel_mosaic",
       "class": "SubpixelMosaic",
       "position": [
-        -1006.4597622280243,
-        -669.8710238241409
+        -957.5805246628266,
+        -661.9872758297544
       ],
       "params": {
         "keep_aspect": true,
@@ -100,8 +100,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1159.703039973343,
-        -968.513803611589
+        -1110.8238024081456,
+        -960.6300556172022
       ],
       "params": {}
     },
@@ -110,8 +110,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -946.9920990866771,
-        -942.5920402060455
+        -754.6286480236411,
+        -865.3313098610553
       ],
       "params": {
         "output_path": "out_merge.png"
