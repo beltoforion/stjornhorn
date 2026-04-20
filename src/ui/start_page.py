@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -72,6 +73,9 @@ class StartPage(PageBase):
 
         # Row 1: welcome web view — soaks up all remaining vertical space.
         self._welcome_view = QWebEngineView()
+        self._welcome_view.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.ShowScrollBars, False,
+        )
         self._welcome_view.setUrl(QUrl.fromLocalFile(str(WELCOME_HTML_PATH)))
         root.addWidget(self._welcome_view, 1)
 
