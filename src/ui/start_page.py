@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -19,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from constants import APP_DISPLAY_NAME, APP_VERSION, FLOW_DIR
+from constants import FLOW_DIR, WELCOME_HTML_PATH
 from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
 from ui.flow_layout import FlowLayout
 from ui.icons import material_icon
@@ -71,16 +72,10 @@ class StartPage(PageBase):
         root.setContentsMargins(40, 60, 40, 40)
         root.setSpacing(12)
 
-        title = QLabel(APP_DISPLAY_NAME)
-        title_font = title.font()
-        title_font.setPointSize(24)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        root.addWidget(title)
-
-        version = QLabel(f"v{APP_VERSION}")
-        version.setProperty("muted", True)
-        root.addWidget(version)
+        self._welcome_view = QWebEngineView()
+        self._welcome_view.setFixedHeight(240)
+        self._welcome_view.setUrl(QUrl.fromLocalFile(str(WELCOME_HTML_PATH)))
+        root.addWidget(self._welcome_view)
 
         root.addSpacerItem(QSpacerItem(0, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
