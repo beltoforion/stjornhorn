@@ -54,10 +54,12 @@
     }
     .hero .mascot {
       flex: 0 0 auto;
-      width: 140px;
-      height: 140px;
+      width: 220px;
+      height: 220px;
       object-fit: contain;
-      filter: drop-shadow(0 4px 18px rgba(240, 200, 60, 0.18));
+      /* The PNG ships with a black backdrop. Screen-blending against the
+         dark page background drops it out without needing an alpha edit. */
+      mix-blend-mode: screen;
     }
     .hero .hero-text {
       flex: 1 1 auto;
