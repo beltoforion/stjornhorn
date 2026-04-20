@@ -33,6 +33,7 @@ from ui.page import PageBase, ToolbarSection
 from ui.node_list import NodeList
 from ui.recent_flows import RecentFlowsManager
 from ui.error_banner import ErrorBanner
+from ui.spinner import SpinnerWidget
 from ui.theme import STATUS_MUTED_COLOR, STATUS_OK_COLOR
 from ui.viewer_panel import ViewerPanel
 
@@ -134,9 +135,13 @@ class NodeEditorPage(PageBase):
         self._actions["stack_horizontal"].setEnabled(False)
         self._scene.selectionChanged.connect(self._update_selection_actions)
 
-        # Status bar at the bottom of the inner window.
+        # Status bar at the bottom of the inner window. The spinner
+        # sits on the left, flush with the status label, and is shown
+        # only while a flow run is in flight.
         self._status_bar = QStatusBar(self._inner)
+        self._run_spinner = SpinnerWidget(self._status_bar)
         self._status_label = QLabel("")
+        self._status_bar.addWidget(self._run_spinner, 0)
         self._status_bar.addWidget(self._status_label, 1)
         self._inner.setStatusBar(self._status_bar)
 
@@ -369,6 +374,8 @@ class NodeEditorPage(PageBase):
         self._live_timer.stop()
         self._actions["run"].setEnabled(False)
         self._set_param_widgets_enabled(False)
+        self._run_spinner.start()
+        self._set_status("Running…", kind="muted")
 
         thread = QThread(self)
         runner = FlowRunner(self._flow)
@@ -431,6 +438,7 @@ class NodeEditorPage(PageBase):
         self._run_runner = None
         self._actions["run"].setEnabled(True)
         self._set_param_widgets_enabled(True)
+        self._run_spinner.stop()
 
     def _set_param_widgets_enabled(self, enabled: bool) -> None:
         """Freeze or thaw every node's param editors for the duration of a run."""
