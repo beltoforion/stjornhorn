@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "name": "rgb_split",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.filters.rgb_split",
+      "class": "RgbSplit",
+      "position": [
+        -1509.4279939393775,
+        -639.4775833967562
+      ],
+      "params": {}
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.rgb_join",
+      "class": "RgbJoin",
+      "position": [
+        -1120.4627066632493,
+        -639.27543294652
+      ],
+      "params": {}
+    },
+    {
+      "id": 2,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -789.1169356819802,
+        -661.9506808931591
+      ],
+      "params": {
+        "output_path": "out.png"
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1781.2051059591577,
+        -845.3087930648345
+      ],
+      "params": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1326.1532256559092,
+        -803.7242628362058
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1326.1532256559092,
+        -671.7242628362058
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1326.1532256559092,
+        -539.7242628362058
+      ],
+      "params": {
+        "method": 6
+      }
+    },
+    {
+      "id": 7,
+      "module": "nodes.filters.subpixel_mosaic",
+      "class": "SubpixelMosaic",
+      "position": [
+        -957.5805246628266,
+        -661.9872758297544
+      ],
+      "params": {
+        "keep_aspect": true,
+        "output_grayscale": false
+      }
+    },
+    {
+      "id": 8,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
+      "position": [
+        -1110.8238024081456,
+        -960.6300556172022
+      ],
+      "params": {}
+    },
+    {
+      "id": 9,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -898.1128615214794,
+        -934.7082922116588
+      ],
+      "params": {
+        "output_path": "out_merge.png"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 0,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 1,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 2,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 2
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 1
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 1
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 2
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 3
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 9,
+      "dst_input": 0
+    }
+  ]
+}
