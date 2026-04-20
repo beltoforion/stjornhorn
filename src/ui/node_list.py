@@ -29,6 +29,7 @@ _SECTION_ORDER: tuple[str, ...] = (
     "Color Spaces",
     "Transform",
     "Processing",
+    "Composit",
 )
 
 
