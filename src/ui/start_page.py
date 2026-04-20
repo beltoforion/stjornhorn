@@ -13,8 +13,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QSizePolicy,
-    QSpacerItem,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -72,14 +70,12 @@ class StartPage(PageBase):
         root.setContentsMargins(40, 60, 40, 40)
         root.setSpacing(12)
 
+        # Row 1: welcome web view — soaks up all remaining vertical space.
         self._welcome_view = QWebEngineView()
-        self._welcome_view.setFixedHeight(240)
         self._welcome_view.setUrl(QUrl.fromLocalFile(str(WELCOME_HTML_PATH)))
-        root.addWidget(self._welcome_view)
+        root.addWidget(self._welcome_view, 1)
 
-        root.addSpacerItem(QSpacerItem(0, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
-
-        # Name input + Create button.
+        # Row 2: create + recent flows, sized to content.
         row = QHBoxLayout()
         row.setSpacing(6)
         self._name_input = QLineEdit()
@@ -95,14 +91,6 @@ class StartPage(PageBase):
         row.addWidget(self._create_button)
         row.addStretch(1)
         root.addLayout(row)
-
-        # Open button.
-        open_row = QHBoxLayout()
-        open_row.addStretch(1)
-        root.addLayout(open_row)
-
-        # Recent flows wrap panel.
-        root.addSpacerItem(QSpacerItem(0, 24, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
         self._recent_heading = QLabel("Recent Flows")
         heading_font = self._recent_heading.font()
@@ -123,8 +111,6 @@ class StartPage(PageBase):
         self._rebuild_recent_tiles()
         if self._recent_flows is not None:
             self._recent_flows.changed.connect(self._rebuild_recent_tiles)
-
-        root.addStretch(1)
 
     # ── Page hooks ─────────────────────────────────────────────────────────────
 
