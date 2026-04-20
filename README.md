@@ -8,7 +8,7 @@ The entire UI of this application is ai generated but I determined the internal
 structure, the class layout design and the UI of the application. The application if 
 functional and meant to be extensible with custom python nodes.
 
-# Sparklehoof
+# Stjörnhorn
 
 A Python desktop application for building image- and video-processing
 workflows using a node-based visual editor. Drop image sources,
