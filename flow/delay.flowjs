@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "name": "delay",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.filters.delay",
+      "class": "Delay",
+      "position": [
+        -1076.0,
+        -361.0
+      ],
+      "params": {
+        "delay_seconds": 5.0
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1382.0,
+        -363.0
+      ],
+      "params": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -779.0,
+        -361.0
+      ],
+      "params": {
+        "output_path": "out.png"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 0,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    }
+  ]
+}
