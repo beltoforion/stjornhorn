@@ -307,6 +307,12 @@ class NodeEditorPage(PageBase):
     def _build_actions(self) -> dict[str, QAction]:
         def mk(text: str, icon_name: str, slot) -> QAction:
             a = QAction(material_icon(icon_name), text, self)
+            # Log every toolbar/menu activation before the real handler
+            # runs. QAction.triggered passes a `checked` bool, which the
+            # lambda swallows via *_.
+            a.triggered.connect(
+                lambda *_ , _text=text: logger.info("Toolbar action: %s", _text)
+            )
             a.triggered.connect(slot)
             return a
 

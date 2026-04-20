@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import re
 
 from core.node_base import NodeBase, SinkNodeBase, SourceNodeBase
 from core.port import InputPort, OutputPort
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_FLOW_NAME: str = "Untitled_flow"
@@ -138,6 +141,7 @@ class Flow:
         Raises:
             RuntimeError: if the flow has no source node or no sink node.
         """
+        logger.info("Flow run started: %s", self._name)
         if not self.sources:
             raise RuntimeError("Flow has no source node; at least one is required")
         if not self.sinks:
