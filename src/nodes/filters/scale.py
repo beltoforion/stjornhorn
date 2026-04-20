@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from enum import IntEnum
+
 import cv2
 import numpy as np
 from typing_extensions import override
@@ -8,15 +10,23 @@ from core.io_data import IMAGE_TYPES
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
 
-# OpenCV interpolation flags — exposed as a small int param so the UI
-# can offer "nearest / linear / cubic / area / lanczos4" as plain values.
-_INTERPOLATIONS: dict[int, int] = {
-    0: cv2.INTER_NEAREST,
-    1: cv2.INTER_LINEAR,
-    2: cv2.INTER_CUBIC,
-    3: cv2.INTER_AREA,
-    4: cv2.INTER_LANCZOS4,
-}
+
+class Interpolation(IntEnum):
+    """Resampling method used by :class:`Scale`.
+
+    Values mirror the corresponding ``cv2.INTER_*`` flags exactly so the
+    enum member can be passed straight into :func:`cv2.resize` without a
+    lookup table. Backed by :class:`IntEnum` so the integer
+    representation (persisted in saved flows) round-trips cleanly: JSON
+    stores the int, the setter accepts both ints and enum members, and
+    the ``ENUM`` param widget renders a combo box of ``name``-based
+    labels.
+    """
+    NEAREST   = cv2.INTER_NEAREST
+    LINEAR    = cv2.INTER_LINEAR
+    CUBIC     = cv2.INTER_CUBIC
+    AREA      = cv2.INTER_AREA
+    LANCZOS4  = cv2.INTER_LANCZOS4
 
 
 class Scale(NodeBase):
@@ -31,7 +41,7 @@ class Scale(NodeBase):
     def __init__(self) -> None:
         super().__init__("Scale", section="Transform")
         self._scale_percent: int = 100
-        self._interpolation: int = 1  # Linear
+        self._interpolation: Interpolation = Interpolation.LINEAR
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
@@ -45,8 +55,11 @@ class Scale(NodeBase):
     def params(self) -> list[NodeParam]:
         return [
             NodeParam("scale_percent", NodeParamType.INT, {"default": 100}),
-            # 0=nearest, 1=linear, 2=cubic, 3=area, 4=lanczos4
-            NodeParam("interpolation", NodeParamType.INT, {"default": 1}),
+            NodeParam(
+                "interpolation",
+                NodeParamType.ENUM,
+                {"default": Interpolation.LINEAR, "enum": Interpolation},
+            ),
         ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
@@ -63,17 +76,19 @@ class Scale(NodeBase):
         self._scale_percent = v
 
     @property
-    def interpolation(self) -> int:
+    def interpolation(self) -> Interpolation:
         return self._interpolation
 
     @interpolation.setter
-    def interpolation(self, value: int) -> None:
-        v = int(value)
-        if v not in _INTERPOLATIONS:
+    def interpolation(self, value: int | Interpolation) -> None:
+        try:
+            # Interpolation(int) validates the integer and raises on unknown
+            # values; passing an Interpolation member just returns itself.
+            self._interpolation = Interpolation(value)
+        except ValueError as e:
             raise ValueError(
-                f"interpolation must be one of {sorted(_INTERPOLATIONS)} (got {v})"
-            )
-        self._interpolation = v
+                f"interpolation must be one of {[m.value for m in Interpolation]} (got {value!r})"
+            ) from e
 
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
@@ -89,6 +104,6 @@ class Scale(NodeBase):
         resized = cv2.resize(
             image,
             (new_w, new_h),
-            interpolation=_INTERPOLATIONS[self._interpolation],
+            interpolation=int(self._interpolation),
         )
         self.outputs[0].send(in_data.with_image(resized))
