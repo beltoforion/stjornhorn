@@ -165,6 +165,7 @@ class NodeItem(QGraphicsItem):
         self._input_ports: list[PortItem] = []
         self._output_ports: list[PortItem] = []
         self._params_widget: QWidget | None = None  # container; holds ParamWidgetBases
+        self._param_widgets: list[ParamWidgetBase] = []
         self._proxy: QGraphicsProxyWidget | None = None
         self._params_height: float = 0.0
         self._body_height: float = 0.0
@@ -363,6 +364,16 @@ class NodeItem(QGraphicsItem):
         content = max(header_need, port_need, params_need)
         return max(self.MIN_WIDTH, min(self.MAX_WIDTH, content))
 
+    def refresh_param_widgets(self) -> None:
+        """Ask every param widget to re-evaluate external state.
+
+        Used by the editor after a flow run so that e.g. FileSink's
+        ``view`` button can recognise output files that have just
+        appeared on disk.
+        """
+        for editor in self._param_widgets:
+            editor.refresh()
+
     def _build_params_widget(self) -> None:
         if not self._node.params:
             return
@@ -381,6 +392,7 @@ class NodeItem(QGraphicsItem):
             if editor is not None:
                 editor.value_changed.connect(lambda _v: self._signals.param_changed.emit())
                 layout.addWidget(editor)
+                self._param_widgets.append(editor)
             else:
                 layout.addWidget(QLabel(f"(unsupported: {param.param_type.name})"))
 

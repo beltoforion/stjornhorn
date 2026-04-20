@@ -60,6 +60,15 @@ class ParamWidgetBase(QWidget):
         """Return the widget's current value."""
         raise NotImplementedError
 
+    def refresh(self) -> None:
+        """Re-evaluate any state that depends on external conditions.
+
+        Default is a no-op. Widgets whose enabled state depends on
+        things the Qt signal machinery doesn't track — e.g. whether a
+        file on disk exists — override this so the host page can ask
+        every param widget to re-check after events like a flow run.
+        """
+
     # ── Helpers shared by all subclasses ───────────────────────────────────────
 
     def _initial_value(self, fallback: object) -> object:
@@ -330,6 +339,14 @@ class FilePathParamWidget(ParamWidgetBase):
 
     def _update_view_enabled(self) -> None:
         self._view.setEnabled(self._resolved_current_path().is_file())
+
+    @override
+    def refresh(self) -> None:
+        # The view button's enabled state depends on whether the file
+        # exists on disk — something a flow run can change. Re-check so
+        # sinks that just wrote their output light up without the user
+        # having to edit the path.
+        self._update_view_enabled()
 
     def _open_in_viewer(self) -> None:
         path = self._resolved_current_path()

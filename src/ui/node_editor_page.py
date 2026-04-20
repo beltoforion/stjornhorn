@@ -357,7 +357,13 @@ class NodeEditorPage(PageBase):
             detail = str(err).strip() or "(no message)"
             self._set_status(f"Run failed ({type(err).__name__}): {detail}", kind="fail")
             return
-        
+
+        # Sinks may have just written output files; let every node's
+        # param widgets re-evaluate filesystem-dependent state (e.g.
+        # the FilePathParamWidget "view" button).
+        for item in self._scene.iter_node_items():
+            item.refresh_param_widgets()
+
         self._set_status(
             f"Ran at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
