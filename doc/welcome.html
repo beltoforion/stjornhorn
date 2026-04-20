@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Welcome to Sparklehoof</title>
+  <style>
+    :root {
+      --bg:            #262629;
+      --bg-panel:      #2f2f33;
+      --bg-panel-alt:  #35353a;
+      --border:        #1a1a1d;
+      --text:          #e0e0e0;
+      --text-muted:    #9a9a9f;
+      --accent:        #f0c83c;
+      --accent-blue:   #5a7bb0;
+      --source:        #1e64b4;
+      --filter:        #1e8c3c;
+      --sink:          #b46414;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+
+    .wrap {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 32px 28px 48px;
+    }
+
+    header.hero {
+      padding: 24px 0 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .hero .tagline {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .offline-badge {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-panel-alt);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+
+    section {
+      margin-bottom: 28px;
+    }
+    section h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 12px;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+    }
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .card p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .card.source h3 { color: #7fb6ee; }
+    .card.filter h3 { color: #7dd896; }
+    .card.sink   h3 { color: #e8a86b; }
+
+    ol.steps {
+      margin: 0;
+      padding-left: 20px;
+    }
+    ol.steps li {
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+    ol.steps li strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    kbd {
+      background: var(--bg-panel-alt);
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-family: "Consolas", "Menlo", monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    footer {
+      margin-top: 32px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <header class="hero">
+      <h1>Welcome to Sparklehoof</h1>
+      <div class="tagline">
+        A node-based image- and video-processing playground.
+      </div>
+      <span class="offline-badge">Offline welcome page</span>
+    </header>
+
+    <section>
+      <h2>Getting started</h2>
+      <ol class="steps">
+        <li><strong>Create a flow</strong> by typing a name and pressing <kbd>Create</kbd>, or open an existing <code>.flowjs</code> file.</li>
+        <li><strong>Drop nodes</strong> onto the canvas from the node list on the left.</li>
+        <li><strong>Wire them up</strong> by dragging from an output port to an input port.</li>
+        <li><strong>Press Run</strong> and watch the result update in the viewer panel.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Node categories</h2>
+      <div class="cards">
+        <div class="card source">
+          <h3>Sources</h3>
+          <p>Load images and video from disk, patterns, or generators.</p>
+        </div>
+        <div class="card filter">
+          <h3>Filters</h3>
+          <p>Dither, threshold, scale, split and recombine channels.</p>
+        </div>
+        <div class="card sink">
+          <h3>Sinks</h3>
+          <p>Write the final frames out to files or the viewer.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tips</h2>
+      <ul>
+        <li>Your most recent flows appear on the start page for quick access.</li>
+        <li>User-defined nodes live under <code>~/.image-inquest/user_nodes/</code>.</li>
+        <li>Run with <code>--flow NAME</code> to jump straight into a saved flow.</li>
+      </ul>
+    </section>
+
+    <footer>
+      You are viewing the bundled offline welcome page because the online
+      start page could not be reached.
+    </footer>
+
+  </div>
+</body>
+</html>
