@@ -4,6 +4,9 @@
 
 # Sparklehoof
 
+This is a vibe coding experiment. It is based on an image processing pipeline that
+was have written for illustrating articles on my web page beltoforion.de
+
 A Python desktop application for building image- and video-processing
 workflows using a node-based visual editor. Drop image sources,
 filters, and sinks onto a canvas, wire them up, hit **Run**, then tweak
