@@ -145,6 +145,29 @@ class FlowScene(QGraphicsScene):
             y += item.boundingRect().height() + self.STACK_GAP
         return len(items)
 
+    def stack_selected_horizontally(self) -> int:
+        """Align selected nodes on a single Y axis and stack them horizontally.
+
+        Preserves the current left-to-right order (nodes further left on the
+        canvas stay left in the new stack). All selected nodes are anchored
+        to the topmost selected Y so they share a horizontal axis; each
+        subsequent node is placed to the right of the previous one with a
+        fixed :data:`STACK_GAP` between their bounding boxes. Returns the
+        number of nodes that were moved (two or more selected nodes required
+        — otherwise a no-op).
+        """
+        items = [s for s in self.selectedItems() if isinstance(s, NodeItem)]
+        if len(items) < 2:
+            return 0
+        items.sort(key=lambda it: it.pos().x())
+        y = min(it.pos().y() for it in items)
+        x = items[0].pos().x()
+        for item in items:
+            item.setPos(x, y)
+            item.refresh_all_links()
+            x += item.boundingRect().width() + self.STACK_GAP
+        return len(items)
+
     def _delete_node_item(self, item: NodeItem) -> None:
         if self._flow is not None:
             try:

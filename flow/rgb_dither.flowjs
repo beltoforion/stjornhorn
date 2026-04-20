@@ -33,7 +33,7 @@
         -600.0
       ],
       "params": {
-        "output_path": "output/out.png"
+        "output_path": "out.png"
       }
     },
     {

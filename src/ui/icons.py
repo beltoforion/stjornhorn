@@ -43,7 +43,9 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "zoom_out_map": "e56b",
     "fullscreen_exit": "e5d1",
     "view_stream": "e8f2",
+    "view_column": "e8ec",
     "description":  "e873",
+    "visibility":   "e8f4",
 }
 
 

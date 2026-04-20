@@ -36,7 +36,7 @@
         -830.9250736530222
       ],
       "params": {
-        "output_path": "output/out.png"
+        "output_path": "out.png"
       }
     }
   ],

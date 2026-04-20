@@ -6,7 +6,8 @@ from pathlib import Path
 
 from typing_extensions import override
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
 from constants import INPUT_DIR, OUTPUT_DIR
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from ui.controls.scene_aware_combobox import SceneAwareComboBox
+from ui.icons import material_icon
 
 logger = logging.getLogger(__name__)
 
@@ -240,18 +242,30 @@ class FilePathParamWidget(ParamWidgetBase):
         # inside the fixed-width node body, otherwise the line edit overflows
         # and visually overlaps the button.
         self._line.setMinimumWidth(80)
-        self._line.textChanged.connect(self._on_value_changed)
-        self._line.setText(str(self._initial_value("")))
 
         browse = QPushButton("...")
         browse.setFixedWidth(36)
         browse.clicked.connect(self._browse)
+
+        self._view = QPushButton()
+        self._view.setIcon(material_icon("visibility"))
+        self._view.setFixedWidth(36)
+        self._view.setToolTip("Open in system image viewer")
+        self._view.clicked.connect(self._open_in_viewer)
+
+        # Connect textChanged and seed the initial value only once
+        # self._view exists, since _update_view_enabled touches it.
+        self._line.textChanged.connect(self._on_value_changed)
+        self._line.textChanged.connect(self._update_view_enabled)
+        self._line.setText(str(self._initial_value("")))
+        self._update_view_enabled()
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
         layout.addWidget(self._line, 1)
         layout.addWidget(browse, 0)
+        layout.addWidget(self._view, 0)
 
     def _on_value_changed(self, value: str) -> None:
         self._write_to_node(value)
@@ -267,8 +281,15 @@ class FilePathParamWidget(ParamWidgetBase):
 
     def _browse(self) -> None:
         current = self._line.text() or ""
-        folder = Path(current).parent.resolve()
         fallback = OUTPUT_DIR if self._is_save else INPUT_DIR
+        # Relative values (e.g. "out.png" or "example.jpg") are stored
+        # relative to OUTPUT_DIR / INPUT_DIR, so resolve against that base
+        # before taking the parent — otherwise the dialog would open in
+        # the process CWD instead of the folder the file actually lives in.
+        path_obj = Path(current)
+        if not path_obj.is_absolute():
+            path_obj = fallback / path_obj
+        folder = path_obj.parent.resolve()
         initial = str(folder) if folder.is_dir() else str(fallback)
 
         if self._is_save:
@@ -292,7 +313,28 @@ class FilePathParamWidget(ParamWidgetBase):
                 self._line.setText(canonical)
             finally:
                 self._line.blockSignals(False)
+            self._update_view_enabled()
             self.value_changed.emit(canonical)
+
+    def _resolved_current_path(self) -> Path:
+        """Return the absolute path referenced by the line edit.
+
+        Relative values are joined with ``OUTPUT_DIR`` / ``INPUT_DIR``
+        to match how the corresponding node setters resolve them.
+        """
+        base = OUTPUT_DIR if self._is_save else INPUT_DIR
+        p = Path(self._line.text() or "")
+        if not p.is_absolute():
+            p = base / p
+        return p
+
+    def _update_view_enabled(self) -> None:
+        self._view.setEnabled(self._resolved_current_path().is_file())
+
+    def _open_in_viewer(self) -> None:
+        path = self._resolved_current_path()
+        if path.is_file():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
 
 # ── Registry & factory ─────────────────────────────────────────────────────────

@@ -24,7 +24,7 @@
         -489.20442937499996
       ],
       "params": {
-        "output_path": "output/dither_rgbout.png"
+        "output_path": "dither_rgbout.png"
       }
     },
     {
