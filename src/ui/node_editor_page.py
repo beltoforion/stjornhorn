@@ -120,9 +120,10 @@ class NodeEditorPage(PageBase):
 
         # Actions: reused by both the page menu and the main toolbar.
         self._actions = self._build_actions()
-        # V-Stack needs at least two selected nodes; keep it disabled until
-        # that is true and toggle it on selection changes.
+        # Stack actions need at least two selected nodes; keep them disabled
+        # until that is true and toggle them on selection changes.
         self._actions["stack_vertical"].setEnabled(False)
+        self._actions["stack_horizontal"].setEnabled(False)
         self._scene.selectionChanged.connect(self._update_selection_actions)
 
         # Status bar at the bottom of the inner window.
@@ -184,6 +185,7 @@ class NodeEditorPage(PageBase):
                 self._actions["fit"],
                 self._actions["reset_zoom"],
                 self._actions["stack_vertical"],
+                self._actions["stack_horizontal"],
             ]),
         ]
 
@@ -293,6 +295,9 @@ class NodeEditorPage(PageBase):
             "stack_vertical": mk(
                 "V-Stack", "view_stream", self._on_stack_vertical_clicked,
             ),
+            "stack_horizontal": mk(
+                "H-Stack", "view_column", self._on_stack_horizontal_clicked,
+            ),
         }
 
     # ── Action handlers ────────────────────────────────────────────────────────
@@ -304,10 +309,15 @@ class NodeEditorPage(PageBase):
             1 for s in self._scene.selectedItems() if isinstance(s, NodeItem)
         )
         self._actions["stack_vertical"].setEnabled(selected_nodes >= 2)
+        self._actions["stack_horizontal"].setEnabled(selected_nodes >= 2)
 
     def _on_stack_vertical_clicked(self) -> None:
         """Align selected nodes on a shared X axis and stack them vertically."""
         self._scene.stack_selected_vertically()
+
+    def _on_stack_horizontal_clicked(self) -> None:
+        """Align selected nodes on a shared Y axis and stack them horizontally."""
+        self._scene.stack_selected_horizontally()
 
     def _on_viewer_top_level_changed(self, floating: bool) -> None:
         """Promote the floating Output Inspector to a real top-level window.
