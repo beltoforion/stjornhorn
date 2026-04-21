@@ -3,10 +3,7 @@
 </p>
 
 This is a vibe coding experiment. It is based on an image processing pipeline that
-was have written traditionally for illustrating articles on my web page beltoforion.de. 
-The entire UI of this application is ai generated but I determined the internal 
-structure, the class layout design and the UI of the application. The application if 
-functional and meant to be extensible with custom python nodes.
+was written traditionally for illustrating articles on my web page beltoforion.de. 
 
 # Stjörnhorn
 
