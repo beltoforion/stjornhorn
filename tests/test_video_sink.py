@@ -6,10 +6,36 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
+from typing_extensions import override
 
+from core.flow import Flow
 from core.io_data import IoData, IoDataType
+from core.node_base import NodeParam, SourceNodeBase
 from core.port import OutputPort
 from nodes.sinks.video_sink import VideoSink
+
+
+class _FrameListSource(SourceNodeBase):
+    """Minimal in-memory source — emits a preset list of BGR frames.
+
+    Used by tests so we can drive the whole Flow without touching disk
+    on the source side.
+    """
+
+    def __init__(self, frames: list[np.ndarray]) -> None:
+        super().__init__("Frame List", section="Sources")
+        self._frames = frames
+        self._add_output(OutputPort("image", {IoDataType.IMAGE}))
+
+    @property
+    @override
+    def params(self) -> list[NodeParam]:
+        return []
+
+    @override
+    def process_impl(self) -> None:
+        for frame in self._frames:
+            self.outputs[0].send(IoData.from_image(frame))
 
 
 def _wire(node: VideoSink, accepted_type: IoDataType = IoDataType.IMAGE) -> OutputPort:
@@ -102,3 +128,27 @@ def test_video_sink_finish_releases_writer(tmp_path: Path) -> None:
     up.finish()
     assert node._writer is None  # released by _on_finish
     node.after_run(True)
+
+
+def test_flow_can_be_run_twice(tmp_path: Path) -> None:
+    """Regression: running a flow a second time must not raise
+    'send() called after finish()'. NodeBase.before_run resets every
+    port's lifecycle state so stale ``finished`` flags from the
+    previous run don't block the new one."""
+    source = _FrameListSource([_bgr_frame(40), _bgr_frame(120), _bgr_frame(200)])
+    sink = VideoSink()
+    sink.output_path = tmp_path / "twice.mp4"
+
+    flow = Flow("twice")
+    flow.add_node(source)
+    flow.add_node(sink)
+    flow.connect(source, 0, sink, 0)
+
+    flow.run()
+    first_size = sink.output_path.stat().st_size
+
+    flow.run()
+    second_size = (tmp_path / "twice.mp4").stat().st_size
+
+    assert first_size > 0
+    assert second_size > 0

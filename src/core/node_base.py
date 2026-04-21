@@ -206,10 +206,15 @@ class NodeBase(ABC):
     def before_run(self) -> None:
         """Hook invoked before a flow run starts, after all nodes are constructed.
 
-        Default is no-op. Override this in nodes that need to do setup before
-        processing starts (e.g. open a file, start a thread, etc.) and tear
-        down in after_run().
+        Resets every port's lifecycle state so ``finished`` flags from a
+        previous run don't block this one (otherwise a source's first
+        ``send()`` raises ``send() called after finish()``), then
+        dispatches to :meth:`_before_run_impl` for subclass setup.
         """
+        for port in self._inputs:
+            port.reset()
+        for port in self._outputs:
+            port.reset()
         try:
             self._before_run_impl()
         except Exception:

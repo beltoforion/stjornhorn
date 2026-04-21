@@ -99,6 +99,16 @@ class InputPort:
     def clear(self) -> None:
         self._data = None
 
+    def reset(self) -> None:
+        """Clear data and lifecycle state so this port can drive a new run.
+
+        Called by :meth:`~core.node_base.NodeBase.before_run` for every
+        input on every node, so a flow can be executed repeatedly
+        without stale ``finished`` flags blocking later runs.
+        """
+        self._data = None
+        self._finished = False
+
 
 class OutputPort:
     """A typed output connection point on a node.
@@ -205,3 +215,13 @@ class OutputPort:
         self._finished = True
         for port in self._connections:
             port.finish()
+
+    def reset(self) -> None:
+        """Clear lifecycle state so this port can drive a new run.
+
+        Called by :meth:`~core.node_base.NodeBase.before_run` for every
+        output on every node. The last-emitted cache is preserved so
+        viewers still show the previous run's output until the new run
+        produces something fresh.
+        """
+        self._finished = False
