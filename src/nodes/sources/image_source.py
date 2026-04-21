@@ -71,7 +71,7 @@ class ImageSource(SourceNodeBase):
         return True
 
     @override
-    def start(self) -> None:
+    def process_impl(self) -> None:
         resolved = self._resolved_path()
         if not resolved.exists():
             raise FileNotFoundError(f"Input file not found: {resolved}")

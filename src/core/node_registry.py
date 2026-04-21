@@ -234,18 +234,21 @@ def _validate_node_class(
     """Return structural errors for a node class.
 
     Enforced rules:
-      - ``start()`` is only valid on source nodes. Only source nodes can be
-        entry points for a flow (see :meth:`Flow.run`), so a non-source class
-        that defines ``start()`` would silently never be called. Reject it.
+      - ``start()`` must not be overridden. It is a final trampoline on
+        :class:`SourceNodeBase` that routes through :meth:`process`;
+        overriding it would bypass the per-node logging and observer hook
+        that the UI relies on to show which node is currently running.
+        Non-source classes that define ``start()`` would also silently
+        never be called by :meth:`Flow.run`.
     """
     errors: list[ScanError] = []
-    if category != "Sources" and _has_method(class_node, "start"):
+    if _has_method(class_node, "start"):
         errors.append(ScanError(
             file=path,
             message=(
-                f"'{class_node.name}' defines start(), but start() is only "
-                f"valid on source nodes. Only source nodes can be entry "
-                f"points for a flow."
+                f"'{class_node.name}' defines start(), but start() must not "
+                f"be overridden. Source nodes should implement process_impl() "
+                f"instead; start() is a final trampoline on SourceNodeBase."
             ),
         ))
     return errors

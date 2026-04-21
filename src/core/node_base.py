@@ -59,7 +59,9 @@ class NodeBase(ABC):
     Source and sink nodes subclass SourceNodeBase or SinkNodeBase instead.
 
     Execution model (push-based):
-      - SourceNodeBase.start() pushes IoData to its OutputPorts.
+      - SourceNodeBase.start() drives each source by calling process(), which
+        dispatches to process_impl(); a source's process_impl() pushes IoData
+        to its OutputPorts.
       - OutputPort.send() forwards data to all connected InputPorts.
       - Each InputPort notifies its owner node via _signal_input_ready().
       - Once all inputs have data, process() is invoked automatically.
@@ -254,8 +256,14 @@ class SourceNodeBase(NodeBase, ABC):
     """Abstract base class for source nodes.
 
     A source has outputs only — it produces data and drives the pipeline by
-    implementing start(). Subclasses must call OutputPort.send() for each
-    frame and send IoData.end_of_stream() on all outputs when done.
+    implementing :meth:`process_impl`. Subclasses must call OutputPort.send()
+    for each frame and send IoData.end_of_stream() on all outputs when done.
+
+    :meth:`start` is the public entry point used by :class:`core.flow.Flow`
+    to kick a source off. It is final and simply routes through
+    :meth:`process`, so source nodes benefit from the same per-node logging
+    and observer hook that filters and sinks do (the UI uses that hook to
+    highlight the currently-running node).
 
     Override :attr:`is_reactive` to ``True`` in sources that produce a single
     static result (e.g. a still image). The node editor will automatically
@@ -275,17 +283,15 @@ class SourceNodeBase(NodeBase, ABC):
         """
         return False
 
-    @abstractmethod
+    @final
     def start(self) -> None:
-        """Produce data and push it to output ports.
+        """Drive the source by invoking :meth:`process`.
 
-        Must send IoData.end_of_stream() on all outputs when done.
+        Kept as a distinct entry point so :meth:`core.flow.Flow.run` can
+        tell source nodes apart from ordinary nodes without type-sniffing
+        on every call.
         """
-        ...
-
-    @override
-    def process_impl(self) -> None:
-        raise RuntimeError("SourceNodeBase has no inputs; call start() instead")
+        self.process()
 
     @override
     def _on_end_of_stream(self) -> None:

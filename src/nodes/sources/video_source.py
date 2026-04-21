@@ -62,7 +62,7 @@ class VideoSource(SourceNodeBase):
     # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @override
-    def start(self) -> None:
+    def process_impl(self) -> None:
         if not self._file_path.exists():
             raise FileNotFoundError(f"Input file not found: {self._file_path}")
 
