@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Sparklehoof (repo: `image-inquest`) are tracked
+All notable changes to Stjörnhorn (repo: `image-inquest`) are tracked
 in this file.
 
 The format loosely follows [Keep a
@@ -9,6 +9,57 @@ to adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 once a first tagged release is cut.
 
 ## [Unreleased]
+
+## [0.1.3] — 2026-04-21
+
+### Added
+- **Display node** (palette section *Output*) — pass-through node
+  that renders every frame inline inside its own node body via a
+  live `QLabel` preview. Drop it anywhere in the graph to watch
+  frames in real time without leaving the editor.
+- **Video Sink** — encodes incoming frames to a video file via
+  `cv2.VideoWriter`. The writer opens lazily on the first frame (so
+  dimensions are inferred from the data) and is finalised in
+  `_on_finish` when the runner signals end-of-stream. Params:
+  `output_path`, `fps`, `codec` (MP4V or XVID).
+- **NCC** — normalised cross-correlation template matching node
+  (`cv2.matchTemplate` with `TM_CCORR_NORMED`). Takes separate
+  `image` and `template` greyscale inputs and emits an 8-bit score
+  map; `retain_size` controls whether the match is padded back to
+  the input image size (#110).
+- **Resizable nodes.** Every `NodeItem` grows a diagonal grip at
+  its bottom-right corner; drag to resize. Preview-bearing nodes
+  honour both axes (the preview fills spare vertical space), others
+  resize in width only. Sizes round-trip through `flow_io` via a
+  new `"size": [w, h]` field on saved nodes.
+- **`NodeParamType.STRING`** + `StringParamWidget` — line-edit
+  editor that commits on `editingFinished` so validating setters
+  don't raise mid-typing. Supports `placeholder` and `max_length`
+  metadata.
+- **Splash screen text.** The splash pixmap is overlaid with
+  `APP_DISPLAY_NAME` and the current version in large type, with
+  font sizes scaling to the pixmap height so the splash reads well
+  at any asset resolution.
+
+### Changed
+- **Stream lifetime is no longer a payload.** `IoData.END_OF_STREAM`
+  and `IoData.end_of_stream()` are gone; `InputPort` / `OutputPort`
+  gain a dedicated `finish()` method plus a `finished` property that
+  propagates across connections. `NodeBase._on_end_of_stream` →
+  `_on_finish`. `Flow.run` signals end-of-stream centrally by
+  calling `finish()` on every source output once every source's
+  `start()` has returned, so a one-shot source can no longer drive
+  EOS into a sibling input before the sibling has produced data.
+  Sources stop emitting EOS inline; Merge reacts to `port.finished`.
+
+### Fixed
+- **Running a flow twice** no longer raises "`send() called after
+  finish()`". `NodeBase.before_run()` calls `port.reset()` on every
+  input and output port before dispatching to the subclass hook, so
+  stale `finished` flags from the previous run don't block the new
+  one.
+
+## [pre-0.1.3] — accumulated, previously unreleased
 
 ### Added
 - **Enum-typed node parameters.** `NodeParamType.ENUM` + an

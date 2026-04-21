@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/title.png" alt="Sparklehoof" width="640"/>
+  <img src="assets/title.png" alt="Stjörnhorn" width="640"/>
 </p>
 
 This is a vibe coding experiment. It is based on an image processing pipeline that
@@ -93,8 +93,10 @@ toolbar to drive the flow.
 - **Canvas** (centre) — the flow graph. Each node shows its title,
   input ports on the left, output ports on the right, and editable
   parameters in the body. A small × in the top-right of a node
-  deletes it. Scroll to zoom; middle-mouse-drag to pan. Dropping a
-  node from the palette places it at the cursor.
+  deletes it; a diagonal grip in the bottom-right lets you drag to
+  resize the node (preview-bearing nodes grow in both axes, others
+  in width only). Scroll to zoom; middle-mouse-drag to pan. Dropping
+  a node from the palette places it at the cursor.
 - **Output Inspector** (dockable, below the Node List) — previews the
   current output of whichever node is selected. Float it for a larger
   view; once floating, press <kbd>F11</kbd> to toggle full-screen
@@ -170,6 +172,21 @@ label the node carries in the **Node List**.
   path. Paths under the app's output folder are stored relative to it
   so saved flows stay portable. An eye button next to the path opens
   the written file in the OS default image viewer.
+- **Video Sink** — encodes incoming frames to a video file using
+  `cv2.VideoWriter`. The writer is opened lazily on the first frame
+  (dimensions inferred from the data), frames are written as they
+  arrive, and the container is finalised when the runner signals
+  end-of-stream. Parameters: `output_path` (relative to the output
+  folder stays portable), `fps`, and `codec` (MP4V or XVID).
+  Greyscale inputs are promoted to BGR automatically.
+
+### Output
+
+- **Display** — pass-through node that renders each frame inline in
+  its own node body via a live QLabel preview. Drop it anywhere in a
+  flow to watch frames as they flow through (e.g. upstream of a
+  Video Sink to monitor encoding in real time). Resize the node to
+  grow the preview.
 
 ### Color Spaces
 
@@ -209,6 +226,13 @@ label the node carries in the **Node List**.
 - **Normalize** — histogram equalisation
   (`cv2.equalizeHist`). Colour inputs are equalised per channel;
   greyscale inputs are equalised directly. Output type matches input.
+- **NCC** — normalised cross-correlation template matching
+  (`cv2.matchTemplate` with `TM_CCORR_NORMED`). Both the `image` and
+  `template` inputs must be greyscale; the output is an 8-bit score
+  map. `retain_size=True` (default) pads the match map back to the
+  input image size and centres each response on its corresponding
+  template-centre pixel; `retain_size=False` emits the raw
+  `matchTemplate` result.
 
 ### Composit
 
