@@ -427,7 +427,7 @@ class FilePathParamWidget(ParamWidgetBase):
         caption = self._param.metadata.get(
             "caption", "Save File As" if self._is_save else "Select File",
         )
-        dialog = QFileDialog(None, caption)
+        dialog = QFileDialog(QApplication.activeWindow(), caption)
         dialog.setNameFilter(self._filter)
         dialog.setDirectory(initial)
 
@@ -437,6 +437,7 @@ class FilePathParamWidget(ParamWidgetBase):
             dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
             dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
         
+        dialog.show()
         top = QApplication.activeWindow()
         geo = dialog.frameGeometry()
         geo.moveCenter(top.frameGeometry().center())
