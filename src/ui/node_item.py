@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from core.node_base import NodeBase, SinkNodeBase, SourceNodeBase
 from ui.param_widgets import ParamWidgetBase, build_param_widget
 from ui.port_item import PortItem
+from ui.preview_widgets import build_preview_widget
 from ui.theme import (
     FILTER_HEADER_COLOR,
     NODE_BODY_COLOR,
@@ -386,7 +387,8 @@ class NodeItem(QGraphicsItem):
             editor.setEnabled(enabled)
 
     def _build_params_widget(self) -> None:
-        if not self._node.params:
+        preview = build_preview_widget(self._node)
+        if not self._node.params and preview is None:
             return
         w = QWidget()
         w.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -406,6 +408,9 @@ class NodeItem(QGraphicsItem):
                 self._param_widgets.append(editor)
             else:
                 layout.addWidget(QLabel(f"(unsupported: {param.param_type.name})"))
+
+        if preview is not None:
+            layout.addWidget(preview)
 
         self._params_widget = w
         self._proxy = QGraphicsProxyWidget(self)
