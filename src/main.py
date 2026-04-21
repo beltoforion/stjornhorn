@@ -5,11 +5,23 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QCursor, QGuiApplication, QIcon, QPixmap, QScreen
+from PySide6.QtCore import Qt, QPointF, QTimer
+from PySide6.QtGui import (
+    QColor,
+    QCursor,
+    QFont,
+    QGuiApplication,
+    QIcon,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QScreen,
+)
 from PySide6.QtWidgets import QApplication, QSplashScreen
 
 from constants import (
+    APP_DISPLAY_NAME,
     APP_ICON_FALLBACK_PATH,
     APP_ICON_PATH,
     APP_NAME,
@@ -106,6 +118,75 @@ def _target_screen() -> QScreen:
     return screen if screen is not None else QGuiApplication.primaryScreen()
 
 
+def _paint_splash_text(pixmap: QPixmap) -> QPixmap:
+    """Overlay the app name and version onto the splash pixmap.
+
+    Text is rendered at the bottom-left of the image with a dark
+    outline so it stays legible on any background. Font sizes scale
+    with pixmap height so the splash reads well whether the asset is
+    small or large.
+    """
+    canvas = QPixmap(pixmap)
+    painter = QPainter(canvas)
+    try:
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+
+        w = canvas.width()
+        h = canvas.height()
+        margin = max(16, int(h * 0.04))
+        title_px = max(24, int(h * 0.12))
+        version_px = max(14, int(h * 0.055))
+
+        title_font = QFont(painter.font().family())
+        title_font.setPixelSize(title_px)
+        title_font.setBold(True)
+        title_font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 102)
+
+        version_font = QFont(painter.font().family())
+        version_font.setPixelSize(version_px)
+
+        # Dark outline under a bright fill — keeps the text legible
+        # regardless of what the underlying splash image looks like.
+        outline_pen = QPen(QColor(0, 0, 0, 220))
+        outline_pen.setWidthF(max(2.0, title_px * 0.08))
+        outline_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        fill_color = QColor(245, 245, 245)
+
+        def _stroked_text(x: float, baseline_y: float, font: QFont, text: str) -> None:
+            path = QPainterPath()
+            path.addText(QPointF(x, baseline_y), font, text)
+            painter.setPen(outline_pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(path)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(fill_color)
+            painter.drawPath(path)
+
+        # Baseline positions: version sits just above the bottom edge;
+        # title sits above the version with a small gap. Both are
+        # anchored to the left margin.
+        version_baseline = h - margin
+        # Using font metrics keeps the gap consistent across font sizes
+        # and avoids relying on pixel-size heuristics.
+        painter.setFont(version_font)
+        version_ascent = painter.fontMetrics().ascent()
+        title_baseline = version_baseline - version_ascent - int(title_px * 0.25)
+
+        _stroked_text(margin, title_baseline, title_font, APP_DISPLAY_NAME)
+        _stroked_text(margin, version_baseline, version_font, f"v{APP_VERSION}")
+
+        # Best-effort: if the text would collide with the right edge
+        # (very narrow splash), log it so the artwork or sizes can be
+        # tweaked. Fall through either way — text will clip gracefully.
+        painter.setFont(title_font)
+        if painter.fontMetrics().horizontalAdvance(APP_DISPLAY_NAME) > w - 2 * margin:
+            logger.debug("Splash title wider than available space — will clip")
+    finally:
+        painter.end()
+    return canvas
+
+
 def _make_splash(screen: QScreen) -> QSplashScreen | None:
     """Build the startup splash screen, or return ``None`` if the image
     is missing / unreadable. Never fatal — a missing splash should not
@@ -119,6 +200,8 @@ def _make_splash(screen: QScreen) -> QSplashScreen | None:
     if pixmap.isNull():
         logger.warning("Splash image could not be loaded: %s", SPLASH_IMAGE_PATH)
         return None
+
+    pixmap = _paint_splash_text(pixmap)
 
     # Passing the screen explicitly pins the splash to the same monitor
     # the main window will open on — otherwise Qt centers it on the

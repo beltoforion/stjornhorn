@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Welcome to Sparklehoof</title>
+  <title>Welcome to Stjörnhorn</title>
   <style>
     :root {
       --bg:            #262629;
@@ -164,7 +164,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.2</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.3</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -183,17 +183,27 @@
       <div class="cards">
         <div class="card source">
           <h3>Sources</h3>
-          <p>Load images and video from disk, patterns, or generators.</p>
+          <p>Load still images (JPEG, PNG, CR2) or video files (MP4, AVI, MOV, MKV) as streams of frames.</p>
         </div>
         <div class="card filter">
           <h3>Filters</h3>
-          <p>Dither, threshold, scale, split and recombine channels.</p>
+          <p>Scale, shift, blur, threshold, dither, split/join RGB channels, and match templates with NCC.</p>
         </div>
         <div class="card sink">
           <h3>Sinks</h3>
-          <p>Write the final frames out to files or the viewer.</p>
+          <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.1.3</h2>
+      <ul class="tips">
+        <li><strong>Display node</strong> — drop it anywhere in a flow for a live inline preview of frames as they pass through.</li>
+        <li><strong>Video Sink</strong> — encode streams directly to MP4 without leaving the graph.</li>
+        <li><strong>Resizable nodes</strong> — drag the bottom-right grip to grow a node; preview widgets fill the extra space.</li>
+        <li><strong>NCC</strong> — template matching via normalised cross-correlation.</li>
+      </ul>
     </section>
 
     <section>
@@ -202,6 +212,7 @@
         <li>Recent flows appear on the start page for quick access.</li>
         <li>User-defined nodes live under <code>~/.image-inquest/user_nodes/</code>.</li>
         <li>Run with <code>--flow NAME</code> to jump straight into a saved flow.</li>
+        <li>Press <kbd>F11</kbd> with the output inspector focused to toggle fullscreen preview.</li>
       </ul>
     </section>
 
