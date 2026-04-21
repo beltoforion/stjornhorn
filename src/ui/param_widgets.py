@@ -419,14 +419,10 @@ class FilePathParamWidget(ParamWidgetBase):
         folder = path_obj.parent.resolve()
         initial = str(folder) if folder.is_dir() else str(self._base_dir)
 
-        # Parent is None on purpose: on Windows, passing any widget as
-        # parent to a native QFileDialog corrupts QGraphicsView paint
-        # state so the node canvas stays black after the dialog returns
-        # (#125). Centering is restored manually against the top-level
-        # window.
         caption = self._param.metadata.get(
             "caption", "Save File As" if self._is_save else "Select File",
         )
+        
         dialog = QFileDialog(QApplication.activeWindow(), caption)
         dialog.setNameFilter(self._filter)
         dialog.setDirectory(initial)
