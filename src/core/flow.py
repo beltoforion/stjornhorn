@@ -161,6 +161,13 @@ class Flow:
             for source in self.sources:
                 source.start()
 
+            # Every source has delivered all its data — signal end-of-stream
+            # centrally so lifetime doesn't have to ride the data channel.
+            # Propagates through the graph via the dispatcher in NodeBase.
+            for source in self.sources:
+                for out in source.outputs:
+                    out.finish()
+
             success = True
         finally:
             logger.info("Cleaning up nodes")

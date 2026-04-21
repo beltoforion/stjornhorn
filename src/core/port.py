@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable, TYPE_CHECKING
 
-from core.io_data import IoData, IoDataType
+from core.io_data import IoData
 
 if TYPE_CHECKING:
     pass
@@ -11,29 +11,34 @@ if TYPE_CHECKING:
 class InputPort:
     """A typed input connection point on a node.
 
-    accepted_types declares which IoDataType values this port can receive.
-    EndOfStream is always accepted regardless of accepted_types — it is a
-    control signal, not payload data.
+    ``accepted_types`` declares which :class:`~core.io_data.IoDataType`
+    values this port can receive.
 
-    on_data_received is a zero-argument callback invoked each time new data
-    arrives; nodes use it to trigger their processing logic.
+    ``on_state_changed`` is a zero-argument callback invoked each time
+    the port's state changes — either because new data was ``receive``-d
+    or because the upstream signalled :meth:`finish`. Nodes use it to
+    drive their dispatch logic.
 
-    An input port can be fed by **at most one** upstream OutputPort —
-    fan-in is not supported. The binding is maintained by
-    :meth:`OutputPort.connect` / :meth:`OutputPort.disconnect` and
-    exposed read-only through :attr:`upstream`.
+    An input port can be fed by **at most one** upstream
+    :class:`OutputPort` — fan-in is not supported. The binding is
+    maintained by :meth:`OutputPort.connect` / :meth:`OutputPort.disconnect`
+    and exposed read-only through :attr:`upstream`.
+
+    Stream lifetime is expressed via :meth:`finish` rather than via a
+    payload value, so :meth:`receive` only ever carries real data.
     """
 
     def __init__(
         self,
         name: str,
         accepted_types: set[IoDataType],
-        on_data_received: Callable[[], None] | None = None,
+        on_state_changed: Callable[[], None] | None = None,
     ) -> None:
         self.name = name
         self.accepted_types: frozenset[IoDataType] = frozenset(accepted_types)
-        self._on_data_received = on_data_received
+        self._on_state_changed = on_state_changed
         self._data: IoData | None = None
+        self._finished: bool = False
         self._upstream: "OutputPort | None" = None
 
     @property
@@ -47,27 +52,49 @@ class InputPort:
         return self._data
 
     @property
+    def finished(self) -> bool:
+        """True once :meth:`finish` has been called — no more data will arrive."""
+        return self._finished
+
+    @property
     def upstream(self) -> "OutputPort | None":
         """The OutputPort currently feeding this input, if any."""
         return self._upstream
 
     def receive(self, data: IoData) -> None:
-        if not data.is_end_of_stream() and data.type not in self.accepted_types:
+        if data.type not in self.accepted_types:
             raise TypeError(
                 f"Port '{self.name}' accepts {set(self.accepted_types)} "
                 f"but received {data.type}"
             )
+        if self._finished:
+            raise RuntimeError(
+                f"Port '{self.name}' received data after finish()"
+            )
         self._data = data
-        if self._on_data_received is not None:
-            self._on_data_received()
+        if self._on_state_changed is not None:
+            self._on_state_changed()
 
-    def set_on_data_received(self, callback: Callable[[], None]) -> None:
-        """Set the callback invoked each time new data arrives at this port.
+    def finish(self) -> None:
+        """Mark this input as finished; no further data will arrive.
 
-        NodeBase uses this during port registration to wire every input to
-        the owning node's ``_signal_input_ready`` dispatcher.
+        Fires the state-changed callback exactly like :meth:`receive` so
+        the owning node's dispatcher re-evaluates and can forward the
+        lifecycle signal downstream once every input has finished.
         """
-        self._on_data_received = callback
+        if self._finished:
+            return
+        self._finished = True
+        if self._on_state_changed is not None:
+            self._on_state_changed()
+
+    def set_on_state_changed(self, callback: Callable[[], None]) -> None:
+        """Set the callback invoked each time this port's state changes
+        (data arrival or finish). :class:`~core.node_base.NodeBase` uses
+        this during port registration to wire every input to the owning
+        node's dispatcher.
+        """
+        self._on_state_changed = callback
 
     def clear(self) -> None:
         self._data = None
@@ -76,14 +103,18 @@ class InputPort:
 class OutputPort:
     """A typed output connection point on a node.
 
-    emits declares which IoDataType values this port will send.  The UI and
-    Flow use this to validate connections before they are made: a connection
-    is only allowed if the output's emits set and the input's accepted_types
-    set have at least one type in common.
+    ``emits`` declares which :class:`~core.io_data.IoDataType` values this
+    port will send. The UI and :class:`~core.flow.Flow` use this to
+    validate connections before they are made: a connection is only
+    allowed if the output's ``emits`` set and the input's
+    ``accepted_types`` set have at least one type in common.
 
     Fan-out is allowed — one output can drive any number of inputs — but
     each input may have at most one upstream output (enforced by
     :meth:`connect`).
+
+    Stream lifetime is a separate channel: :meth:`finish` signals "no
+    more data will be sent", and propagates to every connected input.
     """
 
     def __init__(self, name: str, emits: set[IoDataType]) -> None:
@@ -94,6 +125,7 @@ class OutputPort:
         # send. Used by the viewer panel to show the current output of a
         # node without needing the flow to re-run on every selection.
         self._last_emitted: IoData | None = None
+        self._finished: bool = False
 
     # ── Connection management ──────────────────────────────────────────────────
 
@@ -146,12 +178,30 @@ class OutputPort:
     def clear_last_emitted(self) -> None:
         self._last_emitted = None
 
+    @property
+    def finished(self) -> bool:
+        """True once :meth:`finish` has been called on this output."""
+        return self._finished
+
     # ── Data flow ──────────────────────────────────────────────────────────────
 
     def send(self, data: IoData) -> None:
-        # Only cache real payload; EOS is a control signal and should not
-        # overwrite the last meaningful result the viewer wants to display.
-        if not data.is_end_of_stream():
-            self._last_emitted = data
+        if self._finished:
+            raise RuntimeError(
+                f"Output '{self.name}' send() called after finish()"
+            )
+        self._last_emitted = data
         for port in self._connections:
             port.receive(data)
+
+    def finish(self) -> None:
+        """Signal that no more data will be sent on this output.
+
+        Propagates to every connected input via :meth:`InputPort.finish`
+        so the downstream dispatcher can react. Idempotent.
+        """
+        if self._finished:
+            return
+        self._finished = True
+        for port in self._connections:
+            port.finish()

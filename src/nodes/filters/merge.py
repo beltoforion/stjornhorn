@@ -59,16 +59,17 @@ class Merge(NodeBase):
         anything, so waiting on them would deadlock the node.
         """
         connected = [p for p in self._inputs if p.upstream is not None]
-        if not connected or not all(p.has_data for p in connected):
+        if not connected:
             return
 
-        if any(p.data.is_end_of_stream() for p in connected):
-            self._on_end_of_stream()
-        else:
+        if all(p.has_data for p in connected):
             self.process()
+            for p in connected:
+                p.clear()
+            return
 
-        for p in connected:
-            p.clear()
+        if all(p.finished for p in connected):
+            self._on_finish()
 
     @override
     def process_impl(self) -> None:

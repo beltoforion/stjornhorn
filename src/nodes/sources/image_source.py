@@ -91,7 +91,6 @@ class ImageSource(SourceNodeBase):
                 raise OSError(f"cv2 could not read: {resolved}")
 
         self.outputs[0].send(IoData.from_image(image))
-        self.outputs[0].send(IoData.end_of_stream())
 
     # ── Internals ──────────────────────────────────────────────────────────────
 

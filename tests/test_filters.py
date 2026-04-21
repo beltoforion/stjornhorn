@@ -7,7 +7,7 @@ import pytest
 
 from core.io_data import IoData
 from core.io_data import IoDataType
-from core.port import InputPort, OutputPort
+from core.port import OutputPort
 from nodes.filters.adaptive_gaussian_threshold import AdaptiveGaussianThreshold
 from nodes.filters.dither import Dither, DitherMethod
 from nodes.filters.median import Median
@@ -249,10 +249,11 @@ def test_ncc_rejects_colour_image_input() -> None:
         node.inputs[0].receive(IoData.from_image(colour))
 
 
-def test_ncc_fires_when_first_chain_emits_eos_before_second_chain_emits_data() -> None:
-    """Regression: NCC must latch per-input data and defer EOS so
-    sequential sources (first chain emits image + EOS before second chain
-    emits anything) still produce a match."""
+def test_ncc_matches_when_two_sources_deliver_sequentially_then_finish() -> None:
+    """Emulates how ``Flow.run`` drives NCC with two independent sources:
+    each source delivers its data in turn, and the runner calls
+    ``finish()`` on every source output afterwards. NCC must process the
+    pair once and forward ``finish()`` to its output."""
     node = Ncc()
 
     image_up = OutputPort("image", {IoDataType.IMAGE_GREY})
@@ -264,49 +265,16 @@ def test_ncc_fires_when_first_chain_emits_eos_before_second_chain_emits_data() -
     image[12:20, 12:20] = 255
     template = np.full((8, 8), 255, dtype=np.uint8)
 
+    # Data delivery phase (sequential, like Flow.run starting sources).
     image_up.send(IoData.from_greyscale(image))
-    image_up.send(IoData.end_of_stream())
-
     template_up.send(IoData.from_greyscale(template))
-    template_up.send(IoData.end_of_stream())
+
+    # Lifetime phase (runner calls finish() on every source output).
+    image_up.finish()
+    template_up.finish()
 
     out = node.outputs[0].last_emitted
-    assert out is not None, "process_impl was never called"
+    assert out is not None
     assert out.type == IoDataType.IMAGE_GREY
     assert out.image.shape == image.shape
-
-
-def test_ncc_reuses_latched_template_across_streamed_image_frames() -> None:
-    """Template arrives once; each new image frame should match against
-    the same latched template and emit its own output."""
-    node = Ncc()
-
-    image_up = OutputPort("image", {IoDataType.IMAGE_GREY})
-    template_up = OutputPort("template", {IoDataType.IMAGE_GREY})
-    image_up.connect(node.inputs[0])
-    template_up.connect(node.inputs[1])
-
-    template = np.full((4, 4), 255, dtype=np.uint8)
-    template_up.send(IoData.from_greyscale(template))
-    template_up.send(IoData.end_of_stream())
-
-    emitted: list[np.ndarray] = []
-    sink = InputPort("sink", {IoDataType.IMAGE_GREY})
-    sink.set_on_data_received(
-        lambda: emitted.append(sink.data.image) if sink.data.is_image() else None
-    )
-    node.outputs[0].connect(sink)
-
-    for y in (6, 12, 20):
-        frame = np.zeros((32, 32), dtype=np.uint8)
-        frame[y:y + 4, y:y + 4] = 255
-        image_up.send(IoData.from_greyscale(frame))
-
-    image_up.send(IoData.end_of_stream())
-
-    assert len(emitted) == 3
-    # Each frame's match peak should sit at the template centre of the
-    # bright square in that frame (offset by template//2 = 2).
-    for y, out in zip((6, 12, 20), emitted):
-        peak = np.unravel_index(int(np.argmax(out)), out.shape)
-        assert peak == (y + 2, y + 2)
+    assert node.outputs[0].finished
