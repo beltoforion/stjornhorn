@@ -149,23 +149,27 @@ class Flow:
         if not self.sinks:
             raise RuntimeError("Flow has no sink node; at least one is required")
 
-        logger.info(f"initializing nodes")
+        logger.info("initializing nodes")
         
-        # initialize all nodes before starting any source, so that setup errors are
+        # initialize all nodes before starting any source
         for node in self._nodes:
             node.before_run()
 
-        # Starting a source node triggers the flow's execution. Each source's
+        # Starting a source node triggers the flow's execution
+        success : bool = False
         try:
             for source in self.sources:
                 source.start()
 
-            logger.info(f"Cleaning up nodes")
+            success = True
+        finally:
+            logger.info("Cleaning up nodes")
+
             for node in self._nodes:
-                node.after_run(True)
-        except Exception:
-            logger.info(f"Cleaning up nodes")
-            for node in self._nodes:
-                node.after_run(False)
+                try:
+                    node.after_run(success)
+                except Exception:
+                    logger.exception(f"Exception during cleanup of node {node.display_name} ({type(node).__name__})")
+
             raise
 
