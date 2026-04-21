@@ -27,14 +27,16 @@
     },
     {
       "id": 2,
-      "module": "nodes.sinks.file_sink",
-      "class": "FileSink",
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
       "position": [
-        -1012.0,
-        -487.0
+        -1050.2956204379564,
+        -663.5255474452556
       ],
       "params": {
-        "output_path": "xxx.mp4"
+        "output_path": "out.mp4",
+        "fps": 30.0,
+        "codec": 0
       }
     }
   ],
