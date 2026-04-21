@@ -140,18 +140,23 @@ def test_merge_does_not_fire_until_every_connected_input_has_data() -> None:
     assert node.outputs[0].last_emitted is not None
 
 
-def test_merge_forwards_end_of_stream() -> None:
+def test_merge_forwards_finish_once_every_connected_input_finishes() -> None:
     from core.port import InputPort
 
     node = Merge()
-    up = OutputPort("a", {IoDataType.IMAGE})
-    up.connect(node.inputs[0])
+    up0 = OutputPort("a", {IoDataType.IMAGE})
+    up1 = OutputPort("b", {IoDataType.IMAGE})
+    up0.connect(node.inputs[0])
+    up1.connect(node.inputs[1])
 
-    downstream_received: list[IoData] = []
     sink = InputPort("sink", {IoDataType.IMAGE})
-    sink.set_on_data_received(lambda: downstream_received.append(sink.data))
     node.outputs[0].connect(sink)
 
-    up.send(IoData.end_of_stream())
+    # Only one upstream finishing is not enough — the other is still live.
+    up0.finish()
+    assert not sink.finished
+    assert not node.outputs[0].finished
 
-    assert any(d.is_end_of_stream() for d in downstream_received)
+    up1.finish()
+    assert sink.finished
+    assert node.outputs[0].finished

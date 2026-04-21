@@ -35,13 +35,19 @@ def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
         pos = item.pos()
         node = item.node
         params = {p.name: _jsonable(getattr(node, p.name, None)) for p in node.params}
-        nodes_out.append({
+        entry: dict = {
             "id":       idx,
             "module":   type(node).__module__,
             "class":    type(node).__name__,
             "position": [float(pos.x()), float(pos.y())],
             "params":   params,
-        })
+        }
+        user_w, user_h = item.user_size
+        if user_w is not None or user_h is not None:
+            # Persist both axes even when only one is user-set so the
+            # load side can round-trip without needing null sentinels.
+            entry["size"] = [float(item.width), float(item.body_height)]
+        nodes_out.append(entry)
 
     connections_out: list[dict] = []
     for link in scene.iter_links():
@@ -105,6 +111,12 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
         pos = entry.get("position") or [0.0, 0.0]
         scene.add_node(node, QPointF(float(pos[0]), float(pos[1])))
         id_to_node[entry["id"]] = node
+
+        size = entry.get("size")
+        if size:
+            item = scene.node_item_for(node)
+            if item is not None:
+                item.apply_user_size(float(size[0]), float(size[1]))
 
     for conn in data.get("connections", []):
         src = id_to_node.get(conn.get("src_node"))

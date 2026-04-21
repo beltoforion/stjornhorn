@@ -86,5 +86,3 @@ class VideoSource(SourceNodeBase):
                     break
         finally:
             cap.release()
-
-        self.outputs[0].send(IoData.end_of_stream())

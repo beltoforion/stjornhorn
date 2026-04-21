@@ -192,6 +192,62 @@ class BoolParamWidget(ParamWidgetBase):
         return self._check.isChecked()
 
 
+class StringParamWidget(ParamWidgetBase):
+    """Line-edit editor for :attr:`NodeParamType.STRING` parameters.
+
+    Commits on ``editingFinished`` (Enter or focus loss) rather than on
+    every keystroke so a node setter that validates non-empty / bounded
+    inputs doesn't raise while the user is still typing.
+
+    Optional ``metadata`` keys:
+      * ``placeholder`` — placeholder text shown when the line is empty.
+      * ``max_length``  — hard character cap enforced by the widget.
+    """
+
+    def __init__(self, node: NodeBase, param: NodeParam) -> None:
+        super().__init__(node, param)
+        meta = param.metadata
+
+        self._line = QLineEdit()
+        self._line.setMinimumWidth(96)
+        placeholder = meta.get("placeholder")
+        if placeholder is not None:
+            self._line.setPlaceholderText(str(placeholder))
+        max_length = meta.get("max_length")
+        if max_length is not None:
+            self._line.setMaxLength(int(max_length))
+
+        self._line.setText(str(self._initial_value("")))
+        self._line.editingFinished.connect(self._on_editing_finished)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._line)
+
+    def _on_editing_finished(self) -> None:
+        value = self._line.text()
+        self._write_to_node(value)
+        # If the setter normalised the value (e.g. trimmed whitespace or
+        # rejected empty and kept the previous) mirror the canonical form
+        # back into the line edit so the user sees what's actually stored.
+        canonical = getattr(self._node, self._param.name, value)
+        if canonical != value:
+            self._line.blockSignals(True)
+            try:
+                self._line.setText(str(canonical))
+            finally:
+                self._line.blockSignals(False)
+        self.value_changed.emit(canonical)
+
+    @override
+    def set_value(self, value: object) -> None:
+        self._line.setText(str(value))
+
+    @override
+    def get_value(self) -> object:
+        return self._line.text()
+
+
 class EnumParamWidget(ParamWidgetBase):
     """Combo-box editor for :attr:`NodeParamType.ENUM` parameters.
 
@@ -403,6 +459,7 @@ _PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
     NodeParamType.FLOAT:     FloatParamWidget,
     NodeParamType.BOOL:      BoolParamWidget,
     NodeParamType.ENUM:      EnumParamWidget,
+    NodeParamType.STRING:    StringParamWidget,
 }
 
 

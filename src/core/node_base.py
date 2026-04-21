@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Callable, final, override
 
-from core.io_data import IoData
 from core.port import InputPort, OutputPort
 
 logger = logging.getLogger(__name__)
@@ -64,12 +63,13 @@ class NodeBase(ABC):
         to its OutputPorts.
       - OutputPort.send() forwards data to all connected InputPorts.
       - Each InputPort notifies its owner node via _signal_input_ready().
-      - Once all inputs have data, process() is invoked automatically.
-      - Inputs are cleared after each process() call so the node is ready
-        for the next frame.
-      - If any input carries EndOfStream, _on_end_of_stream() is called
-        instead of process(). By default this forwards EndOfStream to all
-        outputs so the signal propagates to the end of the graph.
+      - Once all inputs have data, process() is invoked automatically and
+        the inputs are cleared so the node is ready for the next frame.
+      - Stream lifetime is a separate signal: OutputPort.finish() marks an
+        output as done and propagates to every connected InputPort via its
+        finish() method. When every input has finished, _on_finish() fires;
+        the default implementation forwards finish() to all outputs so the
+        signal propagates to the end of the graph.
     """
 
     #: Default palette section for this class. Subclasses may override to
@@ -88,10 +88,9 @@ class NodeBase(ABC):
 
     def _add_input(self, port: InputPort) -> None:
         self._inputs.append(port)
-        # Wire the port so that data arriving at it drives this node's
-        # dispatcher: _signal_input_ready checks whether every input has
-        # data and, if so, invokes process() (or _on_end_of_stream()).
-        port.set_on_data_received(self._signal_input_ready)
+        # Wire the port so that any state change (data arrival or finish)
+        # drives this node's dispatcher.
+        port.set_on_state_changed(self._signal_input_ready)
 
     def _add_output(self, port: OutputPort) -> None:
         self._outputs.append(port)
@@ -154,21 +153,21 @@ class NodeBase(ABC):
     # ── Internal signal handling ───────────────────────────────────────────────
 
     def _signal_input_ready(self) -> None:
-        """Called by an InputPort whenever it receives new data.
+        """Called by an InputPort whenever its state changes.
 
-        Waits until every input has data, then dispatches to process() or
-        _on_end_of_stream() as appropriate, and clears all inputs afterwards.
+        Fires :meth:`process` as soon as every input has data and clears
+        the inputs afterwards so the node is ready for the next frame.
+        Fires :meth:`_on_finish` once every input has finished, so the
+        lifecycle signal propagates down the graph.
         """
-        if not all(p.has_data for p in self._inputs):
+        if all(p.has_data for p in self._inputs):
+            self.process()
+            for p in self._inputs:
+                p.clear()
             return
 
-        if any(p.data.is_end_of_stream() for p in self._inputs):
-            self._on_end_of_stream()
-        else:
-            self.process()
-
-        for p in self._inputs:
-            p.clear()
+        if self._inputs and all(p.finished for p in self._inputs):
+            self._on_finish()
 
     # ── Overridable behaviour ──────────────────────────────────────────────────
 
@@ -207,10 +206,15 @@ class NodeBase(ABC):
     def before_run(self) -> None:
         """Hook invoked before a flow run starts, after all nodes are constructed.
 
-        Default is no-op. Override this in nodes that need to do setup before
-        processing starts (e.g. open a file, start a thread, etc.) and tear
-        down in after_run().
+        Resets every port's lifecycle state so ``finished`` flags from a
+        previous run don't block this one (otherwise a source's first
+        ``send()`` raises ``send() called after finish()``), then
+        dispatches to :meth:`_before_run_impl` for subclass setup.
         """
+        for port in self._inputs:
+            port.reset()
+        for port in self._outputs:
+            port.reset()
         try:
             self._before_run_impl()
         except Exception:
@@ -239,15 +243,15 @@ class NodeBase(ABC):
         """Cleanup node data after a run"""
         logger.debug(f"_after_run_impl({run_success}): {self._display_name} ({type(self).__name__})")
 
-    def _on_end_of_stream(self) -> None:
-        """Called when any input receives EndOfStream.
+    def _on_finish(self) -> None:
+        """Called when every input has finished.
 
-        Default: forward EndOfStream to all outputs so the signal propagates
-        through the graph. SinkNodeBase overrides this to do nothing.
+        Default: forward :meth:`~core.port.OutputPort.finish` to all
+        outputs so the signal propagates through the graph.
+        :class:`SinkNodeBase` overrides this to do nothing.
         """
-        eos = IoData.end_of_stream()
         for port in self._outputs:
-            port.send(eos)
+            port.finish()
 
 
 # ── Abstract base classes for sources and sinks ────────────────────────────────
@@ -256,8 +260,11 @@ class SourceNodeBase(NodeBase, ABC):
     """Abstract base class for source nodes.
 
     A source has outputs only — it produces data and drives the pipeline by
-    implementing :meth:`process_impl`. Subclasses must call OutputPort.send()
-    for each frame and send IoData.end_of_stream() on all outputs when done.
+    implementing :meth:`process_impl`. Subclasses call ``OutputPort.send()``
+    for each frame and return when done; :class:`core.flow.Flow.run`
+    signals end-of-stream centrally by calling ``OutputPort.finish()`` on
+    every source output after every source has returned, so sources never
+    emit a lifecycle signal inline with data.
 
     :meth:`start` is the public entry point used by :class:`core.flow.Flow`
     to kick a source off. It is final and simply routes through
@@ -294,7 +301,7 @@ class SourceNodeBase(NodeBase, ABC):
         self.process()
 
     @override
-    def _on_end_of_stream(self) -> None:
+    def _on_finish(self) -> None:
         pass  # Sources have no inputs, so this is never triggered
 
 
@@ -312,5 +319,5 @@ class SinkNodeBase(NodeBase, ABC):
     def process_impl(self) -> None: ...
 
     @override
-    def _on_end_of_stream(self) -> None:
+    def _on_finish(self) -> None:
         pass  # Sinks have no outputs to forward to

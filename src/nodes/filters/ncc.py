@@ -24,20 +24,7 @@ class Ncc(NodeBase):
     centre). With ``retain_size=False`` the raw ``matchTemplate`` output
     is emitted, which is smaller than the input by ``template.shape - 1``
     on each axis.
-
-    Multi-input EOS handling: ``Flow.run`` drives sources serially, so
-    one upstream chain can deliver its data *and* EOS before the other
-    has emitted anything. The default dispatcher would see EOS on one
-    input paired with real data on the other and take the
-    :meth:`_on_end_of_stream` branch — skipping the match entirely. This
-    node overrides :meth:`_signal_input_ready` to latch the last real
-    frame on each input and only forward EOS once every input has seen
-    it, so processing runs whenever both image and template are
-    available even if one upstream finished first.
     """
-
-    _IMAGE_IDX = 0
-    _TEMPLATE_IDX = 1
 
     def __init__(self) -> None:
         super().__init__("NCC", section="Processing")
@@ -46,10 +33,6 @@ class Ncc(NodeBase):
         self._add_input(InputPort("image", {IoDataType.IMAGE_GREY}))
         self._add_input(InputPort("template", {IoDataType.IMAGE_GREY}))
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
-
-        self._latched: list[np.ndarray | None] = [None, None]
-        self._eos_seen: list[bool] = [False, False]
-        self._eos_forwarded: bool = False
 
         self._apply_default_params()
 
@@ -73,40 +56,9 @@ class Ncc(NodeBase):
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
-    def _before_run_impl(self) -> None:
-        super()._before_run_impl()
-        self._latched = [None, None]
-        self._eos_seen = [False, False]
-        self._eos_forwarded = False
-
-    @override
-    def _signal_input_ready(self) -> None:
-        new_frame = False
-        for idx, port in enumerate(self._inputs):
-            if not port.has_data:
-                continue
-            data = port.data
-            port.clear()
-            if data.is_end_of_stream():
-                self._eos_seen[idx] = True
-            else:
-                self._latched[idx] = data.image
-                new_frame = True
-
-        if new_frame and all(img is not None for img in self._latched):
-            self.process()
-
-        if not self._eos_forwarded and all(self._eos_seen):
-            self._eos_forwarded = True
-            eos = IoData.end_of_stream()
-            for out in self._outputs:
-                out.send(eos)
-
-    @override
     def process_impl(self) -> None:
-        image = self._latched[self._IMAGE_IDX]
-        template = self._latched[self._TEMPLATE_IDX]
-        assert image is not None and template is not None  # guarded by _signal_input_ready
+        image: np.ndarray = self.inputs[0].data.image
+        template: np.ndarray = self.inputs[1].data.image
 
         res = cv2.matchTemplate(image, template, cv2.TM_CCORR_NORMED)
         res = cv2.normalize(

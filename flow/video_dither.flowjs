@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "name": "video_dither",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.video_source",
+      "class": "VideoSource",
+      "position": [
+        -2305.028595467704,
+        -816.7123159642672
+      ],
+      "params": {
+        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
+        "max_num_frames": -1
+      },
+      "size": [
+        299.156587990836,
+        159.0
+      ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        -947.2956204379564,
+        -972.5255474452556
+      ],
+      "params": {
+        "output_path": "out.mp4",
+        "fps": 30.0,
+        "codec": 0
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1696.8849077379364,
+        -1122.303865416378
+      ],
+      "params": {},
+      "size": [
+        729.0,
+        587.1490067842365
+      ]
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.dither",
+      "class": "Dither",
+      "position": [
+        -1942.0,
+        -771.0
+      ],
+      "params": {
+        "method": 2
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    }
+  ]
+}

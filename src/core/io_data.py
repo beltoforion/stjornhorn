@@ -8,7 +8,6 @@ import numpy as np
 class IoDataType(Enum):
     IMAGE = "Image"
     IMAGE_GREY = "ImageGrey"
-    END_OF_STREAM = "EndOfStream"
 
 
 #: Set of :class:`IoDataType` values that carry image payloads. Useful for
@@ -18,17 +17,18 @@ IMAGE_TYPES: frozenset[IoDataType] = frozenset({IoDataType.IMAGE, IoDataType.IMA
 
 
 class IoData:
-    """Envelope that carries data between nodes in a flow.
+    """Envelope that carries a single image payload between nodes in a flow.
 
-    All ports exchange IoData objects.  The type field acts as a discriminator
-    so receiving nodes can decide how to handle the payload without inspecting
-    the payload itself.
+    All ports exchange :class:`IoData` objects. The :attr:`type` field acts
+    as a discriminator so receiving nodes can decide how to handle the
+    payload without inspecting the payload itself.
 
-    EndOfStream is a control signal — it carries no payload and is accepted
-    by every input port regardless of its declared accepted types.
+    Stream lifetime — the signal that a producer is done — is expressed
+    out of band via :meth:`core.port.OutputPort.finish`, not through a
+    payload value on this channel.
     """
 
-    def __init__(self, type: IoDataType, image: np.ndarray | None = None) -> None:
+    def __init__(self, type: IoDataType, image: np.ndarray) -> None:
         self._type = type
         self._image = image
 
@@ -48,10 +48,6 @@ class IoData:
         """
         return cls(IoDataType.IMAGE_GREY, image=image)
 
-    @classmethod
-    def end_of_stream(cls) -> IoData:
-        return cls(IoDataType.END_OF_STREAM)
-
     # ── Properties ─────────────────────────────────────────────────────────────
 
     @property
@@ -60,13 +56,7 @@ class IoData:
 
     @property
     def image(self) -> np.ndarray:
-        if self._type not in IMAGE_TYPES:
-            raise TypeError(f"IoData does not carry an image (type={self._type})")
-        assert self._image is not None
         return self._image
-
-    def is_end_of_stream(self) -> bool:
-        return self._type == IoDataType.END_OF_STREAM
 
     def is_image(self) -> bool:
         """Return True if this carries an image payload (colour or greyscale)."""
@@ -79,12 +69,8 @@ class IoData:
         IMAGE_GREY) matches the input without the filter having to branch on
         it explicitly.
         """
-        if not self.is_image():
-            raise TypeError(f"with_image only valid on image payloads (type={self._type})")
         return IoData(self._type, image=image)
 
     def __repr__(self) -> str:
-        if self.is_image():
-            shape = self._image.shape if self._image is not None else "?"
-            return f"IoData({self._type.name}, shape={shape})"
-        return f"IoData({self._type.value})"
+        shape = self._image.shape
+        return f"IoData({self._type.name}, shape={shape})"
