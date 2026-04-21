@@ -55,21 +55,35 @@ class DisplayPreview(_PreviewWidgetBase):
         self._label = QLabel()
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
-        self._label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        # Dark backdrop so empty/letterboxed space reads as "no frame".
+        # Expanding on both axes so the NodeItem's resize grip can grow
+        # the preview to fill the user-chosen body area.
+        self._label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._label.setStyleSheet(
             "QLabel { background: #111; border: 1px solid #333; }"
         )
         self._placeholder_text = "(no frame yet)"
         self._label.setText(self._placeholder_text)
 
+        # Mirror Expanding on the enclosing widget so its parent layout
+        # honours vertical stretch rather than collapsing to sizeHint.
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
         layout.addWidget(self._label)
 
+        # Original-resolution frame; we always scale from this to avoid
+        # losing quality on successive resizes.
+        self._source_image: QImage | None = None
+
         self._frame_ready.connect(self._on_frame_ready)
         node.set_frame_callback(self._emit_from_worker)
+
+    @override
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._render_scaled()
 
     # ── Worker thread ──────────────────────────────────────────────────────────
 
@@ -91,7 +105,13 @@ class DisplayPreview(_PreviewWidgetBase):
 
     @Slot(QImage)
     def _on_frame_ready(self, qimg: QImage) -> None:
-        pixmap = QPixmap.fromImage(qimg).scaled(
+        self._source_image = qimg
+        self._render_scaled()
+
+    def _render_scaled(self) -> None:
+        if self._source_image is None:
+            return
+        pixmap = QPixmap.fromImage(self._source_image).scaled(
             self._label.width(),
             self._label.height(),
             Qt.AspectRatioMode.KeepAspectRatio,

@@ -6,7 +6,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParam
 from core.port import InputPort, OutputPort
 
 
@@ -26,36 +26,20 @@ class Display(NodeBase):
 
     def __init__(self) -> None:
         super().__init__("Display", section="Output")
-        self._window_title: str = "Display"
         self._latest_frame: np.ndarray | None = None
         self._frame_callback: Callable[[np.ndarray], None] | None = None
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
-        self._apply_default_params()
-
     # ── Parameters ─────────────────────────────────────────────────────────────
 
     @property
     @override
     def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("window_title", NodeParamType.STRING, {"default": "Display"}),
-        ]
+        return []
 
     # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def window_title(self) -> str:
-        return self._window_title
-
-    @window_title.setter
-    def window_title(self, value: str) -> None:
-        v = str(value).strip()
-        if not v:
-            raise ValueError("window_title must be a non-empty string")
-        self._window_title = v
 
     @property
     def latest_frame(self) -> np.ndarray | None:

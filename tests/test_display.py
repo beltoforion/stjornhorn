@@ -7,7 +7,6 @@ These tests exercise the node's pass-through semantics, its
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from core.io_data import IoData, IoDataType
 from core.port import InputPort, OutputPort
@@ -134,7 +133,7 @@ def test_display_forwards_finish() -> None:
     assert node.outputs[0].finished
 
 
-def test_display_rejects_empty_window_title() -> None:
-    node = Display()
-    with pytest.raises(ValueError):
-        node.window_title = "   "
+def test_display_has_no_params() -> None:
+    # An inline preview makes window_title meaningless — Display
+    # deliberately exposes no params so it stays purely a live view.
+    assert Display().params == []
