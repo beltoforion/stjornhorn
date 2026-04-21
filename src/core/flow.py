@@ -171,5 +171,3 @@ class Flow:
                 except Exception:
                     logger.exception(f"Exception during cleanup of node {node.display_name} ({type(node).__name__})")
 
-            raise
-
