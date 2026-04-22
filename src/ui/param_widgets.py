@@ -19,19 +19,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from constants import INPUT_DIR, OUTPUT_DIR
+from constants import (
+    FILE_OPEN_FILTER,
+    FILE_SAVE_FILTER,
+    INPUT_DIR,
+    OUTPUT_DIR,
+    VIDEO_OPEN_FILTER,
+    VIDEO_SAVE_FILTER,
+)
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from ui.controls.scene_aware_combobox import SceneAwareComboBox
 from ui.icons import material_icon
 
 logger = logging.getLogger(__name__)
-
-
-_SAVE_FILTER = "Images (*.png *.jpg *.jpeg)"
-_OPEN_FILTER = (
-    "Images / video (*.png *.jpg *.jpeg *.mp4 *.cr2);;"
-    "All files (*)"
-)
 
 
 class ParamWidgetBase(QWidget):
@@ -341,6 +341,7 @@ class FilePathParamWidget(ParamWidgetBase):
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
         super().__init__(node, param)
         self._is_save = param.metadata.get("mode") == "save"
+        self._is_video = param.metadata.get("filetype") == "video"
 
         self._line = QLineEdit()
         self._line.setPlaceholderText("Select a file…")
@@ -399,12 +400,14 @@ class FilePathParamWidget(ParamWidgetBase):
         initial = str(folder) if folder.is_dir() else str(fallback)
 
         if self._is_save:
+            save_filter = VIDEO_SAVE_FILTER if self._is_video else FILE_SAVE_FILTER
             path, _ = QFileDialog.getSaveFileName(
-                self._line, "Save File As", initial, _SAVE_FILTER,
+                self._line, "Save File As", initial, save_filter,
             )
         else:
+            open_filter = VIDEO_OPEN_FILTER if self._is_video else FILE_OPEN_FILTER
             path, _ = QFileDialog.getOpenFileName(
-                self._line, "Select File", initial, _OPEN_FILTER,
+                self._line, "Select File", initial, open_filter,
             )
         if path:
             # Run the value through the node setter (which may normalise it
