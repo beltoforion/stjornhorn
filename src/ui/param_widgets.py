@@ -360,7 +360,9 @@ class FilePathParamWidget(ParamWidgetBase):
         # self._view exists, since _update_view_enabled touches it.
         self._line.textChanged.connect(self._on_value_changed)
         self._line.textChanged.connect(self._update_view_enabled)
-        self._line.setText(str(self._initial_value("")))
+        initial = str(self._initial_value(""))
+        self._path = Path(initial)
+        self._line.setText(initial)
         self._update_view_enabled()
 
         layout = QHBoxLayout(self)
@@ -376,6 +378,7 @@ class FilePathParamWidget(ParamWidgetBase):
 
     @override
     def set_value(self, value: object) -> None:
+        self._path = Path(str(value))
         self._line.setText(str(value))
 
     @override
