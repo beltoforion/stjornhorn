@@ -52,8 +52,8 @@
       "module": "nodes.filters.ncc",
       "class": "Ncc",
       "position": [
-        -2083.305266489003,
-        -1035.9882758918577
+        -2087.7299281000087,
+        -1022.7142910588416
       ],
       "params": {
         "retain_size": true
@@ -64,8 +64,8 @@
       "module": "nodes.filters.grayscale",
       "class": "Grayscale",
       "position": [
-        -2249.826781741819,
-        -1068.3335919643123
+        -2279.6932476161055,
+        -999.7513369937287
       ],
       "params": {}
     },
@@ -86,8 +86,8 @@
       "module": "nodes.filters.grayscale",
       "class": "Grayscale",
       "position": [
-        -2320.1664958813276,
-        -884.191442027187
+        -2278.1322105767763,
+        -922.9072311234843
       ],
       "params": {}
     },
@@ -96,8 +96,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1926.033235122154,
-        -1208.7024212963986
+        -1924.927069719403,
+        -1151.181820353329
       ],
       "params": {}
     }
