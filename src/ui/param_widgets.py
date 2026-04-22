@@ -348,7 +348,7 @@ class FilePathParamWidget(ParamWidgetBase):
 
         browse = QPushButton("...")
         browse.setFixedWidth(36)
-        browse.clicked.connect(self._browse)
+        browse.clicked.connect(self._open_file_dialog)
 
         self._view = QPushButton()
         self._view.setIcon(material_icon("visibility"))
@@ -382,7 +382,7 @@ class FilePathParamWidget(ParamWidgetBase):
     def get_value(self) -> object:
         return self._line.text()
 
-    def _browse(self) -> None:
+    def _open_file_dialog(self) -> None:
         current = self._line.text() or ""
         # Relative values (e.g. "out.png" or "example.jpg") are stored
         # relative to the node's base_dir, so resolve against that base
