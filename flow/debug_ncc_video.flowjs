@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "name": "video_dither",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.video_source",
+      "class": "VideoSource",
+      "position": [
+        -2561.334973768244,
+        -1158.518792978298
+      ],
+      "params": {
+        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
+        "max_num_frames": -1
+      },
+      "size": [
+        299.156587990836,
+        159.0
+      ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        -899.8485438856733,
+        -920.8837662684367
+      ],
+      "params": {
+        "output_path": "out.mp4",
+        "fps": 30.0,
+        "codec": 0
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1762.9944107955318,
+        -1393.0306197486948
+      ],
+      "params": {},
+      "size": [
+        800.0,
+        598.3631556954801
+      ]
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.ncc",
+      "class": "Ncc",
+      "position": [
+        -1954.1857200003665,
+        -1098.1569464234233
+      ],
+      "params": {
+        "retain_size": true
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [
+        -2184.071457141125,
+        -1059.9647324696782
+      ],
+      "params": {}
+    },
+    {
+      "id": 5,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -2537.0093685547704,
+        -939.5284632621165
+      ],
+      "params": {
+        "file_path": "pad.jpg"
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [
+        -2169.5270249779187,
+        -886.5825447399395
+      ],
+      "params": {}
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 1
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    }
+  ]
+}
