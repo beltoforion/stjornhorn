@@ -66,7 +66,7 @@ class VideoSink(SinkNodeBase):
     @override
     def params(self) -> list[NodeParam]:
         return [
-            NodeParam("output_path", NodeParamType.FILE_PATH, {"default": "out.mp4", "mode": "save", "filetype": "video"}),
+            NodeParam("output_path", NodeParamType.FILE_PATH, {"default": "out.mp4", "mode": "save", "filter": "Video (*.mp4)"}),
             NodeParam("fps",         NodeParamType.FLOAT,     {"default": 30.0}),
             NodeParam(
                 "codec",

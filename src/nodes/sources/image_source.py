@@ -46,7 +46,7 @@ class ImageSource(SourceNodeBase):
     @override
     def params(self) -> list[NodeParam]:
         return [
-            NodeParam("file_path", NodeParamType.FILE_PATH, {"default": "example.jpg", "filetype": "image"}),
+            NodeParam("file_path", NodeParamType.FILE_PATH, {"default": "example.jpg", "filter": "Images (*.webp, *.png *.jpg *.jpeg *.cr2)"}),
         ]
 
     @property

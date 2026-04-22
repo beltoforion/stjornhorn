@@ -39,7 +39,7 @@ class VideoSource(SourceNodeBase):
     @override
     def params(self) -> list[NodeParam]:
         return [
-            NodeParam("file_path",      NodeParamType.FILE_PATH, {"default": "./input/example.mp4", "filetype": "video"}),
+            NodeParam("file_path",      NodeParamType.FILE_PATH, {"default": "./input/example.mp4", "filter": "Video (*.mp4 *.avi *.mov *.mkv)"}),
             NodeParam("max_num_frames", NodeParamType.INT,       {"default": -1}),
         ]
 

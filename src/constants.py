@@ -35,12 +35,6 @@ BUILTIN_NODES_DIR: Path = Path(__file__).parent / "nodes"
 INPUT_DIR:  Path = Path(__file__).parent.parent / "input"
 OUTPUT_DIR: Path = Path(__file__).parent.parent / "output"
 
-# File dialog extension filters used by FilePathParamWidget.
-FILE_SAVE_FILTER:  str = "Images (*.png *.jpg *.jpeg)"
-FILE_OPEN_FILTER:  str = "Images (*.webp, *.png *.jpg *.jpeg *.cr2)"
-VIDEO_SAVE_FILTER: str = "Video (*.mp4)"
-VIDEO_OPEN_FILTER: str = "Video (*.mp4 *.avi *.mov *.mkv)"
-
 # Folder where saved flows are written (one JSON file per flow).
 FLOW_DIR:   Path = Path(__file__).parent.parent / "flow"
 
