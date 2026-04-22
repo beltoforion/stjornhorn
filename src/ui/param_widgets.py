@@ -378,17 +378,25 @@ class FilePathParamWidget(ParamWidgetBase):
 
     @override
     def set_value(self, value: object) -> None:
-        new_path = Path(str(value)).resolve()
-        if new_path in self._base_dir.parents:
-            # check if the path is a child of the base dir; if so, display it as 
-            # a relative path to keep saved flows portable across machines with 
-            # different absolute layouts
+        text = str(value)
+        if not text:
+            self._line.setText("")
+            self._path = Path()
+            return
+
+        # Relative inputs are resolved against base_dir (matching the
+        # node setters), not the process CWD.
+        raw = Path(text)
+        new_path = (raw if raw.is_absolute() else self._base_dir / raw).resolve()
+
+        # Paths that live under base_dir are displayed as relative, so
+        # saved flows stay portable across machines with different
+        # absolute layouts.
+        if new_path.is_relative_to(self._base_dir):
             self._line.setText(new_path.relative_to(self._base_dir).as_posix())
         else:
-            # otherwise, display it as an absolute path
             self._line.setText(new_path.as_posix())
-
-        self._path = new_path.resolve()
+        self._path = new_path
 
     @override
     def get_value(self) -> object:
