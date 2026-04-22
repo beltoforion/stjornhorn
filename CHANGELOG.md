@@ -10,6 +10,16 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Fixed
+- **Mixing a one-shot source with a streaming source** into a
+  multi-input filter (e.g. Image Source → NCC ← Video Source) now
+  produces one output per streaming frame instead of a single result.
+  `Flow.run` schedules reactive (one-shot) sources ahead of streaming
+  ones, `SourceNodeBase.start` finishes reactive outputs immediately,
+  and `InputPort.clear` retains data from a finished upstream so the
+  latched value stays available across every downstream `process`
+  call.
+
 ## [0.1.3] — 2026-04-21
 
 ### Added

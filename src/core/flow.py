@@ -155,16 +155,27 @@ class Flow:
         for node in self._nodes:
             node.before_run()
 
-        # Starting a source node triggers the flow's execution
+        # Starting a source node triggers the flow's execution.
+        # Reactive (one-shot) sources run first so their value is latched
+        # on downstream inputs before any streaming source starts pushing
+        # frames — otherwise a multi-input filter like Ncc would only
+        # process once, at the moment the one-shot source finally fires.
+        # See SourceNodeBase.start() and InputPort.clear() for the two
+        # halves of the latching mechanism.
+        ordered_sources = sorted(self.sources, key=lambda s: not s.is_reactive)
+
         success : bool = False
         try:
-            for source in self.sources:
+            for source in ordered_sources:
                 source.start()
 
             # Every source has delivered all its data — signal end-of-stream
             # centrally so lifetime doesn't have to ride the data channel.
             # Propagates through the graph via the dispatcher in NodeBase.
-            for source in self.sources:
+            # Reactive sources already finished their outputs inside
+            # start(); OutputPort.finish() is idempotent so calling again
+            # here is harmless and keeps streaming sources covered.
+            for source in ordered_sources:
                 for out in source.outputs:
                     out.finish()
 

@@ -97,6 +97,18 @@ class InputPort:
         self._on_state_changed = callback
 
     def clear(self) -> None:
+        """Drop buffered data so the owning node can receive the next frame.
+
+        Data from an upstream that has already called :meth:`finish` is
+        retained (latched) rather than cleared. That lets a one-shot
+        source — e.g. :class:`~nodes.sources.image_source.ImageSource`
+        wired into the ``template`` input of
+        :class:`~nodes.filters.ncc.Ncc` — stay available while another
+        (streaming) source continues to push frames through the other
+        input.
+        """
+        if self._finished:
+            return
         self._data = None
 
     def reset(self) -> None:

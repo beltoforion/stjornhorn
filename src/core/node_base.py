@@ -297,8 +297,17 @@ class SourceNodeBase(NodeBase, ABC):
         Kept as a distinct entry point so :meth:`core.flow.Flow.run` can
         tell source nodes apart from ordinary nodes without type-sniffing
         on every call.
+
+        Reactive sources emit a single value, so their outputs are
+        finished right after :meth:`process` returns. Combined with the
+        latching behaviour in :meth:`core.port.InputPort.clear`, that
+        lets the one-shot value persist on downstream inputs while other
+        (streaming) sources keep pushing frames.
         """
         self.process()
+        if self.is_reactive:
+            for out in self._outputs:
+                out.finish()
 
     @override
     def _on_finish(self) -> None:

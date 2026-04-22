@@ -12,6 +12,7 @@ from core.flow import Flow
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeParam, SourceNodeBase
 from core.port import OutputPort
+from nodes.filters.ncc import Ncc
 from nodes.sinks.video_sink import VideoSink
 
 
@@ -128,6 +129,100 @@ def test_video_sink_finish_releases_writer(tmp_path: Path) -> None:
     up.finish()
     assert node._writer is None  # released by _on_finish
     node.after_run(True)
+
+
+class _GreyFrameListSource(SourceNodeBase):
+    """Streaming greyscale source — emits every supplied frame in order."""
+
+    def __init__(self, frames: list[np.ndarray]) -> None:
+        super().__init__("Grey Frame List", section="Sources")
+        self._frames = frames
+        self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
+
+    @property
+    @override
+    def params(self) -> list[NodeParam]:
+        return []
+
+    @override
+    def process_impl(self) -> None:
+        for frame in self._frames:
+            self.outputs[0].send(IoData.from_greyscale(frame))
+
+
+class _ReactiveImageSource(SourceNodeBase):
+    """One-shot reactive greyscale source — emits a single frame."""
+
+    def __init__(self, frame: np.ndarray) -> None:
+        super().__init__("Reactive Image", section="Sources")
+        self._frame = frame
+        self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
+
+    @property
+    @override
+    def params(self) -> list[NodeParam]:
+        return []
+
+    @property
+    @override
+    def is_reactive(self) -> bool:
+        return True
+
+    @override
+    def process_impl(self) -> None:
+        self.outputs[0].send(IoData.from_greyscale(self._frame))
+
+
+def test_flow_latches_reactive_source_across_streaming_frames(tmp_path: Path) -> None:
+    """A reactive (one-shot) source feeding one input of a multi-input
+    filter must stay available while a streaming source drives the other
+    input — otherwise only one paired frame would reach the sink.
+
+    Regression for the debug_ncc_video flow: Ncc takes (image, template);
+    with VideoSource on ``image`` and ImageSource on ``template``, every
+    video frame must produce an Ncc output, not just the last one."""
+    template = np.full((8, 8), 255, dtype=np.uint8)
+    frames: list[np.ndarray] = []
+    # Five frames, each with the bright patch in a different spot so the
+    # matching peak differs per-frame — sanity check the flow actually
+    # processes each one rather than re-emitting the same result.
+    for i in range(5):
+        f = np.zeros((32, 32), dtype=np.uint8)
+        f[4 + i:10 + i, 4 + i:10 + i] = 255
+        frames.append(f)
+
+    image_src = _GreyFrameListSource(frames)
+    template_src = _ReactiveImageSource(template)
+    ncc = Ncc()
+    sink = VideoSink()
+    sink.output_path = tmp_path / "latched.mp4"
+    sink.fps = 30.0
+
+    flow = Flow("latched")
+    # Registration order intentionally puts the streaming source first —
+    # the runner must still schedule the reactive one-shot source ahead.
+    flow.add_node(image_src)
+    flow.add_node(template_src)
+    flow.add_node(ncc)
+    flow.add_node(sink)
+    flow.connect(image_src, 0, ncc, 0)
+    flow.connect(template_src, 0, ncc, 1)
+    flow.connect(ncc, 0, sink, 0)
+
+    flow.run()
+
+    assert sink.output_path.exists() and sink.output_path.stat().st_size > 0
+    cap = cv2.VideoCapture(str(sink.output_path))
+    try:
+        count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    finally:
+        cap.release()
+    # The pre-fix behaviour emitted exactly one frame; insist on more
+    # than that. MP4V frame-count reporting can be fuzzy, so accept any
+    # count comfortably above one.
+    assert count >= len(frames) - 1, (
+        f"expected ~{len(frames)} frames in output, got {count}"
+    )
 
 
 def test_flow_can_be_run_twice(tmp_path: Path) -> None:
