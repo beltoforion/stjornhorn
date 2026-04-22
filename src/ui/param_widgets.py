@@ -337,7 +337,7 @@ class FilePathParamWidget(ParamWidgetBase):
         self._filter = str(param.metadata.get("filter", ""))
         self._base_dir = Path(
             param.metadata.get("base_dir", OUTPUT_DIR if self._is_save else INPUT_DIR)
-        )
+        ).resolve()
 
         self._line = QLineEdit()
         self._line.setPlaceholderText("Select a file…")
@@ -360,7 +360,9 @@ class FilePathParamWidget(ParamWidgetBase):
         # self._view exists, since _update_view_enabled touches it.
         self._line.textChanged.connect(self._on_value_changed)
         self._line.textChanged.connect(self._update_view_enabled)
-        self._line.setText(str(self._initial_value("")))
+
+        # initialize self._path and the line edit's text to the node's current value (or the
+        self.set_value(str(self._initial_value(""))) 
         self._update_view_enabled()
 
         layout = QHBoxLayout(self)
@@ -376,7 +378,29 @@ class FilePathParamWidget(ParamWidgetBase):
 
     @override
     def set_value(self, value: object) -> None:
-        self._line.setText(str(value))
+        text = str(value)
+        if not text:
+            self._path = Path()
+            self._line.setText("")
+            return
+
+        # Relative inputs are resolved against base_dir (matching the
+        # node setters), not the process CWD.
+        raw = Path(text)
+        new_path = (raw if raw.is_absolute() else self._base_dir / raw).resolve()
+
+        # Paths that live under base_dir are displayed as relative, so
+        # saved flows stay portable across machines with different
+        # absolute layouts.
+        if new_path.is_relative_to(self._base_dir):
+            display = new_path.relative_to(self._base_dir).as_posix()
+        else:
+            display = new_path.as_posix()
+
+        # Assign _path before setText so the textChanged slots
+        # (_update_view_enabled in particular) see a valid path.
+        self._path = new_path
+        self._line.setText(display)
 
     @override
     def get_value(self) -> object:
@@ -418,19 +442,8 @@ class FilePathParamWidget(ParamWidgetBase):
             self._update_view_enabled()
             self.value_changed.emit(canonical)
 
-    def _resolved_current_path(self) -> Path:
-        """Return the absolute path referenced by the line edit.
-
-        Relative values are joined with the node's base_dir to match
-        how the corresponding node setters resolve them.
-        """
-        p = Path(self._line.text() or "")
-        if not p.is_absolute():
-            p = self._base_dir / p
-        return p
-
     def _update_view_enabled(self) -> None:
-        self._view.setEnabled(self._resolved_current_path().is_file())
+        self._view.setEnabled(self._path.is_file())
 
     @override
     def refresh(self) -> None:
@@ -441,9 +454,8 @@ class FilePathParamWidget(ParamWidgetBase):
         self._update_view_enabled()
 
     def _open_in_viewer(self) -> None:
-        path = self._resolved_current_path()
-        if path.is_file():
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        if self._path.is_file():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(self._path)))
 
 
 # ── Registry & factory ─────────────────────────────────────────────────────────

@@ -2,9 +2,6 @@
   <img src="assets/title.png" alt="Stjörnhorn" width="640"/>
 </p>
 
-This is a vibe coding experiment. It is based on an image processing pipeline that
-was written traditionally for illustrating articles on my web page beltoforion.de. 
-
 # Stjörnhorn
 
 A Python desktop application for building image- and video-processing
