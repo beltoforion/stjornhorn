@@ -194,6 +194,40 @@ def _paint_splash_text(pixmap: QPixmap) -> QPixmap:
     return canvas
 
 
+def _warmup_numba() -> None:
+    """Force numba's lazy registry loading onto the main thread.
+
+    Numba lazily loads its compilation registries the first time any
+    ``@njit`` function is compiled or a cached overload is loaded in a
+    process (``numba.core.cpu.load_additional_registries`` → imports of
+    ``charseq`` → ``unicode`` → ``hashing`` → ``randomimpl``). If that
+    first compile happens on a :class:`QThread` worker — as it does
+    when :class:`FlowRunner` executes a node like :class:`Dither` — the
+    import chain runs under GC pressure on a non-main thread, and has
+    been observed to segfault in Python's ABC class construction on
+    some numba/CPython builds (fatal "Garbage-collecting" crash in
+    ``abc.__new__``).
+
+    Compiling a trivial njit here runs the whole lazy-import chain on
+    the main thread at startup, so workers later only ever hit an
+    already-populated registry.
+    """
+    try:
+        import numba
+        import numpy as np
+
+        @numba.njit(cache=True)
+        def _noop(x: np.ndarray) -> np.ndarray:
+            return x + 1
+
+        _noop(np.zeros(1, dtype=np.float32))
+    except Exception:
+        # Warmup is a stability measure, not a correctness requirement —
+        # if numba itself is broken the real JIT call will surface the
+        # error at run time with a more useful traceback.
+        logger.exception("numba warmup failed; continuing without it")
+
+
 def _make_splash(screen: QScreen) -> QSplashScreen | None:
     """Build the startup splash screen, or return ``None`` if the image
     is missing / unreadable. Never fatal — a missing splash should not
@@ -266,6 +300,11 @@ def main(argv: list[str]) -> int:
     if splash is not None:
         splash.show()
         app.processEvents()
+
+    # Must happen on the main thread, before any FlowRunner QThread can
+    # trigger its own first @njit compile — see _warmup_numba for the
+    # segfault this prevents.
+    _warmup_numba()
 
     window = MainWindow(initial_flow_path=initial_flow_path)
     # Anchor the window on the chosen monitor before maximizing so the
