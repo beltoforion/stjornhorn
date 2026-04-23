@@ -10,6 +10,22 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-04-23
+
+### Fixed
+- **Blank node bodies after the display blanks/resumes** on Linux
+  dual-monitor setups. Each node's parameter editors are hosted by a
+  `QGraphicsProxyWidget`, whose offscreen surface gets invalidated when
+  DPMS kicks in or the screen layout changes — leaving every node with
+  only its painted frame (header, ports, close button, resize grip) and
+  no interior content. `FlowView` now listens for `screenAdded`,
+  `screenRemoved`, `primaryScreenChanged`, the window's `screenChanged`,
+  and the view's `QEvent.ScreenChangeInternal`, and on any of those it
+  clears `QPixmapCache` and forces every proxy widget in the scene to
+  repaint. Every screen-topology event is also logged (screen name,
+  geometry, device-pixel ratio, refresh rate) so post-mortems show
+  exactly what the window system did.
+
 ## [0.1.4] — 2026-04-23
 
 ### Fixed

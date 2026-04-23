@@ -4,9 +4,9 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QMarginsF, QPoint, Qt
-from PySide6.QtGui import QPainter, QPen
-from PySide6.QtWidgets import QGraphicsView
+from PySide6.QtCore import QEvent, QMarginsF, QPoint, Qt
+from PySide6.QtGui import QGuiApplication, QPainter, QPen, QPixmapCache
+from PySide6.QtWidgets import QGraphicsProxyWidget, QGraphicsView
 
 from ui.node_list import NODE_LIST_MIME_TYPE
 from ui.theme import CANVAS_BACKGROUND_COLOR, CANVAS_GRID_COLOR
@@ -45,6 +45,120 @@ class FlowView(QGraphicsView):
 
         self._panning: bool = False
         self._pan_last: QPoint | None = None
+
+        self._screen_hooks_connected: bool = False
+        self._connect_screen_hooks()
+
+    # ── Display-change recovery ────────────────────────────────────────────────
+    #
+    # Each parameter editor inside a node is hosted by a QGraphicsProxyWidget
+    # that renders the embedded QWidget into an offscreen surface and then
+    # composites it. On Linux (especially dual-monitor setups) that surface
+    # can be invalidated when displays blank (DPMS), suspend, or when the
+    # screen layout changes. The node's own paint() still runs — so headers,
+    # ports, close button, and resize grip remain visible — but the proxy's
+    # contents disappear until something forces a full repaint. We listen
+    # for the application- and window-level screen events and, when one
+    # fires, clear the pixmap cache and force every proxy to repaint.
+
+    def _connect_screen_hooks(self) -> None:
+        if self._screen_hooks_connected:
+            return
+        app = QGuiApplication.instance()
+        if app is None:
+            return
+        app.screenAdded.connect(self._on_screen_added)
+        app.screenRemoved.connect(self._on_screen_removed)
+        app.primaryScreenChanged.connect(self._on_primary_screen_changed)
+        self._screen_hooks_connected = True
+        self._log_screen_layout("initial")
+
+    def showEvent(self, event) -> None:  # type: ignore[override]
+        super().showEvent(event)
+        window = self.window()
+        handle = window.windowHandle() if window is not None else None
+        if handle is not None:
+            try:
+                handle.screenChanged.connect(
+                    self._on_window_screen_changed,
+                    Qt.ConnectionType.UniqueConnection,
+                )
+            except (RuntimeError, TypeError):
+                # Already connected, or handle has no such signal on this platform.
+                pass
+
+    def changeEvent(self, event) -> None:  # type: ignore[override]
+        if event.type() == QEvent.Type.ScreenChangeInternal:
+            self._recover_from_display_change("view ScreenChangeInternal")
+        super().changeEvent(event)
+
+    def _on_screen_added(self, screen) -> None:
+        name = screen.name() if screen is not None else "<none>"
+        logger.info("Screen added: %s", name)
+        self._log_screen_layout("after add")
+        self._recover_from_display_change(f"screen added: {name}")
+
+    def _on_screen_removed(self, screen) -> None:
+        name = screen.name() if screen is not None else "<none>"
+        logger.info("Screen removed: %s", name)
+        self._log_screen_layout("after remove")
+        self._recover_from_display_change(f"screen removed: {name}")
+
+    def _on_primary_screen_changed(self, screen) -> None:
+        name = screen.name() if screen is not None else "<none>"
+        logger.info("Primary screen changed → %s", name)
+        self._log_screen_layout("after primary change")
+        self._recover_from_display_change(f"primary screen changed: {name}")
+
+    def _on_window_screen_changed(self, screen) -> None:
+        name = screen.name() if screen is not None else "<none>"
+        logger.info("Main window moved to screen: %s", name)
+        self._recover_from_display_change(f"window screen changed: {name}")
+
+    def _log_screen_layout(self, reason: str) -> None:
+        app = QGuiApplication.instance()
+        if app is None:
+            return
+        screens = app.screens()
+        primary = app.primaryScreen()
+        logger.info(
+            "Screen layout (%s): %d screen(s), primary=%s",
+            reason,
+            len(screens),
+            primary.name() if primary is not None else "<none>",
+        )
+        for i, screen in enumerate(screens):
+            geom = screen.geometry()
+            logger.info(
+                "  [%d] %s  geom=%dx%d+%d+%d  dpr=%.2f  refresh=%.1fHz",
+                i,
+                screen.name(),
+                geom.width(),
+                geom.height(),
+                geom.x(),
+                geom.y(),
+                screen.devicePixelRatio(),
+                screen.refreshRate(),
+            )
+
+    def _recover_from_display_change(self, reason: str) -> None:
+        logger.info("Repainting nodes after display change (%s)", reason)
+        QPixmapCache.clear()
+        scene = self.scene()
+        if scene is None:
+            return
+        for item in scene.items():
+            proxy = item if isinstance(item, QGraphicsProxyWidget) else getattr(
+                item, "_proxy", None
+            )
+            if not isinstance(proxy, QGraphicsProxyWidget):
+                continue
+            widget = proxy.widget()
+            if widget is not None:
+                widget.repaint()
+            proxy.update()
+        scene.update()
+        self.viewport().update()
 
     # ── Zoom ───────────────────────────────────────────────────────────────────
 
