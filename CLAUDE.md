@@ -1,7 +1,7 @@
 # Repository Rules
 
 ## Pull Requests
-- For every pull request you open, increment the version number as part of the PR.
+- When a pull request changes source code, increment the version number as part of the PR. Skip the bump for PRs that only touch docs, config, CI, or similar non-source changes.
 
 ## Branch Hygiene
 - Keep working branches regularly updated from the main branch (fetch + merge/rebase from `main`) while work is in progress.
