@@ -4,8 +4,8 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QMarginsF, QPoint, Qt
-from PySide6.QtGui import QPainter, QPen
+from PySide6.QtCore import QEvent, QMarginsF, QPoint, Qt
+from PySide6.QtGui import QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QGraphicsView
 
 from ui.node_list import NODE_LIST_MIME_TYPE
@@ -45,6 +45,96 @@ class FlowView(QGraphicsView):
 
         self._panning: bool = False
         self._pan_last: QPoint | None = None
+
+        self._screen_hooks_connected: bool = False
+        self._connect_screen_hooks()
+
+    # ── Screen-topology logging ────────────────────────────────────────────────
+    #
+    # Record the initial screen layout and every subsequent change Qt reports
+    # so we can correlate render glitches with display events in post-mortems.
+    # No recovery logic lives here — we've seen blank-node reports from brief
+    # OS-initiated screen blackouts (Linux Mint / X11 / NVIDIA) that don't
+    # trigger any of these Qt signals, so relying on them to heal the UI
+    # would be misleading.
+
+    def _connect_screen_hooks(self) -> None:
+        if self._screen_hooks_connected:
+            return
+        app = QGuiApplication.instance()
+        if app is None:
+            return
+        app.screenAdded.connect(self._on_screen_added)
+        app.screenRemoved.connect(self._on_screen_removed)
+        app.primaryScreenChanged.connect(self._on_primary_screen_changed)
+        self._screen_hooks_connected = True
+        self._log_screen_layout("initial")
+
+    def showEvent(self, event) -> None:  # type: ignore[override]
+        super().showEvent(event)
+        window = self.window()
+        handle = window.windowHandle() if window is not None else None
+        if handle is not None:
+            try:
+                handle.screenChanged.connect(
+                    self._on_window_screen_changed,
+                    Qt.ConnectionType.UniqueConnection,
+                )
+            except (RuntimeError, TypeError):
+                # Already connected, or handle has no such signal on this platform.
+                pass
+
+    def changeEvent(self, event) -> None:  # type: ignore[override]
+        if event.type() == QEvent.Type.ScreenChangeInternal:
+            logger.info("FlowView received ScreenChangeInternal")
+        super().changeEvent(event)
+
+    def _on_screen_added(self, screen) -> None:
+        logger.info("Screen added: %s", screen.name() if screen is not None else "<none>")
+        self._log_screen_layout("after add")
+
+    def _on_screen_removed(self, screen) -> None:
+        logger.info("Screen removed: %s", screen.name() if screen is not None else "<none>")
+        self._log_screen_layout("after remove")
+
+    def _on_primary_screen_changed(self, screen) -> None:
+        logger.info(
+            "Primary screen changed → %s",
+            screen.name() if screen is not None else "<none>",
+        )
+        self._log_screen_layout("after primary change")
+
+    def _on_window_screen_changed(self, screen) -> None:
+        logger.info(
+            "Main window moved to screen: %s",
+            screen.name() if screen is not None else "<none>",
+        )
+
+    def _log_screen_layout(self, reason: str) -> None:
+        app = QGuiApplication.instance()
+        if app is None:
+            return
+        screens = app.screens()
+        primary = app.primaryScreen()
+        logger.info(
+            "Screen layout (%s): %d screen(s), primary=%s",
+            reason,
+            len(screens),
+            primary.name() if primary is not None else "<none>",
+        )
+        for i, screen in enumerate(screens):
+            geom = screen.geometry()
+            logger.info(
+                "  [%d] %s  geom=%dx%d+%d+%d  dpr=%.2f  refresh=%.1fHz",
+                i,
+                screen.name(),
+                geom.width(),
+                geom.height(),
+                geom.x(),
+                geom.y(),
+                screen.devicePixelRatio(),
+                screen.refreshRate(),
+            )
 
     # ── Zoom ───────────────────────────────────────────────────────────────────
 

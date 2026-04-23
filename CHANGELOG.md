@@ -10,6 +10,17 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-04-23
+
+### Added
+- **Screen-topology logging** in `FlowView`. The initial monitor layout
+  (name, geometry, device-pixel ratio, refresh rate) is written to the
+  log on startup, and every subsequent `screenAdded`, `screenRemoved`,
+  `primaryScreenChanged`, window `screenChanged`, and view
+  `QEvent.ScreenChangeInternal` is logged too. Groundwork for
+  diagnosing render glitches that correlate with brief display
+  blackouts on Linux Mint / X11 / NVIDIA setups.
+
 ## [0.1.4] — 2026-04-23
 
 ### Fixed
