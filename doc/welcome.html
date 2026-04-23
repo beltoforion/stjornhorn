@@ -164,7 +164,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.3</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.4</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -197,12 +197,10 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.3</h2>
+      <h2>What's new in v0.1.4</h2>
       <ul class="tips">
-        <li><strong>Display node</strong> — drop it anywhere in a flow for a live inline preview of frames as they pass through.</li>
-        <li><strong>Video Sink</strong> — encode streams directly to MP4 without leaving the graph.</li>
-        <li><strong>Resizable nodes</strong> — drag the bottom-right grip to grow a node; preview widgets fill the extra space.</li>
-        <li><strong>NCC</strong> — template matching via normalised cross-correlation.</li>
+        <li><strong>Save As</strong> now writes the chosen filename into the saved flow's <code>name</code> field instead of preserving the old name.</li>
+        <li><strong>Mixed reactive + streaming sources</strong> — wiring a still image into the same filter as a video now produces one output per video frame, with the image latched as a constant input.</li>
       </ul>
     </section>
 

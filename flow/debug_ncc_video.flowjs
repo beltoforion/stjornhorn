@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "name": "video_dither",
+  "name": "debug_ncc_video",
   "nodes": [
     {
       "id": 0,

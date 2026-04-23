@@ -562,14 +562,16 @@ class NodeEditorPage(PageBase):
                 kind="fail",
             )
             return
+        old_name = self._flow.name
+        self._flow.name = new_name
         try:
             save_flow_to(path, self._scene, self._flow)
         except OSError as err:
+            self._flow.name = old_name
             logger.exception("Failed to save flow to '%s'", path)
             detail = err.strerror or str(err) or err.__class__.__name__
             self._set_status(f"Save failed: {detail}", kind="fail")
             return
-        self._flow.name = new_name
         self.title_changed.emit(self.page_title())
         self._set_status(
             f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",

@@ -10,7 +10,14 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-04-23
+
 ### Fixed
+- **Save As** wrote the *old* flow name into the JSON because the
+  in-memory rename happened only after `save_flow_to`. The handler in
+  `NodeEditorPage._on_save_as_clicked` now applies the new name first
+  and rolls it back if the disk write fails, so the saved file's
+  `"name"` field always matches the chosen filename.
 - **Mixing a one-shot source with a streaming source** into a
   multi-input filter (e.g. Image Source → NCC ← Video Source) now
   produces one output per streaming frame instead of a single result.
@@ -19,6 +26,9 @@ once a first tagged release is cut.
   and `InputPort.clear` retains data from a finished upstream so the
   latched value stays available across every downstream `process`
   call.
+- **Bundled flow names** in `flow/` now match their filenames. Four
+  files (`debug_error`, `debug_ncc_video`, `dither`, `rgb_dither`)
+  carried stale `"name"` fields left over from earlier Save As bugs.
 
 ## [0.1.3] — 2026-04-21
 

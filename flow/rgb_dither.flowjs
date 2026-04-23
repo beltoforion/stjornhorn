@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "name": "rgb_split",
+  "name": "rgb_dither",
   "nodes": [
     {
       "id": 0,
