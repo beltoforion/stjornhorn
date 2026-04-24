@@ -18,6 +18,18 @@ logger = logging.getLogger(__name__)
 
 FLOW_FORMAT_VERSION: int = 1
 
+# Legacy (module, class) → current (module, class) remaps applied at load
+# time. Lets older saved flows keep working after a node is renamed,
+# without forcing users to re-save every file. Keep the list small and
+# well-commented — each entry is a one-off migration, not a long-term
+# alias.
+_LEGACY_NODE_REMAPS: dict[tuple[str, str], tuple[str, str]] = {
+    # v0.1.14: RGB Split/Join were superseded by RGBA-aware variants
+    # with an extra (optional) alpha channel — see issue #142.
+    ("nodes.filters.rgb_split", "RgbSplit"): ("nodes.filters.rgba_split", "RgbaSplit"),
+    ("nodes.filters.rgb_join",  "RgbJoin"):  ("nodes.filters.rgba_join",  "RgbaJoin"),
+}
+
 
 class FlowIoError(Exception):
     """Raised when a flow file cannot be read, parsed, or version-matched."""
@@ -162,10 +174,18 @@ def _instantiate_node(entry: dict) -> NodeBase | None:
     module_name = entry.get("module", "")
     class_name  = entry.get("class",  "")
 
+    remap = _LEGACY_NODE_REMAPS.get((module_name, class_name))
+    if remap is not None:
+        logger.info(
+            f"Remapping legacy node {module_name}.{class_name} → "
+            f"{remap[0]}.{remap[1]}"
+        )
+        module_name, class_name = remap
+
     try:
         module = importlib.import_module(module_name)
         cls    = getattr(module, class_name)
-        node: NodeBase = cls()        
+        node: NodeBase = cls()
     except Exception:
         logger.exception(f"Failed to instantiate {module_name}.{class_name}")
         return None

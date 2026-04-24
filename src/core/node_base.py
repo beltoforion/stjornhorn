@@ -190,25 +190,35 @@ class NodeBase(ABC):
     def _signal_input_ready(self) -> None:
         """Called by an InputPort whenever its state changes.
 
-        Fires :meth:`process` as soon as every *required* input has data
+        Fires :meth:`process` as soon as every *waited-on* input has data
         and clears every input afterwards so the node is ready for the
-        next frame. Optional inputs do not block dispatch: the node may
-        fire without them, and their payload (if any) is still cleared
-        along with the rest.
+        next frame.
 
-        Fires :meth:`_on_finish` once every required input has finished,
-        so the lifecycle signal propagates down the graph even when an
-        optional input is dangling unconnected.
+        An optional input counts as waited-on only while it has an
+        upstream connected. An unconnected optional port is skipped
+        entirely — the node fires without it, and its payload (if any)
+        is cleared along with the rest. Once connected, the port
+        behaves like a required input so a producer that emits a
+        matching-frame alpha plane (e.g. :class:`RgbaSplit` →
+        :class:`RgbaJoin`) isn't raced by the dispatcher firing on
+        the required inputs alone.
+
+        Fires :meth:`_on_finish` once every waited-on input has
+        finished, so the lifecycle signal propagates down the graph
+        even when an optional input is dangling unconnected.
         """
-        required = [p for p in self._inputs if not p.optional]
+        waited = [
+            p for p in self._inputs
+            if not p.optional or p.upstream is not None
+        ]
 
-        if all(p.has_data for p in required):
+        if all(p.has_data for p in waited):
             self.process()
             for p in self._inputs:
                 p.clear()
             return
 
-        if required and all(p.finished for p in required):
+        if waited and all(p.finished for p in waited):
             self._on_finish()
 
     # ── Overridable behaviour ──────────────────────────────────────────────────

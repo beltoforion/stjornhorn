@@ -10,6 +10,37 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.14] — 2026-04-24
+
+### Added
+- **Optional input ports.** `InputPort` gains an `optional=True` flag.
+  An unconnected optional port no longer blocks the node's dispatcher;
+  a *connected* optional port is waited on like a required one so
+  producers that emit matching-frame aux planes (e.g. alpha) aren't
+  raced. Optional ports render as a hollow outlined dot in the node
+  editor so the affordance reads at a glance.
+- **Per-pixel alpha support** in the `Overlay` node. When the overlay
+  input carries a 4-channel BGRA image (RGBA PNG / WebP), its alpha
+  plane is used as a per-pixel mask during the composite; the node's
+  scalar `alpha` parameter acts as a global multiplier on top. The
+  existing 3-channel path is unchanged and still uses
+  `cv2.addWeighted` for speed. Closes #142.
+
+### Changed
+- **`RgbSplit` → `RgbaSplit`, `RgbJoin` → `RgbaJoin`.** The colour
+  split/join nodes are now alpha-aware. `RgbaSplit` always emits four
+  greyscale planes; a 3-channel BGR input gets a synthesised full-opaque
+  (255) alpha plane. `RgbaJoin` takes B/G/R as required inputs and A
+  as an optional fourth input, emitting BGRA when A is wired and plain
+  BGR otherwise. Existing saved flows referencing the old module/class
+  names are auto-remapped at load time via a legacy alias table in
+  `ui/flow_io.py`.
+- **`ImageSource` preserves alpha.** Still images are decoded with
+  `cv2.IMREAD_UNCHANGED` instead of `IMREAD_COLOR`, so RGBA PNG/WebP
+  payloads reach downstream nodes with four channels intact. Single-
+  channel greyscale PNGs are promoted to BGR on load so the
+  `IoDataType.IMAGE` contract (≥ 3 channels) still holds.
+
 ## [0.1.13] — 2026-04-24
 
 ### Added

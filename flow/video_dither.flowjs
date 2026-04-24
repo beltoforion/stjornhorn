@@ -5,8 +5,8 @@
   "nodes": [
     {
       "id": 0,
-      "module": "nodes.filters.rgb_split",
-      "class": "RgbSplit",
+      "module": "nodes.filters.rgba_split",
+      "class": "RgbaSplit",
       "position": [
         -1960.4279939393773,
         -741.4775833967562
@@ -15,8 +15,8 @@
     },
     {
       "id": 1,
-      "module": "nodes.filters.rgb_join",
-      "class": "RgbJoin",
+      "module": "nodes.filters.rgba_join",
+      "class": "RgbaJoin",
       "position": [
         -1538.2932387107685,
         -751.3087434840913

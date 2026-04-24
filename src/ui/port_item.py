@@ -56,7 +56,14 @@ class PortItem(QGraphicsEllipseItem):
         self.setZValue(self.Z_VALUE)
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.CursorShape.CrossCursor)
-        self.setPen(QPen(NODE_BORDER_COLOR, 1))
+        # Optional input ports render as a hollow outline in the port's
+        # colour, so the "can be left unconnected" affordance reads at a
+        # glance without cluttering the label. Regular ports keep the
+        # subtle neutral border.
+        if self._is_optional():
+            self.setPen(QPen(PORT_INPUT_COLOR, 1.4))
+        else:
+            self.setPen(QPen(NODE_BORDER_COLOR, 1))
         self._apply_default_brush()
 
     # ── Identity ───────────────────────────────────────────────────────────────
@@ -111,8 +118,22 @@ class PortItem(QGraphicsEllipseItem):
         super().hoverLeaveEvent(event)
 
     def _apply_default_brush(self) -> None:
+        if self._is_optional():
+            # Hollow dot = optional input. Outline colour is set in __init__.
+            self.setBrush(Qt.NoBrush)
+            return
         color = PORT_OUTPUT_COLOR if self._kind == "output" else PORT_INPUT_COLOR
         self.setBrush(QBrush(color))
+
+    def _is_optional(self) -> bool:
+        """True if this port is an input marked ``optional=True``.
+
+        Output ports are never optional — only the receiver side can
+        choose to run without an incoming payload.
+        """
+        if self._kind != "input":
+            return False
+        return bool(getattr(self._model, "optional", False))
 
     # Press handling is intentionally left to the scene: if PortItem grabs
     # the mouse here, Qt routes subsequent move/release events to the item

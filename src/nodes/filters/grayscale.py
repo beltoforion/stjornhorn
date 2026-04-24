@@ -14,7 +14,7 @@ class Grayscale(NodeBase):
 
     Emits a single-channel (H×W) :data:`IoDataType.IMAGE_GREY` payload.
     Downstream nodes that accept ``IMAGE_GREY`` (including the viewer and
-    file sink) can consume the output directly; use an :class:`RgbJoin`
+    file sink) can consume the output directly; use an :class:`RgbaJoin`
     upstream of colour-only consumers.
     """
 
