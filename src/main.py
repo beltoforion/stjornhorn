@@ -266,6 +266,14 @@ def main(argv: list[str]) -> int:
 
     setup_logging(LOG_DIR)
     logger.info("Starting %s v%s", APP_NAME, APP_VERSION)
+    # Record the interpreter the app is bound to — handy when triaging
+    # bug reports where behaviour depends on the Python version (e.g.
+    # typing.override, tomllib, exception-group stack traces).
+    py = sys.version_info
+    logger.info(
+        "Python %d.%d.%d (%s)",
+        py.major, py.minor, py.micro, sys.executable,
+    )
 
     # Must happen before QApplication so Windows associates our icon with
     # the process's taskbar entry from the very first window.

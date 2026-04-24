@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -9,11 +9,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from constants import APP_DISPLAY_NAME, APP_VERSION
+from ui.app_version_status_widget import AppVersionStatusWidget
+from ui.icons import material_icon
 from ui.spinner import SpinnerWidget
+from ui.theme import STATUS_WARN_COLOR
 
 
 _RUNNING_SPINNER_SIZE = 28
+_UNSAVED_ICON_SIZE = 24
 
 
 class FlowStatusWidget(QWidget):
@@ -21,16 +24,20 @@ class FlowStatusWidget(QWidget):
 
     Has two modes selected via :class:`QStackedLayout`:
 
-    * **Idle** — a single ``AppName vX.Y.Z`` label, visually identical
-      to the default :class:`ui.app_version_status_widget.AppVersionStatusWidget`
-      so the toolbar looks the same whether the editor is open or not.
+    * **Idle** — on the right, the default :class:`AppVersionStatusWidget`
+      (app name, version and Python runtime); on the left, a left-aligned
+      amber warning icon with "Unsaved changes" underneath, shown only
+      when the editor has uncommitted edits. So the toolbar looks the
+      same as other pages while the flow is clean, and surfaces unsaved
+      state the moment it arises.
     * **Running** — a spinner on the right; on the left, two stacked
       labels: the flow name in bold on top, the currently-executing
       node name muted beneath.
 
-    The page drives the widget via :meth:`show_idle`, :meth:`show_running`
-    and :meth:`set_current_node`. The widget owns no timers besides its
-    spinner, so leaving it mounted while idle costs effectively nothing.
+    The page drives the widget via :meth:`show_idle`, :meth:`show_running`,
+    :meth:`set_current_node` and :meth:`set_unsaved`. The widget owns no
+    timers besides its spinner, so leaving it mounted while idle costs
+    effectively nothing.
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -41,32 +48,23 @@ class FlowStatusWidget(QWidget):
         self._stack.setSpacing(0)
 
         # ── Idle page ──────────────────────────────────────────────────
+        # Two columns: a left-aligned unsaved-changes affordance (hidden
+        # until the editor marks dirty), and the standard right-aligned
+        # AppVersionStatusWidget that every page shows. Reusing the
+        # widget keeps the idle view pixel-identical to other pages.
         self._idle_page = QWidget()
         idle_layout = QHBoxLayout(self._idle_page)
-        idle_layout.setContentsMargins(8, 0, 8, 0)
+        idle_layout.setContentsMargins(8, 0, 0, 0)
         idle_layout.setSpacing(0)
 
-        idle_column = QVBoxLayout()
-        idle_column.setContentsMargins(0, 0, 0, 0)
-        idle_column.setSpacing(0)
-        idle_column.addStretch(1)
-
-        self._idle_name_label = QLabel(APP_DISPLAY_NAME)
-        self._idle_name_label.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        self._unsaved_widget = self._build_unsaved_widget()
+        self._unsaved_widget.hide()
+        idle_layout.addWidget(
+            self._unsaved_widget, 0, Qt.AlignmentFlag.AlignVCenter
         )
-        self._idle_name_label.setStyleSheet("font-size: 14pt;")
+        idle_layout.addStretch(1)
+        idle_layout.addWidget(AppVersionStatusWidget())
 
-        self._idle_version_label = QLabel(f"v{APP_VERSION}")
-        self._idle_version_label.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
-        self._idle_version_label.setProperty("muted", True)
-
-        idle_column.addWidget(self._idle_name_label)
-        idle_column.addWidget(self._idle_version_label)
-        idle_column.addStretch(1)
-        idle_layout.addLayout(idle_column)
         self._stack.addWidget(self._idle_page)
 
         # ── Running page ───────────────────────────────────────────────
@@ -114,7 +112,12 @@ class FlowStatusWidget(QWidget):
     # ── Public API ─────────────────────────────────────────────────────────────
 
     def show_idle(self) -> None:
-        """Switch back to the app-name/version display and stop the spinner."""
+        """Switch back to the app-name/version display and stop the spinner.
+
+        The unsaved-changes affordance stays in whatever state
+        :meth:`set_unsaved` last put it — leaving a run doesn't clean
+        the flow.
+        """
         self._spinner.stop()
         self._flow_label.clear()
         self._node_label.clear()
@@ -134,3 +137,42 @@ class FlowStatusWidget(QWidget):
     def set_current_node(self, display_name: str) -> None:
         """Update the muted "current node" label shown under the flow name."""
         self._node_label.setText(display_name)
+
+    def set_unsaved(self, unsaved: bool) -> None:
+        """Show or hide the left-aligned unsaved-changes icon + caption."""
+        self._unsaved_widget.setVisible(unsaved)
+
+    # ── Internals ──────────────────────────────────────────────────────────────
+
+    def _build_unsaved_widget(self) -> QWidget:
+        """Build the icon-over-caption "Unsaved changes" affordance.
+
+        Standalone helper so __init__ reads as layout wiring rather
+        than pixel math. Centres a 24 px amber warning glyph over a
+        muted amber caption; the column is centred inside whichever
+        height the toolbar hands us.
+        """
+        container = QWidget()
+        column = QVBoxLayout(container)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(2)
+
+        icon = QLabel()
+        icon.setPixmap(
+            material_icon("warning", color=STATUS_WARN_COLOR).pixmap(
+                QSize(_UNSAVED_ICON_SIZE, _UNSAVED_ICON_SIZE)
+            )
+        )
+        icon.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom)
+
+        caption = QLabel("Unsaved changes")
+        caption.setAlignment(
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop
+        )
+        caption.setStyleSheet(
+            f"color: {STATUS_WARN_COLOR.name()}; font-size: 9pt;"
+        )
+
+        column.addWidget(icon)
+        column.addWidget(caption)
+        return container

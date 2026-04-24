@@ -161,6 +161,10 @@ class NodeEditorPage(PageBase):
         # Surface interactive-connection errors (type mismatches) in the
         # error banner instead of swallowing them inside FlowScene.
         self._scene.connection_error.connect(self._on_connection_error)
+        # Propagate the scene's unsaved-changes state into the toolbar
+        # status widget so the user sees "● Unsaved changes" the moment
+        # an edit happens, and the row clears on load/save.
+        self._scene.dirty_changed.connect(self._flow_status_widget.set_unsaved)
 
         # Debounce timer for reactive (auto-run) flows.  A 300 ms single-shot
         # timer is restarted on every param change; it fires _on_run_clicked
@@ -198,6 +202,7 @@ class NodeEditorPage(PageBase):
                 self._actions["save"],
                 self._actions["save_as"],
                 self._actions["open"],
+                self._actions["reload"],
                 self._actions["clear"],
             ]),
             ToolbarSection("View", [
@@ -225,6 +230,7 @@ class NodeEditorPage(PageBase):
         menu.addAction(self._actions["save"])
         menu.addAction(self._actions["save_as"])
         menu.addAction(self._actions["open"])
+        menu.addAction(self._actions["reload"])
         menu.addSeparator()
         menu.addAction(self._actions["clear"])
         menu.addSeparator()
@@ -278,16 +284,21 @@ class NodeEditorPage(PageBase):
     def load_flow(self, path: Path) -> bool:
         """Load a flow from disk. Returns True on success, False on failure
         (status line shows the reason)."""
-        
+
         try:
             flow = load_flow_into(path, self._scene)
         except FlowIoError as err:
             logger.warning(f"Failed to load flow from {path}: {err}")
             self._set_status(f"Open failed ({err})", kind="fail")
             return False
-        
+
         self._flow = flow
         self._viewer.show_node(None)
+        # load_flow_into calls set_flow (clears dirty) but then every
+        # node/link it re-creates goes through add_node / connect_ports,
+        # which flip dirty back on. Reset once the rebuild is done so
+        # a freshly-loaded flow starts clean.
+        self._scene.mark_saved()
         self.title_changed.emit(self.page_title())
         
         # Fit the freshly-loaded graph into the view. Deferred so it runs
@@ -321,6 +332,7 @@ class NodeEditorPage(PageBase):
             "save":    mk("Save",     "save",        self._on_save_clicked),
             "save_as": mk("Save As…", "save_as",     self._on_save_as_clicked),
             "open":    mk("Open",     "folder_open", self._on_open_clicked),
+            "reload":  mk("Reload",   "refresh",     self._on_reload_clicked),
             "clear":   mk("Clear",    "delete",      self._on_clear_clicked),
             "fit":     mk("Fit",      "zoom_out_map",    self._view.fit_to_contents),
             "reset_zoom": mk("1:1", "fullscreen_exit", self._view.reset_zoom),
@@ -533,6 +545,7 @@ class NodeEditorPage(PageBase):
             detail = err.strerror or str(err) or err.__class__.__name__
             self._set_status(f"Save failed: {detail}", kind="fail")
             return
+        self._scene.mark_saved()
         self._set_status(
             f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
@@ -572,6 +585,7 @@ class NodeEditorPage(PageBase):
             detail = err.strerror or str(err) or err.__class__.__name__
             self._set_status(f"Save failed: {detail}", kind="fail")
             return
+        self._scene.mark_saved()
         self.title_changed.emit(self.page_title())
         self._set_status(
             f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
@@ -587,6 +601,37 @@ class NodeEditorPage(PageBase):
         )
         if path_str:
             self.load_flow(Path(path_str))
+
+    def _on_reload_clicked(self) -> None:
+        """Re-read the current flow from disk, discarding unsaved edits.
+
+        Path is reconstructed from ``flow.name`` the same way ``Save``
+        does, so Reload is only meaningful for flows that actually live
+        in :data:`FLOW_DIR`. A flow that has never been saved (still
+        ``Untitled_flow``) or whose file has been removed gets a clear
+        error in the status line instead of silently wiping the canvas.
+        """
+        if self._flow is None:
+            self._set_status("No flow to reload", kind="fail")
+            return
+        path = FLOW_DIR / f"{self._flow.name}{_FLOW_FILE_EXTENSION}"
+        if not path.is_file():
+            self._set_status(
+                f"No saved file to reload at {_display_path(path)}",
+                kind="fail",
+            )
+            return
+        # Only nag when there's something to lose. A clean canvas can
+        # reload silently — the button doubles as a cheap "refresh from
+        # disk" when the file was edited externally.
+        if self._scene.is_dirty and QMessageBox.question(
+            self, "Discard unsaved changes?",
+            f"Reload {path.name} from disk? Unsaved edits will be lost.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        self.load_flow(path)
 
     def _on_clear_clicked(self) -> None:
         if self._flow is None:

@@ -46,6 +46,8 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "view_column": "e8ec",
     "description":  "e873",
     "visibility":   "e8f4",
+    "warning":      "e002",
+    "refresh":      "e5d5",
 }
 
 

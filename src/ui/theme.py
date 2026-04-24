@@ -36,6 +36,9 @@ CANVAS_GRID_COLOR         = QColor(56, 56, 60)
 STATUS_OK_COLOR    = QColor( 90, 200, 100)
 STATUS_FAIL_COLOR  = QColor(220,  80,  80)
 STATUS_MUTED_COLOR = QColor(140, 140, 140)
+#: Amber used for transient "attention, but not an error" affordances —
+#: e.g. the unsaved-changes dot in the editor status widget.
+STATUS_WARN_COLOR  = QColor(230, 170,  50)
 
 
 _DARK_QSS = """
