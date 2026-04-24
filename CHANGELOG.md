@@ -10,6 +10,15 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-04-24
+
+### Added
+- **Debug Params node.** A pass-through filter under the *Debug* palette
+  section that declares one parameter of every supported
+  `NodeParamType` (file path, int, float, string, bool, enum). Exists
+  so every param-widget code path can be exercised through a single node
+  during development.
+
 ## [0.1.7] — 2026-04-24
 
 ### Fixed
