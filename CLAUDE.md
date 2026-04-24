@@ -30,3 +30,4 @@
 ## Meta
 - Änderungen an `CLAUDE.md` darf Claude direkt committen und pushen, ohne vorher Rückfrage zu stellen.
 - Änderungen an `doc/welcome.html` darf Claude ebenfalls direkt committen und pushen (Offline-Welcome-Seite, keine Sourcecode-Auswirkung).
+- Änderungen an `README.md` darf Claude ebenfalls direkt committen und pushen (Repo-Dokumentation, keine Sourcecode-Auswirkung).
