@@ -10,6 +10,15 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-04-24
+
+### Fixed
+- **Unicode paths on Windows.** `cv2.imread()` silently fails on paths
+  containing non-ASCII characters (e.g. `Stjörnhorn` in the repo path).
+  `ImageSource` now reads image files via `np.fromfile()` +
+  `cv2.imdecode()`, which goes through Python's Unicode-aware file I/O
+  and handles any path correctly (#130).
+
 ## [0.1.5] — 2026-04-23
 
 ### Added
