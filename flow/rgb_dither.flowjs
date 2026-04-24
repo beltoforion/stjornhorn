@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
+  "app_version": "0.1.17",
   "name": "rgb_dither",
   "nodes": [
     {
@@ -28,8 +28,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -613.0,
-        -600.0
+        -799.3448237173192,
+        -615.3036811748523
       ],
       "params": {
         "output_path": "out.png"
@@ -40,8 +40,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1788.9559912621874,
-        -669.0594064681123
+        -1520.6914624324236,
+        -1003.9399592354686
       ],
       "params": {
         "file_path": "ship.jpg"
@@ -88,13 +88,13 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -946.0822962547235,
-        -1065.9314930931341
+        -922.6766662225965,
+        -1101.940154681022
       ],
       "params": {},
       "size": [
-        317.8491968384102,
-        284.40150607302803
+        488.8903393808771,
+        430.2365855039735
       ]
     }
   ],
@@ -152,6 +152,25 @@
       "src_output": 0,
       "dst_node": 2,
       "dst_input": 0
+    }
+  ],
+  "backdrops": [
+    {
+      "position": [
+        -1535.4279939393775,
+        -835.9546588863568
+      ],
+      "size": [
+        594.1347552286093,
+        450.0
+      ],
+      "title": "Processing",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
     }
   ]
 }
