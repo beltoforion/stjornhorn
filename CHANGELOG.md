@@ -25,6 +25,11 @@ once a first tagged release is cut.
   interpreter the running app is bound to. The same version plus the
   interpreter's path is logged at startup so bug reports include it
   without having to ask.
+- **Reload** toolbar / menu action in the Node Editor. Re-reads the
+  current flow's file from disk, discarding unsaved edits after a
+  confirmation prompt. Reconstructs the path from `flow.name` the
+  same way Save does; surfaces a status error if the flow has never
+  been saved or the file has been removed.
 
 ### Changed
 - Extracted `AppVersionStatusWidget` from `ui.page` into its own

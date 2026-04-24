@@ -202,6 +202,7 @@ class NodeEditorPage(PageBase):
                 self._actions["save"],
                 self._actions["save_as"],
                 self._actions["open"],
+                self._actions["reload"],
                 self._actions["clear"],
             ]),
             ToolbarSection("View", [
@@ -229,6 +230,7 @@ class NodeEditorPage(PageBase):
         menu.addAction(self._actions["save"])
         menu.addAction(self._actions["save_as"])
         menu.addAction(self._actions["open"])
+        menu.addAction(self._actions["reload"])
         menu.addSeparator()
         menu.addAction(self._actions["clear"])
         menu.addSeparator()
@@ -330,6 +332,7 @@ class NodeEditorPage(PageBase):
             "save":    mk("Save",     "save",        self._on_save_clicked),
             "save_as": mk("Save As…", "save_as",     self._on_save_as_clicked),
             "open":    mk("Open",     "folder_open", self._on_open_clicked),
+            "reload":  mk("Reload",   "refresh",     self._on_reload_clicked),
             "clear":   mk("Clear",    "delete",      self._on_clear_clicked),
             "fit":     mk("Fit",      "zoom_out_map",    self._view.fit_to_contents),
             "reset_zoom": mk("1:1", "fullscreen_exit", self._view.reset_zoom),
@@ -598,6 +601,37 @@ class NodeEditorPage(PageBase):
         )
         if path_str:
             self.load_flow(Path(path_str))
+
+    def _on_reload_clicked(self) -> None:
+        """Re-read the current flow from disk, discarding unsaved edits.
+
+        Path is reconstructed from ``flow.name`` the same way ``Save``
+        does, so Reload is only meaningful for flows that actually live
+        in :data:`FLOW_DIR`. A flow that has never been saved (still
+        ``Untitled_flow``) or whose file has been removed gets a clear
+        error in the status line instead of silently wiping the canvas.
+        """
+        if self._flow is None:
+            self._set_status("No flow to reload", kind="fail")
+            return
+        path = FLOW_DIR / f"{self._flow.name}{_FLOW_FILE_EXTENSION}"
+        if not path.is_file():
+            self._set_status(
+                f"No saved file to reload at {_display_path(path)}",
+                kind="fail",
+            )
+            return
+        # Only nag when there's something to lose. A clean canvas can
+        # reload silently — the button doubles as a cheap "refresh from
+        # disk" when the file was edited externally.
+        if self._scene.is_dirty and QMessageBox.question(
+            self, "Discard unsaved changes?",
+            f"Reload {path.name} from disk? Unsaved edits will be lost.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        self.load_flow(path)
 
     def _on_clear_clicked(self) -> None:
         if self._flow is None:
