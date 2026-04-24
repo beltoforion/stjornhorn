@@ -10,7 +10,7 @@ from nodes.filters.dither import Dither
 from nodes.filters.grayscale import Grayscale
 from nodes.filters.median import Median
 from nodes.filters.ncc import Ncc
-from nodes.filters.rgb_join import RgbJoin
+from nodes.filters.rgba_join import RgbaJoin
 from nodes.filters.shift import Shift
 from nodes.sinks.file_sink import FileSink
 from nodes.sources.image_source import ImageSource
@@ -40,9 +40,9 @@ def test_ncc_is_skippable() -> None:
     assert Ncc().is_skippable is True
 
 
-def test_rgb_join_is_not_skippable() -> None:
-    """Three inputs, one output — cannot forward pairwise."""
-    assert RgbJoin().is_skippable is False
+def test_rgba_join_is_not_skippable() -> None:
+    """Four inputs, one output — cannot forward pairwise."""
+    assert RgbaJoin().is_skippable is False
 
 
 def test_source_and_sink_are_not_skippable() -> None:

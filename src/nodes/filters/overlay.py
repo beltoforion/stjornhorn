@@ -25,6 +25,15 @@ class Overlay(NodeBase):
       ``cv2.cvtColor(..., COLOR_GRAY2BGR)`` and the output is emitted
       as ``IMAGE``. If both inputs are greyscale, the output stays
       greyscale.
+
+    Per-pixel alpha:
+      If the overlay has a 4th channel (BGRA, e.g. an RGBA PNG loaded
+      through :class:`ImageSource`), the alpha plane is used as a
+      per-pixel mask. The node's ``alpha`` parameter then acts as a
+      global multiplier on top, so ``alpha=1.0`` respects the image's
+      own transparency and ``alpha=0.5`` halves it uniformly. The base
+      image is always reduced to BGR before compositing — any alpha
+      channel on the base is dropped.
     """
 
     def __init__(self) -> None:
@@ -119,14 +128,21 @@ class Overlay(NodeBase):
                 return cv2.cvtColor(d.image, cv2.COLOR_GRAY2BGR)
             return d.image
 
+        def strip_alpha(img: np.ndarray) -> np.ndarray:
+            """Drop the alpha channel of a BGRA base so BGR blending math holds."""
+            if img.ndim == 3 and img.shape[2] == 4:
+                return img[:, :, :3]
+            return img
+
         # ── Skip path 1: alpha == 0 ───────────────────────────────────────
         # Overlay is invisible — no warp, no copy, no blend. Forward the
-        # (possibly grey→BGR promoted) base straight through.
+        # (possibly grey→BGR promoted, alpha-stripped) base straight through.
         if self._alpha == 0.0:
-            self._emit(to_canvas(base_data), any_color)
+            self._emit(strip_alpha(to_canvas(base_data)), any_color)
             return
 
         overlay_src = to_canvas(overlay_data)
+        has_per_pixel_alpha = overlay_src.ndim == 3 and overlay_src.shape[2] == 4
         src_h, src_w = overlay_src.shape[:2]
 
         # ── Predict the transformed overlay's bounding box (no warp yet) ──
@@ -146,7 +162,7 @@ class Overlay(NodeBase):
         else:
             out_w, out_h = src_w, src_h
 
-        base_src = to_canvas(base_data)
+        base_src = strip_alpha(to_canvas(base_data))
         base_h, base_w = base_src.shape[:2]
 
         # Destination rectangle on the base, clipped to the base bounds.
@@ -187,8 +203,20 @@ class Overlay(NodeBase):
         roi     = base[y0:y1, x0:x1]
         ov_crop = overlay[oy0:oy1, ox0:ox1]
 
-        blended = cv2.addWeighted(ov_crop, self._alpha, roi, 1.0 - self._alpha, 0.0)
-        base[y0:y1, x0:x1] = blended
+        if has_per_pixel_alpha:
+            # Per-pixel alpha path: normalise the alpha plane to [0, 1],
+            # multiply by the global ``alpha`` slider, broadcast to 3
+            # channels and blend. Using float32 keeps the arithmetic cheap
+            # on a per-frame hot path while avoiding uint8 overflow.
+            ov_bgr    = ov_crop[:, :, :3]
+            ov_alpha  = ov_crop[:, :, 3].astype(np.float32) * (self._alpha / 255.0)
+            ov_alpha  = ov_alpha[:, :, None]  # (H, W, 1) for broadcast
+            blended = ov_bgr.astype(np.float32) * ov_alpha \
+                    + roi.astype(np.float32) * (1.0 - ov_alpha)
+            base[y0:y1, x0:x1] = blended.astype(np.uint8)
+        else:
+            blended = cv2.addWeighted(ov_crop, self._alpha, roi, 1.0 - self._alpha, 0.0)
+            base[y0:y1, x0:x1] = blended
 
         self._emit(base, any_color)
 

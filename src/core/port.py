@@ -26,6 +26,12 @@ class InputPort:
 
     Stream lifetime is expressed via :meth:`finish` rather than via a
     payload value, so :meth:`receive` only ever carries real data.
+
+    An ``optional`` port does not block the owning node's dispatcher:
+    the node fires as soon as every *required* input has data, regardless
+    of whether the optional port is connected or has produced anything.
+    Node implementations inspect :attr:`has_data` on an optional port to
+    decide whether to consume it.
     """
 
     def __init__(
@@ -33,9 +39,11 @@ class InputPort:
         name: str,
         accepted_types: set[IoDataType],
         on_state_changed: Callable[[], None] | None = None,
+        optional: bool = False,
     ) -> None:
         self.name = name
         self.accepted_types: frozenset[IoDataType] = frozenset(accepted_types)
+        self.optional: bool = optional
         self._on_state_changed = on_state_changed
         self._data: IoData | None = None
         self._finished: bool = False

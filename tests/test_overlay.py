@@ -349,3 +349,106 @@ def test_overlay_rejects_non_positive_scale() -> None:
         node.scale = 0.0
     with pytest.raises(ValueError):
         node.scale = -1.0
+
+
+# ── Per-pixel alpha (BGRA overlay) ─────────────────────────────────────────────
+
+def _bgra(h: int, w: int, bgr: int, alpha: int) -> np.ndarray:
+    img = np.empty((h, w, 4), dtype=np.uint8)
+    img[..., :3] = bgr
+    img[..., 3] = alpha
+    return img
+
+
+def test_overlay_bgra_fully_transparent_leaves_base_unchanged() -> None:
+    """A BGRA overlay with alpha=0 everywhere must leave the base intact,
+    even though the node's global ``alpha`` parameter is 1.0."""
+    node = Overlay()
+    node.alpha = 1.0
+    base = _bgr(6, 6, 42)
+    overlay = _bgra(4, 4, 200, 0)  # fully transparent
+    _wire(
+        node,
+        IoData.from_image(base.copy()),
+        IoData.from_image(overlay),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    assert out.image.shape == (6, 6, 3)
+    np.testing.assert_array_equal(out.image, base)
+
+
+def test_overlay_bgra_fully_opaque_matches_bgr_behaviour() -> None:
+    """A BGRA overlay with alpha=255 at every pixel must behave identically
+    to a plain BGR overlay of the same colour."""
+    node = Overlay()
+    node.alpha = 1.0
+    base = _bgr(6, 6, 0)
+    overlay = _bgra(3, 3, 200, 255)
+    _wire(
+        node,
+        IoData.from_image(base.copy()),
+        IoData.from_image(overlay),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    np.testing.assert_array_equal(out.image[0:3, 0:3], _bgr(3, 3, 200))
+    # Outside the overlay footprint, the base shows through.
+    assert out.image[5, 5, 0] == 0
+
+
+def test_overlay_bgra_half_alpha_blends_per_pixel() -> None:
+    """Per-pixel alpha: a 50% transparent BGRA pixel blends 50/50 with the
+    base at that position; the global ``alpha`` parameter is unchanged."""
+    node = Overlay()
+    node.alpha = 1.0
+    base = _bgr(4, 4, 100)
+    overlay = _bgra(4, 4, 200, 128)  # ~50% per-pixel alpha (128/255)
+    _wire(
+        node,
+        IoData.from_image(base.copy()),
+        IoData.from_image(overlay),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    # effective_alpha = 128/255 ≈ 0.502
+    # blended = 200 * 0.502 + 100 * 0.498 ≈ 150 (±1 for rounding).
+    assert abs(int(out.image[0, 0, 0]) - 150) <= 1
+
+
+def test_overlay_global_alpha_multiplies_per_pixel_alpha() -> None:
+    """The node's scalar ``alpha`` acts as a global multiplier on top of
+    the per-pixel alpha plane."""
+    node = Overlay()
+    node.alpha = 0.5
+    base = _bgr(4, 4, 0)
+    overlay = _bgra(4, 4, 200, 255)  # fully opaque per pixel
+    _wire(
+        node,
+        IoData.from_image(base.copy()),
+        IoData.from_image(overlay),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    # effective_alpha = 1.0 * 0.5 = 0.5; 200 * 0.5 + 0 * 0.5 = 100.
+    assert abs(int(out.image[0, 0, 0]) - 100) <= 1
+
+
+def test_overlay_bgra_output_shape_matches_bgr_base() -> None:
+    """Even when the overlay is BGRA, the emitted payload has 3 channels —
+    alpha is consumed during the blend, not propagated."""
+    node = Overlay()
+    node.alpha = 1.0
+    _wire(
+        node,
+        IoData.from_image(_bgr(6, 6, 0)),
+        IoData.from_image(_bgra(4, 4, 200, 200)),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    assert out.image.ndim == 3 and out.image.shape[2] == 3

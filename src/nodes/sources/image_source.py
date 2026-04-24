@@ -95,10 +95,16 @@ class ImageSource(SourceNodeBase):
         else:
             # cv2.imread() silently fails on Unicode paths on Windows; use
             # np.fromfile + imdecode to go through Python's wide-char I/O.
+            # IMREAD_UNCHANGED preserves the alpha channel of RGBA PNGs /
+            # WebPs so downstream nodes (Overlay, RgbaSplit) can use it.
             img_array = np.fromfile(resolved, dtype=np.uint8)
-            image = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            image = cv2.imdecode(img_array, cv2.IMREAD_UNCHANGED)
             if image is None:
                 raise OSError(f"cv2 could not read: {resolved}")
+            # Normalise: greyscale → BGR, BGR/BGRA pass through as-is.
+            # Everything downstream expects a 3- or 4-channel IMAGE.
+            if image.ndim == 2:
+                image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
         self.outputs[0].send(IoData.from_image(image))
 
