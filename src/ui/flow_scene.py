@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from core.flow import Flow
 from core.node_base import NodeBase
 from nodes.util.reroute import Reroute
+from ui.backdrop_item import BACKDROP_PRESETS, BackdropItem
 from ui.link_item import LinkItem, PendingLinkItem
 from ui.node_item import NodeItem
 from ui.port_item import PortItem
@@ -61,6 +62,7 @@ class FlowScene(QGraphicsScene):
         self._flow: Flow | None = None
         self._node_items: dict[int, NodeItem] = {}          # id(node_base) → NodeItem
         self._links: list[LinkItem] = []
+        self._backdrops: list[BackdropItem] = []
         self._pending_link: PendingLinkItem | None = None
         self._pending_src_port: PortItem | None = None
         self._last_emitted_selected: NodeBase | None = None
@@ -96,8 +98,11 @@ class FlowScene(QGraphicsScene):
             self._delete_link_item(link)
         for item in list(self._node_items.values()):
             self._delete_node_item(item)
+        for backdrop in list(self._backdrops):
+            self.removeItem(backdrop)
         self._node_items.clear()
         self._links.clear()
+        self._backdrops.clear()
         self._pending_link = None
         self._pending_src_port = None
         self._last_emitted_selected = None
@@ -275,13 +280,61 @@ class FlowScene(QGraphicsScene):
         self.removeItem(link)
         self._mark_dirty()
 
+    # ── Backdrops ──────────────────────────────────────────────────────────────
+
+    def add_backdrop(
+        self,
+        scene_pos: QPointF | None = None,
+        *,
+        title: str = "Backdrop",
+        width: float | None = None,
+        height: float | None = None,
+        color=None,
+    ) -> BackdropItem:
+        """Add a :class:`BackdropItem` to the scene and mark dirty.
+
+        Keyword arguments with ``None`` defaults let the caller pass
+        explicit geometry (e.g. from a deserialised flow) without
+        forcing every call site to re-import the defaults module.
+        """
+        kwargs: dict = {"title": title}
+        if width is not None:
+            kwargs["width"] = width
+        if height is not None:
+            kwargs["height"] = height
+        if color is not None:
+            kwargs["color"] = color
+        backdrop = BackdropItem(**kwargs)
+        self.addItem(backdrop)
+        if scene_pos is not None:
+            backdrop.setPos(scene_pos)
+        self._backdrops.append(backdrop)
+        self._mark_dirty()
+        return backdrop
+
+    def remove_backdrop(self, backdrop: BackdropItem) -> None:
+        if backdrop in self._backdrops:
+            self._backdrops.remove(backdrop)
+        self.removeItem(backdrop)
+        self._mark_dirty()
+
+    def iter_backdrops(self) -> list[BackdropItem]:
+        """Return a snapshot of every backdrop currently in the scene."""
+        return list(self._backdrops)
+
     # ── Pending-link drag ──────────────────────────────────────────────────────
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
         from PySide6.QtCore import Qt
         if event.button() == Qt.MouseButton.LeftButton:
             port = self._port_at(event.scenePos())
-            if port is not None:
+            # A reroute's ports sit at the dot's centre, so they sit
+            # right where the user would click to drag the dot. Skip
+            # them as link-start targets so the press falls through to
+            # Qt's default ItemIsMovable handling and moves the reroute.
+            # (Drops *onto* a reroute port are still accepted — see
+            # mouseReleaseEvent — so new links can land on a reroute.)
+            if port is not None and not getattr(port.node_item, "is_reroute", False):
                 # Start a pending link from this port. Swallow the press
                 # so that neither the port nor the underlying node grabs
                 # the mouse — we want subsequent move / release events to
@@ -336,13 +389,25 @@ class FlowScene(QGraphicsScene):
         from PySide6.QtGui import QTransform
         views = self.views()
         xform = views[0].transform() if views else QTransform()
-        item = self.itemAt(event.scenePos(), xform)
-        # Walk up to a LinkItem if a label was clicked.
-        while item is not None and not isinstance(item, LinkItem):
+        raw_item = self.itemAt(event.scenePos(), xform)
+        # Walk up the parent chain so right-clicking a title / grip
+        # on a backdrop hits the BackdropItem, and right-clicking a
+        # link label hits the LinkItem.
+        item = raw_item
+        while item is not None:
+            if isinstance(item, (LinkItem, BackdropItem)):
+                break
             item = item.parentItem()
 
         if isinstance(item, LinkItem):
             self._link_context_menu(item, event)
+            return
+        if isinstance(item, BackdropItem):
+            self._backdrop_context_menu(item, event)
+            return
+        # Empty canvas → offer Add Backdrop.
+        if raw_item is None:
+            self._canvas_context_menu(event)
             return
         super().contextMenuEvent(event)
 
@@ -352,6 +417,59 @@ class FlowScene(QGraphicsScene):
         delete.triggered.connect(lambda: self._delete_link_item(link))
         menu.addAction(delete)
         menu.exec(event.screenPos())
+
+    def _canvas_context_menu(self, event: QGraphicsSceneContextMenuEvent) -> None:
+        menu = QMenu()
+        add = QAction("Add Backdrop", menu)
+        scene_pos = event.scenePos()
+        add.triggered.connect(lambda: self.add_backdrop(scene_pos))
+        menu.addAction(add)
+        menu.exec(event.screenPos())
+
+    def _backdrop_context_menu(
+        self, backdrop: BackdropItem, event: QGraphicsSceneContextMenuEvent,
+    ) -> None:
+        menu = QMenu()
+
+        rename = QAction("Rename…", menu)
+        rename.triggered.connect(lambda: self._prompt_rename_backdrop(backdrop))
+        menu.addAction(rename)
+
+        colour_menu = menu.addMenu("Colour")
+        for name, colour in BACKDROP_PRESETS.items():
+            act = QAction(name, colour_menu)
+            act.triggered.connect(
+                lambda _checked=False, c=colour: self._recolour_backdrop(backdrop, c)
+            )
+            colour_menu.addAction(act)
+
+        menu.addSeparator()
+        delete = QAction("Delete Backdrop", menu)
+        delete.triggered.connect(lambda: self.remove_backdrop(backdrop))
+        menu.addAction(delete)
+
+        menu.exec(event.screenPos())
+
+    def _prompt_rename_backdrop(self, backdrop: BackdropItem) -> None:
+        """Pop a tiny dialog to rename the backdrop.
+
+        Kept in the scene rather than on the backdrop item itself so
+        the input-dialog-vs-inline-edit decision can change later
+        without touching every BackdropItem.
+        """
+        from PySide6.QtWidgets import QInputDialog
+        views = self.views()
+        parent = views[0] if views else None
+        new_title, ok = QInputDialog.getText(
+            parent, "Rename Backdrop", "Title:", text=backdrop.title,
+        )
+        if ok and new_title != backdrop.title:
+            backdrop.set_title(new_title)
+            self._mark_dirty()
+
+    def _recolour_backdrop(self, backdrop: BackdropItem, colour) -> None:
+        backdrop.set_color(colour)
+        self._mark_dirty()
 
     # ── Mouse: double-click on a link inserts a reroute ────────────────────────
 
@@ -468,6 +586,8 @@ class FlowScene(QGraphicsScene):
                     self.remove_node_item(s)
                 elif isinstance(s, LinkItem):
                     self._delete_link_item(s)
+                elif isinstance(s, BackdropItem):
+                    self.remove_backdrop(s)
             event.accept()
             return
         super().keyPressEvent(event)

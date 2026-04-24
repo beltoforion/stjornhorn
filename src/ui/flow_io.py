@@ -74,12 +74,24 @@ def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
             "dst_input":  link.dst_port.index,
         })
 
+    backdrops_out: list[dict] = []
+    for backdrop in scene.iter_backdrops():
+        pos = backdrop.pos()
+        colour = backdrop.color
+        backdrops_out.append({
+            "position": [float(pos.x()), float(pos.y())],
+            "size":     [float(backdrop.width), float(backdrop.height)],
+            "title":    backdrop.title,
+            "color":    [colour.red(), colour.green(), colour.blue(), colour.alpha()],
+        })
+
     return {
         "version":     FLOW_FORMAT_VERSION,
         "app_version": APP_VERSION,
         "name":        flow.name,
         "nodes":       nodes_out,
         "connections": connections_out,
+        "backdrops":   backdrops_out,
     }
 
 
@@ -136,7 +148,7 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
     for conn in data.get("connections", []):
         src = id_to_node.get(conn.get("src_node"))
         dst = id_to_node.get(conn.get("dst_node"))
-        
+
         if src is None or dst is None:
             logger.debug(f"Skipping connection with unknown endpoint: {conn}")
             continue
@@ -145,7 +157,7 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
         dst_item = scene.node_item_for(dst)
         if src_item is None or dst_item is None:
             continue
-        
+
         try:
             src_port = src_item.output_port(conn["src_output"])
             dst_port = dst_item.input_port(conn["dst_input"])
@@ -158,6 +170,25 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
             # into an IMAGE-only port). Log and continue so the rest of the
             # flow still loads rather than aborting the whole file.
             logger.warning(f"Skipping incompatible connection {conn}: {err}")
+
+    for entry in data.get("backdrops", []):
+        pos = entry.get("position") or [0.0, 0.0]
+        size = entry.get("size") or [None, None]
+        col_rgba = entry.get("color")
+        colour = None
+        if col_rgba and len(col_rgba) >= 3:
+            from PySide6.QtGui import QColor
+            alpha = col_rgba[3] if len(col_rgba) >= 4 else 255
+            colour = QColor(
+                int(col_rgba[0]), int(col_rgba[1]), int(col_rgba[2]), int(alpha),
+            )
+        scene.add_backdrop(
+            QPointF(float(pos[0]), float(pos[1])),
+            title=str(entry.get("title", "Backdrop")),
+            width=float(size[0]) if size[0] is not None else None,
+            height=float(size[1]) if size[1] is not None else None,
+            color=colour,
+        )
 
     return flow
 

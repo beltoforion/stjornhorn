@@ -10,6 +10,26 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.17] — 2026-04-24
+
+### Added
+- **Reroute pass-through nodes.** Double-click on any link to insert
+  a small dot at the cursor that re-routes the link around dense
+  pipelines without changing the graph semantics. Deleting a reroute
+  re-joins its upstream and downstream automatically. Bezier
+  tangents at reroute-owned ports aim at the other endpoint, so
+  mäandrierende Flows render as smooth S-curves instead of 180°
+  loops. Reroutes are hidden from the palette (section sentinel
+  `__hidden__`) — the editor's double-click flow is the only way to
+  create one.
+- **Backdrops.** Coloured frames drawn behind groups of nodes so
+  dense pipelines can be annotated as loose chapters. Right-click
+  on empty canvas to add one; title / colour are editable via the
+  backdrop's own context menu; resize via the bottom-right grip.
+  Persisted alongside nodes and connections in the flow file under
+  a new `backdrops` entry (old flows without the field load as
+  before).
+
 ## [0.1.16] — 2026-04-24
 
 ### Fixed
