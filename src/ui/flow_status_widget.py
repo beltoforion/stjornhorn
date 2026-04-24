@@ -9,8 +9,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from constants import APP_DISPLAY_NAME, APP_VERSION
+from ui.app_version_status_widget import AppVersionStatusWidget
 from ui.spinner import SpinnerWidget
+from ui.theme import STATUS_WARN_COLOR
 
 
 _RUNNING_SPINNER_SIZE = 28
@@ -21,16 +22,19 @@ class FlowStatusWidget(QWidget):
 
     Has two modes selected via :class:`QStackedLayout`:
 
-    * **Idle** — a single ``AppName vX.Y.Z`` label, visually identical
-      to the default :class:`ui.app_version_status_widget.AppVersionStatusWidget`
-      so the toolbar looks the same whether the editor is open or not.
+    * **Idle** — the default :class:`AppVersionStatusWidget` (app name,
+      version and Python runtime), with an amber "● Unsaved changes" row
+      that appears only when the editor has uncommitted edits. So the
+      toolbar looks the same as other pages while the flow is clean,
+      and surfaces unsaved state the moment it arises.
     * **Running** — a spinner on the right; on the left, two stacked
       labels: the flow name in bold on top, the currently-executing
       node name muted beneath.
 
-    The page drives the widget via :meth:`show_idle`, :meth:`show_running`
-    and :meth:`set_current_node`. The widget owns no timers besides its
-    spinner, so leaving it mounted while idle costs effectively nothing.
+    The page drives the widget via :meth:`show_idle`, :meth:`show_running`,
+    :meth:`set_current_node` and :meth:`set_unsaved`. The widget owns no
+    timers besides its spinner, so leaving it mounted while idle costs
+    effectively nothing.
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -41,31 +45,32 @@ class FlowStatusWidget(QWidget):
         self._stack.setSpacing(0)
 
         # ── Idle page ──────────────────────────────────────────────────
+        # Reuse AppVersionStatusWidget so the idle view is pixel-identical
+        # to every other page's default status widget; the unsaved row is
+        # tacked on below it and hidden until the editor marks dirty.
         self._idle_page = QWidget()
         idle_layout = QHBoxLayout(self._idle_page)
-        idle_layout.setContentsMargins(8, 0, 8, 0)
+        idle_layout.setContentsMargins(0, 0, 0, 0)
         idle_layout.setSpacing(0)
 
         idle_column = QVBoxLayout()
         idle_column.setContentsMargins(0, 0, 0, 0)
         idle_column.setSpacing(0)
-        idle_column.addStretch(1)
 
-        self._idle_name_label = QLabel(APP_DISPLAY_NAME)
-        self._idle_name_label.setAlignment(
+        self._app_version_widget = AppVersionStatusWidget()
+        idle_column.addWidget(self._app_version_widget)
+
+        self._unsaved_label = QLabel("● Unsaved changes")
+        self._unsaved_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
-        self._idle_name_label.setStyleSheet("font-size: 14pt;")
-
-        self._idle_version_label = QLabel(f"v{APP_VERSION}")
-        self._idle_version_label.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        self._unsaved_label.setContentsMargins(8, 0, 8, 4)
+        self._unsaved_label.setStyleSheet(
+            f"color: {STATUS_WARN_COLOR.name()};"
         )
-        self._idle_version_label.setProperty("muted", True)
+        self._unsaved_label.hide()
+        idle_column.addWidget(self._unsaved_label)
 
-        idle_column.addWidget(self._idle_name_label)
-        idle_column.addWidget(self._idle_version_label)
-        idle_column.addStretch(1)
         idle_layout.addLayout(idle_column)
         self._stack.addWidget(self._idle_page)
 
@@ -114,7 +119,12 @@ class FlowStatusWidget(QWidget):
     # ── Public API ─────────────────────────────────────────────────────────────
 
     def show_idle(self) -> None:
-        """Switch back to the app-name/version display and stop the spinner."""
+        """Switch back to the app-name/version display and stop the spinner.
+
+        The unsaved-changes row stays in whatever state
+        :meth:`set_unsaved` last put it — leaving a run doesn't clean
+        the flow.
+        """
         self._spinner.stop()
         self._flow_label.clear()
         self._node_label.clear()
@@ -134,3 +144,7 @@ class FlowStatusWidget(QWidget):
     def set_current_node(self, display_name: str) -> None:
         """Update the muted "current node" label shown under the flow name."""
         self._node_label.setText(display_name)
+
+    def set_unsaved(self, unsaved: bool) -> None:
+        """Show or hide the amber "● Unsaved changes" row in idle mode."""
+        self._unsaved_label.setVisible(unsaved)

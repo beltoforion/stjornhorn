@@ -1,18 +1,27 @@
 from __future__ import annotations
 
+import sys
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from constants import APP_DISPLAY_NAME, APP_VERSION
 
 
-class AppVersionStatusWidget(QWidget):
-    """Default page status widget: app name on top, version beneath.
+def _python_version_label() -> str:
+    """Return the running Python version as ``Python X.Y.Z`` for display."""
+    v = sys.version_info
+    return f"Python {v.major}.{v.minor}.{v.micro}"
 
-    Two stacked right-aligned labels — the app name rendered at a
-    larger size so it reads as the primary label, and the version
-    muted underneath. The pair is vertically centred in the widget so
-    it looks balanced next to the toolbar's 72 px action buttons.
+
+class AppVersionStatusWidget(QWidget):
+    """Default page status widget: app name on top, version + runtime beneath.
+
+    Three stacked right-aligned labels — the app name rendered at a
+    larger size so it reads as the primary label, the application
+    version muted beneath, and the active Python runtime muted below
+    that. The triplet is vertically centred in the widget so it looks
+    balanced next to the toolbar's 72 px action buttons.
 
     Kept as a small standalone class so every page can instantiate its
     own — two pages must not share the same QWidget instance, because
@@ -38,7 +47,12 @@ class AppVersionStatusWidget(QWidget):
         version.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         version.setProperty("muted", True)
 
+        python = QLabel(_python_version_label())
+        python.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        python.setProperty("muted", True)
+
         column.addWidget(name)
         column.addWidget(version)
+        column.addWidget(python)
         column.addStretch(1)
         outer.addLayout(column)

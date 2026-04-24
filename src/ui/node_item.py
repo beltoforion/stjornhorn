@@ -534,6 +534,10 @@ class NodeItem(QGraphicsItem):
         if self._skip_button is not None:
             self._skip_button.update()
         self.update()
+        # Skip-state flips behave like param edits from the user's
+        # perspective (they change what the flow does on the next run),
+        # so piggy-back on param_changed to drive auto-run + dirty.
+        self._signals.param_changed.emit()
 
     def _header_path(self) -> QPainterPath:
         """Path for the header: top corners rounded, bottom corners square."""

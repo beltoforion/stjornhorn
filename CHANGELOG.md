@@ -10,6 +10,26 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.15] — 2026-04-24
+
+### Added
+- **Unsaved-changes indicator** in the Node Editor's toolbar status
+  widget. An amber "● Unsaved changes" row appears the moment the
+  user edits a parameter, adds/removes a node or connection, toggles
+  a node's skip state, or rearranges via V-Stack / H-Stack. The row
+  clears on a successful save and when a flow is loaded or cleared.
+  Implemented via a new `FlowScene.is_dirty` property and
+  `dirty_changed(bool)` signal.
+- **Python runtime version** on the toolbar status widget — a muted
+  `Python X.Y.Z` line below the application version, surfacing which
+  interpreter the running app is bound to.
+
+### Changed
+- Extracted `AppVersionStatusWidget` from `ui.page` into its own
+  module `ui.app_version_status_widget` for symmetry with
+  `FlowStatusWidget`. The editor's idle status view now embeds that
+  widget directly instead of re-implementing the same label stack.
+
 ## [0.1.14] — 2026-04-24
 
 ### Added

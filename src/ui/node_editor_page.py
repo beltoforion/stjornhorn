@@ -161,6 +161,10 @@ class NodeEditorPage(PageBase):
         # Surface interactive-connection errors (type mismatches) in the
         # error banner instead of swallowing them inside FlowScene.
         self._scene.connection_error.connect(self._on_connection_error)
+        # Propagate the scene's unsaved-changes state into the toolbar
+        # status widget so the user sees "● Unsaved changes" the moment
+        # an edit happens, and the row clears on load/save.
+        self._scene.dirty_changed.connect(self._flow_status_widget.set_unsaved)
 
         # Debounce timer for reactive (auto-run) flows.  A 300 ms single-shot
         # timer is restarted on every param change; it fires _on_run_clicked
@@ -278,16 +282,21 @@ class NodeEditorPage(PageBase):
     def load_flow(self, path: Path) -> bool:
         """Load a flow from disk. Returns True on success, False on failure
         (status line shows the reason)."""
-        
+
         try:
             flow = load_flow_into(path, self._scene)
         except FlowIoError as err:
             logger.warning(f"Failed to load flow from {path}: {err}")
             self._set_status(f"Open failed ({err})", kind="fail")
             return False
-        
+
         self._flow = flow
         self._viewer.show_node(None)
+        # load_flow_into calls set_flow (clears dirty) but then every
+        # node/link it re-creates goes through add_node / connect_ports,
+        # which flip dirty back on. Reset once the rebuild is done so
+        # a freshly-loaded flow starts clean.
+        self._scene.mark_saved()
         self.title_changed.emit(self.page_title())
         
         # Fit the freshly-loaded graph into the view. Deferred so it runs
@@ -533,6 +542,7 @@ class NodeEditorPage(PageBase):
             detail = err.strerror or str(err) or err.__class__.__name__
             self._set_status(f"Save failed: {detail}", kind="fail")
             return
+        self._scene.mark_saved()
         self._set_status(
             f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
@@ -572,6 +582,7 @@ class NodeEditorPage(PageBase):
             detail = err.strerror or str(err) or err.__class__.__name__
             self._set_status(f"Save failed: {detail}", kind="fail")
             return
+        self._scene.mark_saved()
         self.title_changed.emit(self.page_title())
         self._set_status(
             f"Saved to {_display_path(path)} at {datetime.now().strftime('%H:%M:%S')}",

@@ -50,6 +50,9 @@ class FlowScene(QGraphicsScene):
     #: error (e.g. incompatible port types). Carries the exception's message so
     #: the host page can surface it in the error banner.
     connection_error = Signal(str)
+    #: Emitted when the scene's unsaved-changes state transitions. Carries the
+    #: new value of :attr:`is_dirty` so listeners can update UI without polling.
+    dirty_changed = Signal(bool)
 
     def __init__(self) -> None:
         super().__init__()
@@ -59,15 +62,26 @@ class FlowScene(QGraphicsScene):
         self._pending_link: PendingLinkItem | None = None
         self._pending_src_port: PortItem | None = None
         self._last_emitted_selected: NodeBase | None = None
+        self._dirty: bool = False
 
         self.selectionChanged.connect(self._on_selection_changed)
+        # Every param-widget edit is an unsaved change. Structural edits
+        # (add/remove node, add/remove link, layout stack, flow rename)
+        # call _mark_dirty directly from the method that performs them.
+        self.param_changed.connect(self._mark_dirty)
 
     # ── Flow binding ───────────────────────────────────────────────────────────
 
     def set_flow(self, flow: Flow) -> None:
-        """Replace the current flow and wipe the canvas."""
+        """Replace the current flow and wipe the canvas.
+
+        A freshly-set flow starts clean: whatever the caller just loaded
+        (or created) is, by definition, "saved" — any subsequent edit
+        will flip the scene back to dirty.
+        """
         self.clear_scene()
         self._flow = flow
+        self._set_dirty(False)
 
     @property
     def flow(self) -> Flow | None:
@@ -97,6 +111,7 @@ class FlowScene(QGraphicsScene):
         self._node_items[id(node)] = item
         if self._flow is not None:
             self._flow.add_node(node)
+        self._mark_dirty()
         return item
 
     def instantiate_and_add(self, entry: NodeEntry, scene_pos: QPointF | None = None) -> NodeItem | None:
@@ -143,6 +158,7 @@ class FlowScene(QGraphicsScene):
             item.setPos(x, y)
             item.refresh_all_links()
             y += item.boundingRect().height() + self.STACK_GAP
+        self._mark_dirty()
         return len(items)
 
     def stack_selected_horizontally(self) -> int:
@@ -166,6 +182,7 @@ class FlowScene(QGraphicsScene):
             item.setPos(x, y)
             item.refresh_all_links()
             x += item.boundingRect().width() + self.STACK_GAP
+        self._mark_dirty()
         return len(items)
 
     def _delete_node_item(self, item: NodeItem) -> None:
@@ -176,6 +193,7 @@ class FlowScene(QGraphicsScene):
                 pass
         self._node_items.pop(id(item.node), None)
         self.removeItem(item)
+        self._mark_dirty()
 
     # ── Link operations ────────────────────────────────────────────────────────
 
@@ -205,6 +223,7 @@ class FlowScene(QGraphicsScene):
         link = LinkItem(src, dst)
         self.addItem(link)
         self._links.append(link)
+        self._mark_dirty()
         return link
 
     def _delete_link_item(self, link: LinkItem) -> None:
@@ -220,6 +239,7 @@ class FlowScene(QGraphicsScene):
         if link in self._links:
             self._links.remove(link)
         self.removeItem(link)
+        self._mark_dirty()
 
     # ── Pending-link drag ──────────────────────────────────────────────────────
 
@@ -319,6 +339,36 @@ class FlowScene(QGraphicsScene):
 
     def iter_links(self) -> list[LinkItem]:
         return list(self._links)
+
+    # ── Dirty tracking ─────────────────────────────────────────────────────────
+
+    @property
+    def is_dirty(self) -> bool:
+        """True if the scene has been modified since the last save/load."""
+        return self._dirty
+
+    def mark_saved(self) -> None:
+        """Reset the dirty flag. Called by the editor after a successful save."""
+        self._set_dirty(False)
+
+    def mark_dirty(self) -> None:
+        """Flag the scene as modified.
+
+        Exposed for edits the scene can't observe on its own — most
+        notably renaming the underlying :class:`Flow` from the host
+        page. Structural edits performed via scene methods already
+        call this internally.
+        """
+        self._mark_dirty()
+
+    def _mark_dirty(self) -> None:
+        self._set_dirty(True)
+
+    def _set_dirty(self, value: bool) -> None:
+        if self._dirty == value:
+            return
+        self._dirty = value
+        self.dirty_changed.emit(value)
 
     # ── Keyboard ───────────────────────────────────────────────────────────────
 
