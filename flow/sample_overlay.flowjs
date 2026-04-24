@@ -21,8 +21,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -452.0,
-        -415.0
+        -480.64963503649636,
+        -686.2165450121654
       ],
       "params": {
         "output_path": "out.mp4",
@@ -51,8 +51,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1682.279805352798,
-        -566.0352798053526
+        -1634.5304136253037,
+        -577.4951338199512
       ],
       "params": {
         "file_path": "logo.png"
