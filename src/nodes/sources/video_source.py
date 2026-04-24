@@ -18,12 +18,18 @@ class VideoSource(SourceNodeBase):
 
     Supported formats: MP4, AVI, MOV, MKV.
 
+    Paths inside the application's :data:`INPUT_DIR` are stored — and
+    therefore displayed — relative to that folder. Anything outside is
+    kept as an absolute path. Relative paths are resolved against
+    ``INPUT_DIR`` at run time, which keeps saved flows portable across
+    machines that share the same input layout.
+
     Unlike :class:`ImageSource`, this source is **not** reactive — the flow
     only runs when the Run button is pressed.  This avoids restarting a
     potentially long video decode on every keystroke.
 
     Parameters:
-      file_path      -- path to the input video file
+      file_path      -- path to the input video (relative to INPUT_DIR when possible)
       max_num_frames -- maximum number of frames to decode (-1 = all)
     """
 
@@ -40,8 +46,16 @@ class VideoSource(SourceNodeBase):
     @override
     def params(self) -> list[NodeParam]:
         return [
-            NodeParam("file_path",      NodeParamType.FILE_PATH, {"default": "./input/example.mp4", "filter": "Video (*.mp4 *.avi *.mov *.mkv)", "base_dir": INPUT_DIR}),
-            NodeParam("max_num_frames", NodeParamType.INT,       {"default": -1}),
+            NodeParam(
+                "file_path",
+                NodeParamType.FILE_PATH,
+                {
+                    "default": "video.mp4",
+                    "filter": "Video (*.mp4 *.avi *.mov *.mkv)",
+                    "base_dir": INPUT_DIR,
+                },
+            ),
+            NodeParam("max_num_frames", NodeParamType.INT, {"default": -1}),
         ]
 
     @property
@@ -50,7 +64,13 @@ class VideoSource(SourceNodeBase):
 
     @file_path.setter
     def file_path(self, path: str | Path) -> None:
-        self._file_path = Path(path)
+        p = Path(path)
+        if p.is_absolute():
+            try:
+                p = p.resolve().relative_to(INPUT_DIR.resolve())
+            except (OSError, ValueError):
+                pass  # outside INPUT_DIR — keep absolute
+        self._file_path = p
 
     @property
     def max_num_frames(self) -> int:
@@ -64,17 +84,18 @@ class VideoSource(SourceNodeBase):
 
     @override
     def process_impl(self) -> None:
-        if not self._file_path.exists():
-            raise FileNotFoundError(f"Input file not found: {self._file_path}")
+        resolved = self._resolved_path()
+        if not resolved.exists():
+            raise FileNotFoundError(f"Input file not found: {resolved}")
 
-        ext = self._file_path.suffix.lower()
+        ext = resolved.suffix.lower()
         if ext not in _SUPPORTED_EXTS:
             raise ValueError(
                 f"Unsupported file type '{ext}'. "
                 f"Supported: {_SUPPORTED_EXTS}"
             )
 
-        cap = cv2.VideoCapture(str(self._file_path))
+        cap = cv2.VideoCapture(str(resolved))
         try:
             frame_count = 0
             while True:
@@ -87,3 +108,11 @@ class VideoSource(SourceNodeBase):
                     break
         finally:
             cap.release()
+
+    # ── Internals ──────────────────────────────────────────────────────────────
+
+    def _resolved_path(self) -> Path:
+        """Return an absolute path; relative values are joined with INPUT_DIR."""
+        if self._file_path.is_absolute():
+            return self._file_path
+        return INPUT_DIR / self._file_path

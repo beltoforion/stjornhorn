@@ -10,6 +10,20 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.16] — 2026-04-24
+
+### Fixed
+- **`VideoSource` path handling is now consistent with every other
+  file-based node.** Paths under `INPUT_DIR` are stored as bare
+  relative names and resolved against `INPUT_DIR` at run time — same
+  contract `ImageSource` / `FileSink` / `VideoSink` already followed.
+  Previously `VideoSource` persisted the host-absolute path (breaking
+  flow portability across machines) and resolved any relative value
+  against the process's working directory (breaking the default
+  `./input/example.mp4` unless launched from the repo root). The
+  default is also bumped from `./input/example.mp4` to `example.mp4`
+  so it resolves correctly regardless of `cwd`. Fixes #145.
+
 ## [0.1.15] — 2026-04-24
 
 ### Added
