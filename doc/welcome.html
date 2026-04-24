@@ -164,7 +164,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.4</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.15</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -187,7 +187,7 @@
         </div>
         <div class="card filter">
           <h3>Filters</h3>
-          <p>Scale, shift, blur, threshold, dither, split/join RGB channels, and match templates with NCC.</p>
+          <p>Scale, shift, blur, threshold, dither, split/join RGBA channels, overlay with per-pixel alpha, and match templates with NCC.</p>
         </div>
         <div class="card sink">
           <h3>Sinks</h3>
@@ -197,10 +197,12 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.4</h2>
+      <h2>What's new in v0.1.15</h2>
       <ul class="tips">
-        <li><strong>Save As</strong> now writes the chosen filename into the saved flow's <code>name</code> field instead of preserving the old name.</li>
-        <li><strong>Mixed reactive + streaming sources</strong> — wiring a still image into the same filter as a video now produces one output per video frame, with the image latched as a constant input.</li>
+        <li><strong>Unsaved-changes indicator</strong> — the editor's toolbar shows an amber warning icon with "Unsaved changes" the moment a parameter, node, or connection is edited, and clears it on save, load, or reload.</li>
+        <li><strong>Reload</strong> toolbar action re-reads the current flow from disk, discarding unsaved edits after a confirmation.</li>
+        <li><strong>Python runtime</strong> appears in the toolbar and is written to the log at startup, so bug reports always include which interpreter the app was bound to.</li>
+        <li><strong>RGBA-aware split/join + per-pixel Overlay alpha</strong> (v0.1.14) — the Overlay node now honours the overlay image's alpha channel as a per-pixel blend mask; <code>RgbaSplit</code> / <code>RgbaJoin</code> supersede the RGB-only nodes, with the alpha port marked optional so old 3-channel flows keep working.</li>
       </ul>
     </section>
 
