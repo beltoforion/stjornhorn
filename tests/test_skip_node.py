@@ -25,10 +25,10 @@ def test_shift_is_skippable() -> None:
     assert Shift().is_skippable is True
 
 
-def test_dither_is_not_skippable() -> None:
-    """Dither accepts colour or greyscale but only emits greyscale — bypassing
-    could forward a colour image onto a greyscale-only downstream port."""
-    assert Dither().is_skippable is False
+def test_dither_is_skippable() -> None:
+    """Dither now preserves the input type (greyscale stays greyscale,
+    colour stays colour) so its in/out port types line up pairwise."""
+    assert Dither().is_skippable is True
 
 
 def test_grayscale_is_not_skippable() -> None:
@@ -51,7 +51,7 @@ def test_source_and_sink_are_not_skippable() -> None:
 
 
 def test_setting_skipped_on_non_skippable_raises() -> None:
-    node = Dither()
+    node = Grayscale()
     with pytest.raises(ValueError):
         node.skipped = True
 

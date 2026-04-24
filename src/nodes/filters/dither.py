@@ -8,7 +8,7 @@ import numba
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoData, IoDataType
+from core.io_data import IMAGE_TYPES
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
 
@@ -101,10 +101,10 @@ _BAYER_MATRICES: dict[DitherMethod, np.ndarray] = {
 class Dither(NodeBase):
     """Binary (black/white) dithering with a configurable algorithm.
 
-    Reduces an image to two levels (0 / 255) using one of the classic
-    ordered or error-diffusion schemes. Colour inputs are converted to
-    greyscale first; the output is always a single-channel
-    :data:`IoDataType.IMAGE_GREY` payload.
+    Reduces an image to two levels (0 / 255) per channel using one of the
+    classic ordered or error-diffusion schemes. Greyscale inputs produce
+    greyscale outputs; colour inputs are dithered per channel and produce
+    a colour output of the same shape.
 
     The error-diffusion inner loop is JIT-compiled by numba on first use
     (``@njit(cache=True)``), making it comparable in speed to the
@@ -116,7 +116,7 @@ class Dither(NodeBase):
         self._method: DitherMethod = DitherMethod.STUCKI
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
+        self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
 
@@ -152,22 +152,26 @@ class Dither(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        image: np.ndarray = self.inputs[0].data.image
+        in_data = self.inputs[0].data
+        image: np.ndarray = in_data.image
 
         if image.ndim == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            # cv2.split yields a list of contiguous single-channel
+            # planes, which cv2.randn and numba both prefer.
+            planes = [self._dither_plane(c) for c in cv2.split(image)]
+            out = cv2.merge(planes)
         else:
-            gray = image
+            out = self._dither_plane(image)
 
+        self.outputs[0].send(in_data.with_image(out))
+
+    def _dither_plane(self, plane: np.ndarray) -> np.ndarray:
         method = self._method
         if method == DitherMethod.NOISE:
-            out = _dither_noise(gray)
-        elif method in _BAYER_MATRICES:
-            out = _dither_bayer(gray, _BAYER_MATRICES[method])
-        else:
-            out = _dither_diffusion(gray, _DIFFUSION_KERNELS[method])
-
-        self.outputs[0].send(IoData.from_greyscale(out))
+            return _dither_noise(plane)
+        if method in _BAYER_MATRICES:
+            return _dither_bayer(plane, _BAYER_MATRICES[method])
+        return _dither_diffusion(plane, _DIFFUSION_KERNELS[method])
 
 
 # ── Dithering kernels ─────────────────────────────────────────────────────────

@@ -10,6 +10,16 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.12] — 2026-04-24
+
+### Changed
+- **Dither node preserves the input type.** Greyscale inputs still
+  emit a single-channel binary image, but colour (BGR) inputs are now
+  dithered per channel and emit a colour image of the same shape
+  instead of being greyscaled first. The output port now accepts both
+  `IMAGE` and `IMAGE_GREY`, which also makes the node eligible for the
+  skip (pass-through) toggle.
+
 ## [0.1.11] — 2026-04-24
 
 ### Changed
