@@ -9,6 +9,7 @@ from typing_extensions import override
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QDoubleSpinBox,
     QFileDialog,
@@ -434,7 +435,12 @@ class FilePathParamWidget(ParamWidgetBase):
         else:
             dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
             dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        top = self._line.window()
+        # self._line.window() doesn't reach MainWindow because the param
+        # widget is embedded in a QGraphicsProxyWidget, which severs the
+        # widget-parent chain. activeWindow() returns the top-level
+        # window with focus, which is MainWindow when a node's browse
+        # button is clicked.
+        top = QApplication.activeWindow()
         if top is not None:
             geo = dialog.frameGeometry()
             geo.moveCenter(top.frameGeometry().center())
