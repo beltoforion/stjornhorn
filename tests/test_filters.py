@@ -171,21 +171,28 @@ def test_dither_produces_greyscale_binary_output(method: DitherMethod) -> None:
     node.method = int(method)
     out = _run(node, image)
 
-    # Dither emits a single-channel IMAGE_GREY payload.
+    # Greyscale input -> single-channel binary output.
     assert out.shape == (8, 8)
     assert set(np.unique(out).tolist()).issubset({0, 255})
 
 
-def test_dither_accepts_bgr_input() -> None:
-    # Gradient broadcast to 3 channels — the node should greyscale it.
-    gray = _gradient(h=8, w=8)
-    bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+@pytest.mark.parametrize("method", list(DitherMethod))
+def test_dither_preserves_colour_channels(method: DitherMethod) -> None:
+    # Distinct per-channel gradients so a greyscale conversion would
+    # erase the channel differences and let the test catch a regression.
+    h, w = 8, 8
+    bgr = np.stack([
+        _gradient(h=h, w=w),
+        np.flipud(_gradient(h=h, w=w)),
+        np.fliplr(_gradient(h=h, w=w)),
+    ], axis=-1)
 
     node = Dither()
-    node.method = int(DitherMethod.BAYER4)
+    node.method = int(method)
     out = _run(node, bgr)
 
-    assert out.shape == (8, 8)
+    # Colour input -> colour output, still binary per channel.
+    assert out.shape == (h, w, 3)
     assert set(np.unique(out).tolist()).issubset({0, 255})
 
 
