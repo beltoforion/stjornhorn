@@ -10,6 +10,15 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.9] — 2026-04-24
+
+### Changed
+- **Log folder moved out of the user config dir.** `LOG_DIR` now resolves
+  to `<app-folder>/logs/` (alongside `input/`, `output/`, `flow/`)
+  instead of `~/.image-inquest/logs/`, so logs and faulthandler dumps
+  stay visible next to the rest of the bundled app folders. `logs/` is
+  added to `.gitignore`.
+
 ## [0.1.8] — 2026-04-24
 
 ### Added
