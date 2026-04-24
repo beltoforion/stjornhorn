@@ -22,8 +22,8 @@ class FlowStatusWidget(QWidget):
     Has two modes selected via :class:`QStackedLayout`:
 
     * **Idle** — a single ``AppName vX.Y.Z`` label, visually identical
-      to the default :class:`ui.page.AppVersionStatusWidget` so the
-      toolbar looks the same whether the editor is open or not.
+      to the default :class:`ui.app_version_status_widget.AppVersionStatusWidget`
+      so the toolbar looks the same whether the editor is open or not.
     * **Running** — a spinner on the right; on the left, two stacked
       labels: the flow name in bold on top, the currently-executing
       node name muted beneath.
