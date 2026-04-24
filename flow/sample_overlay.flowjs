@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.13",
+  "app_version": "0.1.14",
   "name": "sample_overlay",
   "nodes": [
     {
@@ -39,11 +39,11 @@
         -893.2798053527981
       ],
       "params": {
-        "scale": 200.0,
+        "scale": 0.42,
         "angle": 0.0,
         "xpos": 0,
         "ypos": 0,
-        "alpha": 0.3
+        "alpha": 0.5
       }
     },
     {
