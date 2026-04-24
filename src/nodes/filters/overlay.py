@@ -119,64 +119,81 @@ class Overlay(NodeBase):
                 return cv2.cvtColor(d.image, cv2.COLOR_GRAY2BGR)
             return d.image
 
-        base    = to_canvas(base_data).copy()
-        overlay = to_canvas(overlay_data)
+        # ── Skip path 1: alpha == 0 ───────────────────────────────────────
+        # Overlay is invisible — no warp, no copy, no blend. Forward the
+        # (possibly grey→BGR promoted) base straight through.
+        if self._alpha == 0.0:
+            self._emit(to_canvas(base_data), any_color)
+            return
 
-        # When rotation is active, fold scale into the same affine warp
-        # so the overlay is resampled only once. Pure scaling (no
-        # rotation) uses cv2.resize instead — warpAffine with
-        # BORDER_CONSTANT would darken the outer pixels toward zero,
-        # while cv2.resize preserves sharp edges.
+        overlay_src = to_canvas(overlay_data)
+        src_h, src_w = overlay_src.shape[:2]
+
+        # ── Predict the transformed overlay's bounding box (no warp yet) ──
+        # cheap enough to always compute, so we can decide whether to
+        # bother with the expensive warpAffine / resize / base.copy().
         rotates = self._angle % 360.0 != 0.0
         if rotates:
-            ov_h, ov_w = overlay.shape[:2]
-            center = (ov_w / 2.0, ov_h / 2.0)
+            center = (src_w / 2.0, src_h / 2.0)
             M = cv2.getRotationMatrix2D(center, self._angle, self._scale)
-            # Expand the output bounding box so the scaled + rotated
-            # image fits without being cropped, and shift the matrix
-            # accordingly. cos/sin here already include the scale
-            # factor from getRotationMatrix2D.
             cos = abs(M[0, 0])
             sin = abs(M[0, 1])
-            out_w = max(1, int(round(ov_h * sin + ov_w * cos)))
-            out_h = max(1, int(round(ov_h * cos + ov_w * sin)))
-            M[0, 2] += (out_w / 2.0) - center[0]
-            M[1, 2] += (out_h / 2.0) - center[1]
-            overlay = cv2.warpAffine(
-                overlay, M, (out_w, out_h), flags=cv2.INTER_LINEAR
-            )
+            out_w = max(1, int(round(src_h * sin + src_w * cos)))
+            out_h = max(1, int(round(src_h * cos + src_w * sin)))
         elif self._scale != 1.0:
-            ov_h, ov_w = overlay.shape[:2]
-            new_w = max(1, int(round(ov_w * self._scale)))
-            new_h = max(1, int(round(ov_h * self._scale)))
-            overlay = cv2.resize(
-                overlay, (new_w, new_h), interpolation=cv2.INTER_LINEAR
-            )
+            out_w = max(1, int(round(src_w * self._scale)))
+            out_h = max(1, int(round(src_h * self._scale)))
+        else:
+            out_w, out_h = src_w, src_h
 
-        base_h, base_w = base.shape[:2]
-        ov_h,   ov_w   = overlay.shape[:2]
+        base_src = to_canvas(base_data)
+        base_h, base_w = base_src.shape[:2]
 
         # Destination rectangle on the base, clipped to the base bounds.
         x0 = max(self._xpos, 0)
         y0 = max(self._ypos, 0)
-        x1 = min(self._xpos + ov_w, base_w)
-        y1 = min(self._ypos + ov_h, base_h)
+        x1 = min(self._xpos + out_w, base_w)
+        y1 = min(self._ypos + out_h, base_h)
 
-        if x0 < x1 and y0 < y1:
-            # Matching rectangle inside the overlay (accounts for negative
-            # xpos/ypos shifting the overlay off the top-left edge).
-            ox0 = x0 - self._xpos
-            oy0 = y0 - self._ypos
-            ox1 = ox0 + (x1 - x0)
-            oy1 = oy0 + (y1 - y0)
+        # ── Skip path 2: transformed overlay misses the base entirely ─────
+        # Same deal — pass the base through without warping or copying.
+        if x0 >= x1 or y0 >= y1:
+            self._emit(base_src, any_color)
+            return
 
-            roi     = base[y0:y1, x0:x1]
-            ov_crop = overlay[oy0:oy1, ox0:ox1]
-
-            blended = cv2.addWeighted(ov_crop, self._alpha, roi, 1.0 - self._alpha, 0.0)
-            base[y0:y1, x0:x1] = blended
-
-        if any_color:
-            self.outputs[0].send(IoData.from_image(base))
+        # ── Execute the transform + composite ─────────────────────────────
+        if rotates:
+            M[0, 2] += (out_w / 2.0) - center[0]
+            M[1, 2] += (out_h / 2.0) - center[1]
+            overlay = cv2.warpAffine(
+                overlay_src, M, (out_w, out_h), flags=cv2.INTER_LINEAR
+            )
+        elif self._scale != 1.0:
+            overlay = cv2.resize(
+                overlay_src, (out_w, out_h), interpolation=cv2.INTER_LINEAR
+            )
         else:
-            self.outputs[0].send(IoData.from_greyscale(base))
+            overlay = overlay_src
+
+        base = base_src.copy()
+
+        # Matching rectangle inside the overlay (accounts for negative
+        # xpos/ypos shifting the overlay off the top-left edge).
+        ox0 = x0 - self._xpos
+        oy0 = y0 - self._ypos
+        ox1 = ox0 + (x1 - x0)
+        oy1 = oy0 + (y1 - y0)
+
+        roi     = base[y0:y1, x0:x1]
+        ov_crop = overlay[oy0:oy1, ox0:ox1]
+
+        blended = cv2.addWeighted(ov_crop, self._alpha, roi, 1.0 - self._alpha, 0.0)
+        base[y0:y1, x0:x1] = blended
+
+        self._emit(base, any_color)
+
+    def _emit(self, image: np.ndarray, any_color: bool) -> None:
+        if any_color:
+            self.outputs[0].send(IoData.from_image(image))
+        else:
+            self.outputs[0].send(IoData.from_greyscale(image))

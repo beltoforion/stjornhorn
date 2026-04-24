@@ -274,6 +274,57 @@ def test_overlay_angle_and_scale_combine_into_single_warp() -> None:
     assert footprint_nonzero >= 20  # out of 6x4 = 24 pixels
 
 
+def test_overlay_zero_alpha_skips_warp(monkeypatch) -> None:
+    """With alpha=0 the overlay is invisible — warpAffine must not run."""
+    import cv2 as _cv2
+    calls = {"warp": 0, "resize": 0}
+    monkeypatch.setattr(_cv2, "warpAffine",
+                        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("warpAffine called")))
+    monkeypatch.setattr(_cv2, "resize",
+                        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("resize called")))
+
+    node = Overlay()
+    node.alpha = 0.0
+    node.scale = 2.5
+    node.angle = 37.0  # would normally force a warpAffine
+    base = _bgr(8, 8, 42)
+    _wire(
+        node,
+        IoData.from_image(base),
+        IoData.from_image(_bgr(3, 3, 255)),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    np.testing.assert_array_equal(out.image, base)
+
+
+def test_overlay_fully_outside_base_skips_warp(monkeypatch) -> None:
+    """Overlay positioned off-canvas must not trigger the warp pipeline."""
+    import cv2 as _cv2
+    monkeypatch.setattr(_cv2, "warpAffine",
+                        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("warpAffine called")))
+    monkeypatch.setattr(_cv2, "resize",
+                        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("resize called")))
+
+    node = Overlay()
+    node.alpha = 1.0
+    node.scale = 2.0
+    node.angle = 45.0
+    node.xpos = 500  # far outside the 10x10 base
+    node.ypos = 500
+    base = _bgr(10, 10, 99)
+    _wire(
+        node,
+        IoData.from_image(base),
+        IoData.from_image(_bgr(4, 4, 255)),
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    np.testing.assert_array_equal(out.image, base)
+
+
 def test_overlay_defaults_match_declared_params() -> None:
     node = Overlay()
     assert node.scale == 1.0
