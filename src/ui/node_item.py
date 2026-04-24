@@ -7,6 +7,7 @@ from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
+    QFont,
     QFontMetricsF,
     QPainter,
     QPainterPath,
@@ -31,6 +32,7 @@ from ui.theme import (
     NODE_BORDER_COLOR,
     NODE_BORDER_SELECTED,
     NODE_PARAM_LABEL_COLOR,
+    NODE_SKIPPED_HEADER_COLOR,
     NODE_TITLE_TEXT_COLOR,
     SINK_HEADER_COLOR,
     SOURCE_HEADER_COLOR,
@@ -194,6 +196,95 @@ class _CloseButtonItem(QGraphicsItem):
         super().mouseReleaseEvent(event)
 
 
+class _SkipButtonItem(QGraphicsItem):
+    """Toggle button rendered on the left of the close button in a node header.
+
+    Only attached to nodes whose :attr:`NodeBase.is_skippable` is True.
+    Clicking it toggles :attr:`NodeBase.skipped`; while skipped, the
+    owning node forwards each input to the matching output in place of
+    its normal ``process_impl``, the header is painted grey and the
+    title is struck through.
+
+    Draws a simple double-chevron (``»``) glyph so the affordance reads
+    as "pass through / skip forward" without needing a separate icon
+    font.
+    """
+
+    SIZE: float = 14.0
+    Z_VALUE = 2
+
+    def __init__(self, node_item: "NodeItem") -> None:
+        super().__init__(parent=node_item)
+        self._node_item = node_item
+        self._hovered = False
+        self._pressed = False
+        self.setZValue(self.Z_VALUE)
+        self.setAcceptHoverEvents(True)
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setToolTip("Skip this node (pass inputs straight through)")
+
+    def boundingRect(self) -> QRectF:  # type: ignore[override]
+        return QRectF(0, 0, self.SIZE, self.SIZE)
+
+    def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        active = self._node_item.node.skipped
+        if self._hovered or self._pressed or active:
+            painter.setPen(Qt.NoPen)
+            alpha = 120 if active else 70
+            painter.setBrush(QBrush(QColor(255, 255, 255, alpha)))
+            painter.drawRoundedRect(self.boundingRect(), 2, 2)
+
+        pen = QPen(NODE_TITLE_TEXT_COLOR, 1.6)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        s = self.SIZE
+        # Two right-pointing chevrons, rendered as thin V shapes, echoing
+        # the ``»`` symbol.
+        mid_y = s / 2
+        tip_dx = 3.0
+        half_h = 3.0
+        for x_tip in (s * 0.58, s * 0.86):
+            painter.drawLine(
+                QPointF(x_tip - tip_dx, mid_y - half_h),
+                QPointF(x_tip, mid_y),
+            )
+            painter.drawLine(
+                QPointF(x_tip, mid_y),
+                QPointF(x_tip - tip_dx, mid_y + half_h),
+            )
+
+    def hoverEnterEvent(self, event) -> None:  # type: ignore[override]
+        self._hovered = True
+        self.update()
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event) -> None:  # type: ignore[override]
+        self._hovered = False
+        self.update()
+        super().hoverLeaveEvent(event)
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = True
+            self.update()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton and self._pressed:
+            self._pressed = False
+            if self.boundingRect().contains(event.pos()):
+                self._node_item.toggle_skipped()
+            self.update()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+
 class NodeItem(QGraphicsItem):
     """A single node drawn on the flow canvas.
 
@@ -223,6 +314,8 @@ class NodeItem(QGraphicsItem):
     PADDING: float = 8.0
     PARAM_GAP: float = 4.0
     CLOSE_BUTTON_SIZE: float = 14.0
+    SKIP_BUTTON_SIZE: float = 14.0
+    HEADER_BUTTON_GAP: float = 4.0
     RESIZE_GRIP_SIZE: float = 12.0
     PORT_LABEL_GAP: float = 12.0  # min gap between paired input/output labels
 
@@ -252,6 +345,9 @@ class NodeItem(QGraphicsItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsScenePositionChanges, True)
 
         self._close_button = _CloseButtonItem(self)
+        self._skip_button: _SkipButtonItem | None = (
+            _SkipButtonItem(self) if node.is_skippable else None
+        )
         self._resize_grip = _ResizeGripItem(self)
 
         self._build_params_widget()
@@ -362,12 +458,17 @@ class NodeItem(QGraphicsItem):
 
         # ── title text ──
         painter.setPen(QPen(NODE_TITLE_TEXT_COLOR))
-        title_right_reserve = self.CLOSE_BUTTON_SIZE + self.PADDING
+        title_left = self._title_left()
+        title_right_reserve = self._title_right_reserve()
+        if self._node.skipped:
+            title_font = QFont(painter.font())
+            title_font.setStrikeOut(True)
+            painter.setFont(title_font)
         painter.drawText(
             QRectF(
-                self.PADDING,
+                title_left,
                 0,
-                self._width - 2 * self.PADDING - title_right_reserve,
+                self._width - title_left - self.PADDING - title_right_reserve,
                 self.HEADER_HEIGHT,
             ),
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
@@ -407,12 +508,32 @@ class NodeItem(QGraphicsItem):
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _header_color(self):
+        if self._node.skipped:
+            return NODE_SKIPPED_HEADER_COLOR
         if isinstance(self._node, SourceNodeBase):
             return SOURCE_HEADER_COLOR
         if isinstance(self._node, SinkNodeBase):
             return SINK_HEADER_COLOR
-        
+
         return FILTER_HEADER_COLOR
+
+    def _title_right_reserve(self) -> float:
+        """Horizontal space reserved on the header's right edge for buttons."""
+        return self.CLOSE_BUTTON_SIZE + self.PADDING
+
+    def _title_left(self) -> float:
+        """X offset where the title text starts, accounting for the left-side
+        skip button when the node is skippable."""
+        if self._skip_button is not None:
+            return self.PADDING + self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
+        return self.PADDING
+
+    def toggle_skipped(self) -> None:
+        """Flip the node's skipped state and refresh the visual."""
+        self._node.skipped = not self._node.skipped
+        if self._skip_button is not None:
+            self._skip_button.update()
+        self.update()
 
     def _header_path(self) -> QPainterPath:
         """Path for the header: top corners rounded, bottom corners square."""
@@ -444,7 +565,8 @@ class NodeItem(QGraphicsItem):
         metrics = QFontMetricsF(QApplication.font())
 
         title_w = metrics.horizontalAdvance(self._node.display_name)
-        header_need = 2 * padding + title_w + padding + self.CLOSE_BUTTON_SIZE
+        left_reserve = self._title_left()
+        header_need = left_reserve + title_w + padding + self._title_right_reserve()
 
         port_margin = PortItem.RADIUS + 6.0
         port_need = 0.0
@@ -588,6 +710,11 @@ class NodeItem(QGraphicsItem):
             self._width - self.PADDING - self.CLOSE_BUTTON_SIZE,
             (self.HEADER_HEIGHT - self.CLOSE_BUTTON_SIZE) / 2,
         )
+        if self._skip_button is not None:
+            self._skip_button.setPos(
+                self.PADDING,
+                (self.HEADER_HEIGHT - self.SKIP_BUTTON_SIZE) / 2,
+            )
         self._resize_grip.setPos(
             self._width - self.RESIZE_GRIP_SIZE - 1,
             self._body_height - self.RESIZE_GRIP_SIZE - 1,

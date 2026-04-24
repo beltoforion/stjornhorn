@@ -11,6 +11,11 @@ SOURCE_HEADER_COLOR = QColor(30, 100, 180)
 FILTER_HEADER_COLOR = QColor(30, 140,  60)
 SINK_HEADER_COLOR   = QColor(180, 100, 20)
 
+#: Header colour used when a node is skipped (bypassed). Muted grey so
+#: the node visually recedes and the user can see at a glance that it's
+#: no longer doing work.
+NODE_SKIPPED_HEADER_COLOR = QColor(110, 110, 115)
+
 NODE_BODY_COLOR           = QColor(48, 48, 52)
 NODE_BORDER_COLOR         = QColor(20, 20, 22)
 NODE_BORDER_SELECTED      = QColor(240, 200,  60)

@@ -10,7 +10,7 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
-## [0.1.10] — 2026-04-24
+## [0.1.11] — 2026-04-24
 
 ### Changed
 - **NCC node: template is now a file-path parameter, not an input port.**
@@ -20,6 +20,16 @@ once a first tagged release is cut.
   flows that connected a second source into the NCC template port must
   be re-saved — the bundled `ncc`, `video_ncc` and `debug_ncc_video`
   flows are updated accordingly.
+
+## [0.1.10] — 2026-04-24
+
+### Added
+- **Skip (pass-through) toggle on eligible nodes.** Nodes whose inputs
+  and outputs match one-to-one by type now render an extra `»` button
+  in the header. Clicking it bypasses `process_impl` and forwards each
+  input payload straight to the matching output. Skipped nodes are
+  visually distinct — grey header, strike-through title — and the
+  flag round-trips through the flow file.
 
 ## [0.1.9] — 2026-04-24
 
