@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 #: same user-config directory as user-defined nodes.
 _RECENT_FLOWS_FILE: Path = USER_CONFIG_DIR / "recent_flows.json"
 
-#: Maximum number of recent paths kept in the list. The issue specifies 5.
-MAX_RECENT_FLOWS: int = 5
+#: Maximum number of recent paths kept in the list.
+MAX_RECENT_FLOWS: int = 8
 
 
 class RecentFlowsManager(QObject):
