@@ -12,7 +12,7 @@ from core.io_data import IoData, IoDataType
 from core.node_base import SourceNodeBase, NodeParam, NodeParamType
 from core.port import OutputPort
 
-_SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".cr2"}
+_SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".cr2"}
 
 
 class ImageSource(SourceNodeBase):
@@ -46,7 +46,14 @@ class ImageSource(SourceNodeBase):
     @override
     def params(self) -> list[NodeParam]:
         return [
-            NodeParam("file_path", NodeParamType.FILE_PATH, {"default": "example.jpg", "filter": "Images (*.webp, *.png *.jpg *.jpeg *.cr2)", "base_dir": INPUT_DIR}),
+            NodeParam(
+                "file_path", 
+                NodeParamType.FILE_PATH, 
+                {
+                    "default": "example.jpg", 
+                    "filter": "Images (*.webp, *.png *.jpg *.jpeg *.cr2)", 
+                    "base_dir": INPUT_DIR
+                }),
         ]
 
     @property
