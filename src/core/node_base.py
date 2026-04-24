@@ -83,6 +83,7 @@ class NodeBase(ABC):
         self._section = section if section is not None else self.DEFAULT_SECTION
         self._inputs: list[InputPort] = []
         self._outputs: list[OutputPort] = []
+        self._skipped: bool = False
 
     # ── Port registration (called from subclass __init__) ──────────────────────
 
@@ -150,6 +151,40 @@ class NodeBase(ABC):
     def outputs(self) -> list[OutputPort]:
         return self._outputs
 
+    # ── Skip (pass-through) state ──────────────────────────────────────────────
+
+    @property
+    def is_skippable(self) -> bool:
+        """True if this node can be bypassed without breaking type safety.
+
+        A node is skippable when its inputs and outputs line up one-to-one
+        with identical type sets, so forwarding ``inputs[i].data`` to
+        ``outputs[i].send()`` is always valid. Sources (no inputs) and
+        sinks (no outputs) are never skippable.
+        """
+        if not self._inputs or not self._outputs:
+            return False
+        if len(self._inputs) != len(self._outputs):
+            return False
+        return all(
+            inp.accepted_types == out.emits
+            for inp, out in zip(self._inputs, self._outputs)
+        )
+
+    @property
+    def skipped(self) -> bool:
+        """True if this node is currently bypassed (inputs forwarded to outputs)."""
+        return self._skipped
+
+    @skipped.setter
+    def skipped(self, value: bool) -> None:
+        flag = bool(value)
+        if flag and not self.is_skippable:
+            raise ValueError(
+                f"{type(self).__name__} ({self._display_name}) is not skippable"
+            )
+        self._skipped = flag
+
     # ── Internal signal handling ───────────────────────────────────────────────
 
     def _signal_input_ready(self) -> None:
@@ -192,10 +227,23 @@ class NodeBase(ABC):
                 logger.exception("Process observer raised; ignoring")
 
         try:
-            self.process_impl()
+            if self._skipped:
+                self._process_skipped()
+            else:
+                self.process_impl()
         except Exception:
             logger.exception(f"Exception in {type(self).__name__}.process_impl ({self._display_name})")
             raise
+
+    def _process_skipped(self) -> None:
+        """Forward each input payload to the matching output unchanged.
+
+        Called in lieu of :meth:`process_impl` when :attr:`skipped` is True.
+        Relies on :attr:`is_skippable` having been verified at the time
+        ``skipped`` was set, so the type pairing is safe.
+        """
+        for inp, out in zip(self._inputs, self._outputs):
+            out.send(inp.data)
 
     @abstractmethod
     def process_impl(self) -> None:

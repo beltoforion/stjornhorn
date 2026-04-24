@@ -47,6 +47,8 @@ def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
             # Persist both axes even when only one is user-set so the
             # load side can round-trip without needing null sentinels.
             entry["size"] = [float(item.width), float(item.body_height)]
+        if node.skipped:
+            entry["skipped"] = True
         nodes_out.append(entry)
 
     connections_out: list[dict] = []
@@ -173,7 +175,13 @@ def _instantiate_node(entry: dict) -> NodeBase | None:
             setattr(node, name, value)
         except Exception:
             logger.warning(f"Ignoring param {name} on {module_name}.{class_name} ({value!r})")
-    
+
+    if entry.get("skipped"):
+        try:
+            node.skipped = True
+        except Exception:
+            logger.warning(f"Ignoring skipped flag on {module_name}.{class_name}")
+
     return node
 
 
