@@ -4,7 +4,7 @@ Call ``setup_logging()`` once at startup before creating any other objects.
 All modules then obtain their own logger with ``logging.getLogger(__name__)``.
 
 Log destinations:
-  - File  : ~/.image-inquest/image-inquest.log  (DEBUG and above, rotating)
+  - File  : <app-folder>/logs/image-inquest.log  (DEBUG and above, rotating)
   - Console: WARNING and above
 """
 from __future__ import annotations

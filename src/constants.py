@@ -2,7 +2,7 @@ from pathlib import Path
 
 APP_NAME:         str = "Image-Inquest"
 APP_DISPLAY_NAME: str = "Stjörnhorn"
-APP_VERSION:      str = "0.1.8"
+APP_VERSION:      str = "0.1.9"
 API_URL:    str = "https://beltoforion.de"
 
 # Bundled documentation (offline welcome page, screenshots, …)
@@ -41,5 +41,9 @@ FLOW_DIR:   Path = Path(__file__).parent.parent / "flow"
 # User-defined nodes (~/.image-inquest/user_nodes/)
 USER_CONFIG_DIR: Path = Path.home() / ".image-inquest"
 USER_NODES_DIR:  Path = USER_CONFIG_DIR / "user_nodes"
-LOG_DIR:  Path = USER_CONFIG_DIR / "logs"
+
+# Logs live next to the application sources rather than in the user
+# config dir so they stay visible alongside the rest of the bundled app
+# folders (input/, output/, flow/, …).
+LOG_DIR:  Path = Path(__file__).parent.parent / "logs"
 LOG_FILE: Path = LOG_DIR / "image-inquest.log"
