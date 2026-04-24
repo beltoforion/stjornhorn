@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
+  "app_version": "0.1.17",
   "name": "dither",
   "nodes": [
     {
@@ -111,12 +111,32 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -898.1128615214794,
-        -934.7082922116588
+        -831.1010035691922,
+        -858.2359366661075
       ],
       "params": {
         "output_path": "out_merge.png"
       }
+    },
+    {
+      "id": 10,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1066.671103640524,
+        -842.7726605999409
+      ],
+      "params": {}
+    },
+    {
+      "id": 11,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -904.2658949561574,
+        -1128.9527127961792
+      ],
+      "params": {}
     }
   ],
   "connections": [
@@ -169,12 +189,6 @@
       "dst_input": 0
     },
     {
-      "src_node": 7,
-      "src_output": 0,
-      "dst_node": 2,
-      "dst_input": 0
-    },
-    {
       "src_node": 3,
       "src_output": 0,
       "dst_node": 8,
@@ -201,8 +215,27 @@
     {
       "src_node": 8,
       "src_output": 0,
+      "dst_node": 11,
+      "dst_input": 0
+    },
+    {
+      "src_node": 11,
+      "src_output": 0,
       "dst_node": 9,
       "dst_input": 0
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 10,
+      "dst_input": 0
+    },
+    {
+      "src_node": 10,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
     }
-  ]
+  ],
+  "backdrops": []
 }
