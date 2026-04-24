@@ -1,22 +1,28 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import cv2
 import numpy as np
 from typing_extensions import override
 
+from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
+
+_SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 
 
 class Ncc(NodeBase):
     """Normalised cross-correlation template matching.
 
     Wraps ``cv2.matchTemplate`` with ``TM_CCORR_NORMED`` and rescales the
-    score map to a ``uint8`` greyscale image. The ``template`` input is
-    the pattern searched for within ``image``. Both inputs must be
-    single-channel greyscale. Ported from the original OCVL
-    ``NccProcessor``.
+    score map to a ``uint8`` greyscale image. The template is loaded from
+    disk via the ``template`` file-path parameter; a colour template is
+    converted to greyscale once at ``before_run`` time so the conversion
+    cost is paid a single time per run, not per frame. The ``image``
+    input is single-channel greyscale and the output is always greyscale.
 
     With ``retain_size=True`` (default) the match map is pasted into a
     canvas the same size as ``image`` and offset by half the template
@@ -29,9 +35,10 @@ class Ncc(NodeBase):
     def __init__(self) -> None:
         super().__init__("NCC", section="Processing")
         self._retain_size: bool = True
+        self._template_path: Path = Path()
+        self._template: np.ndarray | None = None
 
         self._add_input(InputPort("image", {IoDataType.IMAGE_GREY}))
-        self._add_input(InputPort("template", {IoDataType.IMAGE_GREY}))
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
 
         self._apply_default_params()
@@ -41,7 +48,10 @@ class Ncc(NodeBase):
     @property
     @override
     def params(self) -> list[NodeParam]:
-        return [NodeParam("retain_size", NodeParamType.BOOL, {"default": True})]
+        return [
+            NodeParam("template", NodeParamType.FILE_PATH, {"default": "pad.jpg", "filter": "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)", "base_dir": INPUT_DIR}),
+            NodeParam("retain_size", NodeParamType.BOOL, {"default": True}),
+        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 
@@ -53,12 +63,35 @@ class Ncc(NodeBase):
     def retain_size(self, value: bool) -> None:
         self._retain_size = bool(value)
 
+    @property
+    def template(self) -> Path:
+        return self._template_path
+
+    @template.setter
+    def template(self, path: str | Path) -> None:
+        p = Path(path)
+        if p.is_absolute():
+            try:
+                p = p.resolve().relative_to(INPUT_DIR.resolve())
+            except (OSError, ValueError):
+                pass  # outside INPUT_DIR — keep absolute
+        self._template_path = p
+
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
+    def _before_run_impl(self) -> None:
+        super()._before_run_impl()
+        self._template = self._load_template()
+
+    @override
     def process_impl(self) -> None:
+        if self._template is None:
+            # before_run wasn't called (e.g. direct unit-test use); load lazily.
+            self._template = self._load_template()
+
         image: np.ndarray = self.inputs[0].data.image
-        template: np.ndarray = self.inputs[1].data.image
+        template = self._template
 
         res = cv2.matchTemplate(image, template, cv2.TM_CCORR_NORMED)
         res = cv2.normalize(
@@ -84,3 +117,40 @@ class Ncc(NodeBase):
             out = res
 
         self.outputs[0].send(IoData.from_greyscale(out))
+
+    # ── Internals ──────────────────────────────────────────────────────────────
+
+    def _resolved_template_path(self) -> Path:
+        if self._template_path.is_absolute():
+            return self._template_path
+        return INPUT_DIR / self._template_path
+
+    def _load_template(self) -> np.ndarray:
+        resolved = self._resolved_template_path()
+        if not resolved.exists():
+            raise FileNotFoundError(f"NCC template not found: {resolved}")
+
+        ext = resolved.suffix.lower()
+        if ext not in _SUPPORTED_EXTS:
+            raise ValueError(
+                f"Unsupported template file type '{ext}'. "
+                f"Supported: {_SUPPORTED_EXTS}"
+            )
+
+        # cv2.imread() silently fails on Unicode paths on Windows; use
+        # np.fromfile + imdecode to go through Python's wide-char I/O.
+        img_array = np.fromfile(resolved, dtype=np.uint8)
+        template = cv2.imdecode(img_array, cv2.IMREAD_UNCHANGED)
+        if template is None:
+            raise OSError(f"cv2 could not read template: {resolved}")
+
+        if template.ndim == 3:
+            channels = template.shape[2]
+            if channels == 4:
+                template = cv2.cvtColor(template, cv2.COLOR_BGRA2GRAY)
+            elif channels == 3:
+                template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+            else:
+                template = template[:, :, 0]
+
+        return template

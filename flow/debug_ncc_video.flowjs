@@ -56,6 +56,7 @@
         -1098.1569464234233
       ],
       "params": {
+        "template": "pad.jpg",
         "retain_size": true
       }
     },
@@ -66,28 +67,6 @@
       "position": [
         -2184.071457141125,
         -1059.9647324696782
-      ],
-      "params": {}
-    },
-    {
-      "id": 5,
-      "module": "nodes.sources.image_source",
-      "class": "ImageSource",
-      "position": [
-        -2537.0093685547704,
-        -939.5284632621165
-      ],
-      "params": {
-        "file_path": "pad.jpg"
-      }
-    },
-    {
-      "id": 6,
-      "module": "nodes.filters.grayscale",
-      "class": "Grayscale",
-      "position": [
-        -2169.5270249779187,
-        -886.5825447399395
       ],
       "params": {}
     }
@@ -110,18 +89,6 @@
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 0
-    },
-    {
-      "src_node": 5,
-      "src_output": 0,
-      "dst_node": 6,
-      "dst_input": 0
-    },
-    {
-      "src_node": 6,
-      "src_output": 0,
-      "dst_node": 3,
-      "dst_input": 1
     },
     {
       "src_node": 3,

@@ -10,6 +10,17 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.10] — 2026-04-24
+
+### Changed
+- **NCC node: template is now a file-path parameter, not an input port.**
+  The pattern image is loaded from disk once in `before_run` and
+  converted to greyscale there if the file is colour, so the conversion
+  cost is paid a single time per run rather than per frame. Existing
+  flows that connected a second source into the NCC template port must
+  be re-saved — the bundled `ncc`, `video_ncc` and `debug_ncc_video`
+  flows are updated accordingly.
+
 ## [0.1.9] — 2026-04-24
 
 ### Changed

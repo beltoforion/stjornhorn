@@ -12,7 +12,7 @@ from core.flow import Flow
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeParam, SourceNodeBase
 from core.port import OutputPort
-from nodes.filters.ncc import Ncc
+from nodes.filters.merge import Merge
 from nodes.sinks.video_sink import VideoSink
 
 
@@ -178,22 +178,22 @@ def test_flow_latches_reactive_source_across_streaming_frames(tmp_path: Path) ->
     filter must stay available while a streaming source drives the other
     input — otherwise only one paired frame would reach the sink.
 
-    Regression for the debug_ncc_video flow: Ncc takes (image, template);
-    with VideoSource on ``image`` and ImageSource on ``template``, every
-    video frame must produce an Ncc output, not just the last one."""
-    template = np.full((8, 8), 255, dtype=np.uint8)
+    Drives ``Merge`` with a streaming greyscale source on ``top_left`` and
+    a reactive one-shot source on ``top_right``; every frame of the
+    streaming source must produce a merged output, not just the last one."""
+    fixed = np.full((16, 16), 255, dtype=np.uint8)
     frames: list[np.ndarray] = []
     # Five frames, each with the bright patch in a different spot so the
-    # matching peak differs per-frame — sanity check the flow actually
+    # merged output differs per-frame — sanity check the flow actually
     # processes each one rather than re-emitting the same result.
     for i in range(5):
-        f = np.zeros((32, 32), dtype=np.uint8)
+        f = np.zeros((16, 16), dtype=np.uint8)
         f[4 + i:10 + i, 4 + i:10 + i] = 255
         frames.append(f)
 
-    image_src = _GreyFrameListSource(frames)
-    template_src = _ReactiveImageSource(template)
-    ncc = Ncc()
+    streaming_src = _GreyFrameListSource(frames)
+    reactive_src = _ReactiveImageSource(fixed)
+    merge = Merge()
     sink = VideoSink()
     sink.output_path = tmp_path / "latched.mp4"
     sink.fps = 30.0
@@ -201,13 +201,13 @@ def test_flow_latches_reactive_source_across_streaming_frames(tmp_path: Path) ->
     flow = Flow("latched")
     # Registration order intentionally puts the streaming source first —
     # the runner must still schedule the reactive one-shot source ahead.
-    flow.add_node(image_src)
-    flow.add_node(template_src)
-    flow.add_node(ncc)
+    flow.add_node(streaming_src)
+    flow.add_node(reactive_src)
+    flow.add_node(merge)
     flow.add_node(sink)
-    flow.connect(image_src, 0, ncc, 0)
-    flow.connect(template_src, 0, ncc, 1)
-    flow.connect(ncc, 0, sink, 0)
+    flow.connect(streaming_src, 0, merge, 0)
+    flow.connect(reactive_src, 0, merge, 1)
+    flow.connect(merge, 0, sink, 0)
 
     flow.run()
 

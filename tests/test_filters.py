@@ -1,13 +1,13 @@
 """Unit tests for the filter nodes ported from OCVL."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import cv2
 import numpy as np
 import pytest
 
 from core.io_data import IoData
-from core.io_data import IoDataType
-from core.port import OutputPort
 from nodes.filters.adaptive_gaussian_threshold import AdaptiveGaussianThreshold
 from nodes.filters.dither import Dither, DitherMethod
 from nodes.filters.median import Median
@@ -197,30 +197,44 @@ def test_dither_rejects_unknown_method() -> None:
 
 # ── NCC ───────────────────────────────────────────────────────────────────────
 
-def _feed_ncc(node: Ncc, image: np.ndarray, template: np.ndarray) -> np.ndarray:
+def _write_template(path: Path, template: np.ndarray) -> None:
+    assert cv2.imwrite(str(path), template), f"failed to write template to {path}"
+
+
+def _make_ncc(template_path: Path) -> Ncc:
+    node = Ncc()
+    node.template = template_path
+    node.before_run()
+    return node
+
+
+def _feed_ncc(node: Ncc, image: np.ndarray) -> np.ndarray:
     node.inputs[0].receive(IoData.from_greyscale(image))
-    node.inputs[1].receive(IoData.from_greyscale(template))
     out = node.outputs[0].last_emitted
     assert out is not None, "NCC did not emit on output 0"
     return out.image
 
 
-def test_ncc_retain_size_matches_input_shape() -> None:
+def test_ncc_retain_size_matches_input_shape(tmp_path: Path) -> None:
     image = _gradient(h=32, w=32)
     template = image[10:16, 10:16].copy()
+    tpl_path = tmp_path / "template.png"
+    _write_template(tpl_path, template)
 
-    out = _feed_ncc(Ncc(), image, template)
+    out = _feed_ncc(_make_ncc(tpl_path), image)
 
     assert out.shape == image.shape
     assert out.dtype == np.uint8
 
 
-def test_ncc_peaks_at_template_centre_when_retain_size() -> None:
+def test_ncc_peaks_at_template_centre_when_retain_size(tmp_path: Path) -> None:
     image = np.zeros((32, 32), dtype=np.uint8)
     image[12:20, 12:20] = 255
     template = np.full((8, 8), 255, dtype=np.uint8)
+    tpl_path = tmp_path / "template.png"
+    _write_template(tpl_path, template)
 
-    out = _feed_ncc(Ncc(), image, template)
+    out = _feed_ncc(_make_ncc(tpl_path), image)
 
     # The perfect match sits at the top-left of the matchTemplate result
     # (row=12, col=12); with retain_size it's offset by template/2 (=4),
@@ -230,13 +244,18 @@ def test_ncc_peaks_at_template_centre_when_retain_size() -> None:
     assert out[peak] == 255
 
 
-def test_ncc_without_retain_size_returns_raw_match_shape() -> None:
+def test_ncc_without_retain_size_returns_raw_match_shape(tmp_path: Path) -> None:
     image = _gradient(h=32, w=32)
     template = image[0:8, 0:8].copy()
+    tpl_path = tmp_path / "template.png"
+    _write_template(tpl_path, template)
 
     node = Ncc()
+    node.template = tpl_path
     node.retain_size = False
-    out = _feed_ncc(node, image, template)
+    node.before_run()
+
+    out = _feed_ncc(node, image)
 
     # cv2.matchTemplate output: (H - h + 1, W - w + 1)
     assert out.shape == (32 - 8 + 1, 32 - 8 + 1)
@@ -249,32 +268,18 @@ def test_ncc_rejects_colour_image_input() -> None:
         node.inputs[0].receive(IoData.from_image(colour))
 
 
-def test_ncc_matches_when_two_sources_deliver_sequentially_then_finish() -> None:
-    """Emulates how ``Flow.run`` drives NCC with two independent sources:
-    each source delivers its data in turn, and the runner calls
-    ``finish()`` on every source output afterwards. NCC must process the
-    pair once and forward ``finish()`` to its output."""
+def test_ncc_converts_colour_template_to_greyscale_at_before_run(tmp_path: Path) -> None:
+    """Colour templates are reduced to greyscale once at before_run time,
+    so matchTemplate runs on single-channel data per frame."""
+    template_grey = np.full((8, 8), 200, dtype=np.uint8)
+    template_colour = cv2.cvtColor(template_grey, cv2.COLOR_GRAY2BGR)
+    tpl_path = tmp_path / "colour_template.png"
+    _write_template(tpl_path, template_colour)
+
     node = Ncc()
+    node.template = tpl_path
+    node.before_run()
 
-    image_up = OutputPort("image", {IoDataType.IMAGE_GREY})
-    template_up = OutputPort("template", {IoDataType.IMAGE_GREY})
-    image_up.connect(node.inputs[0])
-    template_up.connect(node.inputs[1])
-
-    image = np.zeros((32, 32), dtype=np.uint8)
-    image[12:20, 12:20] = 255
-    template = np.full((8, 8), 255, dtype=np.uint8)
-
-    # Data delivery phase (sequential, like Flow.run starting sources).
-    image_up.send(IoData.from_greyscale(image))
-    template_up.send(IoData.from_greyscale(template))
-
-    # Lifetime phase (runner calls finish() on every source output).
-    image_up.finish()
-    template_up.finish()
-
-    out = node.outputs[0].last_emitted
-    assert out is not None
-    assert out.type == IoDataType.IMAGE_GREY
-    assert out.image.shape == image.shape
-    assert node.outputs[0].finished
+    assert node._template is not None
+    assert node._template.ndim == 2
+    assert node._template.shape == template_grey.shape
