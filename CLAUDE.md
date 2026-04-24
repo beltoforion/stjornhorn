@@ -19,3 +19,9 @@
 
 ## Automated Responses
 - The `Claude Issue Assistant` workflow (`.github/workflows/claude-issue.yml`) must only act on events whose `github.actor` is the repository owner. Never remove or loosen that gate — third-party issue/comment activity must not trigger any Claude run, including no reply. If collaborator access is ever needed, switch to an explicit allowlist rather than opening the trigger up.
+
+## Communication Style
+- Keine einleitenden Formulierungen (z. B. "Kurze, ehrliche Antwort:", "Gerne,", "Natürlich,"). Direkt zum Punkt, reine Informationsübertragung, so kurz wie möglich.
+
+## Meta
+- Änderungen an `CLAUDE.md` darf Claude direkt committen und pushen, ohne vorher Rückfrage zu stellen.
