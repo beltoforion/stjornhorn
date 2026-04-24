@@ -78,12 +78,17 @@ def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
     for backdrop in scene.iter_backdrops():
         pos = backdrop.pos()
         colour = backdrop.color
-        backdrops_out.append({
+        entry: dict = {
             "position": [float(pos.x()), float(pos.y())],
             "size":     [float(backdrop.width), float(backdrop.height)],
             "title":    backdrop.title,
             "color":    [colour.red(), colour.green(), colour.blue(), colour.alpha()],
-        })
+        }
+        # Only emit the capture flag when it's on — keeps the file
+        # tidy for the common case (no capture).
+        if backdrop.capture_active:
+            entry["capture"] = True
+        backdrops_out.append(entry)
 
     return {
         "version":     FLOW_FORMAT_VERSION,
@@ -188,6 +193,7 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
             width=float(size[0]) if size[0] is not None else None,
             height=float(size[1]) if size[1] is not None else None,
             color=colour,
+            capture_active=bool(entry.get("capture", False)),
         )
 
     return flow

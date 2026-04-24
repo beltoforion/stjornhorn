@@ -256,6 +256,7 @@ class FlowScene(QGraphicsScene):
         width: float | None = None,
         height: float | None = None,
         color=None,
+        capture_active: bool = False,
     ) -> BackdropItem:
         """Add a :class:`BackdropItem` to the scene and mark dirty.
 
@@ -263,7 +264,7 @@ class FlowScene(QGraphicsScene):
         explicit geometry (e.g. from a deserialised flow) without
         forcing every call site to re-import the defaults module.
         """
-        kwargs: dict = {"title": title}
+        kwargs: dict = {"title": title, "capture_active": capture_active}
         if width is not None:
             kwargs["width"] = width
         if height is not None:

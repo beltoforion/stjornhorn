@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -14,6 +14,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QGraphicsItem
 
+from ui.icons import material_icon
 from ui.theme import NODE_BORDER_SELECTED, NODE_TITLE_TEXT_COLOR
 
 if TYPE_CHECKING:
@@ -86,7 +87,9 @@ class BackdropItem(QGraphicsItem):
     CORNER_RADIUS: float = 6.0
     GRIP_SIZE: float = 12.0
     CLOSE_BUTTON_SIZE: float = 14.0
-    CLOSE_BUTTON_MARGIN: float = 4.0
+    CAPTURE_BUTTON_SIZE: float = 14.0
+    HEADER_BUTTON_GAP: float = 4.0
+    HEADER_BUTTON_MARGIN: float = 4.0
     TITLE_PADDING: float = 8.0
 
     def __init__(
@@ -95,12 +98,22 @@ class BackdropItem(QGraphicsItem):
         width: float = DEFAULT_BACKDROP_WIDTH,
         height: float = DEFAULT_BACKDROP_HEIGHT,
         color: QColor | None = None,
+        capture_active: bool = False,
     ) -> None:
         super().__init__()
         self._title: str = title
         self._width: float = float(width)
         self._height: float = float(height)
         self._color: QColor = QColor(color if color is not None else DEFAULT_BACKDROP_COLOR)
+        self._capture_active: bool = bool(capture_active)
+        # Drag bookkeeping: when capture is on and the user starts
+        # dragging the backdrop, we snapshot every node fully inside
+        # the frame at press-time and shift them by the same delta on
+        # every position change. The snapshot is *not* re-evaluated
+        # mid-drag, so a node that wasn't framed at press-time won't
+        # be swept along just because the moving backdrop crossed it.
+        self._captured_snapshot: list = []
+        self._drag_anchor_pos: QPointF | None = None
 
         self.setZValue(self.Z_VALUE)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
@@ -115,6 +128,7 @@ class BackdropItem(QGraphicsItem):
             corner: _BackdropResizeGrip(self, corner) for corner in _Corner
         }
         self._close_button = _BackdropCloseButton(self)
+        self._capture_button = _BackdropCaptureButton(self)
         self._reposition_children()
 
     # ── Public API ─────────────────────────────────────────────────────────────
@@ -143,6 +157,22 @@ class BackdropItem(QGraphicsItem):
     def height(self) -> float:
         return self._height
 
+    @property
+    def capture_active(self) -> bool:
+        """True if dragging the backdrop should sweep enclosed nodes along.
+
+        See :meth:`set_capture_active`. Reflects the toggle button in
+        the header.
+        """
+        return self._capture_active
+
+    def set_capture_active(self, active: bool) -> None:
+        flag = bool(active)
+        if flag == self._capture_active:
+            return
+        self._capture_active = flag
+        self._capture_button.update()
+
     def set_size(self, width: float, height: float) -> None:
         """Update the backdrop rectangle. Enforces the minimum so the
         resize grips can't collapse the frame out of existence."""
@@ -155,6 +185,62 @@ class BackdropItem(QGraphicsItem):
         self._height = new_h
         self._reposition_children()
         self.update()
+
+    # ── Capture / drag-with-contents ───────────────────────────────────────────
+
+    def captured_node_items(self) -> list:
+        """Return every node-item *fully* enclosed by this backdrop.
+
+        "Fully enclosed" means the node's scene-bounding rect is
+        completely inside the backdrop's scene-bounding rect — partial
+        overlap doesn't count, so a node only "joins" the backdrop's
+        group once the user has clearly placed it inside.
+
+        Imported lazily to avoid pulling :mod:`ui.node_item` (which
+        wires up Qt widgets and the param-widget infrastructure) into
+        backdrop tests that only care about geometry.
+        """
+        if self.scene() is None:
+            return []
+        from ui.node_item import NodeItem
+
+        backdrop_rect = self.sceneBoundingRect()
+        captured = []
+        for item in self.scene().items():
+            if isinstance(item, NodeItem) and backdrop_rect.contains(
+                item.sceneBoundingRect()
+            ):
+                captured.append(item)
+        return captured
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        # When capture is on, snapshot the framed nodes + their
+        # current positions so the move handler can shift them by the
+        # same delta the backdrop travels. The snapshot is taken
+        # *before* super() starts the drag so press-time geometry is
+        # what we lock in.
+        if self._capture_active and event.button() == Qt.MouseButton.LeftButton:
+            self._drag_anchor_pos = self.scenePos()
+            self._captured_snapshot = [
+                (item, item.pos()) for item in self.captured_node_items()
+            ]
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
+        self._drag_anchor_pos = None
+        self._captured_snapshot = []
+        super().mouseReleaseEvent(event)
+
+    def itemChange(self, change, value):  # type: ignore[override]
+        if (
+            change == QGraphicsItem.GraphicsItemChange.ItemScenePositionHasChanged
+            and self._drag_anchor_pos is not None
+            and self._captured_snapshot
+        ):
+            delta = self.scenePos() - self._drag_anchor_pos
+            for node_item, start_pos in self._captured_snapshot:
+                node_item.setPos(start_pos + delta)
+        return super().itemChange(change, value)
 
     # ── Qt overrides ───────────────────────────────────────────────────────────
 
@@ -185,8 +271,9 @@ class BackdropItem(QGraphicsItem):
         painter.drawPath(body_path)
 
         # Title bar text — rendered directly onto the header strip.
-        # The close button paints itself separately so the text doesn't
-        # need to know about it; we just leave room on the right.
+        # Each header button paints itself separately so the text doesn't
+        # need to know about them; we just leave room on the right for
+        # both (capture toggle + close).
         if self._title:
             title_rect = QRectF(
                 self.TITLE_PADDING,
@@ -194,7 +281,9 @@ class BackdropItem(QGraphicsItem):
                 self._width
                 - 2 * self.TITLE_PADDING
                 - self.CLOSE_BUTTON_SIZE
-                - self.CLOSE_BUTTON_MARGIN,
+                - self.HEADER_BUTTON_GAP
+                - self.CAPTURE_BUTTON_SIZE
+                - self.HEADER_BUTTON_MARGIN,
                 self.HEADER_HEIGHT,
             )
             font = QFont(painter.font())
@@ -210,7 +299,7 @@ class BackdropItem(QGraphicsItem):
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _reposition_children(self) -> None:
-        """Place every grip + close button at its corner / header slot.
+        """Place every grip + header button at its corner / header slot.
 
         Called from :meth:`set_size` and from ``__init__``. Each grip
         sits exactly on its corner (top-left coordinate of the
@@ -226,11 +315,14 @@ class BackdropItem(QGraphicsItem):
         self._grips[_Corner.SE].setPos(w - gs, h - gs)
 
         cb_size = self.CLOSE_BUTTON_SIZE
-        cb_margin = self.CLOSE_BUTTON_MARGIN
-        self._close_button.setPos(
-            w - cb_size - cb_margin,
-            (self.HEADER_HEIGHT - cb_size) / 2.0,
-        )
+        cap_size = self.CAPTURE_BUTTON_SIZE
+        margin = self.HEADER_BUTTON_MARGIN
+        gap = self.HEADER_BUTTON_GAP
+        # Right-aligned button row: [Capture] [gap] [Close] [margin] | edge
+        close_x = w - cb_size - margin
+        capture_x = close_x - gap - cap_size
+        self._close_button.setPos(close_x, (self.HEADER_HEIGHT - cb_size) / 2.0)
+        self._capture_button.setPos(capture_x, (self.HEADER_HEIGHT - cap_size) / 2.0)
 
 
 class _BackdropResizeGrip(QGraphicsItem):
@@ -343,6 +435,85 @@ class _BackdropResizeGrip(QGraphicsItem):
         self._drag_start_scene = None
         self._drag_start_pos = None
         self._drag_start_size = None
+        super().mouseReleaseEvent(event)
+
+
+class _BackdropCaptureButton(QGraphicsItem):
+    """Toggle button that switches the backdrop's "capture" mode on/off.
+
+    While capture is active, dragging the backdrop sweeps every fully-
+    enclosed node along by the same delta. The button paints a small
+    push-pin glyph (Material Icons) and shows a faint white wash when
+    hovered, plus a stronger wash when the toggle is on — same visual
+    grammar as :class:`~ui.node_item._SkipButtonItem`.
+    """
+
+    SIZE: float = 14.0
+    Z_VALUE: int = 2
+
+    def __init__(self, backdrop: BackdropItem) -> None:
+        super().__init__(parent=backdrop)
+        self._backdrop = backdrop
+        self._hovered = False
+        self._pressed = False
+        self.setZValue(self.Z_VALUE)
+        self.setAcceptHoverEvents(True)
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setToolTip(
+            "Capture nodes — drag the backdrop and any fully enclosed "
+            "node moves with it."
+        )
+        # Cache the icon — the same QIcon paints at every state, so
+        # re-creating it on each frame would waste font-rendering work.
+        self._icon = material_icon("push_pin", color=NODE_TITLE_TEXT_COLOR)
+
+    def boundingRect(self) -> QRectF:  # type: ignore[override]
+        return QRectF(0, 0, self.SIZE, self.SIZE)
+
+    def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        active = self._backdrop.capture_active
+        if self._hovered or self._pressed or active:
+            painter.setPen(Qt.NoPen)
+            alpha = 120 if active else 70
+            painter.setBrush(QBrush(QColor(255, 255, 255, alpha)))
+            painter.drawRoundedRect(self.boundingRect(), 2, 2)
+
+        # Push-pin glyph rendered through the Material Icons font so
+        # it scales crisply alongside the close X.
+        size = int(self.SIZE)
+        pixmap = self._icon.pixmap(QSize(size, size))
+        painter.drawPixmap(0, 0, pixmap)
+
+    def hoverEnterEvent(self, event) -> None:  # type: ignore[override]
+        self._hovered = True
+        self.update()
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event) -> None:  # type: ignore[override]
+        self._hovered = False
+        self.update()
+        super().hoverLeaveEvent(event)
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = True
+            self.update()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton and self._pressed:
+            self._pressed = False
+            if self.boundingRect().contains(event.pos()):
+                self._backdrop.set_capture_active(
+                    not self._backdrop.capture_active
+                )
+            self.update()
+            event.accept()
+            return
         super().mouseReleaseEvent(event)
 
 

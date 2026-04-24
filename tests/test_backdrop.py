@@ -11,7 +11,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QPointF
+from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
@@ -245,3 +245,136 @@ def test_close_button_routes_to_scene_remove_backdrop(qapp: QApplication) -> Non
     # needing the Qt event loop.
     scene.remove_backdrop(backdrop)
     assert backdrop not in scene.iter_backdrops()
+
+
+# ── Capture mode ──────────────────────────────────────────────────────────────
+
+
+def test_capture_active_defaults_to_off(qapp: QApplication) -> None:
+    backdrop = BackdropItem()
+    assert backdrop.capture_active is False
+
+
+def test_set_capture_active_toggles_the_flag(qapp: QApplication) -> None:
+    backdrop = BackdropItem()
+    backdrop.set_capture_active(True)
+    assert backdrop.capture_active is True
+    backdrop.set_capture_active(False)
+    assert backdrop.capture_active is False
+
+
+def _drag_backdrop(backdrop: BackdropItem, dx: float, dy: float) -> None:
+    """Simulate the press → move → release sequence the capture-aware
+    drag relies on, without spinning a Qt event loop.
+
+    Forging real ``QGraphicsSceneMouseEvent`` instances offscreen is
+    brittle, so we poke the same drag-bookkeeping fields the press
+    handler would set and rely on ``setPos`` to fire ``itemChange``
+    exactly the way Qt's drag would. The test then verifies the
+    handler's effect on captured node positions.
+    """
+    if backdrop.capture_active:
+        backdrop._drag_anchor_pos = backdrop.scenePos()  # noqa: SLF001 — internal contract under test
+        backdrop._captured_snapshot = [
+            (item, item.pos()) for item in backdrop.captured_node_items()
+        ]
+    backdrop.setPos(backdrop.pos().x() + dx, backdrop.pos().y() + dy)
+    backdrop._drag_anchor_pos = None
+    backdrop._captured_snapshot = []
+
+
+def test_dragging_with_capture_off_does_not_move_enclosed_nodes(
+    qapp: QApplication,
+) -> None:
+    """A node fully framed by the backdrop must stay put when the
+    backdrop is dragged with capture toggle off."""
+    from nodes.sources.image_source import ImageSource
+    scene = FlowScene()
+    scene.set_flow(Flow(name="cap_off"))
+    backdrop = scene.add_backdrop(QPointF(0, 0), width=400, height=300)
+    node = scene.add_node(ImageSource(), QPointF(50, 50))
+    start_pos = node.pos()
+    _drag_backdrop(backdrop, 100, 80)
+    assert node.pos() == start_pos
+
+
+def test_dragging_with_capture_on_sweeps_fully_enclosed_nodes(
+    qapp: QApplication,
+) -> None:
+    """The headline behaviour: with capture on, a node fully inside
+    the backdrop moves by the same delta the backdrop did."""
+    from nodes.sources.image_source import ImageSource
+    scene = FlowScene()
+    scene.set_flow(Flow(name="cap_on"))
+    backdrop = scene.add_backdrop(QPointF(0, 0), width=400, height=300)
+    backdrop.set_capture_active(True)
+    node = scene.add_node(ImageSource(), QPointF(50, 50))
+    start_pos = node.pos()
+    _drag_backdrop(backdrop, 100, 80)
+    assert node.pos().x() == start_pos.x() + 100
+    assert node.pos().y() == start_pos.y() + 80
+
+
+def test_capture_does_not_pull_nodes_outside_the_backdrop(
+    qapp: QApplication,
+) -> None:
+    """Only nodes whose bounding box lies fully inside the backdrop
+    at press-time count. A node clearly outside must stay put."""
+    from nodes.sources.image_source import ImageSource
+    scene = FlowScene()
+    scene.set_flow(Flow(name="cap_outside"))
+    backdrop = scene.add_backdrop(QPointF(0, 0), width=200, height=150)
+    backdrop.set_capture_active(True)
+    outside = scene.add_node(ImageSource(), QPointF(2000, 2000))
+    start_pos = outside.pos()
+    _drag_backdrop(backdrop, 50, 50)
+    assert outside.pos() == start_pos
+
+
+def test_capture_snapshot_is_taken_at_press_time(qapp: QApplication) -> None:
+    """A node that wasn't framed at press-time mustn't get swept along
+    just because the moving backdrop ran into it mid-drag — we'd
+    otherwise vacuum up every node the backdrop crosses."""
+    from nodes.sources.image_source import ImageSource
+    scene = FlowScene()
+    scene.set_flow(Flow(name="cap_snap"))
+    backdrop = scene.add_backdrop(QPointF(0, 0), width=200, height=150)
+    backdrop.set_capture_active(True)
+    # Node sitting outside the backdrop at press-time. Even though
+    # dragging the backdrop +250px right would have it overlap the
+    # node mid-flight, the snapshot was empty at press, so no shift.
+    far = scene.add_node(ImageSource(), QPointF(500, 50))
+    start_pos = far.pos()
+    _drag_backdrop(backdrop, 250, 0)
+    assert far.pos() == start_pos
+
+
+def test_capture_flag_round_trips_through_save_and_load(
+    qapp: QApplication, tmp_path: Path,
+) -> None:
+    scene = FlowScene()
+    flow = Flow(name="cap_persist")
+    scene.set_flow(flow)
+    backdrop = scene.add_backdrop(QPointF(0, 0))
+    backdrop.set_capture_active(True)
+
+    path = tmp_path / "cap.flowjs"
+    save_flow_to(path, scene, flow)
+
+    fresh = FlowScene()
+    load_flow_into(path, fresh)
+    [restored] = fresh.iter_backdrops()
+    assert restored.capture_active is True
+
+
+def test_capture_flag_omitted_when_off_in_serialised_form(
+    qapp: QApplication,
+) -> None:
+    """Default-off capture state stays out of the JSON to keep flows
+    tidy for the common case."""
+    scene = FlowScene()
+    flow = Flow(name="cap_default")
+    scene.set_flow(flow)
+    scene.add_backdrop(QPointF(0, 0))
+    data = serialize_flow(scene, flow)
+    assert "capture" not in data["backdrops"][0]

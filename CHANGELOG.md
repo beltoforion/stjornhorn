@@ -23,9 +23,14 @@ once a first tagged release is cut.
   the moment another node sits on top of it, so backdrops with one
   grip are effectively unusable in a real flow. Each grip pins the
   opposite corner during a drag, so resizing feels predictable from
-  every direction. Persisted alongside nodes and connections in the
-  flow file under a new `backdrops` entry; older flows without the
-  field load unchanged.
+  every direction. Backdrops also carry a **capture toggle** (push-pin
+  glyph in the header): with capture on, dragging the backdrop sweeps
+  every fully enclosed node along by the same delta, so a backdrop
+  doubles as an ad-hoc grouping handle. The captured set is locked in
+  at press-time, so a node that wasn't framed when the drag started
+  doesn't get vacuumed up mid-flight. Persisted alongside nodes and
+  connections in the flow file under a new `backdrops` entry; older
+  flows without the field load unchanged.
 
 ## [0.1.16] — 2026-04-24
 
