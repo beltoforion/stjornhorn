@@ -458,6 +458,7 @@ class NodeItem(QGraphicsItem):
 
         # ── title text ──
         painter.setPen(QPen(NODE_TITLE_TEXT_COLOR))
+        title_left = self._title_left()
         title_right_reserve = self._title_right_reserve()
         if self._node.skipped:
             title_font = QFont(painter.font())
@@ -465,9 +466,9 @@ class NodeItem(QGraphicsItem):
             painter.setFont(title_font)
         painter.drawText(
             QRectF(
-                self.PADDING,
+                title_left,
                 0,
-                self._width - 2 * self.PADDING - title_right_reserve,
+                self._width - title_left - self.PADDING - title_right_reserve,
                 self.HEADER_HEIGHT,
             ),
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
@@ -517,11 +518,15 @@ class NodeItem(QGraphicsItem):
         return FILTER_HEADER_COLOR
 
     def _title_right_reserve(self) -> float:
-        """Horizontal space reserved in the header for right-aligned buttons."""
-        reserve = self.CLOSE_BUTTON_SIZE + self.PADDING
+        """Horizontal space reserved on the header's right edge for buttons."""
+        return self.CLOSE_BUTTON_SIZE + self.PADDING
+
+    def _title_left(self) -> float:
+        """X offset where the title text starts, accounting for the left-side
+        skip button when the node is skippable."""
         if self._skip_button is not None:
-            reserve += self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
-        return reserve
+            return self.PADDING + self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
+        return self.PADDING
 
     def toggle_skipped(self) -> None:
         """Flip the node's skipped state and refresh the visual."""
@@ -560,7 +565,8 @@ class NodeItem(QGraphicsItem):
         metrics = QFontMetricsF(QApplication.font())
 
         title_w = metrics.horizontalAdvance(self._node.display_name)
-        header_need = 2 * padding + title_w + self._title_right_reserve()
+        left_reserve = self._title_left()
+        header_need = left_reserve + title_w + padding + self._title_right_reserve()
 
         port_margin = PortItem.RADIUS + 6.0
         port_need = 0.0
@@ -706,8 +712,7 @@ class NodeItem(QGraphicsItem):
         )
         if self._skip_button is not None:
             self._skip_button.setPos(
-                self._width - self.PADDING - self.CLOSE_BUTTON_SIZE
-                - self.HEADER_BUTTON_GAP - self.SKIP_BUTTON_SIZE,
+                self.PADDING,
                 (self.HEADER_HEIGHT - self.SKIP_BUTTON_SIZE) / 2,
             )
         self._resize_grip.setPos(
