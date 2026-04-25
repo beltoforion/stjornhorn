@@ -200,7 +200,7 @@
       <h2>What's new in v0.1.20</h2>
       <ul class="tips">
         <li><strong>Eight new processing nodes.</strong> <em>Transform:</em> Flip (horizontal / vertical / both), Crop, Rotate (with optional canvas expansion). <em>Processing:</em> Gaussian Blur, Invert. <em>Temporal:</em> Frame Difference, Temporal Mean, Temporal Median — rolling per-pixel reductions over the last <em>N</em> frames.</li>
-        <li><strong>FPS read-out on Display.</strong> Toggle <code>show_fps</code> on the Display node to overlay an exponentially-smoothed FPS counter in the preview. The overlay is preview-only — anything written downstream by a sink stays clean.</li>
+        <li><strong>FPS read-out on Display.</strong> The Display preview now shows an exponentially-smoothed FPS counter in the top-left corner. The overlay is preview-only — anything written downstream by a sink stays clean.</li>
         <li><strong>Enum dropdowns have a background again on Windows</strong> (v0.1.19) — the popup view of <code>QComboBox</code> parameter widgets is now explicitly themed, so it no longer renders transparent / over the canvas on the Windows native style.</li>
         <li><strong>Merge node uses the standard optional-port mechanism</strong> (v0.1.18) — the four quadrant inputs are now declared <code>optional=True</code> and render as hollow dots, matching RGBA Join's alpha input. Behaviour is unchanged: missing quadrants become black.</li>
       </ul>

@@ -133,22 +133,16 @@ def test_display_forwards_finish() -> None:
     assert node.outputs[0].finished
 
 
-def test_display_exposes_show_fps_param() -> None:
-    # Display has exactly one user-facing param: an FPS-overlay toggle.
-    # It defaults off so the historical pass-through-only behaviour is
-    # preserved out of the box.
-    params = Display().params
-    assert [p.name for p in params] == ["show_fps"]
-    assert params[0].metadata["default"] is False
-    assert Display().show_fps is False
+def test_display_has_no_params() -> None:
+    # FPS overlay is unconditional — no user-facing knobs to expose.
+    assert Display().params == []
 
 
-def test_display_show_fps_overlay_does_not_leak_to_output() -> None:
+def test_display_fps_overlay_does_not_leak_to_output() -> None:
     # The overlay is for the preview only; the output port must still
     # forward the original IoData byte-for-byte so downstream sinks
     # (e.g. VideoSink) record clean frames.
     node = Display()
-    node.show_fps = True
     up, captured = _wire(node)
 
     received: list[np.ndarray] = []
@@ -170,12 +164,11 @@ def test_display_show_fps_overlay_does_not_leak_to_output() -> None:
         assert int(f[-1, -1, 0]) == v
 
 
-def test_display_show_fps_overlay_writes_visible_pixels_on_preview() -> None:
+def test_display_fps_overlay_writes_visible_pixels_on_preview() -> None:
     # Sanity-check that the overlay actually paints something. The first
     # frame has no measurable dt → overlay can't render yet, but every
     # frame after that should have a black rectangle in the top-left.
     node = Display()
-    node.show_fps = True
     received: list[np.ndarray] = []
     node.set_frame_callback(received.append)
     up, _ = _wire(node)

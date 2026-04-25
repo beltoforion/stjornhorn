@@ -8,7 +8,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParam
 from core.port import InputPort, OutputPort
 
 
@@ -21,11 +21,12 @@ class Display(NodeBase):
     output unchanged so the node can sit inline between any two others
     (e.g. upstream of a VideoSink to watch encoding as it happens).
 
-    The optional ``show_fps`` parameter draws a small FPS read-out in
-    the top-left of the *displayed* frame. The overlay only affects
-    what the preview widget sees — the output port still forwards the
-    original :class:`IoData` so a downstream VideoSink isn't recording
-    debug overlays into the file.
+    A small FPS read-out is always rendered into the top-left of the
+    *displayed* frame from the second tick onwards (the first tick has
+    no measurable ``dt`` to derive a rate from). The overlay is
+    preview-only — the output port still forwards the original
+    :class:`IoData` so a downstream VideoSink isn't recording debug
+    overlays into the file.
 
     The node itself is Qt-free — the preview widget lives on the UI
     side in :mod:`ui.preview_widgets`; the worker-thread → main-thread
@@ -41,31 +42,18 @@ class Display(NodeBase):
         super().__init__("Display", section="Output")
         self._latest_frame:    np.ndarray | None = None
         self._frame_callback:  Callable[[np.ndarray], None] | None = None
-        self._show_fps:        bool = False
         self._last_frame_ts:   float | None = None
         self._fps_ema:         float | None = None
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
-        self._apply_default_params()
-
     # ── Parameters ─────────────────────────────────────────────────────────────
 
     @property
     @override
     def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("show_fps", NodeParamType.BOOL, {"default": False}),
-        ]
-
-    @property
-    def show_fps(self) -> bool:
-        return self._show_fps
-
-    @show_fps.setter
-    def show_fps(self, value: bool) -> None:
-        self._show_fps = bool(value)
+        return []
 
     # ── Properties ─────────────────────────────────────────────────────────────
 
@@ -73,9 +61,9 @@ class Display(NodeBase):
     def latest_frame(self) -> np.ndarray | None:
         """Most recent frame seen, or ``None`` before any run.
 
-        With ``show_fps=True`` this is the *annotated* frame (so the
-        preview widget renders the overlay too); the output port
-        always forwards the original payload.
+        From the second tick of a run onwards this is the FPS-annotated
+        frame (so the preview widget renders the overlay); the output
+        port always forwards the original payload.
         """
         return self._latest_frame
 
@@ -121,7 +109,7 @@ class Display(NodeBase):
         self._last_frame_ts = now
 
         displayed = image
-        if self._show_fps and self._fps_ema is not None:
+        if self._fps_ema is not None:
             displayed = self._draw_fps_overlay(image, self._fps_ema)
 
         self._latest_frame = displayed

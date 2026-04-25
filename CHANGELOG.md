@@ -32,15 +32,16 @@ once a first tagged release is cut.
     where mean would smear them across the window). All three reset
     their state on a new flow run, and the rolling reductions also
     flush their buffer if the input shape changes mid-stream.
-- **FPS read-out on the Display node.** New ``show_fps`` BOOL
-  parameter (default off, preserving existing behaviour). When
-  enabled, the preview gets a small FPS counter rendered into a
+- **FPS read-out on the Display node.** From the second tick of a
+  run onwards, the preview gets a small FPS counter rendered into a
   black rectangle in the top-left corner; the value is an
   exponential moving average (α = 0.2) over per-frame ``dt`` so it
-  stays readable even with jittery sources. The overlay only
-  affects what the preview widget sees — the output port still
-  forwards the original ``IoData`` so a downstream VideoSink isn't
-  recording debug overlays into the file.
+  stays readable even with jittery sources. Always on — no toggle —
+  since live timing information is the kind of thing you only ever
+  notice when it's missing. The overlay only affects what the
+  preview widget sees: the output port still forwards the original
+  ``IoData`` so a downstream VideoSink isn't recording debug
+  overlays into the file.
 
 ## [0.1.19] — 2026-04-25
 
