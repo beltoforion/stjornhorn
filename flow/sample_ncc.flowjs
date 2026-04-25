@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "app_version": "0.1.17",
+  "name": "sample_ncc",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.filters.ncc",
+      "class": "Ncc",
+      "position": [
+        -1099.116076223057,
+        -1043.5566627793621
+      ],
+      "params": {
+        "template": "pad.jpg",
+        "retain_size": true
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1628.6183289216794,
+        -1161.351328405722
+      ],
+      "params": {
+        "file_path": "chip.jpg"
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -632.4087182944841,
+        -607.8085698549278
+      ],
+      "params": {
+        "output_path": "out.png"
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1539.2275561811496,
+        -868.1875466752637
+      ],
+      "params": {},
+      "size": [
+        800.0,
+        385.96309207971785
+      ]
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
+      "position": [
+        -765.9610994461774,
+        -1096.2396572277
+      ],
+      "params": {}
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [
+        -1394.623787099587,
+        -993.9412291132912
+      ],
+      "params": {}
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 1
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 0,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": []
+}
