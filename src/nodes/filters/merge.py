@@ -38,7 +38,7 @@ class Merge(NodeBase):
     def __init__(self) -> None:
         super().__init__("Merge", section="Composit")
         for name in self._QUADRANTS:
-            self._add_input(InputPort(name, set(IMAGE_TYPES)))
+            self._add_input(InputPort(name, set(IMAGE_TYPES), optional=True))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
     # ── Parameters ─────────────────────────────────────────────────────────────
@@ -49,27 +49,6 @@ class Merge(NodeBase):
         return []
 
     # ── NodeBase interface ─────────────────────────────────────────────────────
-
-    @override
-    def _signal_input_ready(self) -> None:
-        """Fire when every *connected* input has delivered data.
-
-        Overrides the default (all-inputs-ready) because Merge deliberately
-        supports partial connections — unconnected ports never receive
-        anything, so waiting on them would deadlock the node.
-        """
-        connected = [p for p in self._inputs if p.upstream is not None]
-        if not connected:
-            return
-
-        if all(p.has_data for p in connected):
-            self.process()
-            for p in connected:
-                p.clear()
-            return
-
-        if all(p.finished for p in connected):
-            self._on_finish()
 
     @override
     def process_impl(self) -> None:

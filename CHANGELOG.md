@@ -10,6 +10,22 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.18] — 2026-04-25
+
+### Changed
+- **Merge node uses the standard optional-port mechanism.** Its four
+  quadrant inputs (``top_left``, ``top_right``, ``bottom_left``,
+  ``bottom_right``) are now declared ``optional=True`` on the
+  ``InputPort`` instead of being handled by a bespoke
+  ``_signal_input_ready`` override. The dispatch logic in
+  ``NodeBase._signal_input_ready`` (``not p.optional or p.upstream is
+  not None``) already filters unconnected optional inputs out of the
+  "wait on" set, so behaviour is unchanged: unconnected quadrants
+  become black and never deadlock the node. The four ports now
+  render as hollow dots in the UI — consistent with RGBA Join's
+  alpha input, which was the first (and until now the only) user of
+  the optional-port flag.
+
 ## [0.1.17] — 2026-04-24
 
 ### Added
