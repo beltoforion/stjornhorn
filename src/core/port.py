@@ -32,6 +32,13 @@ class InputPort:
     of whether the optional port is connected or has produced anything.
     Node implementations inspect :attr:`has_data` on an optional port to
     decide whether to consume it.
+
+    ``default_value`` is the literal value used when the port has no
+    upstream connection — the seed that a future Blender-style socket UI
+    will edit inline. It is loosely typed for now (``object | None``)
+    because the consuming protocol is still being defined; the port
+    merely stores and exposes it. Currently no executor reads from it,
+    so existing nodes are unaffected.
     """
 
     def __init__(
@@ -40,6 +47,7 @@ class InputPort:
         accepted_types: set[IoDataType],
         on_state_changed: Callable[[], None] | None = None,
         optional: bool = False,
+        default_value: object | None = None,
     ) -> None:
         self.name = name
         self.accepted_types: frozenset[IoDataType] = frozenset(accepted_types)
@@ -48,6 +56,7 @@ class InputPort:
         self._data: IoData | None = None
         self._finished: bool = False
         self._upstream: "OutputPort | None" = None
+        self._default_value: object | None = default_value
 
     @property
     def has_data(self) -> bool:
@@ -68,6 +77,24 @@ class InputPort:
     def upstream(self) -> "OutputPort | None":
         """The OutputPort currently feeding this input, if any."""
         return self._upstream
+
+    @property
+    def default_value(self) -> object | None:
+        """The literal value used when no upstream is connected.
+
+        Settable so the UI (or a future ``NodeParam``-shim) can update
+        the seed in place without re-creating the port.
+        """
+        return self._default_value
+
+    @default_value.setter
+    def default_value(self, value: object | None) -> None:
+        self._default_value = value
+
+    @property
+    def has_default(self) -> bool:
+        """True when a literal default has been set (incl. falsy values)."""
+        return self._default_value is not None
 
     def receive(self, data: IoData) -> None:
         if data.type not in self.accepted_types:

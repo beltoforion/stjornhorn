@@ -164,7 +164,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.17</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.18</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -197,9 +197,10 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.17</h2>
+      <h2>What's new in v0.1.18</h2>
       <ul class="tips">
-        <li><strong>Backdrops</strong> — right-click empty canvas to drop a coloured frame behind a group of nodes. Use them as loose chapter headings ("Colour prep", "Alpha mask") so large flows stay readable.</li>
+        <li><strong>New payload types: SCALAR &amp; MATRIX</strong> — internal groundwork for upcoming value-source / numeric nodes. No user-visible effect yet; existing flows are unaffected.</li>
+        <li><strong>Backdrops</strong> (v0.1.17) — right-click empty canvas to drop a coloured frame behind a group of nodes. Use them as loose chapter headings ("Colour prep", "Alpha mask") so large flows stay readable.</li>
         <li><strong>Video Source paths are now portable</strong> (v0.1.16) — video references under the <code>input/</code> folder save as short relative names and resolve them the same way as image sources, regardless of the working directory.</li>
         <li><strong>Unsaved-changes indicator</strong> (v0.1.15) — the editor's toolbar shows an amber warning icon with "Unsaved changes" the moment a parameter, node, or connection is edited, and clears it on save, load, or reload.</li>
         <li><strong>Reload</strong> toolbar action (v0.1.15) re-reads the current flow from disk, discarding unsaved edits after a confirmation.</li>

@@ -158,3 +158,51 @@ def test_required_input_still_blocks_dispatch() -> None:
     node = _TwoInputNode(optional=False)
     node.inputs[0].receive(_grey_io())
     assert node.fired == 0
+
+
+# ── default_value (literal seed for unconnected inputs) ───────────────────────
+
+def test_default_value_unset_by_default() -> None:
+    port = _image_input()
+    assert port.default_value is None
+    assert port.has_default is False
+
+
+def test_default_value_settable_via_constructor() -> None:
+    port = InputPort("angle", {IoDataType.SCALAR}, default_value=45.0)
+    assert port.default_value == 45.0
+    assert port.has_default is True
+
+
+def test_default_value_settable_via_property() -> None:
+    port = InputPort("angle", {IoDataType.SCALAR})
+    port.default_value = 90.0
+    assert port.default_value == 90.0
+    assert port.has_default is True
+
+
+def test_default_value_does_not_satisfy_dispatcher() -> None:
+    """Setting a default does NOT make the port appear to have data —
+    the executor reads defaults via a separate path. A required input
+    with only a default must still block dispatch."""
+    node = _TwoInputNode(optional=False)
+    node.inputs[1].default_value = 123  # populate default on second input
+    node.inputs[0].receive(_grey_io())
+    assert node.fired == 0
+    assert node.inputs[1].has_data is False
+
+
+def test_default_value_zero_is_truthy_for_has_default() -> None:
+    """``has_default`` must distinguish 'unset' from 'set to 0' — falsy
+    payloads (0, 0.0, empty string) still count as a default."""
+    port = InputPort("x", {IoDataType.SCALAR}, default_value=0)
+    assert port.has_default is True
+    port.default_value = 0.0
+    assert port.has_default is True
+
+
+def test_default_value_can_be_cleared() -> None:
+    port = InputPort("x", {IoDataType.SCALAR}, default_value=5)
+    port.default_value = None
+    assert port.default_value is None
+    assert port.has_default is False

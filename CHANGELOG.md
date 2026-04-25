@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.18] — 2026-04-25
+
+### Added
+- **Payload type expansion: `SCALAR` and `MATRIX`.** `IoDataType` gains
+  two new kinds. `SCALAR` carries a numpy 0-d array (a single int/float)
+  and `MATRIX` carries a 2-D numpy array of arbitrary dtype/shape. Both
+  ride the existing `IoData` envelope, so the rest of the type
+  machinery (port type-checking, fan-out, finish-propagation) keeps
+  working unchanged. Helpers: `IoData.from_scalar(value)` and
+  `IoData.from_matrix(arr)`. `IoData.image` stays as a back-compat
+  alias for `IoData.payload`.
+- **`InputPort.default_value`.** Each input port can now hold a literal
+  seed value used when no upstream is connected — the storage slot for
+  the future Blender-style "edit a socket inline when unconnected"
+  workflow. The field is loosely typed (`object | None`) and not yet
+  consumed by the executor, so existing nodes are unaffected. Exposed
+  as a settable property plus `has_default` predicate.
+
 ## [0.1.17] — 2026-04-24
 
 ### Added
