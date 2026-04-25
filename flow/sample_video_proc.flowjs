@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "app_version": "0.1.20",
+  "name": "sample_video_proc",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.video_source",
+      "class": "VideoSource",
+      "position": [
+        -1476.0,
+        -766.0
+      ],
+      "params": {
+        "file_path": "video.mp4",
+        "max_num_frames": -1
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        -624.0,
+        -265.0
+      ],
+      "params": {
+        "output_path": "out.mp4",
+        "fps": 30.0,
+        "codec": 0
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.flip",
+      "class": "Flip",
+      "position": [
+        -1436.0,
+        -580.0
+      ],
+      "params": {
+        "mode": 1
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1210.0,
+        -940.0
+      ],
+      "params": {
+        "show_fps": true
+      },
+      "size": [
+        800.0,
+        629.0
+      ]
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.temporal_mean",
+      "class": "TemporalMean",
+      "position": [
+        -1453.0,
+        -422.0
+      ],
+      "params": {
+        "window": 5
+      },
+      "size": [
+        169.0,
+        118.0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": []
+}
