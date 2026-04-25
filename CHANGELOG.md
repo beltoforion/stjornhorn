@@ -13,14 +13,18 @@ once a first tagged release is cut.
 ## [0.1.19] — 2026-04-25
 
 ### Fixed
-- **Windows: ComboBox popup background.** ``QComboBox`` parameter
-  widgets (the dropdowns used for every enum-typed node parameter)
-  rendered with a transparent / system-default popup on the Windows
-  native style because Qt does not propagate the
-  ``QListWidget``/``QTreeView`` rules in the dark stylesheet to the
-  ``QAbstractItemView`` it creates internally for the popup. An
-  explicit ``QComboBox QAbstractItemView`` rule pins the popup to
-  the same dark palette as the rest of the UI. Fixes #136.
+- **Windows: ComboBox popup background.** Enum-typed node parameters
+  use ``SceneAwareComboBox``, which is hosted inside a
+  ``QGraphicsProxyWidget``. The popup container (a
+  ``QComboBoxPrivateContainer`` QFrame around a ``QListView``) does
+  not inherit ``autoFillBackground=True`` through the proxy on the
+  Windows native style, so the dropdown rendered transparent over the
+  scene canvas — the application stylesheet rules never landed on a
+  real fill. ``SceneAwareComboBox`` now forces both the container and
+  the view opaque on first popup, and pins their palettes to the same
+  dark colours as the rest of the UI. The companion
+  ``QComboBox QAbstractItemView`` rule in ``src/ui/theme.py`` is kept
+  as defence-in-depth for non-proxied use. Fixes #136.
 
 ## [0.1.18] — 2026-04-25
 

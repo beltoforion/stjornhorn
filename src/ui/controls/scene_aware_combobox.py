@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing_extensions import override
 
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QComboBox, QGraphicsItem, QWidget
 
 
@@ -20,9 +21,22 @@ class SceneAwareComboBox(QComboBox):
     While the popup is open we boost the host NodeItem's Z above other
     nodes AND the params proxy's Z above its NodeItem siblings, then
     restore both on close.
+
+    The popup container (a ``QComboBoxPrivateContainer`` QFrame) does not
+    inherit ``autoFillBackground`` through the proxy on Windows, so the
+    application stylesheet's dark colour never lands on a real fill —
+    the dropdown ends up transparent over the scene canvas. We force the
+    container opaque + paint its background ourselves the first time the
+    popup is shown.
     """
 
     _POPUP_Z_BOOST: float = 10_000.0
+
+    # Match QComboBox QAbstractItemView in src/ui/theme.py.
+    _POPUP_BG_COLOR     = QColor(0x1f, 0x1f, 0x22)
+    _POPUP_TEXT_COLOR   = QColor(0xe0, 0xe0, 0xe0)
+    _POPUP_HIGHLIGHT    = QColor(0x3a, 0x5b, 0x8a)
+    _POPUP_HIGHLIGHT_TX = QColor(0xff, 0xff, 0xff)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -30,9 +44,37 @@ class SceneAwareComboBox(QComboBox):
         self._raised_node: QGraphicsItem | None = None
         self._saved_proxy_z: float | None = None
         self._saved_node_z: float | None = None
+        self._popup_themed: bool = False
+
+    def _theme_popup_once(self) -> None:
+        """Force the popup container + view to render with a dark background.
+
+        The fix has to be applied to the *container* (the view's parent
+        QFrame), not just the view: when the combo is hosted in a graphics
+        proxy, the container is the widget that ends up painting through to
+        the scene as transparent.
+        """
+        if self._popup_themed:
+            return
+        view = self.view()
+        container = view.parentWidget() if view is not None else None
+        for w in (container, view):
+            if w is None:
+                continue
+            w.setAutoFillBackground(True)
+            pal = w.palette()
+            pal.setColor(QPalette.Window,          self._POPUP_BG_COLOR)
+            pal.setColor(QPalette.Base,            self._POPUP_BG_COLOR)
+            pal.setColor(QPalette.Text,            self._POPUP_TEXT_COLOR)
+            pal.setColor(QPalette.WindowText,      self._POPUP_TEXT_COLOR)
+            pal.setColor(QPalette.Highlight,       self._POPUP_HIGHLIGHT)
+            pal.setColor(QPalette.HighlightedText, self._POPUP_HIGHLIGHT_TX)
+            w.setPalette(pal)
+        self._popup_themed = True
 
     @override
     def showPopup(self) -> None:
+        self._theme_popup_once()
         if self._raised_node is None:
             proxy = self.window().graphicsProxyWidget()
             if proxy is not None:
