@@ -10,6 +10,39 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.20] — 2026-04-25
+
+### Added
+- **Eight new image-processing nodes.**
+  - *Transform:* **Flip** (horizontal / vertical / both, mirroring
+    OpenCV's ``flipCode`` convention), **Crop** (ROI by ``x, y,
+    width, height``; out-of-bounds rectangles are clamped to the
+    input), **Rotate** (free angle around the centre, with an
+    ``expand`` toggle that grows the canvas to fit the rotated image
+    so corners are never clipped).
+  - *Processing:* **Gaussian Blur** (wraps ``cv2.GaussianBlur``;
+    even ``ksize`` values are bumped up to the next odd integer like
+    Median already does), **Invert** (per-channel ``255 - pixel``
+    via ``cv2.bitwise_not``).
+  - *Temporal:* a brand-new palette section. **Frame Difference**
+    emits ``|current - previous|`` for change/motion detection;
+    **Temporal Mean** and **Temporal Median** maintain a rolling
+    buffer of the last *N* frames and emit the per-pixel mean /
+    median each tick (median is robust against single-frame outliers
+    where mean would smear them across the window). All three reset
+    their state on a new flow run, and the rolling reductions also
+    flush their buffer if the input shape changes mid-stream.
+- **FPS read-out on the Display node.** From the second tick of a
+  run onwards, the preview gets a small FPS counter rendered into a
+  black rectangle in the top-left corner; the value is an
+  exponential moving average (α = 0.2) over per-frame ``dt`` so it
+  stays readable even with jittery sources. Always on — no toggle —
+  since live timing information is the kind of thing you only ever
+  notice when it's missing. The overlay only affects what the
+  preview widget sees: the output port still forwards the original
+  ``IoData`` so a downstream VideoSink isn't recording debug
+  overlays into the file.
+
 ## [0.1.19] — 2026-04-25
 
 ### Fixed
