@@ -10,6 +10,20 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.19] — 2026-04-25
+
+### Fixed
+- **Windows: ComboBox popup background.** Enum-typed node parameters
+  use ``SceneAwareComboBox``, which is hosted inside a
+  ``QGraphicsProxyWidget``. The popup container (a
+  ``QComboBoxPrivateContainer`` QFrame around a ``QListView``) does
+  not inherit ``autoFillBackground=True`` through the proxy on the
+  Windows native style, so the dropdown rendered transparent over the
+  scene canvas — the application stylesheet rules never landed on a
+  real fill. ``SceneAwareComboBox`` now forces both the container and
+  the view opaque on first popup, and pins their palettes to the same
+  dark colours as the rest of the UI. Fixes #136.
+
 ## [0.1.18] — 2026-04-25
 
 ### Changed
