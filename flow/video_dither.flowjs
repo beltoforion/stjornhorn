@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
+  "app_version": "0.1.17",
   "name": "video_dither",
   "nodes": [
     {
@@ -64,13 +64,13 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1537.5160764474858,
-        -1251.651631284973
+        -1578.3288399772184,
+        -1295.1852457166883
       ],
       "params": {},
       "size": [
-        478.08774090451084,
-        462.6443809330724
+        681.2446082525131,
+        517.3710617257683
       ]
     },
     {
@@ -82,7 +82,7 @@
         -903.1927203305031
       ],
       "params": {
-        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
+        "file_path": "video.mp4",
         "max_num_frames": -1
       }
     },
@@ -156,5 +156,6 @@
       "dst_node": 1,
       "dst_input": 0
     }
-  ]
+  ],
+  "backdrops": []
 }
