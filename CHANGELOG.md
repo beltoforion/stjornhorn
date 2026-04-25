@@ -10,6 +10,23 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.21] — 2026-04-25
+
+### Added
+- **`Math` node** — applies a binary arithmetic op (`ADD`, `SUB`, `MUL`,
+  `DIV`, `MIN`, `MAX`) to two SCALAR inputs and emits a SCALAR. Numpy
+  promotion rules apply (`int + int → int`, `int / int → float`); `DIV`
+  uses `np.true_divide` so divide-by-zero produces `inf`/`nan` rather
+  than crashing the flow. Lives in a new **Math** palette section.
+- **`Clamp` node** — constrains a SCALAR stream to
+  `[min_value, max_value]`. Inverted bounds are silently swapped so a
+  transient UI state (typing one bound at a time) never raises.
+- **`ConstantValue` source** — reactive, one-shot SCALAR source. Emits
+  its `value` parameter once per run; the value latches on streaming
+  consumers via the existing reactive-source mechanism, so a flow like
+  `ValueSource → Math.a` + `ConstantValue → Math.b` transforms every
+  streamed value by a fixed factor/offset.
+
 ## [0.1.20] — 2026-04-25
 
 ### Added
