@@ -27,7 +27,7 @@ class SceneAwareComboBox(QComboBox):
     application stylesheet's dark colour never lands on a real fill —
     the dropdown ends up transparent over the scene canvas. We force the
     container opaque + paint its background ourselves the first time the
-    popup is shown.
+    popup is shown. (Issue: #136.)
     """
 
     _POPUP_Z_BOOST: float = 10_000.0
