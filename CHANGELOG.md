@@ -22,9 +22,7 @@ once a first tagged release is cut.
   scene canvas — the application stylesheet rules never landed on a
   real fill. ``SceneAwareComboBox`` now forces both the container and
   the view opaque on first popup, and pins their palettes to the same
-  dark colours as the rest of the UI. The companion
-  ``QComboBox QAbstractItemView`` rule in ``src/ui/theme.py`` is kept
-  as defence-in-depth for non-proxied use. Fixes #136.
+  dark colours as the rest of the UI. Fixes #136.
 
 ## [0.1.18] — 2026-04-25
 

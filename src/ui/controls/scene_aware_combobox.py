@@ -32,7 +32,6 @@ class SceneAwareComboBox(QComboBox):
 
     _POPUP_Z_BOOST: float = 10_000.0
 
-    # Match QComboBox QAbstractItemView in src/ui/theme.py.
     _POPUP_BG_COLOR     = QColor(0x1f, 0x1f, 0x22)
     _POPUP_TEXT_COLOR   = QColor(0xe0, 0xe0, 0xe0)
     _POPUP_HIGHLIGHT    = QColor(0x3a, 0x5b, 0x8a)

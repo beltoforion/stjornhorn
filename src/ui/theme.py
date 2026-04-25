@@ -104,18 +104,6 @@ QListWidget, QTreeView {
 QListWidget::item:selected, QTreeView::item:selected {
     background: #3a5b8a;
 }
-/* Windows' native style does not propagate the QListView/QTreeView
-   rules above to the popup view a QComboBox creates internally, so the
-   dropdown ends up with a transparent / system-default background.
-   An explicit selector pins it to the same dark palette. */
-QComboBox QAbstractItemView {
-    background: #1f1f22;
-    border: 1px solid #1a1a1d;
-    color: #e0e0e0;
-    outline: 0;
-    selection-background-color: #3a5b8a;
-    selection-color: #ffffff;
-}
 QStatusBar {
     background: #2a2a2d;
     border-top: 1px solid #1a1a1d;
