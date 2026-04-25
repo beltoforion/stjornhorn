@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
+from core.io_data import IoData, IoDataType
 from core.node_base import NodeBase
 from nodes.filters.display import Display
 
@@ -42,10 +43,12 @@ class DisplayPreview(_PreviewWidgetBase):
     thread where the pixmap is swapped in.
     """
 
-    #: Worker thread emits a ready QImage; connected via
-    #: AutoConnection, which resolves to a queued connection across
-    #: threads so Qt handles the marshalling for us.
+    #: Worker thread emits a ready QImage for image payloads. AutoConnection
+    #: resolves to a queued connection across threads so Qt handles the
+    #: marshalling for us.
     _frame_ready = Signal(QImage)
+    #: Worker thread emits formatted text for SCALAR / MATRIX payloads.
+    _text_ready = Signal(str)
 
     _PREVIEW_MIN_W: int = 180
     _PREVIEW_MIN_H: int = 100
@@ -59,7 +62,8 @@ class DisplayPreview(_PreviewWidgetBase):
         # the preview to fill the user-chosen body area.
         self._label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._label.setStyleSheet(
-            "QLabel { background: #111; border: 1px solid #333; }"
+            "QLabel { background: #111; border: 1px solid #333;"
+            "         color: #f0c83c; font-family: 'Consolas','Menlo',monospace; }"
         )
         self._placeholder_text = "(no frame yet)"
         self._label.setText(self._placeholder_text)
@@ -78,6 +82,7 @@ class DisplayPreview(_PreviewWidgetBase):
         self._source_image: QImage | None = None
 
         self._frame_ready.connect(self._on_frame_ready)
+        self._text_ready.connect(self._on_text_ready)
         node.set_frame_callback(self._emit_from_worker)
 
     @override
@@ -87,15 +92,24 @@ class DisplayPreview(_PreviewWidgetBase):
 
     # ── Worker thread ──────────────────────────────────────────────────────────
 
-    def _emit_from_worker(self, frame: np.ndarray) -> None:
+    def _emit_from_worker(self, in_data: IoData) -> None:
         """Called from whichever thread runs the Display node's process.
 
-        Convert to a self-owning QImage (so the underlying numpy buffer
-        can be freed / rewritten without tearing the pixmap) and hand
-        off across threads via the queued signal.
+        Dispatches on payload kind: image payloads convert to a
+        self-owning QImage (so the underlying numpy buffer can be freed
+        without tearing the pixmap) and hop across threads via
+        ``_frame_ready``; SCALAR / MATRIX payloads format to a string
+        and hop via ``_text_ready``.
         """
+        if in_data.type is IoDataType.SCALAR:
+            self._text_ready.emit(_format_scalar(in_data.payload))
+            return
+        if in_data.type is IoDataType.MATRIX:
+            self._text_ready.emit(_format_matrix(in_data.payload))
+            return
+
         try:
-            qimg = _numpy_to_qimage(frame)
+            qimg = _numpy_to_qimage(in_data.payload)
         except Exception:
             logger.exception("DisplayPreview: failed to convert frame to QImage")
             return
@@ -108,6 +122,14 @@ class DisplayPreview(_PreviewWidgetBase):
         self._source_image = qimg
         self._render_scaled()
 
+    @Slot(str)
+    def _on_text_ready(self, text: str) -> None:
+        # Switching to text mode invalidates any cached image so a
+        # later resize doesn't redraw stale pixels behind the text.
+        self._source_image = None
+        self._label.setPixmap(QPixmap())
+        self._label.setText(text)
+
     def _render_scaled(self) -> None:
         if self._source_image is None:
             return
@@ -118,6 +140,31 @@ class DisplayPreview(_PreviewWidgetBase):
             Qt.TransformationMode.SmoothTransformation,
         )
         self._label.setPixmap(pixmap)
+
+
+# ── Scalar / matrix formatting ────────────────────────────────────────────────
+
+
+def _format_scalar(arr: np.ndarray) -> str:
+    """Format a 0-d numpy array for the Display preview label.
+
+    Integers render without a decimal point; floats use up to 4
+    decimals so a multiplier like 0.5 stays legible without trailing
+    zero-noise.
+    """
+    value = arr.item()
+    if isinstance(value, (int, np.integer)):
+        return str(int(value))
+    return f"{float(value):.4g}"
+
+
+def _format_matrix(arr: np.ndarray) -> str:
+    """Format a 2-D numpy array as a compact text grid for the preview.
+
+    Caps the rendered shape so a large matrix doesn't blow out the
+    preview label; truncated rows/cols are indicated with an ellipsis.
+    """
+    return np.array2string(arr, precision=3, suppress_small=True, threshold=64)
 
 
 # ── numpy → QImage ─────────────────────────────────────────────────────────────

@@ -10,6 +10,27 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.19] — 2026-04-25
+
+### Added
+- **`ValueSource`** — new source node in the **Sources** palette section
+  that emits a `SCALAR` payload per frame. Parameters: `min_value`,
+  `max_value` (inclusive bounds), `multiplier` (each emitted value is
+  `n * multiplier`; integer when multiplier is exactly 1.0, float
+  otherwise) and `loop` (when `True`, cycles the range a bounded
+  number of times so a Run still terminates without a Stop button).
+- **`ValueSink`** — new sink node in the **Sinks** palette section that
+  accepts `SCALAR` and `MATRIX` payloads, so a numeric-only flow
+  (e.g. `ValueSource → Display → ValueSink`) can satisfy the "every
+  flow needs at least one sink" rule. Exposes `latest_value` for tests
+  and inspectors; logs each received payload at DEBUG level.
+- **Display now accepts `SCALAR` and `MATRIX`** — scalars render as
+  formatted numbers in the inline preview label, matrices as a
+  compact text grid via `numpy.array2string`. Image payloads keep
+  their existing pixmap preview path. The frame callback now receives
+  the full `IoData` envelope (was: bare `np.ndarray`) so the preview
+  widget can dispatch on payload kind.
+
 ## [0.1.18] — 2026-04-25
 
 ### Added
