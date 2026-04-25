@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
-  "name": "transform",
+  "app_version": "0.1.17",
+  "name": "sample_transform",
   "nodes": [
     {
       "id": 0,
@@ -20,8 +20,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -1018.9174135829628,
-        -690.3115012824038
+        -1330.4591804170063,
+        -791.2429592199989
       ],
       "params": {
         "output_path": "out.png"
@@ -32,8 +32,8 @@
       "module": "nodes.filters.scale",
       "class": "Scale",
       "position": [
-        -1527.450860110236,
-        -954.2562968909564
+        -1334.3353372563045,
+        -1099.5975963210933
       ],
       "params": {
         "scale_percent": 50,
@@ -45,23 +45,29 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1320.0315414531171,
-        -1102.9375072254777
+        -1811.2313034160798,
+        -913.1863663027992
       ],
       "params": {},
       "size": [
         443.1665386536271,
         359.64536323334005
       ]
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.median",
+      "class": "Median",
+      "position": [
+        -1514.644745450176,
+        -1051.0329153234893
+      ],
+      "params": {
+        "size": 33
+      }
     }
   ],
   "connections": [
-    {
-      "src_node": 0,
-      "src_output": 0,
-      "dst_node": 2,
-      "dst_input": 0
-    },
     {
       "src_node": 2,
       "src_output": 0,
@@ -73,6 +79,19 @@
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
     }
-  ]
+  ],
+  "backdrops": []
 }
