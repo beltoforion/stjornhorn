@@ -4,7 +4,7 @@
 
 # Stjörnhorn
 
-A Python desktop application for building image- and video-processing
+A desktop application for building image- and video-processing
 workflows using a node-based visual editor. Drop image sources,
 filters, and sinks onto a canvas, wire them up, hit **Run**, then tweak
 parameters and watch the output update live in the built-in viewer.

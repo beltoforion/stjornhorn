@@ -23,6 +23,7 @@
 
 ## Implementation
 - Keep performance in mind when writing code, especially on hot paths (per-frame video processing, image ops). Proactively surface non-trivial optimisation opportunities — skippable work, redundant copies, per-frame allocations in streaming paths — but do not spend effort on micro-optimisations (enum lookups, local variable binding, attribute lookup caching) that do not move the needle on real workloads.
+- When fixing a bug tracked by a GitHub issue, reference the issue number in a source-code comment next to the fix (e.g. `Issue: #136`). This overrides any general guidance to keep ticket references out of source — for bug fixes the discoverability via `grep` outweighs the risk of stale references. Applies to bug fixes only; feature work and ordinary code do not need issue references in comments.
 
 ## Communication Style
 - Keine einleitenden Formulierungen (z. B. "Kurze, ehrliche Antwort:", "Gerne,", "Natürlich,"). Direkt zum Punkt, reine Informationsübertragung, so kurz wie möglich.

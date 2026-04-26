@@ -10,7 +10,7 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
-## [0.1.22] — 2026-04-25
+## [0.1.26] — 2026-04-26
 
 ### Added
 - **`Overlay.angle` is port-drivable.** Overlay grew a third input —
@@ -26,7 +26,7 @@ once a first tagged release is cut.
   keep their existing port indices: ``image=0``, ``overlay=1``, new
   ``angle=2``.
 
-## [0.1.21] — 2026-04-25
+## [0.1.25] — 2026-04-26
 
 ### Added
 - **`Math` node** — applies a binary arithmetic op (`ADD`, `SUB`, `MUL`,
@@ -43,7 +43,8 @@ once a first tagged release is cut.
   `ValueSource → Math.a` + `ConstantValue → Math.b` transforms every
   streamed value by a fixed factor/offset.
 
-## [0.1.20] — 2026-04-25
+## [0.1.24] — 2026-04-26
+
 ### Added
 - **`ValueSource`** — new source node in the **Sources** palette section
   that emits a `SCALAR` payload per frame. Parameters: `min_value`,
@@ -61,9 +62,12 @@ once a first tagged release is cut.
   compact text grid via `numpy.array2string`. Image payloads keep
   their existing pixmap preview path. The frame callback now receives
   the full `IoData` envelope (was: bare `np.ndarray`) so the preview
-  widget can dispatch on payload kind.
+  widget can dispatch on payload kind. Coexists with the FPS overlay
+  added in 0.1.20: image payloads still get the FPS read-out drawn
+  on the preview, scalars/matrices skip the overlay since the text
+  preview has no image to annotate.
 
-## [0.1.19] — 2026-04-25
+## [0.1.23] — 2026-04-26
 
 ### Added
 - **Payload type expansion: `SCALAR` and `MATRIX`.** `IoDataType` gains
@@ -80,6 +84,94 @@ once a first tagged release is cut.
   workflow. The field is loosely typed (`object | None`) and not yet
   consumed by the executor, so existing nodes are unaffected. Exposed
   as a settable property plus `has_default` predicate.
+
+## [0.1.22] — 2026-04-26
+
+### Changed
+- **Node List is now a tree view.** Each palette section is a
+  collapsible group with the section name + node count as the parent
+  and the individual nodes as children. The dock toolbar gained two
+  icon buttons — *expand all* (``unfold_more``) and *collapse all*
+  (``unfold_less``) — so the user can sweep every group open or
+  closed in one click without clicking each disclosure triangle. The
+  search box auto-expands any group that still has visible matches
+  while typing, so leaves never hide behind a collapsed section.
+
+## [0.1.21] — 2026-04-25
+
+### Added
+- **Directory Source.** New source node that emits every image file
+  in a directory as a frame, in lexicographic order. Boolean
+  ``include_subdirectories`` parameter controls whether nested folders
+  are walked too. Accepts the same image formats as ImageSource (JPEG,
+  PNG, WebP, CR2); files with unsupported extensions are skipped
+  silently and files that fail to decode are logged + skipped so a
+  single corrupt frame doesn't abort the run. The directory path is
+  stored relative to ``INPUT_DIR`` when possible, matching the rest of
+  the file/path handling in the app.
+
+### Changed
+- **``FilePathParamWidget`` learned a ``mode="directory"`` metadata
+  flag** that switches the dialog to ``FileMode.Directory`` +
+  ``ShowDirsOnly`` and routes the "view" button through ``is_dir()``
+  / ``QDesktopServices.openUrl`` so it opens the OS file manager.
+  Used by the new Directory Source today; available to any future
+  folder-picking node.
+
+### Fixed
+- **Welcome page now scrolls the content column when it overflows.**
+  ``.content-col`` was sitting inside a body that hides overflow, so
+  once the "What's new" / Tips lists grew past the viewport the
+  bottom items got clipped silently. Adds ``overflow-y: auto`` on
+  ``.content-col`` plus a flat dark scrollbar that matches the
+  panel palette.
+
+## [0.1.20] — 2026-04-25
+
+### Added
+- **Eight new image-processing nodes.**
+  - *Transform:* **Flip** (horizontal / vertical / both, mirroring
+    OpenCV's ``flipCode`` convention), **Crop** (ROI by ``x, y,
+    width, height``; out-of-bounds rectangles are clamped to the
+    input), **Rotate** (free angle around the centre, with an
+    ``expand`` toggle that grows the canvas to fit the rotated image
+    so corners are never clipped).
+  - *Processing:* **Gaussian Blur** (wraps ``cv2.GaussianBlur``;
+    even ``ksize`` values are bumped up to the next odd integer like
+    Median already does), **Invert** (per-channel ``255 - pixel``
+    via ``cv2.bitwise_not``).
+  - *Temporal:* a brand-new palette section. **Frame Difference**
+    emits ``|current - previous|`` for change/motion detection;
+    **Temporal Mean** and **Temporal Median** maintain a rolling
+    buffer of the last *N* frames and emit the per-pixel mean /
+    median each tick (median is robust against single-frame outliers
+    where mean would smear them across the window). All three reset
+    their state on a new flow run, and the rolling reductions also
+    flush their buffer if the input shape changes mid-stream.
+- **FPS read-out on the Display node.** From the second tick of a
+  run onwards, the preview gets a small FPS counter rendered into a
+  black rectangle in the top-left corner; the value is an
+  exponential moving average (α = 0.2) over per-frame ``dt`` so it
+  stays readable even with jittery sources. Always on — no toggle —
+  since live timing information is the kind of thing you only ever
+  notice when it's missing. The overlay only affects what the
+  preview widget sees: the output port still forwards the original
+  ``IoData`` so a downstream VideoSink isn't recording debug
+  overlays into the file.
+
+## [0.1.19] — 2026-04-25
+
+### Fixed
+- **Windows: ComboBox popup background.** Enum-typed node parameters
+  use ``SceneAwareComboBox``, which is hosted inside a
+  ``QGraphicsProxyWidget``. The popup container (a
+  ``QComboBoxPrivateContainer`` QFrame around a ``QListView``) does
+  not inherit ``autoFillBackground=True`` through the proxy on the
+  Windows native style, so the dropdown rendered transparent over the
+  scene canvas — the application stylesheet rules never landed on a
+  real fill. ``SceneAwareComboBox`` now forces both the container and
+  the view opaque on first popup, and pins their palettes to the same
+  dark colours as the rest of the UI. Fixes #136.
 
 ## [0.1.18] — 2026-04-25
 

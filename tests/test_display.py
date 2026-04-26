@@ -135,9 +135,57 @@ def test_display_forwards_finish() -> None:
 
 
 def test_display_has_no_params() -> None:
-    # An inline preview makes window_title meaningless — Display
-    # deliberately exposes no params so it stays purely a live view.
+    # FPS overlay is unconditional — no user-facing knobs to expose.
     assert Display().params == []
+
+
+# ── FPS overlay (image preview only) ──────────────────────────────────────────
+
+def test_display_fps_overlay_does_not_leak_to_output() -> None:
+    # The overlay is for the preview only; the output port must still
+    # forward the original IoData byte-for-byte so downstream sinks
+    # (e.g. VideoSink) record clean frames.
+    node = Display()
+    up, captured = _wire(node)
+
+    received: list[IoData] = []
+    node.set_frame_callback(received.append)
+
+    node.before_run()
+    # Big enough that the FPS rect (≈ 90 × 25 px in the top-left) leaves
+    # plenty of unmodified canvas for the leak check.
+    big = lambda v: np.full((128, 256, 3), v, dtype=np.uint8)
+    for v in (60, 120, 200):
+        up.send(IoData.from_image(big(v)))
+
+    # Output is unmodified everywhere.
+    for c, v in zip(captured, (60, 120, 200)):
+        np.testing.assert_array_equal(c.image, big(v))
+    # Preview callback gets the annotated IoData; the bottom-right
+    # corner (well outside the overlay box) is still untouched.
+    for d, v in zip(received, (60, 120, 200)):
+        assert int(d.payload[-1, -1, 0]) == v
+
+
+def test_display_fps_overlay_writes_visible_pixels_on_preview() -> None:
+    # Sanity-check that the overlay actually paints something. The first
+    # frame has no measurable dt → overlay can't render yet, but every
+    # frame after that should have a black rectangle in the top-left.
+    node = Display()
+    received: list[IoData] = []
+    node.set_frame_callback(received.append)
+    up, _ = _wire(node)
+
+    node.before_run()
+    for _ in range(3):
+        up.send(IoData.from_image(_bgr(100, h=64, w=128)))
+
+    # First frame is unmodified (no dt yet to derive an FPS reading).
+    np.testing.assert_array_equal(received[0].payload, _bgr(100, h=64, w=128))
+    # On the second frame the overlay rect lives in the top-left.
+    # Pixel (5, 50) sits in the rect's clear space above the text glyphs
+    # so it should be solid black, distinct from the input fill of 100.
+    assert int(received[1].payload[5, 50, 0]) == 0
 
 
 # ── SCALAR / MATRIX support ───────────────────────────────────────────────────
@@ -200,3 +248,24 @@ def test_display_passes_through_matrix() -> None:
     assert captured[0].payload.shape == (2, 2)
     assert node.latest_frame is not None
     assert node.latest_frame.shape == (2, 2)
+
+
+def test_display_skips_fps_overlay_for_scalar_payload() -> None:
+    """SCALAR / MATRIX preview is text-mode — the FPS overlay (an
+    image-blitting cv2 op) can't and shouldn't run on a 0-d array.
+    The callback must receive the original IoData unchanged."""
+    node = Display()
+    up = OutputPort("vals", {IoDataType.SCALAR})
+    up.connect(node.inputs[0])
+
+    received: list[IoData] = []
+    node.set_frame_callback(received.append)
+
+    node.before_run()
+    for v in (10, 20, 30):
+        up.send(IoData.from_scalar(v))
+
+    # All three callback hits have the original 0-d payload — no
+    # overlay attempted, no copy made.
+    assert [d.payload.item() for d in received] == [10, 20, 30]
+    assert all(d.type is IoDataType.SCALAR for d in received)

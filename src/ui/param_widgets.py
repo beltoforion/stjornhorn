@@ -334,7 +334,9 @@ class FilePathParamWidget(ParamWidgetBase):
 
     def __init__(self, node: NodeBase, param: NodeParam) -> None:
         super().__init__(node, param)
-        self._is_save = param.metadata.get("mode") == "save"
+        mode = param.metadata.get("mode")
+        self._is_save      = mode == "save"
+        self._is_directory = mode == "directory"
         self._filter = str(param.metadata.get("filter", ""))
         self._base_dir = Path(
             param.metadata.get("base_dir", OUTPUT_DIR if self._is_save else INPUT_DIR)
@@ -419,17 +421,26 @@ class FilePathParamWidget(ParamWidgetBase):
         folder = path_obj.parent.resolve()
         initial = str(folder) if folder.is_dir() else str(self._base_dir)
 
-        caption = self._param.metadata.get(
-            "caption", "Save File As" if self._is_save else "Select File",
-        )
-        
+        if self._is_directory:
+            default_caption = "Select Folder"
+        elif self._is_save:
+            default_caption = "Save File As"
+        else:
+            default_caption = "Select File"
+        caption = self._param.metadata.get("caption", default_caption)
+
         dialog = QFileDialog(QApplication.activeWindow(), caption)
-        dialog.setNameFilter(self._filter)
         dialog.setDirectory(initial)
 
-        if self._is_save:
+        if self._is_directory:
+            dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+            dialog.setFileMode(QFileDialog.FileMode.Directory)
+            dialog.setOption(QFileDialog.Option.ShowDirsOnly, True)
+        elif self._is_save:
+            dialog.setNameFilter(self._filter)
             dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         else:
+            dialog.setNameFilter(self._filter)
             dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
             dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
         
@@ -456,7 +467,11 @@ class FilePathParamWidget(ParamWidgetBase):
             self._update_view_enabled()
 
     def _update_view_enabled(self) -> None:
-        self._view.setEnabled(self._path.is_file())
+        # In directory mode the view button opens the folder in the OS
+        # file manager, so enable it whenever the path is a real dir;
+        # otherwise it opens the file in a viewer, so we want is_file().
+        ok = self._path.is_dir() if self._is_directory else self._path.is_file()
+        self._view.setEnabled(ok)
 
     @override
     def refresh(self) -> None:
@@ -467,8 +482,12 @@ class FilePathParamWidget(ParamWidgetBase):
         self._update_view_enabled()
 
     def _open_in_viewer(self) -> None:
-        if self._path.is_file():
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(self._path)))
+        # QDesktopServices.openUrl on a directory opens the OS file
+        # manager at that path, so the same call works for both modes.
+        target = self._path
+        ok = target.is_dir() if self._is_directory else target.is_file()
+        if ok:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
 
 
 # ── Registry & factory ─────────────────────────────────────────────────────────

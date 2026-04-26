@@ -63,6 +63,22 @@
       padding: 24px 32px 20px 8px;
       display: flex;
       flex-direction: column;
+      /* When new content (a longer "What's new" list, more tips) pushes
+         the column past the available height, scroll inside the column
+         instead of clipping. Body-level overflow stays hidden so the
+         mascot column never scrolls. */
+      overflow-y: auto;
+    }
+    /* Override the global ::-webkit-scrollbar rule above for this column —
+       a flat dark scrollbar styled to match the panel palette. */
+    .content-col::-webkit-scrollbar       { width: 8px; }
+    .content-col::-webkit-scrollbar-track { background: transparent; }
+    .content-col::-webkit-scrollbar-thumb {
+      background: var(--bg-panel-alt);
+      border-radius: 4px;
+    }
+    .content-col::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
     }
 
     header.hero {
@@ -164,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.22</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.26</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -197,17 +213,17 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.22</h2>
+      <h2>What's new in v0.1.26</h2>
       <ul class="tips">
         <li><strong>Overlay's angle is now port-drivable</strong> — Overlay grew an optional <em>angle</em> SCALAR input. Wire a <em>Value Source</em> (0..359) into it and the logo rotates a full turn per Run; leave it unconnected and the literal angle param works exactly as before. First pilot of the param-as-port mechanism — every numeric parameter is meant to grow a matching optional port over time.</li>
-        <li><strong>Math nodes for scalars</strong> (v0.1.21) — new <strong>Math</strong> palette section in the filters list with a <em>Math</em> node (op selector: ADD, SUB, MUL, DIV, MIN, MAX) and a <em>Clamp</em> node (<em>min_value</em>, <em>max_value</em>). Plus a new <em>Constant Value</em> source that emits a single SCALAR (latched on streaming consumers) so you can feed a fixed factor or offset into Math without a second ValueSource.</li>
-        <li><strong>Value Source &amp; Value Sink</strong> (v0.1.20) — a numeric counter source that emits a SCALAR per frame (parameters: <em>min_value</em>, <em>max_value</em>, <em>multiplier</em>, <em>loop</em>) and a matching sink that terminates a numeric flow. Drop them on the canvas with a Display in between to watch the counter live in the inline preview.</li>
-        <li><strong>Display now shows SCALAR &amp; MATRIX</strong> (v0.1.20) — feed a scalar stream into Display and the inline preview renders the formatted number; matrices render as a compact text grid. Image payloads keep their pixmap preview.</li>
-        <li><strong>SCALAR &amp; MATRIX payload types</strong> (v0.1.19) — internal groundwork for value-driven nodes; existing flows are unaffected.</li>
-        <li><strong>Merge node uses the standard optional-port mechanism</strong> (v0.1.18) — the four quadrant inputs are now declared <code>optional=True</code> and render as hollow dots, matching RGBA Join's alpha input. Behaviour is unchanged: missing quadrants become black.</li>
-        <li><strong>Backdrops</strong> (v0.1.17) — right-click empty canvas to drop a coloured frame behind a group of nodes. Use them as loose chapter headings ("Colour prep", "Alpha mask") so large flows stay readable.</li>
-        <li><strong>Video Source paths are now portable</strong> (v0.1.16) — video references under the <code>input/</code> folder save as short relative names and resolve them the same way as image sources, regardless of the working directory.</li>
-        <li><strong>Unsaved-changes indicator</strong> (v0.1.15) — the editor's toolbar shows an amber warning icon with "Unsaved changes" the moment a parameter, node, or connection is edited, and clears it on save, load, or reload.</li>
+        <li><strong>Math nodes for scalars</strong> (v0.1.25) — new <strong>Math</strong> palette section in the filters list with a <em>Math</em> node (op selector: ADD, SUB, MUL, DIV, MIN, MAX) and a <em>Clamp</em> node (<em>min_value</em>, <em>max_value</em>). Plus a new <em>Constant Value</em> source that emits a single SCALAR (latched on streaming consumers) so you can feed a fixed factor or offset into Math without a second ValueSource.</li>
+        <li><strong>Value Source &amp; Value Sink</strong> (v0.1.24) — a numeric counter source that emits a SCALAR per frame (parameters: <em>min_value</em>, <em>max_value</em>, <em>multiplier</em>, <em>loop</em>) and a matching sink that terminates a numeric flow. Drop them on the canvas with a Display in between to watch the counter live in the inline preview.</li>
+        <li><strong>Display now shows SCALAR &amp; MATRIX</strong> (v0.1.24) — feed a scalar stream into Display and the inline preview renders the formatted number; matrices render as a compact text grid. Image payloads keep their pixmap preview, and the FPS read-out from v0.1.20 still fires for image streams.</li>
+        <li><strong>SCALAR &amp; MATRIX payload types</strong> (v0.1.23) — internal groundwork for value-driven nodes; existing flows are unaffected.</li>
+        <li><strong>Node List is now a tree</strong> (v0.1.22) — each palette section is a collapsible group with expand-all / collapse-all buttons in the dock toolbar. The search box auto-expands matching groups so leaves never hide behind a closed section.</li>
+        <li><strong>Directory Source</strong> (v0.1.21) — drop a folder of images into a flow as a frame stream, sorted lexicographically, with an <code>include_subdirectories</code> toggle for recursive walks.</li>
+        <li><strong>Eight new processing nodes</strong> (v0.1.20) — <em>Transform:</em> Flip, Crop, Rotate. <em>Processing:</em> Gaussian Blur, Invert. <em>Temporal:</em> Frame Difference, Temporal Mean, Temporal Median.</li>
+        <li><strong>FPS read-out on Display</strong> (v0.1.20) — the Display preview shows an exponentially-smoothed FPS counter in the top-left corner. Preview-only — anything written downstream by a sink stays clean.</li>
       </ul>
     </section>
 
