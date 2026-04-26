@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.38</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.39</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,9 +213,10 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.38</h2>
+      <h2>What's new in v0.1.39</h2>
       <ul class="tips">
-        <li><strong>Internal cleanup.</strong> The widget-sizing magic numbers scattered across node_item.py and param_widgets.py are replaced by named constants — a future tweak to spinbox / line-edit / button widths now happens in one place, not five.</li>
+        <li><strong>Param widgets are compact and consistent across OS styles.</strong> Spinboxes, line edits and combo boxes now lock at a Blender-style 22 px tall. Previously they followed Qt's per-style <code>sizeHint().height()</code> — 22 px on Fusion, but 26-28 on macOS / Windows-Vista — making the same node visibly taller on some machines. One named constant in <code>param_widgets.py</code> drives every value-bearing control.</li>
+        <li><strong>Internal cleanup</strong> (v0.1.38) — widget-sizing magic numbers consolidated into named constants.</li>
         <li><strong>Outputs at top, inputs at bottom</strong> (v0.1.37) — node sockets are no longer paired side-by-side row-for-row — output sockets stack at the top of the body (right-aligned), input sockets follow underneath (left-aligned, with their inline widgets). Visual layout matches Blender's geometry-nodes / shader editor.</li>
         <li><strong>Spinbox arrows no longer overlap the value field.</strong> The dark-theme stylesheet was setting <code>padding</code> on QSpinBox / QDoubleSpinBox without reserving room for the up/down buttons; Qt's style engine drew the buttons on top of the text. Padding now reserves a 16-px column on the right and the sub-controls are positioned explicitly to fill it.</li>
         <li><strong>Inline socket widgets render properly</strong> (v0.1.36) — tall enough rows that QSpinBox / QLineEdit show full-size up/down arrows and text caret, wide enough nodes that <em>FilePathParamWidget</em>'s line-edit + Browse + View buttons stop overlapping each other.</li>

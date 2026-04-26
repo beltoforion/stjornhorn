@@ -10,6 +10,25 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.39] — 2026-04-26
+
+### Fixed
+- **Param widget height locked to a compact 22 px regardless of OS
+  style.** Without an explicit ``setFixedHeight`` Qt picks
+  ``sizeHint().height()``, which on native styles ranges from ~22 px
+  (Fusion) to ~28 px (Windows-Vista, macOS). The same node looked
+  visibly taller on those machines and rows of different widget
+  kinds (QSpinBox vs QLineEdit) drifted into different heights on a
+  single node body. ``ui.param_widgets`` gains a
+  ``PARAM_VALUE_HEIGHT = 22`` module constant; every value-bearing
+  control (the QSpinBox / QDoubleSpinBox / QLineEdit / QComboBox in
+  the single-element widgets, plus the QLineEdit and Browse / View
+  buttons in ``FilePathParamWidget``) gets ``setFixedHeight`` to
+  that value. Layout dump after the fix: every editable widget is
+  exactly 22 px tall on any platform; the QCheckBox in
+  ``BoolParamWidget`` keeps its native ~15 px because checkboxes
+  don't render meaningfully larger.
+
 ## [0.1.38] — 2026-04-26
 
 ### Changed

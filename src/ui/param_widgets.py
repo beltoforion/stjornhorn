@@ -48,6 +48,16 @@ PATH_LINE_EDIT_MIN_WIDTH: int = 80
 #: small enough that two of them don't dominate the row.
 PARAM_BUTTON_WIDTH: int = 36
 
+#: Fixed height for every value-bearing control on a param widget.
+#: Locks the size at a compact, Blender-style 22 px regardless of OS
+#: style — without this Qt picks ``sizeHint().height()`` which on
+#: native styles ranges from ~22 (Fusion) to ~28 (Windows-Vista,
+#: macOS), making the same node look too tall on some machines and
+#: visually inconsistent across rows when widget kinds disagree on
+#: their natural height. 22 px fits a 14-px font + 4 px of vertical
+#: padding (matches the QSS ``padding: 3px 6px``) + 2 px of border.
+PARAM_VALUE_HEIGHT: int = 22
+
 
 class ParamWidgetBase(QWidget):
     """Base class for all parameter editor widgets embedded in a NodeItem.
@@ -123,6 +133,7 @@ class IntParamWidget(ParamWidgetBase):
         self._spin.setRange(-10_000_000, 10_000_000)
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._spin.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
+        self._spin.setFixedHeight(PARAM_VALUE_HEIGHT)
         self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(int(self._initial_value(0)))
 
@@ -163,6 +174,7 @@ class FloatParamWidget(ParamWidgetBase):
         self._spin.setSingleStep(float(meta.get("step", 0.1)))
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._spin.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
+        self._spin.setFixedHeight(PARAM_VALUE_HEIGHT)
         self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(float(self._initial_value(0.0)))
 
@@ -227,6 +239,7 @@ class StringParamWidget(ParamWidgetBase):
 
         self._line = QLineEdit()
         self._line.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
+        self._line.setFixedHeight(PARAM_VALUE_HEIGHT)
         placeholder = meta.get("placeholder")
         if placeholder is not None:
             self._line.setPlaceholderText(str(placeholder))
@@ -290,6 +303,7 @@ class EnumParamWidget(ParamWidgetBase):
 
         self._combo = SceneAwareComboBox()
         self._combo.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
+        self._combo.setFixedHeight(PARAM_VALUE_HEIGHT)
         for member in self._enum_cls:
             self._combo.addItem(self._label_for(member), member)
 
@@ -371,14 +385,17 @@ class FilePathParamWidget(ParamWidgetBase):
         # inside the fixed-width node body, otherwise the line edit overflows
         # and visually overlaps the button.
         self._line.setMinimumWidth(PATH_LINE_EDIT_MIN_WIDTH)
+        self._line.setFixedHeight(PARAM_VALUE_HEIGHT)
 
         browse = QPushButton("...")
         browse.setFixedWidth(PARAM_BUTTON_WIDTH)
+        browse.setFixedHeight(PARAM_VALUE_HEIGHT)
         browse.clicked.connect(self._open_file_dialog)
 
         self._view = QPushButton()
         self._view.setIcon(material_icon("visibility"))
         self._view.setFixedWidth(PARAM_BUTTON_WIDTH)
+        self._view.setFixedHeight(PARAM_VALUE_HEIGHT)
         self._view.setToolTip("Open in system image viewer")
         self._view.clicked.connect(self._open_in_viewer)
 
