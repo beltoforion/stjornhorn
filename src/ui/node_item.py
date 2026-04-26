@@ -487,13 +487,22 @@ class NodeItem(QGraphicsItem):
 
         # ── port labels ──
         painter.setPen(QPen(NODE_PARAM_LABEL_COLOR))
-        io_top = self._io_top()
         label_margin = PortItem.RADIUS + 6
 
+        # Outputs sit at the top of the body (right-aligned).
+        outputs_top = self._outputs_top()
+        for i, port in enumerate(self._output_ports):
+            y = outputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT
+            painter.drawText(
+                QRectF(label_margin, y - self.PORT_ROW_HEIGHT / 2,
+                       self._width - 2 * label_margin, self.PORT_ROW_HEIGHT),
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
+                port.name,
+            )
+        # Inputs follow below; rows with a widget truncate the label.
+        inputs_top = self._inputs_top()
         for i, port in enumerate(self._input_ports):
-            y = io_top + (i + 0.5) * self.PORT_ROW_HEIGHT
-            # If this row hosts an inline param widget, truncate the
-            # input label so it doesn't paint underneath the widget.
+            y = inputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT
             label_right = self._width - label_margin
             proxy = self._param_proxies_by_row.get(i)
             if proxy is not None:
@@ -503,14 +512,6 @@ class NodeItem(QGraphicsItem):
                        max(0.0, label_right - label_margin),
                        self.PORT_ROW_HEIGHT),
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                port.name,
-            )
-        for i, port in enumerate(self._output_ports):
-            y = io_top + (i + 0.5) * self.PORT_ROW_HEIGHT
-            painter.drawText(
-                QRectF(label_margin, y - self.PORT_ROW_HEIGHT / 2,
-                       self._width - 2 * label_margin, self.PORT_ROW_HEIGHT),
-                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
                 port.name,
             )
 
@@ -571,11 +572,16 @@ class NodeItem(QGraphicsItem):
         path.closeSubpath()
         return path
 
-    def _io_top(self) -> float:
-        # Inline-socket layout (step 7b): no separate property panel
-        # above the IO rows, so the first port row sits flush under
-        # the header.
+    def _outputs_top(self) -> float:
+        """Y of the first output row — output sockets are stacked at
+        the top of the body, right under the header (Blender-style)."""
         return self.HEADER_HEIGHT
+
+    def _inputs_top(self) -> float:
+        """Y of the first input row — inputs sit below the output
+        block. Param-style inputs carry an inline widget on the same
+        row as their socket dot."""
+        return self.HEADER_HEIGHT + len(self._output_ports) * self.PORT_ROW_HEIGHT
 
     def _compute_width(self) -> float:
         """Pick a body width that fits the node's content, clamped to MAX_WIDTH.
@@ -594,25 +600,28 @@ class NodeItem(QGraphicsItem):
 
         port_margin = PortItem.RADIUS + 6.0
         port_need = 0.0
-        rows = max(len(self._input_ports), len(self._output_ports))
         widget_inset = 4.0
-        # A param-style row needs room for input label + widget + output
-        # label. We use ``minimumSizeHint`` so the auto-fit is generous
-        # enough that a multi-element widget (FilePathParamWidget's
-        # line-edit + buttons ≈ 160 px) doesn't overlap its children
-        # because the row was sized to a single SpinBox-shaped budget.
-        for i in range(rows):
-            in_w = (metrics.horizontalAdvance(self._input_ports[i].name)
-                    if i < len(self._input_ports) else 0.0)
-            out_w = (metrics.horizontalAdvance(self._output_ports[i].name)
-                     if i < len(self._output_ports) else 0.0)
+
+        # Outputs are stacked at the top of the body — each row only
+        # needs room for the right-edge socket dot + label.
+        for port in self._output_ports:
+            row_need = 2 * port_margin + metrics.horizontalAdvance(port.name)
+            port_need = max(port_need, row_need)
+
+        # Inputs follow below — each row needs room for the left-edge
+        # socket dot + label + (optional) inline widget. We use
+        # ``minimumSizeHint`` so a multi-element widget
+        # (FilePathParamWidget's line-edit + buttons ≈ 160 px) doesn't
+        # overlap its children because the row was sized to a single
+        # SpinBox-shaped budget.
+        for i, port in enumerate(self._input_ports):
+            label_w = metrics.horizontalAdvance(port.name)
             editor = self._param_widgets_by_row.get(i)
             if editor is not None:
                 widget_w = float(editor.minimumSizeHint().width()) + 2 * widget_inset
             else:
-                # Plain port row: use the legacy gap budget.
-                widget_w = self.PORT_LABEL_GAP
-            row_need = 2 * port_margin + in_w + widget_w + out_w
+                widget_w = 0.0
+            row_need = 2 * port_margin + label_w + widget_w
             port_need = max(port_need, row_need)
 
         # Preview widget asks for as much width as it can get; cap at
@@ -717,8 +726,12 @@ class NodeItem(QGraphicsItem):
             self._width = self._compute_width()
 
         # ── IO area ────────────────────────────────────────────────────────────
-        n_rows = max(len(self._input_ports), len(self._output_ports), 0)
-        io_height = n_rows * self.PORT_ROW_HEIGHT
+        # Blender-style vertical split: outputs first (at top of body,
+        # right-edge sockets), then inputs below (left-edge sockets,
+        # with optional inline widgets). No per-row pairing.
+        n_outputs = len(self._output_ports)
+        n_inputs  = len(self._input_ports)
+        io_height = (n_outputs + n_inputs) * self.PORT_ROW_HEIGHT
 
         # Preview (if any) gets a natural minimum and stretches to fill
         # whatever vertical space the user dragged the resize grip to.
@@ -764,18 +777,19 @@ class NodeItem(QGraphicsItem):
             self._body_height - self.RESIZE_GRIP_SIZE - 1,
         )
 
-        io_top = self._io_top()
-        for i, port in enumerate(self._input_ports):
-            port.setPos(0.0, io_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
+        outputs_top = self._outputs_top()
+        inputs_top = self._inputs_top()
         for i, port in enumerate(self._output_ports):
-            port.setPos(self._width, io_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
+            port.setPos(self._width, outputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
+        for i, port in enumerate(self._input_ports):
+            port.setPos(0.0, inputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
 
         # ── Per-row inline param widgets ───────────────────────────────────────
-        self._layout_param_widgets(io_top)
+        self._layout_param_widgets(inputs_top)
 
         # ── Preview widget below the IO rows ───────────────────────────────────
         if self._preview_widget is not None and self._preview_proxy is not None:
-            preview_top = io_top + io_height + gap_before_preview
+            preview_top = inputs_top + n_inputs * self.PORT_ROW_HEIGHT + gap_before_preview
             preview_h = self._body_height - preview_top - self.PADDING
             preview_h = max(natural_preview_h, preview_h)
             self._preview_widget.setFixedWidth(int(self._width - 2 * self.PADDING))
@@ -785,39 +799,27 @@ class NodeItem(QGraphicsItem):
         self.refresh_all_links()
         self.update()
 
-    def _layout_param_widgets(self, io_top: float) -> None:
-        """Position each per-row inline param widget on its port row.
+    def _layout_param_widgets(self, inputs_top: float) -> None:
+        """Position each per-row inline param widget on its input port row.
 
         Widget is right-aligned within the row, leaving the left side
-        of the row for the input port dot + name label. Width fills
-        whatever's available between the input label and an output
-        label / right edge, with a small inset gap; no upper cap, so
-        a multi-element widget (line-edit + buttons in
-        :class:`FilePathParamWidget`) gets enough room for its full
-        natural shape and doesn't end up with the line edit
-        overlapping the buttons.
+        of the row for the input port dot + name label. Output sockets
+        no longer share rows with inputs (Blender-style split layout),
+        so the widget can extend all the way to the right edge minus
+        a small inset.
         """
         if not self._param_widgets_by_row:
             return
         metrics = QFontMetricsF(QApplication.font())
         port_margin = PortItem.RADIUS + 6.0
         widget_inset = 4.0
-        # Use the widget's natural sizeHint height (typically ~24 px
-        # for QSpinBox / QLineEdit on most styles) so the OS-rendered
-        # spinner buttons / text caret stay full-size.
         for row, editor in self._param_widgets_by_row.items():
             proxy = self._param_proxies_by_row[row]
-            out_label_w = 0.0
-            if row < len(self._output_ports):
-                out_label_w = (
-                    metrics.horizontalAdvance(self._output_ports[row].name)
-                    + port_margin
-                )
             in_label_w = (
                 metrics.horizontalAdvance(self._input_ports[row].name)
                 + port_margin
             )
-            avail = self._width - in_label_w - out_label_w - 2 * widget_inset
+            avail = self._width - in_label_w - 2 * widget_inset
             # Width: use the widget's natural sizeHint, clamped between
             # its own minimum (so QHBoxLayout-based widgets like
             # FilePathParamWidget don't end up with the line-edit
@@ -829,9 +831,8 @@ class NodeItem(QGraphicsItem):
             hint_w = float(editor.sizeHint().width())
             widget_w = max(min_w, min(hint_w, avail))
             widget_h = float(editor.sizeHint().height())
-            # Centre the widget vertically in the row.
-            y = io_top + row * self.PORT_ROW_HEIGHT + (self.PORT_ROW_HEIGHT - widget_h) / 2.0
-            x = self._width - out_label_w - widget_inset - widget_w
+            y = inputs_top + row * self.PORT_ROW_HEIGHT + (self.PORT_ROW_HEIGHT - widget_h) / 2.0
+            x = self._width - widget_inset - widget_w
             x = max(in_label_w + widget_inset, x)
             editor.setFixedSize(int(widget_w), int(widget_h))
             proxy.setPos(x, y)

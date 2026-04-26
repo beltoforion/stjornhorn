@@ -10,6 +10,36 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.37] — 2026-04-26
+
+### Changed
+- **Node layout: outputs at top, inputs at bottom (Blender-style).**
+  Previously sockets were paired side-by-side row-for-row (input on
+  the left, output on the right of the same row). Now output sockets
+  stack at the top of the body right under the header (right-aligned),
+  followed by all input sockets (left-aligned). Each input row may
+  carry an inline param widget on its right; outputs never have
+  widgets. ``_io_top`` is replaced by ``_outputs_top()`` /
+  ``_inputs_top()`` and ``paint`` / ``_compute_width`` /
+  ``_layout_param_widgets`` are reworked accordingly. The body grows
+  taller for nodes that have both inputs and outputs (Median: 2 rows
+  instead of 1; Overlay: 8 instead of 7); ``_compute_width`` simplifies
+  because rows are no longer paired and the widget can extend all the
+  way to the right edge of the input row.
+
+### Fixed
+- **QSpinBox / QDoubleSpinBox up/down buttons stop overlapping the
+  value field.** The dark-theme stylesheet was setting ``padding:
+  3px 6px`` on ``QSpinBox`` / ``QDoubleSpinBox`` without reserving
+  room for the sub-controls; Qt's style engine drew the up/down
+  buttons on top of the text. The stylesheet now adds an explicit
+  ``padding-right: 18px`` plus ``::up-button`` / ``::down-button``
+  rules that pin the buttons to the right edge with a 16-px width
+  and consistent dark-theme separator border. ``::up-arrow`` /
+  ``::down-arrow`` keep the native style's arrow drawing at a
+  proportional 7×7 px so the icons stay legible at the new
+  PORT_ROW_HEIGHT.
+
 ## [0.1.36] — 2026-04-26
 
 ### Fixed

@@ -96,6 +96,33 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
     border-color: #5a5a60;
 }
+/* Touching ``padding`` on a QSpinBox / QDoubleSpinBox above stops Qt
+   from rendering the up/down arrow sub-controls in their native
+   geometry — the OS style positions them by a fixed offset from the
+   right edge that the padding pushes the text into. We override the
+   sub-control geometry explicitly so the text and the buttons stop
+   overlapping each other. ``padding-right: 18px`` reserves the
+   16-px button column plus a couple of pixels of breathing room. */
+QSpinBox, QDoubleSpinBox {
+    padding-right: 18px;
+}
+QSpinBox::up-button, QDoubleSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 16px;
+    border-left: 1px solid #1a1a1d;
+}
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 16px;
+    border-left: 1px solid #1a1a1d;
+}
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow,
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    width: 7px;
+    height: 7px;
+}
 QListWidget, QTreeView {
     background: #1f1f22;
     border: 1px solid #1a1a1d;
