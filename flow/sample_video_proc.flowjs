@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.35",
+  "app_version": "0.1.43",
   "name": "sample_video_proc",
   "nodes": [
     {
@@ -21,7 +21,7 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -151.23106497500945,
+        -178.8976981974992,
         -870.7026624375242
       ],
       "port_defaults": {
@@ -35,12 +35,16 @@
       "module": "nodes.filters.flip",
       "class": "Flip",
       "position": [
-        -1623.4017685505573,
-        -1071.1145713187238
+        -1618.595034232671,
+        -1079.7286681743858
       ],
       "port_defaults": {
         "mode": 1
-      }
+      },
+      "size": [
+        186.40563105191904,
+        120.0
+      ]
     },
     {
       "id": 3,
@@ -61,15 +65,15 @@
       "module": "nodes.filters.temporal_mean",
       "class": "TemporalMean",
       "position": [
-        -1638.1795463283356,
-        -914.2256824298347
+        -1618.595034232671,
+        -939.728668174386
       ],
       "port_defaults": {
         "window": 5
       },
       "size": [
-        169.0,
-        118.0
+        187.45877897641935,
+        120.0
       ]
     },
     {
@@ -77,31 +81,39 @@
       "module": "nodes.filters.frame_difference",
       "class": "FrameDifference",
       "position": [
-        -1635.7231833910037,
-        -560.7714340638222
+        -1618.595034232671,
+        -631.728668174386
       ],
-      "port_defaults": {}
+      "port_defaults": {},
+      "size": [
+        180.4563874226492,
+        92.0
+      ]
     },
     {
       "id": 6,
       "module": "nodes.filters.gaussian_blur",
       "class": "GaussianBlur",
       "position": [
-        -1654.282006920415,
-        -763.0680507497116
+        -1618.595034232671,
+        -799.728668174386
       ],
       "port_defaults": {
         "ksize": 21,
         "sigma": 0.0
-      }
+      },
+      "size": [
+        188.83989901321706,
+        148.0
+      ]
     },
     {
       "id": 7,
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1302.7090943971955,
-        -762.7021794141817
+        -1275.636218565114,
+        -1193.4070221972984
       ],
       "port_defaults": {}
     },
@@ -191,8 +203,8 @@
   "backdrops": [
     {
       "position": [
-        -1699.1833910034602,
-        -1119.1145713187238
+        -1648.729395134581,
+        -1136.3427650300487
       ],
       "size": [
         269.0,
