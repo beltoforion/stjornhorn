@@ -7,12 +7,17 @@ from PySide6.QtCore import QMimeData, QSize, Qt
 from PySide6.QtGui import QDrag
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QHBoxLayout,
+    QHeaderView,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
+    QToolButton,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
+
+from ui.icons import material_icon
 
 if TYPE_CHECKING:
     from core.node_registry import NodeRegistry
@@ -37,13 +42,16 @@ class NodeList(QWidget):
     """Palette listing every registered node grouped by the ``section``
     string each node declares in its constructor.
 
-    Each entry is a :class:`QListWidgetItem` that emits a drag with the
+    The widget is a :class:`QTreeWidget` where each section is a
+    collapsible top-level item and its nodes are children. A toolbar
+    above the tree exposes "expand all" / "collapse all" affordances and
+    a live search box that hides non-matching leaves while always
+    keeping the section headers visible.
+
+    Each leaf is a :class:`QTreeWidgetItem` that emits a drag with the
     :data:`NODE_LIST_MIME_TYPE` MIME type carrying a JSON descriptor of
     the node (module, class_name, display_name, category, section). The
     flow canvas reads that payload on drop and instantiates the node.
-
-    A search box filters the list live; matching falls back to case-
-    insensitive ``in`` on display names.
     """
 
     def __init__(self, registry: NodeRegistry, parent: QWidget | None = None) -> None:
@@ -53,15 +61,38 @@ class NodeList(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
 
+        # Toolbar: expand-all / collapse-all + search. Buttons are kept
+        # narrow (icon-only) so the search field gets the rest of the row.
+        toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(0, 0, 0, 0)
+        toolbar.setSpacing(4)
+
+        self._expand_btn = QToolButton()
+        self._expand_btn.setIcon(material_icon("unfold_more"))
+        self._expand_btn.setToolTip("Expand all groups")
+        self._expand_btn.setAutoRaise(True)
+        self._expand_btn.clicked.connect(self._expand_all)
+        toolbar.addWidget(self._expand_btn)
+
+        self._collapse_btn = QToolButton()
+        self._collapse_btn.setIcon(material_icon("unfold_less"))
+        self._collapse_btn.setToolTip("Collapse all groups")
+        self._collapse_btn.setAutoRaise(True)
+        self._collapse_btn.clicked.connect(self._collapse_all)
+        toolbar.addWidget(self._collapse_btn)
+
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search…")
         self._search.textChanged.connect(self._on_search)
-        layout.addWidget(self._search)
+        toolbar.addWidget(self._search, 1)
 
-        self._list = _DraggableList()
-        layout.addWidget(self._list, 1)
+        layout.addLayout(toolbar)
+
+        self._tree = _DraggableTree()
+        layout.addWidget(self._tree, 1)
 
         self._populate(registry)
+        self._tree.expandAll()
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
@@ -82,24 +113,26 @@ class NodeList(QWidget):
 
         for section in ordered_sections:
             entries = grouped.get(section, [])
-            # Section header is a non-selectable, non-draggable item.
-            header = QListWidgetItem(f"{section}  ({len(entries)})")
-            font = header.font()
+            header = QTreeWidgetItem([f"{section}  ({len(entries)})"])
+            font = header.font(0)
             font.setBold(True)
-            header.setFont(font)
-            header.setFlags(Qt.ItemFlag.NoItemFlags)
-            header.setData(Qt.ItemDataRole.UserRole, None)
-            self._list.addItem(header)
+            header.setFont(0, font)
+            # Section rows are organisational only — no drag payload, no
+            # selection. Keeping them enabled lets the user click the
+            # row (not just the disclosure triangle) to toggle expansion.
+            header.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            header.setData(0, Qt.ItemDataRole.UserRole, None)
+            self._tree.addTopLevelItem(header)
 
             if not entries:
-                placeholder = QListWidgetItem("    (none)")
+                placeholder = QTreeWidgetItem(["(none)"])
                 placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
-                placeholder.setForeground(Qt.GlobalColor.gray)
-                self._list.addItem(placeholder)
+                placeholder.setForeground(0, Qt.GlobalColor.gray)
+                header.addChild(placeholder)
                 continue
 
             for entry in entries:
-                item = QListWidgetItem(f"  {entry.display_name}")
+                item = QTreeWidgetItem([entry.display_name])
                 payload = json.dumps({
                     "module":       entry.module,
                     "class_name":   entry.class_name,
@@ -107,43 +140,72 @@ class NodeList(QWidget):
                     "category":     entry.category,
                     "section":      entry.section,
                 })
-                item.setData(Qt.ItemDataRole.UserRole, payload)
-                item.setToolTip(f"{entry.module}.{entry.class_name}")
-                self._list.addItem(item)
+                item.setData(0, Qt.ItemDataRole.UserRole, payload)
+                item.setToolTip(0, f"{entry.module}.{entry.class_name}")
+                header.addChild(item)
 
     def _on_search(self, text: str) -> None:
         query = text.strip().lower()
-        for i in range(self._list.count()):
-            item = self._list.item(i)
-            # Never hide section headers — context matters.
-            if item.flags() == Qt.ItemFlag.NoItemFlags:
-                item.setHidden(False)
-                continue
-            item.setHidden(bool(query) and query not in item.text().lower())
+        for i in range(self._tree.topLevelItemCount()):
+            section = self._tree.topLevelItem(i)
+            any_visible = False
+            for j in range(section.childCount()):
+                child = section.child(j)
+                payload = child.data(0, Qt.ItemDataRole.UserRole)
+                if payload is None:
+                    # Placeholder "(none)" row — hide it during a search
+                    # so empty sections don't get a misleading match.
+                    child.setHidden(bool(query))
+                    continue
+                matches = (not query) or (query in child.text(0).lower())
+                child.setHidden(not matches)
+                any_visible = any_visible or matches
+            # Section headers stay visible (context matters), but expand
+            # automatically while a search is active so matches are not
+            # hidden behind a collapsed group.
+            section.setHidden(False)
+            if query:
+                section.setExpanded(any_visible)
+
+    def _expand_all(self) -> None:
+        self._tree.expandAll()
+
+    def _collapse_all(self) -> None:
+        self._tree.collapseAll()
 
 
-class _DraggableList(QListWidget):
-    """QListWidget that emits a NodeEntry drag when an item is dragged."""
+class _DraggableTree(QTreeWidget):
+    """QTreeWidget that emits a NodeEntry drag when a leaf is dragged."""
 
     def __init__(self) -> None:
         super().__init__()
+        self.setHeaderHidden(True)
+        self.setColumnCount(1)
+        self.setRootIsDecorated(True)
+        self.setIndentation(14)
+        self.setUniformRowHeights(True)
+        self.setExpandsOnDoubleClick(True)
+        self.setItemsExpandable(True)
+        self.setAnimated(False)
         self.setDragEnabled(True)
         self.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setIconSize(QSize(0, 0))
+        # Single visible column should fill the viewport.
+        self.header().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
     def startDrag(self, supported_actions) -> None:  # type: ignore[override]
         item = self.currentItem()
         if item is None:
             return
-        payload = item.data(Qt.ItemDataRole.UserRole)
+        payload = item.data(0, Qt.ItemDataRole.UserRole)
         if not payload:
             return
 
         mime = QMimeData()
         mime.setData(NODE_LIST_MIME_TYPE, payload.encode("utf-8"))
-        mime.setText(item.text().strip())   # so plain drop targets still get something
+        mime.setText(item.text(0).strip())   # so plain drop targets still get something
 
         drag = QDrag(self)
         drag.setMimeData(mime)

@@ -50,6 +50,8 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "refresh":      "e5d5",
     "push_pin":     "f10d",
     "select_all":   "e162",
+    "unfold_more":  "e5d7",
+    "unfold_less":  "e5d6",
 }
 
 

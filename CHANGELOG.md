@@ -10,6 +10,18 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.22] — 2026-04-26
+
+### Changed
+- **Node List is now a tree view.** Each palette section is a
+  collapsible group with the section name + node count as the parent
+  and the individual nodes as children. The dock toolbar gained two
+  icon buttons — *expand all* (``unfold_more``) and *collapse all*
+  (``unfold_less``) — so the user can sweep every group open or
+  closed in one click without clicking each disclosure triangle. The
+  search box auto-expands any group that still has visible matches
+  while typing, so leaves never hide behind a collapsed section.
+
 ## [0.1.21] — 2026-04-25
 
 ### Added
