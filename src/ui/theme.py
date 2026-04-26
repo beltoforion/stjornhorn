@@ -213,6 +213,11 @@ QCheckBox::indicator:hover {
 QCheckBox::indicator:checked {
     background: #3a5b8a;
     border-color: #e0c040;
+    /* Without an explicit ``image`` Qt's stylesheet rendering mode
+       fills the indicator's background but never draws the actual
+       check glyph. The SVG is sized to 14×14 to match the indicator
+       and uses a light stroke so it reads against the blue fill. */
+    image: url("@@CHECKMARK@@");
 }
 QCheckBox::indicator:disabled {
     background: #2d2d30;
@@ -240,11 +245,11 @@ def apply_dark_theme(app: QApplication) -> None:
     # working directory. as_posix() avoids backslash-escape headaches
     # on Windows where QSS would otherwise treat ``\u`` etc. as escape
     # sequences inside the URL.
-    spinner_up   = (ASSETS_DIR / "icons" / "spinner_up.svg").as_posix()
-    spinner_down = (ASSETS_DIR / "icons" / "spinner_down.svg").as_posix()
+    icons = ASSETS_DIR / "icons"
     qss = (
         _DARK_QSS
-        .replace("@@SPINNER_UP@@", spinner_up)
-        .replace("@@SPINNER_DOWN@@", spinner_down)
+        .replace("@@SPINNER_UP@@",   (icons / "spinner_up.svg").as_posix())
+        .replace("@@SPINNER_DOWN@@", (icons / "spinner_down.svg").as_posix())
+        .replace("@@CHECKMARK@@",    (icons / "checkmark.svg").as_posix())
     )
     app.setStyleSheet(qss)

@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.44] — 2026-04-26
+
+### Fixed
+- **QCheckBox check glyph renders again.** Same Qt stylesheet
+  rendering-mode quirk that was hiding spinbox arrows and combobox
+  chevrons — the ``QCheckBox::indicator:checked`` rule set
+  background and border colours but never drew the actual check
+  mark, so toggling a checkbox just turned the box blue without
+  showing a tick. A new ``checkmark.svg`` asset (white stroke,
+  14×14, sized to match the indicator) is wired into the indicator
+  via ``image: url(...)``, with the same theme-apply-time path
+  injection the spinbox arrows use.
+
+### Added
+- ``assets/icons/checkmark.svg``: stroke-only white checkmark,
+  rendered at the indicator's 14×14 px so the tick reads cleanly
+  against the checked-fill blue.
+
 ## [0.1.43] — 2026-04-26
 
 ### Fixed
