@@ -52,6 +52,23 @@ class NodeParam:
         self.metadata : dict = metadata
 
 
+#: Maps a :class:`NodeParamType` to the :class:`~core.io_data.IoDataType`
+#: used for the auto-created input port that backs the param. Numeric
+#: params (INT, FLOAT) collapse to a single ``SCALAR`` port type so any
+#: scalar producer can drive any numeric param without a per-type
+#: bridge node; the widget hint for "render as int spinner vs float
+#: slider" stays in the param's metadata.
+_NODE_PARAM_TYPE_TO_PORT_TYPE: dict[NodeParamType, IoDataType] = {
+    NodeParamType.INT:       IoDataType.SCALAR,
+    NodeParamType.FLOAT:     IoDataType.SCALAR,
+    NodeParamType.BOOL:      IoDataType.BOOL,
+    NodeParamType.STRING:    IoDataType.STRING,
+    NodeParamType.ENUM:      IoDataType.ENUM,
+    NodeParamType.FILE_PATH: IoDataType.PATH,
+    NodeParamType.FOLDER:    IoDataType.PATH,
+}
+
+
 class NodeBase(ABC):
     """Abstract base class for all processing nodes.
 
@@ -101,19 +118,37 @@ class NodeBase(ABC):
 
     def _apply_default_params(self) -> None:
         """Push every NodeParam's declared ``default`` metadata onto the
-        matching instance attribute via the normal property setter.
+        matching instance attribute via the normal property setter, and
+        ensure each param has a matching :class:`InputPort` so it can be
+        port-driven (Blender-style "every editable property is a socket").
 
         Call this at the end of a subclass ``__init__`` so the node's
         attributes match the values it advertises in :attr:`params` from
         the moment it is constructed — *before* any UI builder, save
         routine or scheduler can read stale data.
 
-        Without this call, a node dropped onto the canvas and saved
-        immediately serialises whatever placeholder its ``__init__`` set
-        (e.g. ``Path()`` => ``"."``), not the value the params metadata
-        promised.
+        Auto-port creation: for every param without a same-named
+        existing input port, an optional ``InputPort`` is appended at
+        the end of ``self._inputs``. The port's ``accepted_types`` is
+        derived from :data:`_NODE_PARAM_TYPE_TO_PORT_TYPE`, its
+        ``default_value`` is the param's declared default, and its
+        ``metadata`` is a copy of the param's metadata. Ports added by
+        the subclass *before* this call (e.g. Overlay's manual
+        ``angle`` port) keep their existing position and configuration
+        — auto-creation only fills the gaps.
         """
+        existing_port_names = {port.name for port in self._inputs}
         for p in self.params:
+            if p.name not in existing_port_names:
+                port_type = _NODE_PARAM_TYPE_TO_PORT_TYPE.get(p.param_type)
+                if port_type is not None:
+                    self._add_input(InputPort(
+                        p.name,
+                        {port_type},
+                        optional=True,
+                        default_value=p.metadata.get("default"),
+                        metadata=p.metadata,
+                    ))
             if "default" not in p.metadata:
                 continue
             try:
@@ -158,18 +193,22 @@ class NodeBase(ABC):
     def is_skippable(self) -> bool:
         """True if this node can be bypassed without breaking type safety.
 
-        A node is skippable when its inputs and outputs line up one-to-one
-        with identical type sets, so forwarding ``inputs[i].data`` to
-        ``outputs[i].send()`` is always valid. Sources (no inputs) and
-        sinks (no outputs) are never skippable.
+        Mirrors Blender's "mute" semantics: skipping shorts each output
+        to whichever input has a type-compatible payload, so the node
+        is skippable as long as *at least one* input/output pair
+        exists with overlapping types. Param-style ports (SCALAR /
+        BOOL / ENUM / PATH auto-created from NodeParams) carry override
+        values rather than data flow and don't overlap an image
+        output, so they're naturally invisible to skip detection —
+        adding more of them to a node never breaks its skippability.
+        Sources (no inputs) and sinks (no outputs) are never skippable.
         """
         if not self._inputs or not self._outputs:
             return False
-        if len(self._inputs) != len(self._outputs):
-            return False
-        return all(
-            inp.accepted_types == out.emits
-            for inp, out in zip(self._inputs, self._outputs)
+        return any(
+            inp.accepted_types & out.emits
+            for inp in self._inputs
+            for out in self._outputs
         )
 
     @property
@@ -319,14 +358,26 @@ class NodeBase(ABC):
         return data.payload
 
     def _process_skipped(self) -> None:
-        """Forward each input payload to the matching output unchanged.
+        """Forward each output port from the first type-compatible
+        input port (Blender mute semantics).
 
-        Called in lieu of :meth:`process_impl` when :attr:`skipped` is True.
-        Relies on :attr:`is_skippable` having been verified at the time
-        ``skipped`` was set, so the type pairing is safe.
+        For each output, picks the earliest input whose
+        ``accepted_types`` intersect the output's ``emits`` set, then
+        forwards that input's IoData. Outputs without a matching input
+        are simply not driven this frame (they keep whatever they last
+        emitted, if any). Param-style ports (SCALAR / BOOL / etc.)
+        won't typically share types with image outputs, so they're
+        naturally ignored by skip — which is the desired behaviour:
+        skipping is about data-flow short-circuiting, not param
+        forwarding.
         """
-        for inp, out in zip(self._inputs, self._outputs):
-            out.send(inp.data)
+        for out in self._outputs:
+            match = next(
+                (inp for inp in self._inputs if inp.accepted_types & out.emits),
+                None,
+            )
+            if match is not None and match.has_data:
+                out.send(match.data)
 
     @abstractmethod
     def process_impl(self) -> None:

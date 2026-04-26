@@ -2,7 +2,7 @@ from pathlib import Path
 
 APP_NAME:         str = "Image-Inquest"
 APP_DISPLAY_NAME: str = "Stjörnhorn"
-APP_VERSION:      str = "0.1.29"
+APP_VERSION:      str = "0.1.30"
 API_URL:    str = "https://beltoforion.de"
 
 # Bundled documentation (offline welcome page, screenshots, …)

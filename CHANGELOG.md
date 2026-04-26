@@ -10,6 +10,39 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.30] — 2026-04-26
+
+### Added
+- **Param-as-port groundwork (step 3/8): every NodeParam grows a
+  matching ``InputPort``.** ``NodeBase._apply_default_params()`` now
+  walks the node's ``params`` and, for each one without a same-named
+  manual port, appends an optional ``InputPort`` to ``self._inputs``
+  with the right ``IoDataType`` (SCALAR for INT/FLOAT, BOOL/STRING/
+  ENUM/PATH for the matching ``NodeParamType``), the param's
+  default as ``default_value`` and a copy of its ``metadata`` dict.
+  Manual ports declared *before* ``_apply_default_params`` runs (e.g.
+  Overlay's pre-existing ``angle`` socket) keep their position and
+  configuration so saved flows referencing port indices still load
+  identically.
+  Combined with step 2's port-driven attribute population, every
+  numeric / boolean / enum / path-typed param across the whole node
+  catalog is now driveable from upstream — wire any SCALAR producer
+  into Median's ``size``, Overlay's ``scale``, Math's ``op``, etc.
+  No node code changed in this step.
+
+### Changed
+- **``is_skippable`` follows Blender's mute semantics.** Previously
+  it required an exact 1:1 match between every input and every
+  output. With the auto-created param-style ports that rule would
+  have falsely demoted long-skippable nodes (Median, Shift, Dither,
+  NCC) to non-skippable. The new rule mirrors Blender's mute: the
+  node is skippable as long as *at least one* input/output pair
+  exists with overlapping types, and ``_process_skipped`` forwards
+  each output from the first type-compatible input. Param-style
+  ports (SCALAR / BOOL / ENUM / PATH) don't share types with image
+  outputs, so they're naturally invisible to skip detection — adding
+  more of them can never break a node's skippability.
+
 ## [0.1.29] — 2026-04-26
 
 ### Added
