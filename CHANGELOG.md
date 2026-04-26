@@ -10,6 +10,30 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.41] — 2026-04-26
+
+### Fixed
+- **Spinbox up/down buttons show their arrow chevrons again.**
+  Adding ``::up-button`` / ``::down-button`` geometry rules in
+  0.1.37 fixed the buttons-overlap-the-value-field problem but
+  also switched Qt into stylesheet-rendering mode for the
+  sub-controls — without an explicit ``image`` rule on
+  ``::up-arrow`` / ``::down-arrow`` Qt drops the native chevron
+  drawing entirely, leaving the buttons icon-less. Two small SVG
+  arrow assets (``assets/icons/spinner_up.svg`` / ``spinner_down.svg``,
+  light-grey triangles) ship in the repo now and ``apply_dark_theme``
+  injects their absolute paths into the QSS at apply time, with
+  ``Path.as_posix()`` for cross-platform url-quoting safety.
+  Adds ``::up-button:hover`` / ``::up-button:pressed`` (and the down
+  variants) so the buttons get a subtle background highlight on
+  mouseover and a darker pressed state — small UX touch the previous
+  fully-stylesheet-styled spinbox was missing.
+
+### Added
+- ``assets/icons/spinner_up.svg`` and ``spinner_down.svg``: 7×7 px
+  light-grey triangle SVGs used by the spinbox QSS rules above.
+  Inline polygons, no external dependencies.
+
 ## [0.1.40] — 2026-04-26
 
 ### Changed
