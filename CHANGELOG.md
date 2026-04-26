@@ -10,6 +10,55 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-04-26
+
+Major release: completes the Blender-style "every editable property
+is a socket" migration and the inline-widget UI rebuild. Subsumes the
+0.1.18 .. 0.1.48 increments below — they're kept in this file as a
+detailed implementation log of the migration steps.
+
+### Headline changes
+
+- **Param-as-port migration complete.** ``NodeParam`` as a separate
+  class is gone; every node declares its editable inputs directly as
+  :class:`~core.port.InputPort` objects with type / default / metadata
+  in ``__init__``. ``IoDataType`` covers SCALAR / MATRIX / BOOL /
+  STRING / ENUM / PATH alongside the original IMAGE / IMAGE_GREY,
+  so any value-bearing producer can drive any matching param port
+  per frame. ``NodeBase.process()`` wraps every ``process_impl`` in a
+  populate / restore cycle so a node's ``self._<port_name>``
+  attribute carries the streamed value during the call and the user-
+  set fallback before / after — disconnecting a port reliably leaves
+  the slider value the user committed in place.
+- **New numeric node set.** ``ValueSource``, ``ConstantValue``,
+  ``Math``, ``Clamp``. ``Display`` accepts SCALAR and MATRIX payloads
+  alongside images, so a numeric flow can terminate at a Display
+  without a downstream sink.
+- **Sinks are no longer required.** ``Flow.run()`` accepts any flow
+  with at least one source. ``ValueSink`` (which existed only to
+  satisfy the old gate) is removed.
+- **Inline socket UI (Blender-style layout).** Output sockets stack
+  at the top of the node body, input sockets follow with their inline
+  param widgets sharing a uniform left X and the right node edge.
+  Resize-grip drags grow widgets along with the node; the lower
+  bound is the per-node natural width so nothing spills past the
+  body. The separate property-panel block above the IO rows is gone.
+- **Widget rendering across OS styles.** Spinbox up/down arrows,
+  combobox chevrons and checkbox glyphs ship as SVG assets in
+  ``assets/icons/`` and are injected into the QSS at theme-apply
+  time. Every value-bearing control locks at a compact 22 px tall.
+  Wrappers paint transparent so the node body colour shows through.
+  Unconnected port dots are filled black until something connects.
+- **Live-preview auto-run removed.** Editing a param no longer
+  triggers a flow run — re-runs are strictly Run-button driven.
+- **Flow file format.** Per-node ``"params"`` JSON key renamed to
+  ``"port_defaults"`` to match the post-NodeParam mental model.
+  The legacy ``"params"`` key is still accepted by the loader for
+  flows saved before this version.
+
+For a step-by-step implementation log, see the 0.1.18 .. 0.1.48
+entries below.
+
 ## [0.1.48] — 2026-04-26
 
 ### Fixed
