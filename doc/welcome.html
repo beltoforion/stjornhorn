@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.26</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.27</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,11 +213,12 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.26</h2>
+      <h2>What's new in v0.1.27</h2>
       <ul class="tips">
-        <li><strong>Overlay's angle is now port-drivable</strong> — Overlay grew an optional <em>angle</em> SCALAR input. Wire a <em>Value Source</em> (0..359) into it and the logo rotates a full turn per Run; leave it unconnected and the literal angle param works exactly as before. First pilot of the param-as-port mechanism — every numeric parameter is meant to grow a matching optional port over time.</li>
+        <li><strong>Sinks are no longer required.</strong> A flow that ends at a Display now runs without a downstream sink — the inline preview <em>is</em> the result. The throwaway <em>Value Sink</em> node (only there to satisfy the old "every flow needs a sink" rule) has been removed.</li>
+        <li><strong>Overlay's angle is now port-drivable</strong> (v0.1.26) — Overlay grew an optional <em>angle</em> SCALAR input. Wire a <em>Value Source</em> (0..359) into it and the logo rotates a full turn per Run; leave it unconnected and the literal angle param works exactly as before. First pilot of the param-as-port mechanism — every numeric parameter is meant to grow a matching optional port over time.</li>
         <li><strong>Math nodes for scalars</strong> (v0.1.25) — new <strong>Math</strong> palette section in the filters list with a <em>Math</em> node (op selector: ADD, SUB, MUL, DIV, MIN, MAX) and a <em>Clamp</em> node (<em>min_value</em>, <em>max_value</em>). Plus a new <em>Constant Value</em> source that emits a single SCALAR (latched on streaming consumers) so you can feed a fixed factor or offset into Math without a second ValueSource.</li>
-        <li><strong>Value Source &amp; Value Sink</strong> (v0.1.24) — a numeric counter source that emits a SCALAR per frame (parameters: <em>min_value</em>, <em>max_value</em>, <em>multiplier</em>, <em>loop</em>) and a matching sink that terminates a numeric flow. Drop them on the canvas with a Display in between to watch the counter live in the inline preview.</li>
+        <li><strong>Value Source</strong> (v0.1.24) — a numeric counter source that emits a SCALAR per frame (parameters: <em>min_value</em>, <em>max_value</em>, <em>multiplier</em>, <em>loop</em>). Wire it into a Display to watch the counter live in the inline preview.</li>
         <li><strong>Display now shows SCALAR &amp; MATRIX</strong> (v0.1.24) — feed a scalar stream into Display and the inline preview renders the formatted number; matrices render as a compact text grid. Image payloads keep their pixmap preview, and the FPS read-out from v0.1.20 still fires for image streams.</li>
         <li><strong>SCALAR &amp; MATRIX payload types</strong> (v0.1.23) — internal groundwork for value-driven nodes; existing flows are unaffected.</li>
         <li><strong>Node List is now a tree</strong> (v0.1.22) — each palette section is a collapsible group with expand-all / collapse-all buttons in the dock toolbar. The search box auto-expands matching groups so leaves never hide behind a closed section.</li>

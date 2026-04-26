@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.27] — 2026-04-26
+
+### Changed
+- **Sinks are no longer required.** ``Flow.run()`` previously raised
+  ``RuntimeError`` when a flow had no ``SinkNodeBase`` — that
+  requirement is gone. A flow whose terminal node is a ``Display``
+  (whose inline preview already surfaces the result) is now a valid,
+  runnable flow on its own.
+
+### Removed
+- **``ValueSink``.** The numeric-only sink existed only to satisfy
+  the old "every flow needs a sink" rule; with that rule gone, it
+  has no purpose. Numeric flows now end at ``Display`` directly. Any
+  saved flow referencing ``nodes.sinks.value_sink.ValueSink`` will
+  fail to load — none ship in this repo, so the only fallout is on
+  user-side flow files (drop the ``ValueSink`` node and its incoming
+  connection).
+
 ## [0.1.26] — 2026-04-26
 
 ### Added
@@ -57,6 +75,7 @@ once a first tagged release is cut.
   (e.g. `ValueSource → Display → ValueSink`) can satisfy the "every
   flow needs at least one sink" rule. Exposes `latest_value` for tests
   and inspectors; logs each received payload at DEBUG level.
+  *Removed in 0.1.27 once the sink requirement was dropped.*
 - **Display now accepts `SCALAR` and `MATRIX`** — scalars render as
   formatted numbers in the inline preview label, matrices as a
   compact text grid via `numpy.array2string`. Image payloads keep

@@ -51,16 +51,6 @@
         -1351.594271818521
       ],
       "params": {}
-    },
-    {
-      "id": 4,
-      "module": "nodes.sinks.value_sink",
-      "class": "ValueSink",
-      "position": [
-        -653.1868228119247,
-        -1279.2412699070462
-      ],
-      "params": {}
     }
   ],
   "connections": [
@@ -80,12 +70,6 @@
       "src_node": 2,
       "src_output": 0,
       "dst_node": 3,
-      "dst_input": 0
-    },
-    {
-      "src_node": 3,
-      "src_output": 0,
-      "dst_node": 4,
       "dst_input": 0
     }
   ],
