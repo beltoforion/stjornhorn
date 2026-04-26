@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.47</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.48</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,9 +213,10 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.47</h2>
+      <h2>What's new in v0.1.48</h2>
       <ul class="tips">
-        <li><strong>Resize grip can't shrink a node past its content.</strong> Dragging narrower used to clamp at the global <code>MIN_WIDTH = 120</code>, which let widgets spill past the right node edge on nodes whose natural width was bigger (e.g. Image Source's file-path picker needs ~230). The lower bound is now the per-node <em>natural</em> width — exactly where the longest label + widest inline widget fit without overflow. Widening past natural still works up to <code>MAX_USER_WIDTH</code>.</li>
+        <li><strong>Param widget wrappers are transparent.</strong> The wrapper QWidget that hosts each inline editor was inheriting the global dark-grey <code>QWidget</code> background, painting a strip behind every child — most visible as a grey rectangle around a QCheckBox. The wrapper now uses <code>WA_TranslucentBackground</code> so the node body colour shows through; the inner controls (QSpinBox, QLineEdit, QComboBox, FilePathParamWidget's line-edit + buttons) keep their <code>#1f1f22</code> input-field fill.</li>
+        <li><strong>Resize grip can't shrink a node past its content</strong> (v0.1.47) — the lower bound is now the per-node natural width.</li>
         <li><strong>Param widgets are right-anchored to the node edge</strong> (v0.1.46) — drag the resize grip wider and every inline widget grows along.</li>
         <li><strong>Unconnected ports paint black inside</strong> (v0.1.45) — port circles are filled black until something connects to them.</li>
         <li><strong>Checkbox check glyph restored</strong> (v0.1.44) — a new <code>checkmark.svg</code> asset (white stroke, 14×14) is wired into the indicator, so the box now shows a proper check when toggled on.</li>

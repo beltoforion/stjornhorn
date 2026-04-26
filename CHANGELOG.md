@@ -10,6 +10,25 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.48] — 2026-04-26
+
+### Fixed
+- **Param widget wrapper paints transparently.** The
+  ``ParamWidgetBase`` ``QWidget`` that hosts each row's
+  ``QHBoxLayout`` was inheriting the global ``QWidget {
+  background-color: #262629; }`` rule and painting a dark-grey strip
+  behind every child — most visible as a grey rectangle around a
+  ``QCheckBox`` (a 14-px box on a 24-px-tall row leaves wrapper
+  background showing on three sides). ``ParamWidgetBase.__init__``
+  now sets ``WA_TranslucentBackground`` so the wrapper itself
+  doesn't paint a fill; the inner controls (QSpinBox, QLineEdit,
+  QComboBox, FilePathParamWidget's line-edit + buttons) keep their
+  own ``#1f1f22`` input-field background. Setting
+  ``setStyleSheet("background: transparent")`` was tried first but
+  rejected — QSS propagates to descendants, which would have
+  stripped the input-field fill from the value-bearing controls
+  too.
+
 ## [0.1.47] — 2026-04-26
 
 ### Fixed

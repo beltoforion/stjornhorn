@@ -79,6 +79,17 @@ class ParamWidgetBase(QWidget):
         super().__init__()
         self._node = node
         self._port = port
+        # The wrapper hosts the QHBoxLayout that carries the
+        # value-bearing control(s). Without explicit transparency it
+        # inherits the global ``QWidget { background: #262629 }`` rule
+        # and paints a dark grey strip behind every child — most
+        # visible behind a QCheckBox (a 14-px box on a ~24-px-tall
+        # row leaves background showing on three sides).
+        # ``WA_TranslucentBackground`` is enough by itself; using
+        # ``setStyleSheet`` here would propagate to children and strip
+        # the QSpinBox / QLineEdit / etc. of their dark
+        # ``#1f1f22`` input-field fill.
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
     def set_value(self, value: object) -> None:
         """Update the widget to display *value*."""
