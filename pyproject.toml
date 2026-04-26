@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stjornhorn"
+version = "0.3.0"
+description = "Stjörnhorn (Image-Inquest) — node-based image and video processing editor"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Beltoforion" }]
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "PySide6",
+    "typing_extensions",
+    "numba",
+    "rawpy",
+]
+
+[project.scripts]
+stjornhorn = "main:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = ["main", "constants", "log"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
