@@ -831,26 +831,23 @@ class NodeItem(QGraphicsItem):
     def _layout_param_widgets(self, inputs_top: float) -> None:
         """Position each per-row inline param widget on its input port row.
 
-        Widget is right-aligned within the row, leaving the left side
-        of the row for the input port dot + name label. Output sockets
-        no longer share rows with inputs (Blender-style split layout),
-        so the widget can extend all the way to the right edge minus
-        a small inset.
+        Widgets share two anchors: a common left X (one
+        ``WIDGET_INSET`` past the longest input-row label, so labels
+        never overlap the widget area), and the right edge of the
+        node body (``width - WIDGET_INSET``). Each widget fills the
+        whole strip in between — when the user drags the resize grip
+        wider, widgets keep growing along with the node instead of
+        stopping at their natural ``sizeHint`` and leaving ragged
+        right edges. The minimum is the widget's own
+        ``minimumSizeHint`` so a multi-element FilePathParamWidget
+        still has room for its line-edit + buttons even on a narrow
+        node; the natural ``sizeHint`` is no longer a cap.
         """
         if not self._param_widgets_by_row:
             return
         metrics = QFontMetricsF(QApplication.font())
         label_inset = PortItem.LABEL_OFFSET
 
-        # Pick a single widget-start X for every row so the widgets line
-        # up along a common left edge regardless of how short or long
-        # each port label is. The shared anchor sits one WIDGET_INSET
-        # past the longest input-row label, which guarantees the label
-        # of every row fits to the left of the widget without
-        # overlapping. Width still varies per widget (clamped by its
-        # own minimumSizeHint and natural sizeHint) so a checkbox stays
-        # compact while a multi-element FilePathParamWidget stretches
-        # to fill the row.
         max_label_w = 0.0
         for row in self._param_widgets_by_row:
             label_w = (
@@ -864,8 +861,7 @@ class NodeItem(QGraphicsItem):
         for row, editor in self._param_widgets_by_row.items():
             proxy = self._param_proxies_by_row[row]
             min_w = float(editor.minimumSizeHint().width())
-            hint_w = float(editor.sizeHint().width())
-            widget_w = max(min_w, min(hint_w, avail))
+            widget_w = max(min_w, avail)
             widget_h = float(editor.sizeHint().height())
             y = inputs_top + row * self.PORT_ROW_HEIGHT + (self.PORT_ROW_HEIGHT - widget_h) / 2.0
             editor.setFixedSize(int(widget_w), int(widget_h))

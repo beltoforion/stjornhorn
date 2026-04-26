@@ -10,6 +10,23 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.46] — 2026-04-26
+
+### Changed
+- **Param widgets are right-anchored to the node edge.**
+  ``NodeItem._layout_param_widgets`` previously clamped each widget
+  to ``min(minimumSizeHint, sizeHint, avail)`` — the natural
+  ``sizeHint`` was an upper cap, which meant dragging the resize
+  grip wider only grew widgets up to that cap and then left ragged
+  right edges (each widget stopping at a different X depending on
+  its own ``sizeHint``). The cap is gone: widgets now span from the
+  uniform left anchor (one ``WIDGET_INSET`` past the longest
+  param-bearing input label) all the way to ``width - WIDGET_INSET``,
+  so they grow with the node and every widget's right edge sits
+  flush at the same column. Smoke check: at node widths 250 / 400 /
+  600 px every Overlay slider widget reports ``x_right`` of
+  245 / 395 / 595, matching the resized node.
+
 ## [0.1.45] — 2026-04-26
 
 ### Changed
