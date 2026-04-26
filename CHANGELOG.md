@@ -10,6 +10,33 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-04-26
+
+### Added
+- **PyInstaller-based binary distribution.** A new `release.yml` workflow
+  triggers on `v*` tag pushes, runs a PyInstaller build on
+  `windows-latest` + `ubuntu-latest`, packages the Linux bundle as an
+  AppImage and the Windows bundle as a zip, and attaches both to the
+  GitHub Release. End users no longer need a Python toolchain to run
+  the app. Issue: #157
+- **`pyproject.toml`** with the project's dependency set and a
+  `stjornhorn` console entry point, so `pip install -e .` followed by
+  `stjornhorn` works for developers.
+- **`stjornhorn.spec`** declares the data files (assets, doc, built-in
+  node sources) and dynamic-import surface (every `nodes.*`, `core.*`,
+  `ui.*`, `ocvl.*` submodule) PyInstaller's static analysis can't see
+  on its own.
+
+### Changed
+- **Frozen-bundle path resolution.** `src/constants.py` now
+  distinguishes read-only resources (resolved against `sys._MEIPASS`
+  inside a PyInstaller bundle, the repo root in dev mode) from
+  writable directories — saved flows, logs, the default input/output
+  folders — which move to a per-user data directory
+  (`~/.local/share/Stjornhorn` on Linux, `%LOCALAPPDATA%/Stjornhorn`
+  on Windows) when frozen so the app can write to them. Dev-mode
+  behaviour is unchanged.
+
 ## [0.2.0] — 2026-04-26
 
 Major release: completes the Blender-style "every editable property

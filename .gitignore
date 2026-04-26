@@ -31,6 +31,8 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+# …but the project's hand-maintained spec is checked in.
+!stjornhorn.spec
 
 # Installer logs
 pip-log.txt
