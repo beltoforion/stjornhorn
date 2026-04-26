@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "app_version": "0.1.26",
+  "name": "test_numeric",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.value_source",
+      "class": "ValueSource",
+      "position": [
+        -1622.9180289865512,
+        -1581.7170140091837
+      ],
+      "params": {
+        "min_value": 0,
+        "max_value": 95,
+        "multiplier": 1.0,
+        "loop": false
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sources.constant_value",
+      "class": "ConstantValue",
+      "position": [
+        -1617.8935149649212,
+        -1301.349131602219
+      ],
+      "params": {
+        "value": -0.5
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.math",
+      "class": "Math",
+      "position": [
+        -1220.9569072561362,
+        -1381.7413559483023
+      ],
+      "params": {
+        "op": 0
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1001.8880959130598,
+        -1351.594271818521
+      ],
+      "params": {}
+    },
+    {
+      "id": 4,
+      "module": "nodes.sinks.value_sink",
+      "class": "ValueSink",
+      "position": [
+        -653.1868228119247,
+        -1279.2412699070462
+      ],
+      "params": {}
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 1
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": []
+}
