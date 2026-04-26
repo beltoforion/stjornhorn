@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-04-26
+
+### Fixed
+- **Frozen bundle couldn't load any flow.** The PyInstaller spec used
+  `collect_submodules('nodes')` to enumerate the dynamically-imported
+  built-in node modules, but `nodes/` and its `filters/` / `sources/` /
+  `sinks/` subdirectories are PEP 420 namespace packages (no
+  `__init__.py`), and `pkgutil.iter_modules` — which `collect_submodules`
+  walks under the hood — silently skips namespace-package children of
+  namespace packages, so the resulting hidden-imports list contained
+  only the top-level `nodes` name. None of the node modules' bytecode
+  ended up in the bundle, and `flow_io._instantiate_node`'s runtime
+  `importlib.import_module("nodes.filters.dither")` calls all failed
+  with `ModuleNotFoundError`. The spec now walks `src/nodes/` directly
+  to enumerate every module name, and adds `src/` to its own `sys.path`
+  so the unrelated `collect_submodules('core'/'ui'/'ocvl')` calls also
+  resolve from a `src/` layout. Issue: #163
+
 ## [0.2.2] — 2026-04-26
 
 ### Fixed

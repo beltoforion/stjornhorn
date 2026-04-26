@@ -2,9 +2,51 @@
 # Driven by .github/workflows/release.yml on a `v*` tag push. Issue: #157
 # pylint: disable=undefined-variable
 
+import os
+import sys
+
+# ``collect_submodules`` resolves a package through the build-time
+# interpreter's ``sys.path`` (via ``importlib.util.find_spec``). The
+# project uses a ``src/`` layout, so without this insert the ``core`` /
+# ``ui`` / ``ocvl`` packages aren't importable from where ``pyinstaller``
+# is invoked and ``collect_submodules`` returns nothing. ``pathex``
+# below only affects PyInstaller's *Analysis*, not this spec
+# interpreter. Issue: #163
+_HERE = os.path.dirname(os.path.abspath(SPEC))
+_SRC = os.path.join(_HERE, 'src')
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
 from PyInstaller.utils.hooks import collect_submodules
 
 block_cipher = None
+
+
+def _collect_node_modules() -> list[str]:
+    """Enumerate every ``nodes.*`` module under ``src/nodes`` by walking
+    the directory tree.
+
+    ``collect_submodules('nodes')`` doesn't pick these up: ``nodes`` and
+    its ``filters`` / ``sources`` / ``sinks`` subdirectories are PEP 420
+    namespace packages (no ``__init__.py``), and ``pkgutil.iter_modules``
+    — which ``collect_submodules`` walks under the hood — silently skips
+    namespace-package children of namespace packages. Doing the walk
+    ourselves sidesteps that quirk without forcing ``__init__.py`` files
+    into the source tree just to satisfy the build tooling.
+    """
+    nodes_root = os.path.join(_SRC, 'nodes')
+    out: list[str] = ['nodes']
+    for dirpath, _dirnames, filenames in os.walk(nodes_root):
+        rel_dir = os.path.relpath(dirpath, _SRC).replace(os.sep, '.')
+        if rel_dir != 'nodes':
+            out.append(rel_dir)  # the subpackage itself (nodes.filters, …)
+        for f in filenames:
+            if not f.endswith('.py') or f == '__init__.py':
+                continue
+            mod = f'{rel_dir}.{f[:-3]}'
+            out.append(mod)
+    return out
+
 
 # Built-in node modules are loaded via importlib at runtime (the registry
 # discovers them through an AST scan, then ``importlib.import_module(...)``s
@@ -13,7 +55,7 @@ block_cipher = None
 # packages, which are wired together through dynamic imports across the
 # scene / flow_io layer.
 hiddenimports = (
-    collect_submodules('nodes')
+    _collect_node_modules()
     + collect_submodules('core')
     + collect_submodules('ui')
     + collect_submodules('ocvl')
