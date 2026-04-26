@@ -749,10 +749,17 @@ class NodeItem(QGraphicsItem):
         self.prepareGeometryChange()
 
         # ── Width ──────────────────────────────────────────────────────────────
+        # The natural width is the floor: it's exactly the size where
+        # the longest label + widest inline widget fit without
+        # overflowing, so dragging the resize grip narrower can't
+        # shrink the node past it (otherwise widget right edges spill
+        # past the body). The grip can still grow the node up to
+        # ``MAX_USER_WIDTH``.
+        natural_w = self._compute_width()
         if self._user_width is not None:
-            self._width = max(self.MIN_WIDTH, min(self.MAX_USER_WIDTH, self._user_width))
+            self._width = max(natural_w, min(self.MAX_USER_WIDTH, self._user_width))
         else:
-            self._width = self._compute_width()
+            self._width = natural_w
 
         # ── IO area ────────────────────────────────────────────────────────────
         # Blender-style vertical split: outputs first (at top of body,

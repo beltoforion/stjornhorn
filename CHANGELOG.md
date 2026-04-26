@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.47] — 2026-04-26
+
+### Fixed
+- **Resize grip can't shrink a node past its content width.** The
+  user-width override in ``NodeItem._relayout`` was previously
+  clamped at the global ``MIN_WIDTH = 120``. For any node whose
+  natural width is larger than that — Image Source's file-path
+  picker is ~230, Overlay's slider rows ~159 — dragging the resize
+  grip narrower past the natural floor would let the inline param
+  widgets spill past the node's right edge because the widget's
+  ``minimumSizeHint`` is preserved while the body shrinks. The
+  lower bound is now the per-node ``_compute_width()`` result, so
+  the grip can't take the body smaller than the content needs.
+  Widening still works up to ``MAX_USER_WIDTH``. Smoke check:
+  trying ``user_width=50`` on Image Source still renders at the
+  natural 230 px; the widget's right edge sits at ``226`` (= node
+  width − ``WIDGET_INSET``) at every legitimate resize.
+
 ## [0.1.46] — 2026-04-26
 
 ### Changed
