@@ -10,6 +10,21 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.43] — 2026-04-26
+
+### Fixed
+- **QComboBox dropdown chevron renders again.** Same Qt stylesheet
+  rendering-mode quirk that hid the QSpinBox up/down arrows in
+  0.1.41 — once a stylesheet rule lands on a QComboBox (background /
+  border / padding from the shared input rule), Qt drops the native
+  chevron drawing for the drop-down sub-control unless an explicit
+  ``image`` rule on ``::down-arrow`` provides one. Adds
+  ``QComboBox::drop-down`` (geometry pinned to the right edge with a
+  16-px column and dark separator) and ``QComboBox::down-arrow``
+  (reuses the ``spinner_down.svg`` asset shipped in 0.1.41) plus a
+  ``::drop-down:hover`` highlight to match the spinbox button
+  feedback.
+
 ## [0.1.42] — 2026-04-26
 
 ### Removed

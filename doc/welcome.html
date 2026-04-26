@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.42</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.43</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,9 +213,10 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.42</h2>
+      <h2>What's new in v0.1.43</h2>
       <ul class="tips">
-        <li><strong>Live-preview auto-run removed.</strong> Editing a param (e.g. clicking a spinner) no longer kicks off a flow run. Re-runs are now strictly Run-button driven. Reactive sources like ImageSource still latch their values on streaming consumers when you press Run; only the auto-trigger on every keystroke / spinner click is gone.</li>
+        <li><strong>Combobox dropdown chevron restored.</strong> Same Qt stylesheet quirk that hid the spinbox arrows in 0.1.41 was hiding the picker arrow on every QComboBox. Adds a <code>::drop-down</code> sub-control rule that pins the chevron to the right edge and reuses the <code>spinner_down.svg</code> asset.</li>
+        <li><strong>Live-preview auto-run removed</strong> (v0.1.42) — editing a param (e.g. clicking a spinner) no longer kicks off a flow run. Re-runs are now strictly Run-button driven.</li>
         <li><strong>Spinbox up/down buttons show their arrow chevrons</strong> (v0.1.41) — two small SVG arrow assets ship in <code>assets/icons/</code> now and the QSS injects their absolute paths at theme-apply time, plus hover / pressed states for tactile feedback.</li>
         <li><strong>Param widgets line up along a uniform X</strong> (v0.1.40) — within a node, every inline editor starts at the same horizontal anchor.</li>
         <li><strong>Param widgets are compact and consistent across OS styles</strong> (v0.1.39) — spinboxes, line edits and combo boxes lock at a Blender-style 22 px tall.</li>

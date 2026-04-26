@@ -143,6 +143,29 @@ QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed,
 QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {
     background: #3a3a3e;
 }
+/* QComboBox sub-controls are dropped from the native render the
+   moment the QComboBox gets any stylesheet rule (background /
+   border / padding above), same as the QSpinBox case. We pin the
+   drop-down's geometry to the right edge and reuse the
+   ``spinner_down.svg`` chevron so the picker has a visible
+   affordance. */
+QComboBox {
+    padding-right: 18px;
+}
+QComboBox::drop-down {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 16px;
+    border-left: 1px solid #1a1a1d;
+}
+QComboBox::down-arrow {
+    image: url("@@SPINNER_DOWN@@");
+    width: 7px;
+    height: 7px;
+}
+QComboBox::drop-down:hover {
+    background: #2d2d30;
+}
 QListWidget, QTreeView {
     background: #1f1f22;
     border: 1px solid #1a1a1d;
