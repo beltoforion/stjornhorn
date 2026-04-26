@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "app_version": "0.1.35",
+  "name": "test_overlay_rot",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1705.8258055082183,
+        -1675.2174215333737
+      ],
+      "port_defaults": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1706.6621376516161,
+        -1538.6229705026856
+      ],
+      "port_defaults": {
+        "file_path": "logo.png"
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.sources.value_source",
+      "class": "ValueSource",
+      "position": [
+        -1707.9717247492397,
+        -1398.636882231192
+      ],
+      "port_defaults": {
+        "min_value": 0,
+        "max_value": 99,
+        "multiplier": 1.0,
+        "loop": false
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.overlay",
+      "class": "Overlay",
+      "position": [
+        -1390.1707575917778,
+        -1545.45765959381
+      ],
+      "port_defaults": {
+        "scale": 1.0,
+        "angle": 0.0,
+        "xpos": 0,
+        "ypos": 0,
+        "alpha": 1.0
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1073.4436968013247,
+        -1639.9522812184034
+      ],
+      "port_defaults": {},
+      "size": [
+        702.3323880953664,
+        570.9432352481874
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 1
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 2
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": []
+}

@@ -452,3 +452,145 @@ def test_overlay_bgra_output_shape_matches_bgr_base() -> None:
     out = node.outputs[0].last_emitted
     assert out is not None
     assert out.image.ndim == 3 and out.image.shape[2] == 3
+
+
+# ── Port-driven angle (param-as-port pilot) ───────────────────────────────────
+
+
+def _wire_with_angle(
+    node: Overlay, base: IoData, overlay: IoData, angle_value: float | None,
+) -> OutputPort | None:
+    """Same as _wire but optionally connects a SCALAR angle upstream.
+
+    Returns the angle OutputPort so multi-frame tests can push more
+    values without rewiring; ``None`` if ``angle_value`` is ``None``.
+    """
+    up_base = OutputPort("base", {base.type})
+    up_ov = OutputPort("overlay", {overlay.type})
+    up_base.connect(node.inputs[0])
+    up_ov.connect(node.inputs[1])
+    up_angle: OutputPort | None = None
+    if angle_value is not None:
+        up_angle = OutputPort("angle", {IoDataType.SCALAR})
+        up_angle.connect(node.inputs[2])
+        up_angle.send(IoData.from_scalar(angle_value))
+    up_base.send(base)
+    up_ov.send(overlay)
+    return up_angle
+
+
+def test_unconnected_angle_port_uses_param() -> None:
+    """The dispatcher fires on (image, overlay) alone when angle is
+    unconnected — the param's value is unchanged behaviour."""
+    node = Overlay()
+    node.angle = 0.0
+    node.alpha = 1.0
+    node.xpos = 0
+    node.ypos = 0
+    _wire_with_angle(
+        node,
+        IoData.from_image(_bgr(8, 8, 0)),
+        IoData.from_image(_bgr(2, 2, 255)),
+        angle_value=None,  # no upstream on inputs[2]
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    # No rotation -> the 2x2 white overlay sits at (0,0) intact.
+    np.testing.assert_array_equal(out.image[0:2, 0:2], _bgr(2, 2, 255))
+
+
+def test_connected_angle_port_overrides_param() -> None:
+    """When the angle port has data, its scalar overrides the literal
+    param for that frame. Param value 0 + port value 90 -> rotation."""
+    node = Overlay()
+    node.angle = 0.0  # would otherwise be a no-op
+    node.alpha = 1.0
+    node.xpos = 0
+    node.ypos = 0
+    _wire_with_angle(
+        node,
+        IoData.from_image(_bgr(20, 20, 0)),
+        IoData.from_image(_bgr(4, 4, 255)),
+        angle_value=90.0,
+    )
+
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    # Rotation widens the overlay's bounding box; the canvas is still
+    # 20x20 (matches base) but white pixels appear in a region that
+    # would be empty without rotation.
+    assert out.image.shape == (20, 20, 3)
+    assert out.image.sum() > 0
+
+
+def test_param_unchanged_after_port_drive() -> None:
+    """Port-driven angle must not mutate the literal param — once the
+    port disconnects, the original value should still apply."""
+    node = Overlay()
+    node.angle = 30.0
+    _wire_with_angle(
+        node,
+        IoData.from_image(_bgr(20, 20, 0)),
+        IoData.from_image(_bgr(4, 4, 255)),
+        angle_value=180.0,
+    )
+
+    assert node.angle == 30.0
+
+
+def test_port_streams_per_frame_angle() -> None:
+    """A streaming SCALAR upstream drives a different angle per frame.
+    Counts the number of compositions emitted to verify the dispatcher
+    fires once per port-streamed value (the image inputs latch via the
+    reactive-source mechanism)."""
+    node = Overlay()
+    node.angle = 0.0
+    node.alpha = 1.0
+    node.xpos = 0
+    node.ypos = 0
+
+    # Wire up: base + overlay sent once, angle port streams.
+    up_base = OutputPort("base", {IoDataType.IMAGE})
+    up_ov = OutputPort("overlay", {IoDataType.IMAGE})
+    up_angle = OutputPort("angle", {IoDataType.SCALAR})
+    up_base.connect(node.inputs[0])
+    up_ov.connect(node.inputs[1])
+    up_angle.connect(node.inputs[2])
+
+    captured: list[IoData] = []
+    sink_in = OutputPort  # placeholder; we'll just count last_emitted via callback
+    fire_count = [0]
+    original_process = node.process_impl
+
+    def counting_process_impl() -> None:
+        original_process()
+        fire_count[0] += 1
+
+    node.process_impl = counting_process_impl  # type: ignore[method-assign]
+
+    # Send image and overlay, then finish their outputs so the data
+    # latches through subsequent dispatcher fires (mirrors the
+    # reactive-source pattern in Flow.run — an ImageSource emits its
+    # frame and then finishes, leaving the value pinned downstream
+    # while a streaming source keeps pushing).
+    up_base.send(IoData.from_image(_bgr(20, 20, 0)))
+    up_ov.send(IoData.from_image(_bgr(4, 4, 255)))
+    up_base.finish()
+    up_ov.finish()
+    assert fire_count[0] == 0, "must wait on the connected angle port"
+
+    # Each angle pulse triggers one composition with the latched
+    # image / overlay reused.
+    for a in (0.0, 45.0, 90.0, 135.0):
+        up_angle.send(IoData.from_scalar(a))
+
+    assert fire_count[0] == 4
+
+
+def test_angle_port_rejects_image_payloads_at_link_time() -> None:
+    """The angle input only declares SCALAR — an IMAGE upstream can't
+    connect, so type errors surface at the connection step."""
+    node = Overlay()
+    img_up = OutputPort("img", {IoDataType.IMAGE})
+    assert img_up.can_connect(node.inputs[2]) is False

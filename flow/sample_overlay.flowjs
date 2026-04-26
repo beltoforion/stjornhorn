@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
+  "app_version": "0.1.35",
   "name": "sample_overlay",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -1718.0,
         -802.0
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
         "max_num_frames": -1
       }
@@ -24,7 +24,7 @@
         -480.64963503649636,
         -686.2165450121654
       ],
-      "params": {
+      "port_defaults": {
         "output_path": "out.mp4",
         "fps": 30.0,
         "codec": 0
@@ -38,7 +38,7 @@
         -1356.95498783455,
         -893.2798053527981
       ],
-      "params": {
+      "port_defaults": {
         "scale": 0.42,
         "angle": 0.0,
         "xpos": 0,
@@ -54,7 +54,7 @@
         -1634.5304136253037,
         -577.4951338199512
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "logo.png"
       }
     },
@@ -66,7 +66,7 @@
         -1078.0,
         -913.0
       ],
-      "params": {},
+      "port_defaults": {},
       "size": [
         537.0,
         404.0

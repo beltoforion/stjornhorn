@@ -4,7 +4,7 @@ import cv2
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam
+from core.node_base import NodeBase
 from core.port import InputPort, OutputPort
 
 
@@ -20,11 +20,6 @@ class Invert(NodeBase):
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return []
 
     @override
     def process_impl(self) -> None:

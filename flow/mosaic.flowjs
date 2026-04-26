@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
+  "app_version": "0.1.35",
   "name": "mosaic",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -1782.1540770430568,
         -1030.7276534299565
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "ship.jpg"
       }
     },
@@ -23,7 +23,7 @@
         -1536.1353712382718,
         -884.7555670892272
       ],
-      "params": {
+      "port_defaults": {
         "keep_aspect": true,
         "output_grayscale": false
       }
@@ -36,7 +36,7 @@
         -1019.5364119455451,
         -861.1330919745274
       ],
-      "params": {
+      "port_defaults": {
         "output_path": "out.png"
       }
     },
@@ -48,7 +48,7 @@
         -1369.0933084094313,
         -1164.740210510855
       ],
-      "params": {},
+      "port_defaults": {},
       "size": [
         333.1122274016416,
         266.6656586288167

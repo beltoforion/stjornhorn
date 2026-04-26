@@ -5,7 +5,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam
+from core.node_base import NodeBase
 from core.port import InputPort, OutputPort
 
 
@@ -26,11 +26,6 @@ class FrameDifference(NodeBase):
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return []
 
     @override
     def _before_run_impl(self) -> None:

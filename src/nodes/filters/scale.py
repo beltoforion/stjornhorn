@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.io_data import IMAGE_TYPES, IoDataType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -44,23 +44,27 @@ class Scale(NodeBase):
         self._interpolation: Interpolation = Interpolation.LINEAR
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_input(InputPort(
+            "scale_percent",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=100,
+            metadata={"default": 100, "param_type": NodeParamType.INT},
+        ))
+        self._add_input(InputPort(
+            "interpolation",
+            {IoDataType.ENUM},
+            optional=True,
+            default_value=Interpolation.LINEAR,
+            metadata={
+                "default": Interpolation.LINEAR,
+                "enum": Interpolation,
+                "param_type": NodeParamType.ENUM,
+            },
+        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("scale_percent", NodeParamType.INT, {"default": 100}),
-            NodeParam(
-                "interpolation",
-                NodeParamType.ENUM,
-                {"default": Interpolation.LINEAR, "enum": Interpolation},
-            ),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

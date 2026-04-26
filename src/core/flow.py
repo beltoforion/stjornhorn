@@ -132,22 +132,22 @@ class Flow:
         """Start every source node in the flow.
 
         A runnable flow must contain at least one source (an entry point
-        that drives data through the graph) and at least one sink (a node
-        that consumes the result). Multi-source flows are legal — e.g.
-        three file sources feeding an RGB-join filter — so every source is
-        started in registration order. In the push-based execution model,
-        each start() propagates data downstream through connected ports.
+        that drives data through the graph). A sink is *not* required —
+        a graph terminating at a Display (which surfaces the result via
+        its inline preview) is a perfectly valid flow. Multi-source
+        flows are legal — e.g. three file sources feeding an RGB-join
+        filter — so every source is started in registration order. In
+        the push-based execution model, each start() propagates data
+        downstream through connected ports.
 
         Raises:
-            RuntimeError: if the flow has no source node or no sink node.
+            RuntimeError: if the flow has no source node.
         """
 
         logger.info(f"Flow run requested: {self._name}")
 
         if not self.sources:
             raise RuntimeError("Flow has no source node; at least one is required")
-        if not self.sinks:
-            raise RuntimeError("Flow has no sink node; at least one is required")
 
         logger.info("initializing nodes")
         

@@ -5,7 +5,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -29,19 +29,23 @@ class AdaptiveGaussianThreshold(NodeBase):
         self._c: int = -32
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_input(InputPort(
+            "block_size",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=101,
+            metadata={"default": 101, "param_type": NodeParamType.INT},
+        ))
+        self._add_input(InputPort(
+            "c",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=-32,
+            metadata={"default": -32, "param_type": NodeParamType.INT},
+        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("block_size", NodeParamType.INT, {"default": 101}),
-            NodeParam("c",          NodeParamType.INT, {"default": -32}),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

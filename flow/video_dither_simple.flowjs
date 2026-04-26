@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
+  "app_version": "0.1.35",
   "name": "video_dither_simple",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -1823.3237190209177,
         -1314.1720530979114
       ],
-      "params": {},
+      "port_defaults": {},
       "size": [
         800.0,
         593.0
@@ -25,7 +25,7 @@
         -2228.927665901959,
         -903.1927203305031
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
         "max_num_frames": -1
       }
@@ -38,7 +38,7 @@
         -988.8719124240195,
         -828.5056423067409
       ],
-      "params": {
+      "port_defaults": {
         "output_path": "out.mp4",
         "fps": 30.0,
         "codec": 0
@@ -52,7 +52,7 @@
         -1987.2562647683933,
         -680.5794488779843
       ],
-      "params": {
+      "port_defaults": {
         "method": 6
       }
     }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
+  "app_version": "0.1.35",
   "name": "video_ncc",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -2524.823780904452,
         -1302.3371941604958
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
         "max_num_frames": -1
       },
@@ -28,7 +28,7 @@
         -1114.57221435474,
         -804.7969993725771
       ],
-      "params": {
+      "port_defaults": {
         "output_path": "out.mp4",
         "fps": 30.0,
         "codec": 0
@@ -42,7 +42,7 @@
         -1668.0036667728032,
         -1499.0667991229038
       ],
-      "params": {},
+      "port_defaults": {},
       "size": [
         800.0,
         598.3631556954801
@@ -56,7 +56,7 @@
         -2093.2526457757485,
         -1080.1505548865382
       ],
-      "params": {
+      "port_defaults": {
         "template": "pad.jpg",
         "retain_size": true
       }
@@ -69,7 +69,7 @@
         -2275.275073475514,
         -1004.1695111343208
       ],
-      "params": {}
+      "port_defaults": {}
     },
     {
       "id": 5,
@@ -79,7 +79,7 @@
         -1837.6681304427102,
         -1248.3816514463538
       ],
-      "params": {}
+      "port_defaults": {}
     }
   ],
   "connections": [

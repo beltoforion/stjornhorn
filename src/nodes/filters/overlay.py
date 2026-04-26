@@ -5,7 +5,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -34,6 +34,22 @@ class Overlay(NodeBase):
       own transparency and ``alpha=0.5`` halves it uniformly. The base
       image is always reduced to BGR before compositing — any alpha
       channel on the base is dropped.
+
+    Port-driven params:
+      Every numeric parameter (``scale``, ``angle``, ``xpos``,
+      ``ypos``, ``alpha``) has a matching optional SCALAR input port,
+      auto-created from the param declaration by
+      :meth:`NodeBase._apply_default_params`. When the port is
+      connected — typically to a
+      :class:`~nodes.sources.value_source.ValueSource` — each
+      streamed value overrides the literal param for that frame,
+      restored to the user-set fallback after the frame. So wiring
+      a 0..359 ramp into ``angle`` produces a full rotation per Run,
+      a 0.5..2.0 ramp into ``scale`` an animated zoom, etc. The
+      ``angle`` port is declared explicitly here at index 2 so saved
+      flows that connected to it pre-auto-port keep loading
+      unchanged; the rest of the param ports come after it via
+      auto-creation.
     """
 
     def __init__(self) -> None:
@@ -47,22 +63,49 @@ class Overlay(NodeBase):
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_input(InputPort("overlay", set(IMAGE_TYPES)))
+        # Param-style inputs declared inline. ``angle`` lands at index 2
+        # for backwards compat with saved flows that referenced this
+        # port before the auto-port mechanism existed; scale / xpos /
+        # ypos / alpha follow at indices 3..6 in the same order the
+        # old auto-port pass produced them.
+        self._add_input(InputPort(
+            "angle",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0.0,
+            metadata={"default": 0.0, "param_type": NodeParamType.FLOAT},
+        ))
+        self._add_input(InputPort(
+            "scale",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=1.0,
+            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+        ))
+        self._add_input(InputPort(
+            "xpos",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0,
+            metadata={"default": 0, "param_type": NodeParamType.INT},
+        ))
+        self._add_input(InputPort(
+            "ypos",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0,
+            metadata={"default": 0, "param_type": NodeParamType.INT},
+        ))
+        self._add_input(InputPort(
+            "alpha",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=1.0,
+            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("scale", NodeParamType.FLOAT, {"default": 1.0}),
-            NodeParam("angle", NodeParamType.FLOAT, {"default": 0.0}),
-            NodeParam("xpos",  NodeParamType.INT,   {"default": 0}),
-            NodeParam("ypos",  NodeParamType.INT,   {"default": 0}),
-            NodeParam("alpha", NodeParamType.FLOAT, {"default": 1.0}),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 
@@ -117,6 +160,13 @@ class Overlay(NodeBase):
     def process_impl(self) -> None:
         base_data    = self.inputs[0].data
         overlay_data = self.inputs[1].data
+
+        # ``self._angle`` (and every other param-driven attribute) has
+        # already been populated by NodeBase before this method runs:
+        # the framework reads each connected input port and writes its
+        # current value into the matching ``self._<port_name>``,
+        # restoring the user-set fallback after the call. So we just
+        # read self._angle directly — no per-port branching here.
 
         any_color = (
             base_data.type == IoDataType.IMAGE

@@ -8,7 +8,7 @@ from typing_extensions import override
 
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 _SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
@@ -39,19 +39,23 @@ class Ncc(NodeBase):
         self._template: np.ndarray | None = None
 
         self._add_input(InputPort("image", {IoDataType.IMAGE_GREY}))
+        self._add_input(InputPort(
+            "template",
+            {IoDataType.PATH},
+            optional=True,
+            default_value="pad.jpg",
+            metadata={"default": "pad.jpg", "filter": "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)", "base_dir": INPUT_DIR, "param_type": NodeParamType.FILE_PATH},
+        ))
+        self._add_input(InputPort(
+            "retain_size",
+            {IoDataType.BOOL},
+            optional=True,
+            default_value=True,
+            metadata={"default": True, "param_type": NodeParamType.BOOL},
+        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("template", NodeParamType.FILE_PATH, {"default": "pad.jpg", "filter": "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)", "base_dir": INPUT_DIR}),
-            NodeParam("retain_size", NodeParamType.BOOL, {"default": True}),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

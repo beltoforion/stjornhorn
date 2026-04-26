@@ -6,8 +6,8 @@ from pathlib import Path
 from typing_extensions import override
 
 from constants import INPUT_DIR
-from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.io_data import IMAGE_TYPES, IoDataType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -38,31 +38,57 @@ class DebugParam(NodeBase):
         self._mode:      DebugMode = DebugMode.ALPHA
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_input(InputPort(
+            "file_path",
+            {IoDataType.PATH},
+            optional=True,
+            default_value="",
+            metadata={
+                "default": "",
+                "mode": "open",
+                "filter": "All files (*)",
+                "base_dir": INPUT_DIR,
+                "param_type": NodeParamType.FILE_PATH,
+            },
+        ))
+        self._add_input(InputPort(
+            "count",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0,
+            metadata={"default": 0, "param_type": NodeParamType.INT},
+        ))
+        self._add_input(InputPort(
+            "factor",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=1.0,
+            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+        ))
+        self._add_input(InputPort(
+            "label",
+            {IoDataType.STRING},
+            optional=True,
+            default_value="",
+            metadata={"default": "", "placeholder": "text…", "param_type": NodeParamType.STRING},
+        ))
+        self._add_input(InputPort(
+            "enabled",
+            {IoDataType.BOOL},
+            optional=True,
+            default_value=False,
+            metadata={"default": False, "param_type": NodeParamType.BOOL},
+        ))
+        self._add_input(InputPort(
+            "mode",
+            {IoDataType.ENUM},
+            optional=True,
+            default_value=DebugMode.ALPHA,
+            metadata={"default": DebugMode.ALPHA, "enum": DebugMode, "param_type": NodeParamType.ENUM},
+        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam(
-                "file_path",
-                NodeParamType.FILE_PATH,
-                {"default": "", "mode": "open", "filter": "All files (*)", "base_dir": INPUT_DIR},
-            ),
-            NodeParam("count",   NodeParamType.INT,    {"default": 0}),
-            NodeParam("factor",  NodeParamType.FLOAT,  {"default": 1.0}),
-            NodeParam("label",   NodeParamType.STRING, {"default": "", "placeholder": "text…"}),
-            NodeParam("enabled", NodeParamType.BOOL,   {"default": False}),
-            NodeParam(
-                "mode",
-                NodeParamType.ENUM,
-                {"default": DebugMode.ALPHA, "enum": DebugMode},
-            ),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

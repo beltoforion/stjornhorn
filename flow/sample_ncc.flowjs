@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.17",
+  "app_version": "0.1.35",
   "name": "sample_ncc",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -1214.8848137783707,
         -1077.9592058832134
       ],
-      "params": {
+      "port_defaults": {
         "template": "pad.jpg",
         "retain_size": true
       }
@@ -24,7 +24,7 @@
         -1602.280747934067,
         -1187.6889093933346
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "chip.jpg"
       }
     },
@@ -36,7 +36,7 @@
         -728.5981445101131,
         -649.0326096616261
       ],
-      "params": {
+      "port_defaults": {
         "output_path": "out.png"
       }
     },
@@ -48,7 +48,7 @@
         -1620.5305235776927,
         -896.8153520965818
       ],
-      "params": {},
+      "port_defaults": {},
       "size": [
         796.712193144251,
         362.0
@@ -62,7 +62,7 @@
         -891.7267369068984,
         -1130.0872072939355
       ],
-      "params": {}
+      "port_defaults": {}
     },
     {
       "id": 5,
@@ -72,7 +72,7 @@
         -1371.6091391093444,
         -1036.6827182380275
       ],
-      "params": {}
+      "port_defaults": {}
     }
   ],
   "connections": [

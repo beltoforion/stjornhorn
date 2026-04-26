@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Callable, final, override
 
+from core.io_data import IoData, IoDataType
 from core.port import InputPort, OutputPort
 
 logger = logging.getLogger(__name__)
@@ -44,11 +45,68 @@ class NodeParamType(Enum):
 
 
 class NodeParam:
-    """Descriptor for a node parameter, used by the UI to generate controls."""
-    def __init__(self, name: str, param_type: NodeParamType, metadata: dict) -> None:
-        self.name : str = name
-        self.param_type : NodeParamType = param_type
-        self.metadata : dict = metadata
+    """Descriptor for a node-level *constant* parameter.
+
+    Used by sources and sinks for configuration that's not driveable
+    from upstream — the file path on an :class:`ImageSource`, the
+    output codec on a :class:`VideoSink`, etc. The UI renders these
+    between the output and input port rows of the node body, with
+    the same widget classes the inline-port editors use, and the
+    caption rendered in italics so the user can tell a constant
+    apart from a port-style param at a glance.
+
+    Structurally compatible with :class:`~core.port.InputPort` so
+    :func:`ui.param_widgets.build_param_widget` can dispatch on either
+    kind without a type check: the widget reads ``.name``,
+    ``.metadata`` and ``.upstream`` (always ``None`` on a constant —
+    constants are never connection-driven).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        param_type: NodeParamType,
+        default: object = None,
+        metadata: dict | None = None,
+    ) -> None:
+        self.name: str = name
+        # Stash the full metadata bundle the widgets read, with
+        # ``param_type`` and ``default`` mirrored into it so the
+        # widget builder's ``port.metadata.get("param_type")``
+        # dispatch path keeps working unchanged.
+        meta = dict(metadata) if metadata else {}
+        meta.setdefault("param_type", param_type)
+        meta.setdefault("default", default)
+        self.metadata: dict = meta
+        self.default_value: object = default
+
+    @property
+    def upstream(self) -> None:
+        """Always ``None``; constants are not port-driven.
+
+        Lets the param-widget code call ``editor.setEnabled(
+        port.upstream is None)`` without having to special-case
+        whether the editor is bound to an :class:`InputPort` or a
+        :class:`NodeParam` — both expose the attribute.
+        """
+        return None
+
+
+#: Maps a :class:`NodeParamType` to the :class:`~core.io_data.IoDataType`
+#: that backs an editable parameter port. Numeric param types (INT,
+#: FLOAT) collapse to a single ``SCALAR`` port type so any scalar
+#: producer can drive any numeric param without a per-type bridge node;
+#: the widget-side "render as int spinner vs float slider" hint stays
+#: in the port's metadata under ``"param_type"``.
+NODE_PARAM_TYPE_TO_PORT_TYPE: dict[NodeParamType, IoDataType] = {
+    NodeParamType.INT:       IoDataType.SCALAR,
+    NodeParamType.FLOAT:     IoDataType.SCALAR,
+    NodeParamType.BOOL:      IoDataType.BOOL,
+    NodeParamType.STRING:    IoDataType.STRING,
+    NodeParamType.ENUM:      IoDataType.ENUM,
+    NodeParamType.FILE_PATH: IoDataType.PATH,
+    NodeParamType.FOLDER:    IoDataType.PATH,
+}
 
 
 class NodeBase(ABC):
@@ -83,6 +141,7 @@ class NodeBase(ABC):
         self._section = section if section is not None else self.DEFAULT_SECTION
         self._inputs: list[InputPort] = []
         self._outputs: list[OutputPort] = []
+        self._params: list[NodeParam] = []
         self._skipped: bool = False
 
     # ── Port registration (called from subclass __init__) ──────────────────────
@@ -96,43 +155,107 @@ class NodeBase(ABC):
     def _add_output(self, port: OutputPort) -> None:
         self._outputs.append(port)
 
+    def _add_param(self, param: NodeParam) -> None:
+        """Register a constant parameter (not driveable from upstream).
+
+        Used by sources and sinks for config that's set once by the
+        user — file paths, codecs, fps, etc. The UI renders these
+        between the output and input port rows with the same widget
+        classes the port-style param widgets use, but with an italic
+        caption (so the user can tell a constant apart from a port).
+        """
+        self._params.append(param)
+
     # ── Param defaults ─────────────────────────────────────────────────────────
 
     def _apply_default_params(self) -> None:
-        """Push every NodeParam's declared ``default`` metadata onto the
-        matching instance attribute via the normal property setter.
+        """Push every editable input port's ``default_value`` and every
+        registered :class:`NodeParam`'s default onto the matching
+        instance attribute via the normal property setter.
 
         Call this at the end of a subclass ``__init__`` so the node's
-        attributes match the values it advertises in :attr:`params` from
-        the moment it is constructed — *before* any UI builder, save
-        routine or scheduler can read stale data.
+        attributes match the values it advertises from the moment it
+        is constructed — *before* any UI builder, save routine or
+        scheduler can read stale data. Two sources of editable values
+        are honoured:
 
-        Without this call, a node dropped onto the canvas and saved
-        immediately serialises whatever placeholder its ``__init__`` set
-        (e.g. ``Path()`` => ``"."``), not the value the params metadata
-        promised.
+        * Port-style: an :class:`InputPort` whose metadata carries a
+          ``"param_type"`` key — drivable from upstream when connected.
+        * Constant-style: a :class:`NodeParam` registered via
+          ``_add_param`` — always edited inline only, never connection-
+          driven (sources / sinks use these for config like file paths
+          or codec choice).
+
+        Setter exceptions are logged and swallowed — a property setter
+        may legitimately reject some defaults (range setters clip, file
+        dialogs validate paths). The subclass ``__init__`` already wrote
+        a fallback value before this method runs, so a rejected default
+        leaves the node in a still-valid state.
         """
-        for p in self.params:
-            if "default" not in p.metadata:
+        for port in self._inputs:
+            if not port.has_default:
+                continue
+            if "param_type" not in port.metadata:
                 continue
             try:
-                setattr(self, p.name, p.metadata["default"])
+                setattr(self, port.name, port.default_value)
+            except AttributeError:
+                # No setter / backing attribute for this port name —
+                # legitimate when the node only consumes the port via
+                # ``self.inputs[i].data``; skip silently.
+                pass
             except Exception:
-                # A property setter may legitimately reject some defaults
-                # (file dialogs validate paths, range setters clip, etc.).
-                # Log and keep whatever value the subclass __init__
-                # already wrote.
                 logger.exception(
-                    "Failed to apply declared default for %s.%s = %r",
-                    type(self).__name__, p.name, p.metadata["default"],
+                    "Failed to apply port default for %s.%s = %r",
+                    type(self).__name__, port.name, port.default_value,
+                )
+        for param in self._params:
+            if param.default_value is None and "default" not in param.metadata:
+                continue
+            try:
+                setattr(self, param.name, param.default_value)
+            except Exception:
+                logger.exception(
+                    "Failed to apply param default for %s.%s = %r",
+                    type(self).__name__, param.name, param.default_value,
                 )
 
     # ── Public accessors ───────────────────────────────────────────────────────
 
     @property
-    @abstractmethod
     def params(self) -> list[NodeParam]:
-        ...
+        """The constant parameters this node exposes to the UI.
+
+        Used by sources and sinks for config that's set inline by the
+        user (file paths, codec selections, fps) and isn't driveable
+        from upstream. The UI renders these between the output and
+        input port rows of the node body, with an italic caption to
+        differentiate them from port-style param widgets sitting on
+        input rows.
+
+        For the editable *port* inputs (``param_type`` metadata), see
+        :attr:`param_input_ports`.
+        """
+        return list(self._params)
+
+    @property
+    def param_input_ports(self) -> list[InputPort]:
+        """The editable input ports (port-style params) this node exposes.
+
+        Returns the subset of ``self._inputs`` whose ``metadata``
+        carries a ``"param_type"`` key. The UI builds an inline widget
+        on each port's row; each port carries everything the widget
+        needs (``name``, ``metadata["param_type"]``, ``metadata`` for
+        widget hints, ``upstream`` for the connected/disconnected
+        state).
+
+        Image-flow inputs leave ``metadata`` empty and are filtered out
+        so the renderer doesn't draw a widget for an image socket.
+        """
+        return [
+            port for port in self._inputs
+            if "param_type" in port.metadata
+        ]
 
     @property
     def display_name(self) -> str:
@@ -157,18 +280,22 @@ class NodeBase(ABC):
     def is_skippable(self) -> bool:
         """True if this node can be bypassed without breaking type safety.
 
-        A node is skippable when its inputs and outputs line up one-to-one
-        with identical type sets, so forwarding ``inputs[i].data`` to
-        ``outputs[i].send()`` is always valid. Sources (no inputs) and
-        sinks (no outputs) are never skippable.
+        Mirrors Blender's "mute" semantics: skipping shorts each output
+        to whichever input has a type-compatible payload, so the node
+        is skippable as long as *at least one* input/output pair
+        exists with overlapping types. Param-style ports (SCALAR /
+        BOOL / ENUM / PATH auto-created from NodeParams) carry override
+        values rather than data flow and don't overlap an image
+        output, so they're naturally invisible to skip detection —
+        adding more of them to a node never breaks its skippability.
+        Sources (no inputs) and sinks (no outputs) are never skippable.
         """
         if not self._inputs or not self._outputs:
             return False
-        if len(self._inputs) != len(self._outputs):
-            return False
-        return all(
-            inp.accepted_types == out.emits
-            for inp, out in zip(self._inputs, self._outputs)
+        return any(
+            inp.accepted_types & out.emits
+            for inp in self._inputs
+            for out in self._outputs
         )
 
     @property
@@ -244,23 +371,100 @@ class NodeBase(ABC):
                 logger.exception("Process observer raised; ignoring")
 
         try:
-            if self._skipped:
-                self._process_skipped()
-            else:
-                self.process_impl()
+            # Populate self._<port_name> from any port currently driven
+            # by an upstream, so process_impl can read its attributes
+            # uniformly (no manual ``port.data.payload.item() if has_data
+            # else self._x`` branch in every node). Restored after the
+            # call so the user-set value the slider committed isn't
+            # overwritten permanently by a streamed frame.
+            snapshot = self._populate_port_driven_attributes()
+            try:
+                if self._skipped:
+                    self._process_skipped()
+                else:
+                    self.process_impl()
+            finally:
+                self._restore_port_driven_attributes(snapshot)
         except Exception:
             logger.exception(f"Exception in {type(self).__name__}.process_impl ({self._display_name})")
             raise
 
-    def _process_skipped(self) -> None:
-        """Forward each input payload to the matching output unchanged.
+    # ── Port-driven attribute population ────────────────────────────────────────
 
-        Called in lieu of :meth:`process_impl` when :attr:`skipped` is True.
-        Relies on :attr:`is_skippable` having been verified at the time
-        ``skipped`` was set, so the type pairing is safe.
+    def _populate_port_driven_attributes(self) -> dict[str, object]:
+        """Write the current upstream value of every connected input
+        port into ``self._<port_name>`` and return a snapshot of the
+        previous values for :meth:`_restore_port_driven_attributes`.
+
+        Skips ports without upstream data and ports whose backing
+        attribute does not exist on the node — image inputs read via
+        ``self.inputs[i].data`` rather than via a Python attribute, so
+        they have no field to populate. The mapping is by convention:
+        port ``angle`` → attribute ``_angle``; assignment goes through
+        the public name (``setattr(self, 'angle', value)``) so a node's
+        ``@angle.setter`` runs and applies its validation /
+        clamping / coercion as if the user had moved the slider.
+
+        On any error during populate (e.g. a setter rejecting a
+        streamed value), already-applied writes are rolled back via
+        the partial snapshot so the node's state stays consistent.
         """
-        for inp, out in zip(self._inputs, self._outputs):
-            out.send(inp.data)
+        snapshot: dict[str, object] = {}
+        try:
+            for port in self._inputs:
+                if not port.has_data:
+                    continue
+                attr_name = f"_{port.name}"
+                if not hasattr(self, attr_name):
+                    continue
+                snapshot[attr_name] = getattr(self, attr_name)
+                value = self._extract_driven_value(port.data)
+                setattr(self, port.name, value)
+        except Exception:
+            self._restore_port_driven_attributes(snapshot)
+            raise
+        return snapshot
+
+    def _restore_port_driven_attributes(self, snapshot: dict[str, object]) -> None:
+        """Write each snapshotted value back to its private attribute,
+        bypassing the public ``@setter`` since the original value was
+        already validated when the user (or flow loader) first set it."""
+        for attr_name, value in snapshot.items():
+            object.__setattr__(self, attr_name, value)
+
+    @staticmethod
+    def _extract_driven_value(data: IoData) -> object:
+        """Convert an :class:`IoData` payload into the Python value to
+        write into the backing attribute. SCALAR is unwrapped via
+        ``.item()`` so a downstream property setter that does
+        ``float(value)`` keeps working (numpy 0-d arrays already
+        behave like floats but ``.item()`` makes the type explicit).
+        Every other kind passes the payload through unchanged."""
+        if data.type is IoDataType.SCALAR:
+            return data.payload.item()
+        return data.payload
+
+    def _process_skipped(self) -> None:
+        """Forward each output port from the first type-compatible
+        input port (Blender mute semantics).
+
+        For each output, picks the earliest input whose
+        ``accepted_types`` intersect the output's ``emits`` set, then
+        forwards that input's IoData. Outputs without a matching input
+        are simply not driven this frame (they keep whatever they last
+        emitted, if any). Param-style ports (SCALAR / BOOL / etc.)
+        won't typically share types with image outputs, so they're
+        naturally ignored by skip — which is the desired behaviour:
+        skipping is about data-flow short-circuiting, not param
+        forwarding.
+        """
+        for out in self._outputs:
+            match = next(
+                (inp for inp in self._inputs if inp.accepted_types & out.emits),
+                None,
+            )
+            if match is not None and match.has_data:
+                out.send(match.data)
 
     @abstractmethod
     def process_impl(self) -> None:

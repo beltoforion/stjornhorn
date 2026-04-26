@@ -4,8 +4,8 @@ import time
 
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.io_data import IMAGE_TYPES, IoDataType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -23,16 +23,16 @@ class Delay(NodeBase):
         self._delay_seconds: float = 5.0
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_input(InputPort(
+            "delay_seconds",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=5.0,
+            metadata={"default": 5.0, "param_type": NodeParamType.FLOAT},
+        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("delay_seconds", NodeParamType.FLOAT, {"default": 5.0}),
-        ]
 
     @property
     def delay_seconds(self) -> float:

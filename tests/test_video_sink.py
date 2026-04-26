@@ -10,7 +10,7 @@ from typing_extensions import override
 
 from core.flow import Flow
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeParam, SourceNodeBase
+from core.node_base import SourceNodeBase
 from core.port import OutputPort
 from nodes.filters.merge import Merge
 from nodes.sinks.video_sink import VideoSink
@@ -27,11 +27,6 @@ class _FrameListSource(SourceNodeBase):
         super().__init__("Frame List", section="Sources")
         self._frames = frames
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return []
 
     @override
     def process_impl(self) -> None:
@@ -139,11 +134,6 @@ class _GreyFrameListSource(SourceNodeBase):
         self._frames = frames
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
 
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return []
-
     @override
     def process_impl(self) -> None:
         for frame in self._frames:
@@ -157,11 +147,6 @@ class _ReactiveImageSource(SourceNodeBase):
         super().__init__("Reactive Image", section="Sources")
         self._frame = frame
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return []
 
     @property
     @override

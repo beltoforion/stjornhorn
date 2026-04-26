@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.io_data import IMAGE_TYPES, IoDataType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -16,6 +16,11 @@ class Median(NodeBase):
     Accepts both colour (``IMAGE``) and greyscale (``IMAGE_GREY``) inputs
     and emits the same type on the output. Ported from the original OCVL
     ``MedianProcessor``.
+
+    The ``size`` editable property is declared directly as an
+    ``InputPort`` with ``param_type`` in its metadata; no separate
+    params-list override is needed. ``NodeBase.params`` filters the
+    input ports down to the param-style subset that the UI iterates.
     """
 
     def __init__(self) -> None:
@@ -23,16 +28,16 @@ class Median(NodeBase):
         self._size: int = 3
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_input(InputPort(
+            "size",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=3,
+            metadata={"default": 3, "param_type": NodeParamType.INT},
+        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [NodeParam("size", NodeParamType.INT, {"default": 3})]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

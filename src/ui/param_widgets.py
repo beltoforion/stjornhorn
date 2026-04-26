@@ -21,31 +21,75 @@ from PySide6.QtWidgets import (
 )
 
 from constants import INPUT_DIR, OUTPUT_DIR
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParamType
+from core.port import InputPort
 from ui.controls.scene_aware_combobox import SceneAwareComboBox
 from ui.icons import material_icon
 
 logger = logging.getLogger(__name__)
 
 
+#: Minimum width for the value-bearing control on a single-element
+#: param widget (QSpinBox / QDoubleSpinBox / QLineEdit / QComboBox).
+#: Sized so the up/down arrow column doesn't crowd the visible
+#: digits / first character of text. Below ~80 the spin buttons start
+#: clipping the value; above ~100 a row in a narrow node wastes
+#: horizontal space the label could otherwise use.
+PARAM_VALUE_MIN_WIDTH: int = 96
+
+#: Minimum width for a path-style line edit (FilePathParamWidget).
+#: Smaller than the numeric min because the widget sits next to two
+#: buttons on the same row and fights for horizontal real estate.
+PATH_LINE_EDIT_MIN_WIDTH: int = 80
+
+#: Width of an icon-only button on a multi-element param widget
+#: (FilePathParamWidget's "..." Browse and visibility "View" buttons).
+#: Big enough for the material icon glyph + a few px of padding,
+#: small enough that two of them don't dominate the row.
+PARAM_BUTTON_WIDTH: int = 36
+
+#: Fixed height for every value-bearing control on a param widget.
+#: Locks the size at a compact, Blender-style 22 px regardless of OS
+#: style — without this Qt picks ``sizeHint().height()`` which on
+#: native styles ranges from ~22 (Fusion) to ~28 (Windows-Vista,
+#: macOS), making the same node look too tall on some machines and
+#: visually inconsistent across rows when widget kinds disagree on
+#: their natural height. 22 px fits a 14-px font + 4 px of vertical
+#: padding (matches the QSS ``padding: 3px 6px``) + 2 px of border.
+PARAM_VALUE_HEIGHT: int = 24
+
+
 class ParamWidgetBase(QWidget):
     """Base class for all parameter editor widgets embedded in a NodeItem.
 
-    Each subclass binds to a single :class:`NodeParam` on a
-    :class:`NodeBase` instance and exposes a uniform
-    :meth:`set_value` / :meth:`get_value` interface so callers can
-    refresh or read widget state without knowing the concrete type.
+    Each subclass binds to a single :class:`InputPort` (a
+    "param-style" input — one whose metadata carries a
+    ``"param_type"`` key) on a :class:`NodeBase` instance and exposes
+    a uniform :meth:`set_value` / :meth:`get_value` interface so
+    callers can refresh or read widget state without knowing the
+    concrete type.
     """
 
     #: Emitted after any user interaction that commits a new value.
     value_changed = Signal(object)
 
-    def __init__(self, node: NodeBase, param: NodeParam) -> None:
+    def __init__(self, node: NodeBase, port: InputPort) -> None:
         if type(self) is ParamWidgetBase:
             raise TypeError("ParamWidgetBase cannot be instantiated directly")
         super().__init__()
         self._node = node
-        self._param = param
+        self._port = port
+        # The wrapper hosts the QHBoxLayout that carries the
+        # value-bearing control(s). Without explicit transparency it
+        # inherits the global ``QWidget { background: #262629 }`` rule
+        # and paints a dark grey strip behind every child — most
+        # visible behind a QCheckBox (a 14-px box on a ~24-px-tall
+        # row leaves background showing on three sides).
+        # ``WA_TranslucentBackground`` is enough by itself; using
+        # ``setStyleSheet`` here would propagate to children and strip
+        # the QSpinBox / QLineEdit / etc. of their dark
+        # ``#1f1f22`` input-field fill.
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
     def set_value(self, value: object) -> None:
         """Update the widget to display *value*."""
@@ -74,18 +118,18 @@ class ParamWidgetBase(QWidget):
         freshly-instantiated nodes still get the right starting text even if
         the subclass forgot :meth:`NodeBase._apply_default_params`).
         """
-        if hasattr(self._node, self._param.name):
-            return getattr(self._node, self._param.name)
-        return self._param.metadata.get("default", fallback)
+        if hasattr(self._node, self._port.name):
+            return getattr(self._node, self._port.name)
+        return self._port.metadata.get("default", fallback)
 
     def _write_to_node(self, value: object) -> None:
         """Write *value* to the node attribute, logging any error."""
         try:
-            setattr(self._node, self._param.name, value)
+            setattr(self._node, self._port.name, value)
         except Exception:
             logger.exception(
                 "Failed to set %s.%s = %r",
-                type(self._node).__name__, self._param.name, value,
+                type(self._node).__name__, self._port.name, value,
             )
 
 
@@ -94,12 +138,13 @@ class ParamWidgetBase(QWidget):
 class IntParamWidget(ParamWidgetBase):
     """Spin-box editor for :attr:`NodeParamType.INT` parameters."""
 
-    def __init__(self, node: NodeBase, param: NodeParam) -> None:
-        super().__init__(node, param)
+    def __init__(self, node: NodeBase, port: InputPort) -> None:
+        super().__init__(node, port)
         self._spin = QSpinBox()
         self._spin.setRange(-10_000_000, 10_000_000)
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self._spin.setMinimumWidth(96)
+        self._spin.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
+        self._spin.setFixedHeight(PARAM_VALUE_HEIGHT)
         self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(int(self._initial_value(0)))
 
@@ -128,10 +173,10 @@ class FloatParamWidget(ParamWidgetBase):
     wide default range so arbitrary floats round-trip without clipping.
     """
 
-    def __init__(self, node: NodeBase, param: NodeParam) -> None:
-        super().__init__(node, param)
+    def __init__(self, node: NodeBase, port: InputPort) -> None:
+        super().__init__(node, port)
         self._spin = QDoubleSpinBox()
-        meta = param.metadata
+        meta = port.metadata
         self._spin.setRange(
             float(meta.get("min", -1e12)),
             float(meta.get("max",  1e12)),
@@ -139,7 +184,8 @@ class FloatParamWidget(ParamWidgetBase):
         self._spin.setDecimals(int(meta.get("decimals", 3)))
         self._spin.setSingleStep(float(meta.get("step", 0.1)))
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self._spin.setMinimumWidth(96)
+        self._spin.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
+        self._spin.setFixedHeight(PARAM_VALUE_HEIGHT)
         self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(float(self._initial_value(0.0)))
 
@@ -163,8 +209,8 @@ class FloatParamWidget(ParamWidgetBase):
 class BoolParamWidget(ParamWidgetBase):
     """Check-box editor for :attr:`NodeParamType.BOOL` parameters."""
 
-    def __init__(self, node: NodeBase, param: NodeParam) -> None:
-        super().__init__(node, param)
+    def __init__(self, node: NodeBase, port: InputPort) -> None:
+        super().__init__(node, port)
         self._check = QCheckBox()
         self._check.toggled.connect(self._on_value_changed)
         self._check.setChecked(bool(self._initial_value(False)))
@@ -198,12 +244,13 @@ class StringParamWidget(ParamWidgetBase):
       * ``max_length``  — hard character cap enforced by the widget.
     """
 
-    def __init__(self, node: NodeBase, param: NodeParam) -> None:
-        super().__init__(node, param)
-        meta = param.metadata
+    def __init__(self, node: NodeBase, port: InputPort) -> None:
+        super().__init__(node, port)
+        meta = port.metadata
 
         self._line = QLineEdit()
-        self._line.setMinimumWidth(96)
+        self._line.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
+        self._line.setFixedHeight(PARAM_VALUE_HEIGHT)
         placeholder = meta.get("placeholder")
         if placeholder is not None:
             self._line.setPlaceholderText(str(placeholder))
@@ -224,7 +271,7 @@ class StringParamWidget(ParamWidgetBase):
         # If the setter normalised the value (e.g. trimmed whitespace or
         # rejected empty and kept the previous) mirror the canonical form
         # back into the line edit so the user sees what's actually stored.
-        canonical = getattr(self._node, self._param.name, value)
+        canonical = getattr(self._node, self._port.name, value)
         if canonical != value:
             self._line.blockSignals(True)
             try:
@@ -254,19 +301,20 @@ class EnumParamWidget(ParamWidgetBase):
     seamlessly for :class:`enum.IntEnum`).
     """
 
-    def __init__(self, node: NodeBase, param: NodeParam) -> None:
-        super().__init__(node, param)
-        enum_cls = param.metadata.get("enum")
+    def __init__(self, node: NodeBase, port: InputPort) -> None:
+        super().__init__(node, port)
+        enum_cls = port.metadata.get("enum")
         if not (isinstance(enum_cls, type) and issubclass(enum_cls, Enum)):
             raise ValueError(
-                f"NodeParam {param.name!r}: ENUM params require "
+                f"Port {port.name!r}: ENUM params require "
                 f"metadata['enum'] to be an Enum subclass "
                 f"(got {enum_cls!r})."
             )
         self._enum_cls: type[Enum] = enum_cls
 
         self._combo = SceneAwareComboBox()
-        self._combo.setMinimumWidth(96)
+        self._combo.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
+        self._combo.setFixedHeight(PARAM_VALUE_HEIGHT)
         for member in self._enum_cls:
             self._combo.addItem(self._label_for(member), member)
 
@@ -332,14 +380,14 @@ class EnumParamWidget(ParamWidgetBase):
 class FilePathParamWidget(ParamWidgetBase):
     """Line-edit + browse-button editor for :attr:`NodeParamType.FILE_PATH` parameters."""
 
-    def __init__(self, node: NodeBase, param: NodeParam) -> None:
-        super().__init__(node, param)
-        mode = param.metadata.get("mode")
+    def __init__(self, node: NodeBase, port: InputPort) -> None:
+        super().__init__(node, port)
+        mode = port.metadata.get("mode")
         self._is_save      = mode == "save"
         self._is_directory = mode == "directory"
-        self._filter = str(param.metadata.get("filter", ""))
+        self._filter = str(port.metadata.get("filter", ""))
         self._base_dir = Path(
-            param.metadata.get("base_dir", OUTPUT_DIR if self._is_save else INPUT_DIR)
+            port.metadata.get("base_dir", OUTPUT_DIR if self._is_save else INPUT_DIR)
         ).resolve()
 
         self._line = QLineEdit()
@@ -347,15 +395,18 @@ class FilePathParamWidget(ParamWidgetBase):
         # Min width must leave room for the 28 px browse button + spacing
         # inside the fixed-width node body, otherwise the line edit overflows
         # and visually overlaps the button.
-        self._line.setMinimumWidth(80)
+        self._line.setMinimumWidth(PATH_LINE_EDIT_MIN_WIDTH)
+        self._line.setFixedHeight(PARAM_VALUE_HEIGHT)
 
         browse = QPushButton("...")
-        browse.setFixedWidth(36)
+        browse.setFixedWidth(PARAM_BUTTON_WIDTH)
+        browse.setFixedHeight(PARAM_VALUE_HEIGHT)
         browse.clicked.connect(self._open_file_dialog)
 
         self._view = QPushButton()
         self._view.setIcon(material_icon("visibility"))
-        self._view.setFixedWidth(36)
+        self._view.setFixedWidth(PARAM_BUTTON_WIDTH)
+        self._view.setFixedHeight(PARAM_VALUE_HEIGHT)
         self._view.setToolTip("Open in system image viewer")
         self._view.clicked.connect(self._open_in_viewer)
 
@@ -427,7 +478,7 @@ class FilePathParamWidget(ParamWidgetBase):
             default_caption = "Save File As"
         else:
             default_caption = "Select File"
-        caption = self._param.metadata.get("caption", default_caption)
+        caption = self._port.metadata.get("caption", default_caption)
 
         dialog = QFileDialog(QApplication.activeWindow(), caption)
         dialog.setDirectory(initial)
@@ -502,23 +553,27 @@ _PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
 }
 
 
-def build_param_widget(node: NodeBase, param: NodeParam) -> ParamWidgetBase | None:
-    """Return a :class:`ParamWidgetBase` that edits *param* on *node*.
+def build_param_widget(node: NodeBase, port: InputPort) -> ParamWidgetBase | None:
+    """Return a :class:`ParamWidgetBase` that edits *port* on *node*.
 
     Returns ``None`` for unsupported param types, so callers can render a
     placeholder label instead of crashing.  Also returns ``None`` (with
     a log) when a widget constructor raises — misconfigured metadata
     should not bring the node editor down.
     """
-    cls = _PARAM_WIDGET_CLASSES.get(param.param_type)
+    param_type = port.metadata.get("param_type")
+    cls = _PARAM_WIDGET_CLASSES.get(param_type)
     if cls is None:
-        logger.warning("No widget class registered for param type %s", param.param_type)
+        logger.warning(
+            "No widget class registered for port %r (param_type=%r)",
+            port.name, param_type,
+        )
         return None
     try:
-        return cls(node, param)
+        return cls(node, port)
     except Exception:
         logger.exception(
             "Failed to build %s widget for %s.%s",
-            cls.__name__, type(node).__name__, param.name,
+            cls.__name__, type(node).__name__, port.name,
         )
         return None

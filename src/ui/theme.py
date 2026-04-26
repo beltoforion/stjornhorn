@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
+from constants import ASSETS_DIR
+
 # ── Node header colours by category ────────────────────────────────────────────
 # RGBA tuples; kept separate from the QSS sheet so node-drawing code can
 # bind them directly to QBrush/QPen without parsing stylesheet strings.
@@ -96,6 +98,74 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
     border-color: #5a5a60;
 }
+/* Touching ``padding`` on a QSpinBox / QDoubleSpinBox above stops Qt
+   from rendering the up/down arrow sub-controls in their native
+   geometry — the OS style positions them by a fixed offset from the
+   right edge that the padding pushes the text into. ``padding-right:
+   18px`` reserves a 16-px button column plus 2 px of breathing room
+   so the buttons sit at the right edge without overlapping the text.
+   The button geometry rules pin the up/down half to the top-right
+   and bottom-right of the border, with a 1-px dark separator on the
+   left. The arrow images are inline SVG data URIs (light grey
+   triangles) so the buttons keep visible chevrons regardless of the
+   OS native style — without the explicit image, the stylesheet-mode
+   rendering kicks in and Qt's default arrow drawing drops out. */
+QSpinBox, QDoubleSpinBox {
+    padding-right: 18px;
+}
+QSpinBox::up-button, QDoubleSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 16px;
+    border-left: 1px solid #1a1a1d;
+}
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 16px;
+    border-left: 1px solid #1a1a1d;
+}
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+    image: url("@@SPINNER_UP@@");
+    width: 7px;
+    height: 7px;
+}
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    image: url("@@SPINNER_DOWN@@");
+    width: 7px;
+    height: 7px;
+}
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
+    background: #2d2d30;
+}
+QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed,
+QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {
+    background: #3a3a3e;
+}
+/* QComboBox sub-controls are dropped from the native render the
+   moment the QComboBox gets any stylesheet rule (background /
+   border / padding above), same as the QSpinBox case. We pin the
+   drop-down's geometry to the right edge and reuse the
+   ``spinner_down.svg`` chevron so the picker has a visible
+   affordance. */
+QComboBox {
+    padding-right: 18px;
+}
+QComboBox::drop-down {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 16px;
+    border-left: 1px solid #1a1a1d;
+}
+QComboBox::down-arrow {
+    image: url("@@SPINNER_DOWN@@");
+    width: 7px;
+    height: 7px;
+}
+QComboBox::drop-down:hover {
+    background: #2d2d30;
+}
 QListWidget, QTreeView {
     background: #1f1f22;
     border: 1px solid #1a1a1d;
@@ -143,6 +213,11 @@ QCheckBox::indicator:hover {
 QCheckBox::indicator:checked {
     background: #3a5b8a;
     border-color: #e0c040;
+    /* Without an explicit ``image`` Qt's stylesheet rendering mode
+       fills the indicator's background but never draws the actual
+       check glyph. The SVG is sized to 14×14 to match the indicator
+       and uses a light stroke so it reads against the blue fill. */
+    image: url("@@CHECKMARK@@");
 }
 QCheckBox::indicator:disabled {
     background: #2d2d30;
@@ -164,4 +239,17 @@ def apply_dark_theme(app: QApplication) -> None:
     palette.setColor(QPalette.Highlight,       QColor(58, 91, 138))
     palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
     app.setPalette(palette)
-    app.setStyleSheet(_DARK_QSS)
+
+    # Resolve absolute paths to the SVG arrow assets so the QSS
+    # ``url(...)`` references work regardless of the process's current
+    # working directory. as_posix() avoids backslash-escape headaches
+    # on Windows where QSS would otherwise treat ``\u`` etc. as escape
+    # sequences inside the URL.
+    icons = ASSETS_DIR / "icons"
+    qss = (
+        _DARK_QSS
+        .replace("@@SPINNER_UP@@",   (icons / "spinner_up.svg").as_posix())
+        .replace("@@SPINNER_DOWN@@", (icons / "spinner_down.svg").as_posix())
+        .replace("@@CHECKMARK@@",    (icons / "checkmark.svg").as_posix())
+    )
+    app.setStyleSheet(qss)

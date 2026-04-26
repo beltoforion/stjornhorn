@@ -32,6 +32,19 @@ class InputPort:
     of whether the optional port is connected or has produced anything.
     Node implementations inspect :attr:`has_data` on an optional port to
     decide whether to consume it.
+
+    ``default_value`` is the literal value used when the port has no
+    upstream connection — the seed that the Blender-style socket UI
+    edits inline. Loosely typed (``object | None``) because every
+    payload kind shares this slot.
+
+    ``metadata`` is a free-form dict that hosts widget hints
+    (``min``/``max``/``step``/``enum``/``filter``/…) plus a
+    ``"param_type"`` key for ports that should render an inline
+    editor. The UI iterates :attr:`NodeBase.params` to find the
+    subset of inputs with a ``"param_type"`` entry and renders one
+    widget per port; image-flow inputs leave metadata empty and stay
+    socket-only.
     """
 
     def __init__(
@@ -40,6 +53,8 @@ class InputPort:
         accepted_types: set[IoDataType],
         on_state_changed: Callable[[], None] | None = None,
         optional: bool = False,
+        default_value: object | None = None,
+        metadata: dict | None = None,
     ) -> None:
         self.name = name
         self.accepted_types: frozenset[IoDataType] = frozenset(accepted_types)
@@ -48,6 +63,11 @@ class InputPort:
         self._data: IoData | None = None
         self._finished: bool = False
         self._upstream: "OutputPort | None" = None
+        self._default_value: object | None = default_value
+        # Copy so a caller's literal dict can't mutate the port's metadata
+        # later (and vice versa) — common gotcha when the same default
+        # dict is reused across multiple node constructions.
+        self.metadata: dict = dict(metadata) if metadata else {}
 
     @property
     def has_data(self) -> bool:
@@ -68,6 +88,24 @@ class InputPort:
     def upstream(self) -> "OutputPort | None":
         """The OutputPort currently feeding this input, if any."""
         return self._upstream
+
+    @property
+    def default_value(self) -> object | None:
+        """The literal value used when no upstream is connected.
+
+        Settable so the UI can update the seed in place without
+        re-creating the port.
+        """
+        return self._default_value
+
+    @default_value.setter
+    def default_value(self, value: object | None) -> None:
+        self._default_value = value
+
+    @property
+    def has_default(self) -> bool:
+        """True when a literal default has been set (incl. falsy values)."""
+        return self._default_value is not None
 
     def receive(self, data: IoData) -> None:
         if data.type not in self.accepted_types:

@@ -4,7 +4,7 @@ import cv2
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParam
+from core.node_base import NodeBase
 from core.port import InputPort, OutputPort
 
 
@@ -27,13 +27,6 @@ class RgbaJoin(NodeBase):
         self._add_input(InputPort("R", {IoDataType.IMAGE_GREY}))
         self._add_input(InputPort("A", {IoDataType.IMAGE_GREY}, optional=True))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return []
 
     # ── NodeBase interface ─────────────────────────────────────────────────────
 

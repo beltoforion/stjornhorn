@@ -5,7 +5,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParam
+from core.node_base import NodeBase
 from core.port import InputPort, OutputPort
 
 
@@ -26,11 +26,6 @@ class RgbaSplit(NodeBase):
         self._add_output(OutputPort("G", {IoDataType.IMAGE_GREY}))
         self._add_output(OutputPort("R", {IoDataType.IMAGE_GREY}))
         self._add_output(OutputPort("A", {IoDataType.IMAGE_GREY}))
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return []
 
     @override
     def process_impl(self) -> None:

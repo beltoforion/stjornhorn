@@ -6,7 +6,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -34,19 +34,23 @@ class SubpixelMosaic(NodeBase):
         self._output_grayscale: bool = False
 
         self._add_input(InputPort("image", {IoDataType.IMAGE}))
+        self._add_input(InputPort(
+            "keep_aspect",
+            {IoDataType.BOOL},
+            optional=True,
+            default_value=False,
+            metadata={"default": False, "param_type": NodeParamType.BOOL},
+        ))
+        self._add_input(InputPort(
+            "output_grayscale",
+            {IoDataType.BOOL},
+            optional=True,
+            default_value=False,
+            metadata={"default": False, "param_type": NodeParamType.BOOL},
+        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("keep_aspect",      NodeParamType.BOOL, {"default": False}),
-            NodeParam("output_grayscale", NodeParamType.BOOL, {"default": False}),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

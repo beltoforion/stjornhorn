@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
+  "app_version": "0.1.35",
   "name": "debug_error",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -1311.0,
         -747.0
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/ship.jpg"
       }
     },
@@ -23,7 +23,7 @@
         -973.0,
         -703.0
       ],
-      "params": {}
+      "port_defaults": {}
     },
     {
       "id": 2,
@@ -33,7 +33,7 @@
         -631.0,
         -652.0
       ],
-      "params": {
+      "port_defaults": {
         "output_path": "out.png"
       }
     }

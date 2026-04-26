@@ -9,7 +9,7 @@ from typing_extensions import override
 
 from constants import OUTPUT_DIR
 from core.io_data import IMAGE_TYPES
-from core.node_base import SinkNodeBase, NodeParam, NodeParamType
+from core.node_base import NodeParam, NodeParamType, SinkNodeBase
 from core.port import InputPort
 
 
@@ -58,22 +58,24 @@ class VideoSink(SinkNodeBase):
         self._frame_shape: tuple[int, ...] | None = None
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_param(NodeParam(
+            "output_path",
+            NodeParamType.FILE_PATH,
+            default="out.mp4",
+            metadata={"mode": "save", "filter": "Video (*.mp4)", "base_dir": OUTPUT_DIR},
+        ))
+        self._add_param(NodeParam(
+            "fps",
+            NodeParamType.FLOAT,
+            default=30.0,
+        ))
+        self._add_param(NodeParam(
+            "codec",
+            NodeParamType.ENUM,
+            default=VideoCodec.MP4V,
+            metadata={"enum": VideoCodec},
+        ))
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("output_path", NodeParamType.FILE_PATH, {"default": "out.mp4", "mode": "save", "filter": "Video (*.mp4)", "base_dir": OUTPUT_DIR}),
-            NodeParam("fps",         NodeParamType.FLOAT,     {"default": 30.0}),
-            NodeParam(
-                "codec",
-                NodeParamType.ENUM,
-                {"default": VideoCodec.MP4V, "enum": VideoCodec},
-            ),
-        ]
 
     # ── Properties ─────────────────────────────────────────────────────────────
 

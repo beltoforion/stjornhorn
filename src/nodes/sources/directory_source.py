@@ -10,8 +10,9 @@ from typing_extensions import override
 
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
-from core.node_base import SourceNodeBase, NodeParam, NodeParamType
+from core.node_base import NodeParam, NodeParamType, SourceNodeBase
 from core.port import OutputPort
+
 
 logger = logging.getLogger(__name__)
 
@@ -53,31 +54,23 @@ class DirectorySource(SourceNodeBase):
         super().__init__("Directory Source", section="Sources")
         self._directory: Path = Path()
         self._include_subdirectories: bool = False
+        self._add_param(NodeParam(
+            "directory",
+            NodeParamType.FILE_PATH,
+            default="",
+            metadata={
+                "mode":     "directory",
+                "base_dir": INPUT_DIR,
+                "caption":  "Select Image Directory",
+            },
+        ))
+        self._add_param(NodeParam(
+            "include_subdirectories",
+            NodeParamType.BOOL,
+            default=False,
+        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam(
-                "directory",
-                NodeParamType.FILE_PATH,
-                {
-                    "default":  "",
-                    "mode":     "directory",
-                    "base_dir": INPUT_DIR,
-                    "caption":  "Select Image Directory",
-                },
-            ),
-            NodeParam(
-                "include_subdirectories",
-                NodeParamType.BOOL,
-                {"default": False},
-            ),
-        ]
 
     @property
     def directory(self) -> Path:

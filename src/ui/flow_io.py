@@ -46,13 +46,33 @@ def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
     for idx, item in enumerate(node_items):
         pos = item.pos()
         node = item.node
-        params = {p.name: _jsonable(getattr(node, p.name, None)) for p in node.params}
+        # Two kinds of editable values are persisted under the same
+        # ``port_defaults`` key (the on-disk shape is identical —
+        # name → value — and the loader does ``setattr`` blindly):
+        #
+        # * Port-style params (``node.param_input_ports``): the
+        #   subset of input ports whose metadata declares a
+        #   ``"param_type"``. These are drivable from upstream when
+        #   wired; the persisted value is the literal default the
+        #   port uses while unconnected.
+        # * Constant params (``node.params``): :class:`NodeParam`
+        #   constants registered via ``_add_param``. Sources and
+        #   sinks use these for config (file paths, codecs, fps)
+        #   that's never connection-driven.
+        #
+        # The legacy ``"params"`` JSON key is still accepted by the
+        # loader for flow files saved before the rename.
+        port_defaults: dict = {}
+        for p in node.param_input_ports:
+            port_defaults[p.name] = _jsonable(getattr(node, p.name, None))
+        for p in node.params:
+            port_defaults[p.name] = _jsonable(getattr(node, p.name, None))
         entry: dict = {
-            "id":       idx,
-            "module":   type(node).__module__,
-            "class":    type(node).__name__,
-            "position": [float(pos.x()), float(pos.y())],
-            "params":   params,
+            "id":            idx,
+            "module":        type(node).__module__,
+            "class":         type(node).__name__,
+            "position":      [float(pos.x()), float(pos.y())],
+            "port_defaults": port_defaults,
         }
         user_w, user_h = item.user_size
         if user_w is not None or user_h is not None:
@@ -221,11 +241,20 @@ def _instantiate_node(entry: dict) -> NodeBase | None:
         logger.exception(f"Failed to instantiate {module_name}.{class_name}")
         return None
 
-    for name, value in (entry.get("params") or {}).items():
+    # Read the new ``port_defaults`` key first; fall back to the
+    # legacy ``params`` key so flow files saved before the
+    # param-as-port migration still load (the on-disk shape is
+    # identical — name → value — only the wrapper key changed).
+    defaults = entry.get("port_defaults")
+    if defaults is None:
+        defaults = entry.get("params") or {}
+    for name, value in defaults.items():
         try:
             setattr(node, name, value)
         except Exception:
-            logger.warning(f"Ignoring param {name} on {module_name}.{class_name} ({value!r})")
+            logger.warning(
+                f"Ignoring port default {name} on {module_name}.{class_name} ({value!r})"
+            )
 
     if entry.get("skipped"):
         try:

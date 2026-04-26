@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.17",
+  "app_version": "0.1.35",
   "name": "sample_transform",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -1799.7637512894696,
         -1048.4540960876052
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "ship.jpg"
       }
     },
@@ -23,7 +23,7 @@
         -1330.4591804170063,
         -791.2429592199989
       ],
-      "params": {
+      "port_defaults": {
         "output_path": "out.png"
       }
     },
@@ -35,7 +35,7 @@
         -1334.3353372563045,
         -1099.5975963210933
       ],
-      "params": {
+      "port_defaults": {
         "scale_percent": 50,
         "interpolation": 1
       }
@@ -48,7 +48,7 @@
         -1811.2313034160798,
         -913.1863663027992
       ],
-      "params": {},
+      "port_defaults": {},
       "size": [
         443.1665386536271,
         359.64536323334005
@@ -62,7 +62,7 @@
         -1514.644745450176,
         -1051.0329153234893
       ],
-      "params": {
+      "port_defaults": {
         "size": 33
       }
     }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.16",
+  "app_version": "0.1.35",
   "name": "debug_delay",
   "nodes": [
     {
@@ -11,7 +11,7 @@
         -1076.0,
         -361.0
       ],
-      "params": {
+      "port_defaults": {
         "delay_seconds": 5.0
       }
     },
@@ -23,7 +23,7 @@
         -1382.0,
         -363.0
       ],
-      "params": {
+      "port_defaults": {
         "file_path": "ship.jpg"
       }
     },
@@ -35,7 +35,7 @@
         -779.0,
         -361.0
       ],
-      "params": {
+      "port_defaults": {
         "output_path": "out.png"
       }
     }

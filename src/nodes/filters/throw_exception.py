@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing_extensions import override
 
 from core.io_data import IoDataType
-from core.node_base import NodeBase, NodeParam
+from core.node_base import NodeBase
 from core.port import InputPort, OutputPort
 
 
@@ -21,11 +21,6 @@ class ThrowException(NodeBase):
         super().__init__("Throw Exception", section="Debug")
         self._add_input(InputPort("image", {IoDataType.IMAGE}))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return []
 
     @override
     def process_impl(self) -> None:

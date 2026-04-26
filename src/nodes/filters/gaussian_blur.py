@@ -3,8 +3,8 @@ from __future__ import annotations
 import cv2
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.io_data import IMAGE_TYPES, IoDataType
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -24,17 +24,23 @@ class GaussianBlur(NodeBase):
         self._sigma: float = 0.0
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
+        self._add_input(InputPort(
+            "ksize",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=5,
+            metadata={"default": 5, "param_type": NodeParamType.INT},
+        ))
+        self._add_input(InputPort(
+            "sigma",
+            {IoDataType.SCALAR},
+            optional=True,
+            default_value=0.0,
+            metadata={"default": 0.0, "param_type": NodeParamType.FLOAT},
+        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
         self._apply_default_params()
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam("ksize", NodeParamType.INT,   {"default": 5}),
-            NodeParam("sigma", NodeParamType.FLOAT, {"default": 0.0}),
-        ]
 
     @property
     def ksize(self) -> int:

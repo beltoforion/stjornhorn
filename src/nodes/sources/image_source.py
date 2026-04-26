@@ -9,7 +9,7 @@ from typing_extensions import override
 
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
-from core.node_base import SourceNodeBase, NodeParam, NodeParamType
+from core.node_base import NodeParam, NodeParamType, SourceNodeBase
 from core.port import OutputPort
 
 _SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".cr2"}
@@ -37,24 +37,17 @@ class ImageSource(SourceNodeBase):
     def __init__(self) -> None:
         super().__init__("Image Source", section="Sources")
         self._file_path: Path = Path()
+        self._add_param(NodeParam(
+            "file_path",
+            NodeParamType.FILE_PATH,
+            default="example.jpg",
+            metadata={
+                "filter": "Images (*.webp *.png *.jpg *.jpeg *.cr2)",
+                "base_dir": INPUT_DIR,
+            },
+        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
-
-    # ── Parameters ─────────────────────────────────────────────────────────────
-
-    @property
-    @override
-    def params(self) -> list[NodeParam]:
-        return [
-            NodeParam(
-                "file_path", 
-                NodeParamType.FILE_PATH, 
-                {
-                    "default": "example.jpg", 
-                    "filter": "Images (*.webp *.png *.jpg *.jpeg *.cr2)",
-                    "base_dir": INPUT_DIR
-                }),
-        ]
 
     @property
     def file_path(self) -> Path:

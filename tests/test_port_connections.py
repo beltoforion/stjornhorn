@@ -158,3 +158,98 @@ def test_required_input_still_blocks_dispatch() -> None:
     node = _TwoInputNode(optional=False)
     node.inputs[0].receive(_grey_io())
     assert node.fired == 0
+
+
+# ── default_value (literal seed for unconnected inputs) ───────────────────────
+
+def test_default_value_unset_by_default() -> None:
+    port = _image_input()
+    assert port.default_value is None
+    assert port.has_default is False
+
+
+def test_default_value_settable_via_constructor() -> None:
+    port = InputPort("angle", {IoDataType.SCALAR}, default_value=45.0)
+    assert port.default_value == 45.0
+    assert port.has_default is True
+
+
+def test_default_value_settable_via_property() -> None:
+    port = InputPort("angle", {IoDataType.SCALAR})
+    port.default_value = 90.0
+    assert port.default_value == 90.0
+    assert port.has_default is True
+
+
+def test_default_value_does_not_satisfy_dispatcher() -> None:
+    """Setting a default does NOT make the port appear to have data —
+    the executor reads defaults via a separate path. A required input
+    with only a default must still block dispatch."""
+    node = _TwoInputNode(optional=False)
+    node.inputs[1].default_value = 123  # populate default on second input
+    node.inputs[0].receive(_grey_io())
+    assert node.fired == 0
+    assert node.inputs[1].has_data is False
+
+
+def test_default_value_zero_is_truthy_for_has_default() -> None:
+    """``has_default`` must distinguish 'unset' from 'set to 0' — falsy
+    payloads (0, 0.0, empty string) still count as a default."""
+    port = InputPort("x", {IoDataType.SCALAR}, default_value=0)
+    assert port.has_default is True
+    port.default_value = 0.0
+    assert port.has_default is True
+
+
+def test_default_value_can_be_cleared() -> None:
+    port = InputPort("x", {IoDataType.SCALAR}, default_value=5)
+    port.default_value = None
+    assert port.default_value is None
+    assert port.has_default is False
+
+
+# ── metadata field on InputPort ───────────────────────────────────────────────
+
+
+def test_metadata_defaults_to_empty_dict() -> None:
+    port = InputPort("p", {IoDataType.SCALAR})
+    assert port.metadata == {}
+    # Mutable for inline edits (the param widgets will write into it).
+    port.metadata["min"] = 0
+    assert port.metadata == {"min": 0}
+
+
+def test_metadata_initialised_from_constructor() -> None:
+    port = InputPort(
+        "angle",
+        {IoDataType.SCALAR},
+        metadata={"min": 0, "max": 360, "step": 1},
+    )
+    assert port.metadata == {"min": 0, "max": 360, "step": 1}
+
+
+def test_metadata_is_copied_so_caller_dict_cant_mutate_it() -> None:
+    """Sharing a literal ``{}`` between several port constructors used
+    to leak edits across instances — verify the constructor copies."""
+    shared = {"min": 0}
+    p1 = InputPort("a", {IoDataType.SCALAR}, metadata=shared)
+    p2 = InputPort("b", {IoDataType.SCALAR}, metadata=shared)
+
+    p1.metadata["min"] = 99
+    assert p2.metadata["min"] == 0
+    assert shared["min"] == 0
+
+
+def test_metadata_independent_of_default_value() -> None:
+    """``default_value`` and ``metadata`` are orthogonal storage — the
+    seed value lives on its own field, not under ``metadata['default']``,
+    so widget hints and the literal value never collide."""
+    port = InputPort(
+        "x",
+        {IoDataType.SCALAR},
+        default_value=5,
+        metadata={"min": 0, "max": 10},
+    )
+    assert port.default_value == 5
+    assert port.metadata == {"min": 0, "max": 10}
+    assert "default" not in port.metadata
