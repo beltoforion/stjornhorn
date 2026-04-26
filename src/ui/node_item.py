@@ -623,17 +623,26 @@ class NodeItem(QGraphicsItem):
         layout.setContentsMargins(int(self.PADDING), int(self.PADDING), int(self.PADDING), 0)
         layout.setSpacing(2)
 
-        for param in self._node.params:
-            name_label = QLabel(param.name)
+        for port in self._node.params:
+            name_label = QLabel(port.name)
             name_label.setProperty("muted", True)
             layout.addWidget(name_label)
-            editor: ParamWidgetBase | None = build_param_widget(self._node, param)
+            editor: ParamWidgetBase | None = build_param_widget(self._node, port)
             if editor is not None:
                 editor.value_changed.connect(lambda _v: self._signals.param_changed.emit())
+                # Gray out the widget when the port has an upstream
+                # producer driving it — the streamed value overrides
+                # whatever the slider would write, so leaving the
+                # widget editable would be misleading. Step 7
+                # (full inline-socket layout) replaces this with a
+                # hidden widget next to a "driven" socket indicator.
+                editor.setEnabled(port.upstream is None)
                 layout.addWidget(editor)
                 self._param_widgets.append(editor)
             else:
-                layout.addWidget(QLabel(f"(unsupported: {param.param_type.name})"))
+                kind = port.metadata.get("param_type")
+                kind_name = kind.name if kind is not None else "unknown"
+                layout.addWidget(QLabel(f"(unsupported: {kind_name})"))
 
         if preview is not None:
             # Stretch factor 1 — when the user drags the resize grip the

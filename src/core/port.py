@@ -39,11 +39,12 @@ class InputPort:
     payload kind shares this slot.
 
     ``metadata`` is a free-form dict that hosts widget hints
-    (``min``/``max``/``step``/``enum``/``filter``/…). It absorbs what
-    ``NodeParam.metadata`` carries today; once the param→port migration
-    completes, the same dict drives the inline widget rendering. Empty
-    by default for ports that never need inline editing (e.g. image
-    inputs), populated for everything that used to be a ``NodeParam``.
+    (``min``/``max``/``step``/``enum``/``filter``/…) plus a
+    ``"param_type"`` key for ports that should render an inline
+    editor. The UI iterates :attr:`NodeBase.params` to find the
+    subset of inputs with a ``"param_type"`` entry and renders one
+    widget per port; image-flow inputs leave metadata empty and stay
+    socket-only.
     """
 
     def __init__(
@@ -92,8 +93,8 @@ class InputPort:
     def default_value(self) -> object | None:
         """The literal value used when no upstream is connected.
 
-        Settable so the UI (or a future ``NodeParam``-shim) can update
-        the seed in place without re-creating the port.
+        Settable so the UI can update the seed in place without
+        re-creating the port.
         """
         return self._default_value
 

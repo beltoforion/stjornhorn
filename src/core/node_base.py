@@ -44,21 +44,16 @@ class NodeParamType(Enum):
     ENUM = 6,
 
 
-class NodeParam:
-    """Descriptor for a node parameter, used by the UI to generate controls."""
-    def __init__(self, name: str, param_type: NodeParamType, metadata: dict) -> None:
-        self.name : str = name
-        self.param_type : NodeParamType = param_type
-        self.metadata : dict = metadata
-
-
 #: Maps a :class:`NodeParamType` to the :class:`~core.io_data.IoDataType`
-#: used for the auto-created input port that backs the param. Numeric
-#: params (INT, FLOAT) collapse to a single ``SCALAR`` port type so any
-#: scalar producer can drive any numeric param without a per-type
-#: bridge node; the widget hint for "render as int spinner vs float
-#: slider" stays in the param's metadata.
-_NODE_PARAM_TYPE_TO_PORT_TYPE: dict[NodeParamType, IoDataType] = {
+#: that backs an editable parameter port. Numeric param types (INT,
+#: FLOAT) collapse to a single ``SCALAR`` port type so any scalar
+#: producer can drive any numeric param without a per-type bridge node;
+#: the widget-side "render as int spinner vs float slider" hint stays
+#: in the port's metadata under ``"param_type"``. Used by node code
+#: when declaring ports inline; previously also used to auto-create
+#: ports from NodeParam declarations, before the migration unified
+#: that into the InputPort's own metadata.
+NODE_PARAM_TYPE_TO_PORT_TYPE: dict[NodeParamType, IoDataType] = {
     NodeParamType.INT:       IoDataType.SCALAR,
     NodeParamType.FLOAT:     IoDataType.SCALAR,
     NodeParamType.BOOL:      IoDataType.BOOL,
@@ -117,74 +112,34 @@ class NodeBase(ABC):
     # ── Param defaults ─────────────────────────────────────────────────────────
 
     def _apply_default_params(self) -> None:
-        """Push every NodeParam's declared ``default`` metadata onto the
-        matching instance attribute via the normal property setter, and
-        ensure each param has a matching :class:`InputPort` so it can be
-        port-driven (Blender-style "every editable property is a socket").
+        """Push every editable input port's ``default_value`` onto the
+        matching instance attribute via the normal property setter.
 
         Call this at the end of a subclass ``__init__`` so the node's
-        attributes match the values it advertises in :attr:`params` from
-        the moment it is constructed — *before* any UI builder, save
-        routine or scheduler can read stale data.
+        attributes match the values its ports advertise from the moment
+        it is constructed — *before* any UI builder, save routine or
+        scheduler can read stale data. A port is "editable" when its
+        metadata carries a ``"param_type"`` key (the :class:`NodeParamType`
+        the inline widget should render). Image-flow inputs carry no
+        such key and no ``default_value``; they're skipped.
 
-        Auto-port creation: for every param without a same-named
-        existing input port, an optional ``InputPort`` is appended at
-        the end of ``self._inputs``. The port's ``accepted_types`` is
-        derived from :data:`_NODE_PARAM_TYPE_TO_PORT_TYPE`, its
-        ``default_value`` is the param's declared default, and its
-        ``metadata`` is a copy of the param's metadata. Ports added by
-        the subclass *before* this call (e.g. Overlay's manual
-        ``angle`` port) keep their existing position and configuration
-        — auto-creation only fills the gaps.
+        Setter exceptions are logged and swallowed — a property setter
+        may legitimately reject some defaults (range setters clip, file
+        dialogs validate paths). The subclass ``__init__`` already wrote
+        a fallback value before this method runs, so a rejected default
+        leaves the node in a still-valid state.
         """
-        existing_port_names = {port.name for port in self._inputs}
-        params_seen: set[str] = set()
-        for p in self.params:
-            params_seen.add(p.name)
-            if p.name not in existing_port_names:
-                port_type = _NODE_PARAM_TYPE_TO_PORT_TYPE.get(p.param_type)
-                if port_type is not None:
-                    self._add_input(InputPort(
-                        p.name,
-                        {port_type},
-                        optional=True,
-                        default_value=p.metadata.get("default"),
-                        metadata=p.metadata,
-                    ))
-            if "default" not in p.metadata:
-                continue
-            try:
-                setattr(self, p.name, p.metadata["default"])
-            except Exception:
-                # A property setter may legitimately reject some defaults
-                # (file dialogs validate paths, range setters clip, etc.).
-                # Log and keep whatever value the subclass __init__
-                # already wrote.
-                logger.exception(
-                    "Failed to apply declared default for %s.%s = %r",
-                    type(self).__name__, p.name, p.metadata["default"],
-                )
-
-        # Port-only declarations: for input ports that carry their
-        # configuration directly (default_value + metadata) without a
-        # matching :class:`NodeParam` in ``self.params``, push the
-        # ``default_value`` onto the instance attribute the same way
-        # the NodeParam path does. This is the migration target for
-        # step 5 — a node can stop returning NodeParams from ``params``
-        # and instead declare each editable input via a single
-        # ``_add_input(InputPort(name, types, default_value=..., metadata=...))``
-        # call, with the framework handling the rest.
         for port in self._inputs:
-            if port.name in params_seen:
-                continue  # already handled via NodeParam loop above
             if not port.has_default:
+                continue
+            if "param_type" not in port.metadata:
                 continue
             try:
                 setattr(self, port.name, port.default_value)
             except AttributeError:
                 # No setter / backing attribute for this port name —
-                # legitimate for image-flow inputs that carry no
-                # default; skip silently.
+                # legitimate when the node only consumes the port via
+                # ``self.inputs[i].data``; skip silently.
                 pass
             except Exception:
                 logger.exception(
@@ -195,28 +150,25 @@ class NodeBase(ABC):
     # ── Public accessors ───────────────────────────────────────────────────────
 
     @property
-    def params(self) -> list[NodeParam]:
-        """List of editable parameters this node exposes to the UI.
+    def params(self) -> list[InputPort]:
+        """The editable input ports this node exposes to the UI.
 
-        Default implementation synthesises a :class:`NodeParam` for
-        every input port whose ``metadata`` carries a ``"param_type"``
-        key. This lets a node declare its editable inputs entirely in
-        ``__init__`` via ``_add_input(InputPort(name, types,
-        default_value=..., metadata={"param_type": NodeParamType.X,
-        ...}))`` and skip overriding ``params`` altogether.
+        Returns the subset of ``self._inputs`` whose ``metadata``
+        carries a ``"param_type"`` key — i.e. the ports that used to
+        be :class:`NodeParam` objects before the param-as-port
+        migration. The UI iterates this list to build inline widgets;
+        each port carries everything the widget needs (``name``,
+        ``metadata["param_type"]``, ``metadata`` for widget hints,
+        ``upstream`` for the connected/disconnected state).
 
-        Subclasses may still override this property to return an
-        explicit ``[NodeParam(...), ...]`` list (existing pre-step-5
-        pattern). Both styles coexist; use whichever is shorter for
-        the node at hand.
+        Image-flow inputs (no ``param_type`` in their metadata) are
+        excluded so the property panel doesn't accidentally render a
+        widget for an image socket.
         """
-        result: list[NodeParam] = []
-        for port in self._inputs:
-            param_type = port.metadata.get("param_type")
-            if not isinstance(param_type, NodeParamType):
-                continue
-            result.append(NodeParam(port.name, param_type, port.metadata))
-        return result
+        return [
+            port for port in self._inputs
+            if "param_type" in port.metadata
+        ]
 
     @property
     def display_name(self) -> str:

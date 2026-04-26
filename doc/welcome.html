@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.32</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.33</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,9 +213,11 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.32</h2>
+      <h2>What's new in v0.1.33</h2>
       <ul class="tips">
-        <li><strong>NodeParam declarations migrated to inline port-only form.</strong> Every node in the catalog now declares its editable inputs as <code>InputPort</code> objects directly in <code>__init__</code> with type / default / metadata; the per-node <code>params</code> property override is gone. NodeBase synthesises the params list on demand for the UI, so widgets keep rendering exactly as before. Removes ~25 redundant property overrides and lays the ground for deleting the <code>NodeParam</code> class itself.</li>
+        <li><strong>Param widgets gray out when their socket is driven.</strong> If you wire a Value Source into <em>Overlay.angle</em> (or any other param-style port), the inline slider for that param goes disabled — the streamed value overrides whatever the slider would write, so leaving it editable was misleading. First step toward Blender's full inline-socket UI.</li>
+        <li><strong>The <code>NodeParam</code> class is gone.</strong> The UI now binds every editable widget to an <code>InputPort</code> directly: <code>port.name</code> drives the node attribute, <code>port.metadata</code> carries the widget hints, <code>port.upstream</code> reflects the connection state. Saved flows load identically; the old <code>params</code> property still exists on <code>NodeBase</code> but now returns the list of param-style input ports instead of <code>NodeParam</code> objects.</li>
+        <li><strong>NodeParam declarations migrated to inline port-only form</strong> (v0.1.32) — every node in the catalog now declares its editable inputs as <code>InputPort</code> objects directly in <code>__init__</code> with type / default / metadata; the per-node <code>params</code> property override is gone.</li>
         <li><strong>Overlay is a full param-as-port pilot</strong> (v0.1.31) — the manual <em>"port if connected else param"</em> branch in <code>Overlay.process_impl</code> is gone — the framework's auto-populate machinery covers it. Every numeric param (<em>scale</em>, <em>angle</em>, <em>xpos</em>, <em>ypos</em>, <em>alpha</em>) is drivable through its socket. Wire ramps in for sliding, zooming, fading or rotating animations.</li>
         <li><strong>Every NodeParam now has a matching input socket</strong> (v0.1.30) — auto-created from the param declaration with the right type (SCALAR for INT/FLOAT, BOOL/STRING/ENUM/PATH for the rest), so any numeric stream can drive any numeric param without each node having to declare its own port. Skip-mode follows Blender's mute semantics — short-circuit each output to the first type-compatible input — so the new param-style ports never accidentally make a node un-skippable.</li>
         <li><strong>Port-driven attribute population</strong> (v0.1.29) — before each <code>process_impl</code>, NodeBase writes any connected input port's current value into <code>self._&lt;port_name&gt;</code> and restores the user-set value afterwards.</li>

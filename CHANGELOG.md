@@ -10,6 +10,49 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.33] — 2026-04-26
+
+### Removed
+- **``NodeParam`` class.** The descriptor that paired a name +
+  :class:`NodeParamType` + metadata dict has been deleted from
+  ``core.node_base``; every consumer in the codebase now reads the
+  same information directly off the matching :class:`InputPort`
+  (``port.name``, ``port.metadata["param_type"]``, ``port.metadata``).
+  ``NodeParamType`` is unchanged — it still lives in ``node_base``
+  and still drives widget dispatch (just keyed off
+  ``port.metadata["param_type"]`` now). Saved flow files load
+  identically; the on-disk format is unaffected.
+
+### Changed
+- **Param-as-port migration (step 6/8): UI binds against
+  ``InputPort`` directly.** ``ParamWidgetBase`` and every concrete
+  param widget (``IntParamWidget``, ``FloatParamWidget``,
+  ``BoolParamWidget``, ``StringParamWidget``, ``EnumParamWidget``,
+  ``FilePathParamWidget``) now take an ``InputPort`` in their
+  constructor instead of a ``NodeParam``. ``build_param_widget``
+  dispatches on ``port.metadata["param_type"]``. ``NodeBase.params``
+  keeps its public name but returns ``list[InputPort]`` filtered to
+  the param-style ports (those with a ``"param_type"`` in their
+  metadata) — the UI iterates the same list it always did.
+- **``_apply_default_params`` simplified.** Now iterates
+  ``self._inputs`` and applies each port's ``default_value`` to the
+  matching attribute via the property setter; the old
+  ``NodeParam``-driven branch is gone. Ports without a
+  ``"param_type"`` in metadata (image-flow inputs) and ports without
+  a ``default_value`` are skipped.
+
+### Added
+- **Param-as-port migration (step 7-min/8): widgets gray out when
+  their socket is driven.** ``NodeItem._build_params_widget`` now
+  reads ``port.upstream`` for each editable port and calls
+  ``editor.setEnabled(port.upstream is None)``. Connecting a Value
+  Source into a node's ``angle`` port disables that param's slider —
+  the streamed value would override whatever the slider writes.
+  Refresh on connect/disconnect at runtime is a follow-up; today
+  the disabled state is set on NodeItem creation. The full inline-
+  socket layout (widgets next to socket dots in the node body)
+  comes in step 7b.
+
 ## [0.1.32] — 2026-04-26
 
 ### Changed

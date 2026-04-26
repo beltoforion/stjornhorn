@@ -17,11 +17,10 @@ class Median(NodeBase):
     and emits the same type on the output. Ported from the original OCVL
     ``MedianProcessor``.
 
-    Step-5-style declaration: the ``size`` editable property is declared
-    directly as an ``InputPort`` with ``param_type`` in its metadata —
-    no separate ``NodeParam``-list override needed. The default ``params``
-    implementation in :class:`NodeBase` synthesises a :class:`NodeParam`
-    on demand for the UI.
+    The ``size`` editable property is declared directly as an
+    ``InputPort`` with ``param_type`` in its metadata; no separate
+    params-list override is needed. ``NodeBase.params`` filters the
+    input ports down to the param-style subset that the UI iterates.
     """
 
     def __init__(self) -> None:
