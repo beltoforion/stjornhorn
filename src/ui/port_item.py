@@ -36,6 +36,12 @@ class PortItem(QGraphicsEllipseItem):
     """
 
     RADIUS: float = 5.0
+    #: Horizontal distance from a port's centre to where its label text
+    #: starts. Defined here (rather than as a per-call literal in
+    #: :mod:`ui.node_item`) so the relationship between dot radius and
+    #: label inset stays in one place — bumping ``RADIUS`` shouldn't
+    #: leave the label text overlapping the dot.
+    LABEL_OFFSET: float = 11.0  # = RADIUS + 6 px breathing room
     Z_VALUE = 2
 
     def __init__(

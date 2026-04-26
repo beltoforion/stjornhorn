@@ -10,6 +10,32 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.38] — 2026-04-26
+
+### Changed
+- **Internal: widget-sizing magic numbers consolidated into named
+  constants.** Two cleanup passes triggered by user feedback:
+  - ``ui.node_item.NodeItem`` gains a ``WIDGET_INSET = 4.0`` class
+    constant for the gap between an inline param widget and the
+    row's right edge / its input label. The duplicated
+    ``widget_inset = 4.0`` locals in ``_compute_width`` and
+    ``_layout_param_widgets`` plus the unnamed ``4.0`` in ``paint``
+    all use the single class const now.
+  - ``ui.port_item.PortItem`` gains ``LABEL_OFFSET = 11.0`` (was
+    ``RADIUS + 6`` recomputed in three places — ``paint``,
+    ``_compute_width``, ``_layout_param_widgets`` — once as
+    ``label_margin`` and twice as ``port_margin``). The relationship
+    between dot radius and label inset stays in the file that owns
+    the dot.
+  - ``ui.param_widgets`` gains module-level ``PARAM_VALUE_MIN_WIDTH``
+    (96), ``PATH_LINE_EDIT_MIN_WIDTH`` (80) and
+    ``PARAM_BUTTON_WIDTH`` (36). The four ``setMinimumWidth(96)``
+    calls (Int / Float / String / Enum widgets), the
+    ``setMinimumWidth(80)`` on the FilePath line-edit, and the two
+    ``setFixedWidth(36)`` calls for the Browse / View buttons now
+    reference the named constants. Tweaking the spinbox column or
+    button size now happens in one spot.
+
 ## [0.1.37] — 2026-04-26
 
 ### Changed

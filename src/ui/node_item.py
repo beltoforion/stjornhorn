@@ -304,27 +304,41 @@ class NodeItem(QGraphicsItem):
     Image-flow inputs have no widget — just the socket dot + name.
     """
 
+    # ── Body sizing ────────────────────────────────────────────────────────────
     MIN_WIDTH: float = 120.0
-    MAX_WIDTH: float = 320.0      # natural (content-driven) upper bound;
-                                  # bumped from 220 in 0.1.36 so multi-element
-                                  # inline widgets (FilePathParamWidget's
-                                  # line-edit + 2 buttons ≈ 160 px) fit next
-                                  # to a port label without overlapping.
-    MAX_USER_WIDTH: float = 800.0 # cap when the user drags the resize grip
+    #: Natural (content-driven) upper bound on the auto-fit width.
+    #: Sized to fit a multi-element inline widget (FilePathParamWidget's
+    #: line-edit + Browse + View ≈ 160 px) next to a port label
+    #: without overlapping.
+    MAX_WIDTH: float = 320.0
+    #: Cap when the user drags the resize grip wider.
+    MAX_USER_WIDTH: float = 800.0
     MAX_USER_HEIGHT: float = 1000.0
+
+    # ── Vertical metrics ───────────────────────────────────────────────────────
     HEADER_HEIGHT: float = 28.0
-    PORT_ROW_HEIGHT: float = 28.0  # tall enough that a native QSpinBox /
-                                   # QLineEdit renders its full-size
-                                   # up/down arrows and text caret without
-                                   # the OS style squeezing the icons.
-    CORNER_RADIUS: float = 5.0
+    #: Tall enough that a native QSpinBox / QLineEdit renders its
+    #: full-size up/down arrows and text caret. Smaller and the OS
+    #: style squeezes the spinner button icons into a few pixels.
+    PORT_ROW_HEIGHT: float = 28.0
     PADDING: float = 8.0
     PARAM_GAP: float = 4.0
+
+    # ── Header chrome ──────────────────────────────────────────────────────────
+    CORNER_RADIUS: float = 5.0
     CLOSE_BUTTON_SIZE: float = 14.0
     SKIP_BUTTON_SIZE: float = 14.0
     HEADER_BUTTON_GAP: float = 4.0
     RESIZE_GRIP_SIZE: float = 12.0
-    PORT_LABEL_GAP: float = 12.0  # min gap between paired input/output labels
+
+    # ── Port row geometry ──────────────────────────────────────────────────────
+    #: Horizontal inset between a row's port label and the inline param
+    #: widget (or the right edge if no widget). Kept symmetric on both
+    #: sides of the widget so the gap reads visually balanced.
+    WIDGET_INSET: float = 4.0
+    #: Minimum gap reserved between a port label and the right edge
+    #: when no widget is present (legacy plain-port row budget).
+    PORT_LABEL_GAP: float = 12.0
 
     Z_VALUE = 1
 
@@ -487,15 +501,15 @@ class NodeItem(QGraphicsItem):
 
         # ── port labels ──
         painter.setPen(QPen(NODE_PARAM_LABEL_COLOR))
-        label_margin = PortItem.RADIUS + 6
+        label_inset = PortItem.LABEL_OFFSET
 
         # Outputs sit at the top of the body (right-aligned).
         outputs_top = self._outputs_top()
         for i, port in enumerate(self._output_ports):
             y = outputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT
             painter.drawText(
-                QRectF(label_margin, y - self.PORT_ROW_HEIGHT / 2,
-                       self._width - 2 * label_margin, self.PORT_ROW_HEIGHT),
+                QRectF(label_inset, y - self.PORT_ROW_HEIGHT / 2,
+                       self._width - 2 * label_inset, self.PORT_ROW_HEIGHT),
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
                 port.name,
             )
@@ -503,13 +517,13 @@ class NodeItem(QGraphicsItem):
         inputs_top = self._inputs_top()
         for i, port in enumerate(self._input_ports):
             y = inputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT
-            label_right = self._width - label_margin
+            label_right = self._width - label_inset
             proxy = self._param_proxies_by_row.get(i)
             if proxy is not None:
-                label_right = proxy.pos().x() - 4.0
+                label_right = proxy.pos().x() - self.WIDGET_INSET
             painter.drawText(
-                QRectF(label_margin, y - self.PORT_ROW_HEIGHT / 2,
-                       max(0.0, label_right - label_margin),
+                QRectF(label_inset, y - self.PORT_ROW_HEIGHT / 2,
+                       max(0.0, label_right - label_inset),
                        self.PORT_ROW_HEIGHT),
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                 port.name,
@@ -598,14 +612,13 @@ class NodeItem(QGraphicsItem):
         left_reserve = self._title_left()
         header_need = left_reserve + title_w + padding + self._title_right_reserve()
 
-        port_margin = PortItem.RADIUS + 6.0
+        label_inset = PortItem.LABEL_OFFSET
         port_need = 0.0
-        widget_inset = 4.0
 
         # Outputs are stacked at the top of the body — each row only
         # needs room for the right-edge socket dot + label.
         for port in self._output_ports:
-            row_need = 2 * port_margin + metrics.horizontalAdvance(port.name)
+            row_need = 2 * label_inset + metrics.horizontalAdvance(port.name)
             port_need = max(port_need, row_need)
 
         # Inputs follow below — each row needs room for the left-edge
@@ -618,10 +631,10 @@ class NodeItem(QGraphicsItem):
             label_w = metrics.horizontalAdvance(port.name)
             editor = self._param_widgets_by_row.get(i)
             if editor is not None:
-                widget_w = float(editor.minimumSizeHint().width()) + 2 * widget_inset
+                widget_w = float(editor.minimumSizeHint().width()) + 2 * self.WIDGET_INSET
             else:
                 widget_w = 0.0
-            row_need = 2 * port_margin + label_w + widget_w
+            row_need = 2 * label_inset + label_w + widget_w
             port_need = max(port_need, row_need)
 
         # Preview widget asks for as much width as it can get; cap at
@@ -811,15 +824,14 @@ class NodeItem(QGraphicsItem):
         if not self._param_widgets_by_row:
             return
         metrics = QFontMetricsF(QApplication.font())
-        port_margin = PortItem.RADIUS + 6.0
-        widget_inset = 4.0
+        label_inset = PortItem.LABEL_OFFSET
         for row, editor in self._param_widgets_by_row.items():
             proxy = self._param_proxies_by_row[row]
             in_label_w = (
                 metrics.horizontalAdvance(self._input_ports[row].name)
-                + port_margin
+                + label_inset
             )
-            avail = self._width - in_label_w - 2 * widget_inset
+            avail = self._width - in_label_w - 2 * self.WIDGET_INSET
             # Width: use the widget's natural sizeHint, clamped between
             # its own minimum (so QHBoxLayout-based widgets like
             # FilePathParamWidget don't end up with the line-edit
@@ -832,7 +844,7 @@ class NodeItem(QGraphicsItem):
             widget_w = max(min_w, min(hint_w, avail))
             widget_h = float(editor.sizeHint().height())
             y = inputs_top + row * self.PORT_ROW_HEIGHT + (self.PORT_ROW_HEIGHT - widget_h) / 2.0
-            x = self._width - widget_inset - widget_w
-            x = max(in_label_w + widget_inset, x)
+            x = self._width - self.WIDGET_INSET - widget_w
+            x = max(in_label_w + self.WIDGET_INSET, x)
             editor.setFixedSize(int(widget_w), int(widget_h))
             proxy.setPos(x, y)

@@ -29,6 +29,26 @@ from ui.icons import material_icon
 logger = logging.getLogger(__name__)
 
 
+#: Minimum width for the value-bearing control on a single-element
+#: param widget (QSpinBox / QDoubleSpinBox / QLineEdit / QComboBox).
+#: Sized so the up/down arrow column doesn't crowd the visible
+#: digits / first character of text. Below ~80 the spin buttons start
+#: clipping the value; above ~100 a row in a narrow node wastes
+#: horizontal space the label could otherwise use.
+PARAM_VALUE_MIN_WIDTH: int = 96
+
+#: Minimum width for a path-style line edit (FilePathParamWidget).
+#: Smaller than the numeric min because the widget sits next to two
+#: buttons on the same row and fights for horizontal real estate.
+PATH_LINE_EDIT_MIN_WIDTH: int = 80
+
+#: Width of an icon-only button on a multi-element param widget
+#: (FilePathParamWidget's "..." Browse and visibility "View" buttons).
+#: Big enough for the material icon glyph + a few px of padding,
+#: small enough that two of them don't dominate the row.
+PARAM_BUTTON_WIDTH: int = 36
+
+
 class ParamWidgetBase(QWidget):
     """Base class for all parameter editor widgets embedded in a NodeItem.
 
@@ -102,7 +122,7 @@ class IntParamWidget(ParamWidgetBase):
         self._spin = QSpinBox()
         self._spin.setRange(-10_000_000, 10_000_000)
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self._spin.setMinimumWidth(96)
+        self._spin.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
         self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(int(self._initial_value(0)))
 
@@ -142,7 +162,7 @@ class FloatParamWidget(ParamWidgetBase):
         self._spin.setDecimals(int(meta.get("decimals", 3)))
         self._spin.setSingleStep(float(meta.get("step", 0.1)))
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self._spin.setMinimumWidth(96)
+        self._spin.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
         self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(float(self._initial_value(0.0)))
 
@@ -206,7 +226,7 @@ class StringParamWidget(ParamWidgetBase):
         meta = port.metadata
 
         self._line = QLineEdit()
-        self._line.setMinimumWidth(96)
+        self._line.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
         placeholder = meta.get("placeholder")
         if placeholder is not None:
             self._line.setPlaceholderText(str(placeholder))
@@ -269,7 +289,7 @@ class EnumParamWidget(ParamWidgetBase):
         self._enum_cls: type[Enum] = enum_cls
 
         self._combo = SceneAwareComboBox()
-        self._combo.setMinimumWidth(96)
+        self._combo.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
         for member in self._enum_cls:
             self._combo.addItem(self._label_for(member), member)
 
@@ -350,15 +370,15 @@ class FilePathParamWidget(ParamWidgetBase):
         # Min width must leave room for the 28 px browse button + spacing
         # inside the fixed-width node body, otherwise the line edit overflows
         # and visually overlaps the button.
-        self._line.setMinimumWidth(80)
+        self._line.setMinimumWidth(PATH_LINE_EDIT_MIN_WIDTH)
 
         browse = QPushButton("...")
-        browse.setFixedWidth(36)
+        browse.setFixedWidth(PARAM_BUTTON_WIDTH)
         browse.clicked.connect(self._open_file_dialog)
 
         self._view = QPushButton()
         self._view.setIcon(material_icon("visibility"))
-        self._view.setFixedWidth(36)
+        self._view.setFixedWidth(PARAM_BUTTON_WIDTH)
         self._view.setToolTip("Open in system image viewer")
         self._view.clicked.connect(self._open_in_viewer)
 
