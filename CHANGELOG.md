@@ -10,6 +10,18 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-04-26
+
+### Fixed
+- **Windows windowed bundle crashed at startup with `RuntimeError:
+  sys.stderr is None`.** PyInstaller's `console=False` Windows bootloader
+  leaves `sys.stdout` and `sys.stderr` as `None`, which broke
+  `faulthandler.enable(file=sys.stderr, ...)` at import time before
+  anything else could run. `src/main.py` now redirects either stream
+  to `os.devnull` if it's missing; `setup_logging` continues to re-point
+  faulthandler at the real log file once `LOG_DIR` is known. Linux
+  AppImage was unaffected. Issue: #161
+
 ## [0.2.1] — 2026-04-26
 
 ### Added

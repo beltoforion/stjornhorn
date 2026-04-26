@@ -3,8 +3,22 @@ from __future__ import annotations
 import argparse
 import faulthandler
 import logging
+import os
 import sys
 from pathlib import Path
+
+# PyInstaller's Windows windowed bootloader (`console=False`) leaves
+# ``sys.stdout`` and ``sys.stderr`` as None — there is no console for the
+# interpreter to attach them to. That makes any code that touches the
+# streams crash before it can even run, including ``faulthandler.enable``
+# below, the ``logging.StreamHandler`` set up in ``log.py``, and stray
+# ``print()`` calls. Redirect to devnull as a safe import-time default;
+# ``setup_logging`` re-points faulthandler at the real log file once
+# LOG_DIR is known. Issue: #161
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
 
 # Enable as early as possible so crashes during Qt/plugin import or
 # QApplication construction (i.e. before setup_logging runs) still
