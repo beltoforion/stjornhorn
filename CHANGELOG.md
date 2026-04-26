@@ -10,6 +10,27 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.29] — 2026-04-26
+
+### Added
+- **Param-as-port groundwork (step 2/8): port-driven attribute
+  population.** ``NodeBase.process()`` now wraps every
+  ``process_impl`` call in a snapshot / populate / restore cycle:
+  before the call, every connected input port's current value is
+  written into ``self._<port_name>`` (going through the public
+  ``@setter`` so existing validation / clamping / coercion still
+  runs); after the call, the previous value is restored, so a
+  streamed frame never permanently overwrites a user-set slider
+  default. Skips ports without upstream data and ports whose backing
+  attribute does not exist on the node, so image-flow inputs
+  (read via ``self.inputs[i].data``, no ``self._image`` field) are
+  unaffected. Setter rejection mid-populate rolls back partial
+  writes via the snapshot, so a node never ends up half-mutated when
+  a streamed value fails validation.
+  No node migrates yet; Overlay's existing manual ``angle``-port
+  branch keeps working unchanged. Cleanup of the manual override
+  comes in step 4 once all nodes can rely on the framework path.
+
 ## [0.1.28] — 2026-04-26
 
 ### Added

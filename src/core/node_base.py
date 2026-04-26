@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Callable, final, override
 
+from core.io_data import IoData, IoDataType
 from core.port import InputPort, OutputPort
 
 logger = logging.getLogger(__name__)
@@ -244,13 +245,78 @@ class NodeBase(ABC):
                 logger.exception("Process observer raised; ignoring")
 
         try:
-            if self._skipped:
-                self._process_skipped()
-            else:
-                self.process_impl()
+            # Populate self._<port_name> from any port currently driven
+            # by an upstream, so process_impl can read its attributes
+            # uniformly (no manual ``port.data.payload.item() if has_data
+            # else self._x`` branch in every node). Restored after the
+            # call so the user-set value the slider committed isn't
+            # overwritten permanently by a streamed frame.
+            snapshot = self._populate_port_driven_attributes()
+            try:
+                if self._skipped:
+                    self._process_skipped()
+                else:
+                    self.process_impl()
+            finally:
+                self._restore_port_driven_attributes(snapshot)
         except Exception:
             logger.exception(f"Exception in {type(self).__name__}.process_impl ({self._display_name})")
             raise
+
+    # ── Port-driven attribute population ────────────────────────────────────────
+
+    def _populate_port_driven_attributes(self) -> dict[str, object]:
+        """Write the current upstream value of every connected input
+        port into ``self._<port_name>`` and return a snapshot of the
+        previous values for :meth:`_restore_port_driven_attributes`.
+
+        Skips ports without upstream data and ports whose backing
+        attribute does not exist on the node — image inputs read via
+        ``self.inputs[i].data`` rather than via a Python attribute, so
+        they have no field to populate. The mapping is by convention:
+        port ``angle`` → attribute ``_angle``; assignment goes through
+        the public name (``setattr(self, 'angle', value)``) so a node's
+        ``@angle.setter`` runs and applies its validation /
+        clamping / coercion as if the user had moved the slider.
+
+        On any error during populate (e.g. a setter rejecting a
+        streamed value), already-applied writes are rolled back via
+        the partial snapshot so the node's state stays consistent.
+        """
+        snapshot: dict[str, object] = {}
+        try:
+            for port in self._inputs:
+                if not port.has_data:
+                    continue
+                attr_name = f"_{port.name}"
+                if not hasattr(self, attr_name):
+                    continue
+                snapshot[attr_name] = getattr(self, attr_name)
+                value = self._extract_driven_value(port.data)
+                setattr(self, port.name, value)
+        except Exception:
+            self._restore_port_driven_attributes(snapshot)
+            raise
+        return snapshot
+
+    def _restore_port_driven_attributes(self, snapshot: dict[str, object]) -> None:
+        """Write each snapshotted value back to its private attribute,
+        bypassing the public ``@setter`` since the original value was
+        already validated when the user (or flow loader) first set it."""
+        for attr_name, value in snapshot.items():
+            object.__setattr__(self, attr_name, value)
+
+    @staticmethod
+    def _extract_driven_value(data: IoData) -> object:
+        """Convert an :class:`IoData` payload into the Python value to
+        write into the backing attribute. SCALAR is unwrapped via
+        ``.item()`` so a downstream property setter that does
+        ``float(value)`` keeps working (numpy 0-d arrays already
+        behave like floats but ``.item()`` makes the type explicit).
+        Every other kind passes the payload through unchanged."""
+        if data.type is IoDataType.SCALAR:
+            return data.payload.item()
+        return data.payload
 
     def _process_skipped(self) -> None:
         """Forward each input payload to the matching output unchanged.

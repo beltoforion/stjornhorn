@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.1.28</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.1.29</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,9 +213,10 @@
     </section>
 
     <section>
-      <h2>What's new in v0.1.28</h2>
+      <h2>What's new in v0.1.29</h2>
       <ul class="tips">
-        <li><strong>Param-as-port groundwork.</strong> Internal step toward the Blender-style "every editable property is a socket" model — <code>IoDataType</code> now covers BOOL / STRING / ENUM / PATH alongside the existing image and numeric kinds, and <code>InputPort</code> grew a <em>metadata</em> dict for widget hints. No node uses these yet; existing flows are unaffected.</li>
+        <li><strong>Port-driven attribute population.</strong> Internal framework step (Blender-style migration). Before each <code>process_impl</code>, NodeBase writes any connected input port's current value into <code>self._&lt;port_name&gt;</code> and restores the user-set value afterwards — so a node reads its drivable inputs uniformly via plain attribute access without writing the manual <em>"port if connected else param"</em> branch in every node. No user-visible change yet; the next stages remove the manual override from Overlay and migrate the rest of the params one node at a time.</li>
+        <li><strong>Param-as-port groundwork</strong> (v0.1.28) — <code>IoDataType</code> now covers BOOL / STRING / ENUM / PATH alongside the existing image and numeric kinds, and <code>InputPort</code> grew a <em>metadata</em> dict for widget hints.</li>
         <li><strong>Sinks are no longer required</strong> (v0.1.27) — a flow that ends at a Display now runs without a downstream sink — the inline preview <em>is</em> the result. The throwaway <em>Value Sink</em> node (only there to satisfy the old "every flow needs a sink" rule) has been removed.</li>
         <li><strong>Overlay's angle is now port-drivable</strong> (v0.1.26) — Overlay grew an optional <em>angle</em> SCALAR input. Wire a <em>Value Source</em> (0..359) into it and the logo rotates a full turn per Run; leave it unconnected and the literal angle param works exactly as before. First pilot of the param-as-port mechanism — every numeric parameter is meant to grow a matching optional port over time.</li>
         <li><strong>Math nodes for scalars</strong> (v0.1.25) — new <strong>Math</strong> palette section in the filters list with a <em>Math</em> node (op selector: ADD, SUB, MUL, DIV, MIN, MAX) and a <em>Clamp</em> node (<em>min_value</em>, <em>max_value</em>). Plus a new <em>Constant Value</em> source that emits a single SCALAR (latched on streaming consumers) so you can feed a fixed factor or offset into Math without a second ValueSource.</li>
