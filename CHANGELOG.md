@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.45] — 2026-04-26
+
+### Changed
+- **Unconnected ports paint black inside.** Previously a required
+  port was solid in its kind colour (blue for inputs, yellow for
+  outputs) the moment the node was created — visually identical
+  whether or not anything was actually connected. Now the fill
+  tracks connection state: black when ``self._links`` is empty,
+  kind colour once a link lands. Optional ports keep their bright
+  outline ring (set on the pen at construction time) so the
+  "OK to leave unconnected" affordance remains readable on top of
+  the new black fill. ``add_link`` / ``remove_link`` call
+  ``_apply_default_brush`` so the dot updates immediately when the
+  user drags or deletes a link.
+- ``PortItem._is_optional`` is no longer the brush dispatch axis —
+  it's only consulted for the pen colour at construction. Brush is
+  driven by the new ``_is_connected`` helper.
+
 ## [0.1.44] — 2026-04-26
 
 ### Fixed

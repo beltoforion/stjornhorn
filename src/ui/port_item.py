@@ -103,10 +103,12 @@ class PortItem(QGraphicsEllipseItem):
     def add_link(self, link: LinkItem) -> None:
         if link not in self._links:
             self._links.append(link)
+            self._apply_default_brush()
 
     def remove_link(self, link: LinkItem) -> None:
         if link in self._links:
             self._links.remove(link)
+            self._apply_default_brush()
 
     def refresh_links(self) -> None:
         """Called by NodeItem when the node moves so link paths stay glued."""
@@ -124,12 +126,26 @@ class PortItem(QGraphicsEllipseItem):
         super().hoverLeaveEvent(event)
 
     def _apply_default_brush(self) -> None:
-        if self._is_optional():
-            # Hollow dot = optional input. Outline colour is set in __init__.
-            self.setBrush(Qt.NoBrush)
-            return
-        color = PORT_OUTPUT_COLOR if self._kind == "output" else PORT_INPUT_COLOR
-        self.setBrush(QBrush(color))
+        # Connection state drives the fill: an unconnected port reads
+        # as a "ready to receive" affordance with a black interior; a
+        # connected port turns solid in its kind colour to signal the
+        # link is live. The pen / outline keeps the port-kind colour
+        # in both states so the dot stays identifiable at a glance.
+        if self._is_connected():
+            color = PORT_OUTPUT_COLOR if self._kind == "output" else PORT_INPUT_COLOR
+            self.setBrush(QBrush(color))
+        else:
+            self.setBrush(QBrush(Qt.black))
+
+    def _is_connected(self) -> bool:
+        """True if this port currently has at least one link.
+
+        Reads from ``self._links`` rather than the underlying model so
+        the visual state stays consistent with what the scene drew —
+        ``add_link`` / ``remove_link`` are the single source of truth
+        for what the user sees.
+        """
+        return bool(self._links)
 
     def _is_optional(self) -> bool:
         """True if this port is an input marked ``optional=True``.
