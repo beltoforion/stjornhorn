@@ -10,6 +10,29 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.1.42] — 2026-04-26
+
+### Removed
+- **Live-preview auto-run.** ``NodeEditorPage`` previously had a 300 ms
+  debounced QTimer (``_live_timer``) that fired ``_on_run_clicked``
+  every time a param changed and the flow contained at least one
+  reactive source. The user reported the feature as racy — clicking
+  a spinner was kicking off a fresh run mid-edit. The whole
+  mechanism is gone:
+  - ``_live_timer`` field + setup deleted.
+  - ``_scene.param_changed`` is no longer wired to the editor page
+    (the signal still fires and still drives the unsaved-changes
+    indicator via ``flow_scene._mark_dirty``).
+  - ``_on_param_changed`` and ``_has_reactive_source`` helpers
+    deleted; ``_on_run_clicked`` no longer calls
+    ``self._live_timer.stop()``.
+  - ``SourceNodeBase`` import dropped (was only referenced by the
+    removed reactive-source check).
+  Re-runs are now strictly Run-button driven. ``ImageSource``-style
+  reactive sources still latch their value on streaming consumers
+  when ``Flow.run()`` starts; what's gone is only the auto-trigger
+  on every keystroke / spinner click.
+
 ## [0.1.41] — 2026-04-26
 
 ### Fixed
