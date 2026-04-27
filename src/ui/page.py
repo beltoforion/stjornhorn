@@ -123,3 +123,19 @@ class PageBase(QWidget):
 
     def on_deactivated(self) -> None:
         """Called by MainWindow just before another page becomes visible."""
+
+    def save_state(self) -> None:
+        """Persist any page-specific UI state to disk.
+
+        Called by MainWindow on app close. Default is a no-op; override
+        to persist dock layouts, panel expand/collapse state, scroll
+        positions, or any other per-page UI configuration.
+        """
+
+    def restore_state(self) -> None:
+        """Re-apply previously persisted UI state.
+
+        Called by MainWindow on startup. Default is a no-op; override
+        alongside :meth:`save_state` to restore whatever that method
+        wrote.
+        """

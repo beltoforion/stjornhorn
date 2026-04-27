@@ -36,6 +36,7 @@ from ui.dock_layout import restore_dock_layout, save_dock_layout
 from ui.node_doc_panel import NodeDocPanel
 from ui.node_item import NodeItem
 from ui.node_list import NodeList
+from ui.node_list_state import restore_node_list_state, save_node_list_state
 from ui.recent_flows import RecentFlowsManager
 from ui.message_banner import MessageBanner
 from ui.flow_status_widget import FlowStatusWidget
@@ -320,19 +321,27 @@ class NodeEditorPage(PageBase):
         self.title_changed.emit(self.page_title())
         self._viewer.refresh()
 
-    # ── Dock-layout persistence ────────────────────────────────────────────────
+    # ── Page state persistence (PageBase lifecycle) ────────────────────────────
 
-    def restore_dock_layout(self) -> None:
-        """Apply the persisted dock arrangement, if any. Issue: #183
+    @override
+    def restore_state(self) -> None:
+        """Re-apply persisted dock layout and node-palette section state.
 
-        No-op when no layout file exists or the file can't be applied —
-        the constructor already installed the right-hand-default layout.
+        Issue: #183 (dock layout), #190 (section expand/collapse)
         """
         restore_dock_layout(self._inner)
+        states = restore_node_list_state()
+        if states is not None:
+            self._node_list.restore_section_states(states)
 
-    def save_dock_layout(self) -> None:
-        """Persist the current dock arrangement so the next launch restores it."""
+    @override
+    def save_state(self) -> None:
+        """Persist dock layout and node-palette section expand/collapse state.
+
+        Issue: #183 (dock layout), #190 (section expand/collapse)
+        """
         save_dock_layout(self._inner)
+        save_node_list_state(self._node_list.get_section_states())
 
     def _apply_layout_inspector_right(self) -> None:
         """Inspector full-height on the right, Node List full-height on the left.
