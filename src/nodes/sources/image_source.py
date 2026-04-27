@@ -45,6 +45,11 @@ class ImageSource(SourceNodeBase):
             metadata={
                 "filter": "Images (*.webp *.png *.jpg *.jpeg *.cr2)",
                 "base_dir": INPUT_DIR,
+                "description": (
+                    "Path to the input image. JPEG, PNG, WebP and CR2 (RAW) "
+                    "are supported. Paths inside the input folder are stored "
+                    "relative to it so the flow stays portable."
+                ),
             },
         ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))

@@ -39,7 +39,17 @@ class FileSink(SinkNodeBase):
             "output_path",
             NodeParamType.FILE_PATH,
             default="out.png",
-            metadata={"mode": "save", "filter": "Images (*.png *.jpg *.jpeg)", "base_dir": OUTPUT_DIR},
+            metadata={
+                "mode": "save",
+                "filter": "Images (*.png *.jpg *.jpeg)",
+                "base_dir": OUTPUT_DIR,
+                "description": (
+                    "Where to write each frame. The file is overwritten on "
+                    "every frame, so this sink fits a single still or the "
+                    "last frame of a stream — chain a unique filename per "
+                    "frame upstream if you need a sequence."
+                ),
+            },
         ))
         # Sync attributes with declared port defaults; see
         # NodeBase._apply_default_params for rationale.

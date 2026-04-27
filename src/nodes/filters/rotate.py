@@ -30,14 +30,30 @@ class Rotate(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=0.0,
-            metadata={"default": 0.0, "param_type": NodeParamType.FLOAT},
+            metadata={
+                "default": 0.0,
+                "param_type": NodeParamType.FLOAT,
+                "unit": "deg",
+                "description": (
+                    "Rotation angle in degrees, counter-clockwise around "
+                    "the image centre."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "expand",
             {IoDataType.BOOL},
             optional=True,
             default_value=True,
-            metadata={"default": True, "param_type": NodeParamType.BOOL},
+            metadata={
+                "default": True,
+                "param_type": NodeParamType.BOOL,
+                "description": (
+                    "When on, the output canvas grows so no pixel is "
+                    "clipped. When off, the output keeps the input "
+                    "dimensions and corners may fall outside."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

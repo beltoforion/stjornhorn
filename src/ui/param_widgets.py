@@ -553,6 +553,35 @@ _PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
 }
 
 
+def _install_description_tooltip(
+    widget: ParamWidgetBase,
+    port: InputPort,
+) -> None:
+    """Apply the port's metadata ``"description"`` as a tooltip.
+
+    Qt looks tooltips up on the leaf widget under the cursor and does
+    not walk the parent chain, so setting the tooltip only on the
+    wrapper :class:`ParamWidgetBase` would never fire when the user
+    hovers the embedded :class:`QSpinBox` or :class:`QLineEdit`. We
+    therefore propagate the description to every ``QWidget`` descendant
+    found via :meth:`findChildren`, which keeps every existing widget
+    subclass — and any future ones — covered without per-class
+    bookkeeping.
+
+    Children that already carry an explicit, more-specific tooltip
+    (e.g. the eye-icon button in :class:`FilePathParamWidget` saying
+    "Open in system image viewer") are left untouched: the
+    description complements those, not replaces them.
+    """
+    desc = port.metadata.get("description")
+    if not desc:
+        return
+    widget.setToolTip(desc)
+    for child in widget.findChildren(QWidget):
+        if not child.toolTip():
+            child.setToolTip(desc)
+
+
 def build_param_widget(node: NodeBase, port: InputPort) -> ParamWidgetBase | None:
     """Return a :class:`ParamWidgetBase` that edits *port* on *node*.
 
@@ -570,10 +599,12 @@ def build_param_widget(node: NodeBase, port: InputPort) -> ParamWidgetBase | Non
         )
         return None
     try:
-        return cls(node, port)
+        widget = cls(node, port)
     except Exception:
         logger.exception(
             "Failed to build %s widget for %s.%s",
             cls.__name__, type(node).__name__, port.name,
         )
         return None
+    _install_description_tooltip(widget, port)
+    return widget

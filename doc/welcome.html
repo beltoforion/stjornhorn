@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.19</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.20</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.20</h2>
+      <ul class="tips">
+        <li><strong>Parameter widgets show port descriptions on hover.</strong> The first user-visible consumer of the <code>core.node_doc</code> metadata schema: when a node author fills in a <code>"description"</code> key on a parameter port, the editor surfaces it as a tooltip on the inline spinbox / combo / checkbox / file-path widget. <code>Gaussian Blur</code>, <code>Resize</code>, <code>Rotate</code>, <code>Image Source</code> and <code>File Sink</code> now ship with hover help; the rest of the corpus follows in subsequent doc-sweep PRs (issue #187). Existing per-control tooltips like the path widget's "Open in system image viewer" are preserved.</li>
+      </ul>
     </section>
 
     <section>

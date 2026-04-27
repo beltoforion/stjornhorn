@@ -10,6 +10,27 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.20] — 2026-04-27
+
+### Added
+- **Parameter widgets show port descriptions on hover.** First
+  user-visible consumer of the ``core.node_doc`` metadata schema
+  (introduced in 0.2.19): every inline param widget — spinboxes,
+  combo boxes, checkboxes, line edits, file-path rows — now surfaces
+  the port's ``"description"`` metadata as a Qt tooltip on the
+  widget *and* on every hover-target child, so the help text fires
+  whether the user's cursor is on the wrapper or on the inner
+  control. Pre-existing per-control tooltips (e.g. the path
+  widget's "Open in system image viewer" eye button) are preserved.
+- **Initial documentation sweep.** ``Gaussian Blur`` (ksize, sigma),
+  ``Resize`` (width, height, method), ``Rotate`` (angle, expand),
+  ``Image Source`` (file_path) and ``File Sink`` (output_path) gain
+  ``description`` (and where appropriate ``min`` / ``unit``) entries
+  on their parameter ports. Five nodes' worth of the lint test in
+  ``tests/test_node_documentation.py`` flip from ``XFAIL`` to
+  ``XPASS`` as a result; the rest of the corpus follows in
+  subsequent thematic doc-only PRs tracked under issue #187.
+
 ## [0.2.19] — 2026-04-27
 
 ### Added

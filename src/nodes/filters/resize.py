@@ -77,6 +77,8 @@ class Resize(NodeBase):
                 "default": 256,
                 "param_type": NodeParamType.INT,
                 "min": 1,
+                "unit": "px",
+                "description": "Target width in pixels.",
             },
         ))
         self._add_input(InputPort(
@@ -88,6 +90,8 @@ class Resize(NodeBase):
                 "default": 256,
                 "param_type": NodeParamType.INT,
                 "min": 1,
+                "unit": "px",
+                "description": "Target height in pixels.",
             },
         ))
         # ``method`` is a constant (NodeParam, not a port-style input)
@@ -99,7 +103,14 @@ class Resize(NodeBase):
             "method",
             NodeParamType.ENUM,
             default=ResizeMethod.SCALE,
-            metadata={"enum": ResizeMethod},
+            metadata={
+                "enum": ResizeMethod,
+                "description": (
+                    "Layout strategy. SCALE stretches to fit. CROP_OR_FILL "
+                    "preserves aspect ratio and either crops or pads. "
+                    "BEST_FIT preserves aspect ratio and pads only."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
