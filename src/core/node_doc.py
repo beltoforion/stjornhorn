@@ -39,41 +39,45 @@ from core.port import InputPort, OutputPort
 
 
 class PortMetadata(TypedDict, total=False):
-    """Recognized keys in :attr:`InputPort.metadata` / :attr:`NodeParam.metadata`.
+    """The small set of metadata keys with **type-independent** meaning.
 
-    All keys are optional. The TypedDict serves as the canonical list of
-    keys the UI and the assistant know about; any other keys are ignored
-    by the introspection helpers but are not rejected (nodes are free to
-    stash backend-specific hints under unique names).
+    Only three keys live here, because only three keys mean the same
+    thing across every :class:`NodeParamType`:
+
+    * :data:`param_type` — drives inline-widget rendering, recognised by
+      every consumer.
+    * :data:`description` — human-readable explanation, surfaces in
+      tooltips and in the AI assistant's catalog.
+    * :data:`enum` — required for :attr:`NodeParamType.ENUM` ports;
+      :func:`describe_port` normalises both encoding styles to a
+      ``dict[int, str]``.
+
+    **Type-specific** hints (``min``, ``max``, ``step``, ``unit``,
+    ``filter``, ``mode``, ``base_dir`` and any future analogues) are
+    deliberately *not* listed here. Their meaning is fully determined
+    by the parameter's ``param_type``: ``min`` makes sense for
+    ``INT``/``FLOAT`` and not for ``BOOL`` or ``STRING``; ``filter``
+    makes sense for ``FILE_PATH`` and not for numerics. Documenting
+    those keys at the call site of the widget that actually consumes
+    them (in :mod:`ui.param_widgets`) keeps the contract local to the
+    widget that defines it, and lets a future ``COLOR`` param type
+    introduce its own hint (e.g. ``"palette"``) without touching this
+    module.
+
+    All other keys in a port's ``metadata`` are passed through verbatim
+    by :func:`describe_port` — the ``TypedDict`` is documentation of
+    the universal subset, not a whitelist.
     """
 
     #: Inline-editor type hint. When present, the UI renders an inline
-    #: widget on the port row instead of a plain socket.
+    #: widget on the port row instead of a plain socket. Required on
+    #: ports that should expose a widget; absent on image-flow inputs.
     param_type: NodeParamType
 
-    #: Literal default value used when the port has no upstream
-    #: connection. Mirrored from :attr:`InputPort.default_value` /
-    #: :attr:`NodeParam.default_value` for the widget's convenience.
-    default: Any
-
-    #: Human-readable explanation of what this port controls. One or two
-    #: sentences. Surfaces as a tooltip in the editor and as the port's
-    #: description in the assistant's node catalog.
+    #: Human-readable explanation of what this port controls. One or
+    #: two sentences. Surfaces as a tooltip in the editor and as the
+    #: port's description in the assistant's node catalog.
     description: str
-
-    #: Inclusive lower bound for numeric ports. Drives spinner / slider
-    #: range and the assistant's value validation.
-    min: float
-
-    #: Inclusive upper bound for numeric ports. Same role as :data:`min`.
-    max: float
-
-    #: Step size for numeric editors (1 for INT, smaller for FLOAT).
-    step: float
-
-    #: Display unit string for numeric ports — e.g. ``"px"``, ``"deg"``,
-    #: ``"ms"``. Purely informational, shown next to the value in the UI.
-    unit: str
 
     #: Mapping from integer value to display label, or a Python
     #: :class:`Enum` subclass that defines the same. Required for
@@ -82,21 +86,6 @@ class PortMetadata(TypedDict, total=False):
     #: both encodings to ``dict[int, str]`` so consumers always see the
     #: dict form.
     enum: Any
-
-    #: File-dialog filter string for :attr:`NodeParamType.FILE_PATH` /
-    #: :attr:`NodeParamType.FOLDER` ports — e.g. ``"Images (*.png *.jpg)"``.
-    filter: str
-
-    #: Anchor directory used to resolve relative paths in
-    #: :attr:`NodeParamType.FILE_PATH` / :attr:`NodeParamType.FOLDER`
-    #: ports. Typically :data:`constants.INPUT_DIR` or
-    #: :data:`constants.OUTPUT_DIR`.
-    base_dir: Any
-
-    #: ``"save"`` or ``"open"`` for :attr:`NodeParamType.FILE_PATH`
-    #: ports. Decides whether the file dialog is a save dialog (with an
-    #: overwrite prompt) or an open dialog.
-    mode: str
 
 
 def _normalize_enum(value: Any) -> dict[int, str]:
@@ -127,17 +116,37 @@ def _normalize_enum(value: Any) -> dict[int, str]:
     )
 
 
+#: Keys that :func:`_describe_metadata` rewrites instead of passing
+#: through. Listed here so the pass-through loop knows which keys it
+#: must skip (the rewritten value is added back explicitly).
+_NORMALIZED_KEYS: frozenset[str] = frozenset({"param_type", "enum"})
+
+
 def _describe_metadata(metadata: dict) -> dict:
-    """Extract the recognised :class:`PortMetadata` keys from a raw
-    ``metadata`` dict, normalising :data:`PortMetadata.enum` to dict
-    form. Unknown keys are dropped — the schema is the contract."""
-    out: dict = {}
+    """Project a port's ``metadata`` dict into its JSON-friendly form.
+
+    Pass-through by default — every key the node author put into
+    ``metadata`` shows up unchanged in the result, so type-specific
+    hints (``min``, ``max``, ``unit``, ``filter``, …) and any future
+    additions reach the consumer without :mod:`core.node_doc` needing
+    to know about them.
+
+    Two keys are rewritten because their raw forms aren't
+    JSON-serialisable or aren't unified:
+
+    * :data:`param_type` is unwrapped from :class:`NodeParamType` into
+      its ``name`` string.
+    * :data:`enum` is normalised from ``Enum``-subclass *or* literal
+      mapping into ``dict[int, str]`` via :func:`_normalize_enum`.
+
+    Non-JSON-able values under unknown keys are passed through as-is;
+    callers that serialise the output are responsible for handling
+    them (typically with ``json.dumps(..., default=str)``).
+    """
+    out: dict = {k: v for k, v in metadata.items() if k not in _NORMALIZED_KEYS}
     pt = metadata.get("param_type")
     if isinstance(pt, NodeParamType):
         out["param_type"] = pt.name
-    for key in ("description", "min", "max", "step", "unit", "filter", "mode"):
-        if key in metadata:
-            out[key] = metadata[key]
     if "enum" in metadata:
         out["enum"] = _normalize_enum(metadata["enum"])
     return out
