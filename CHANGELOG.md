@@ -10,6 +10,20 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.18] — 2026-04-27
+
+### Added
+- **Gradient Source: linear mode.** ``GradientSource`` gains a
+  ``mode`` parameter alongside ``direction``: ``SYMMETRIC`` (the
+  pre-existing centred double gradient — tilt-shift, vignette) and
+  ``LINEAR`` (a one-sided 0 → 255 ramp — cross-fades, day/night
+  transitions, soft-edge wipes). Defaults to ``SYMMETRIC`` so saved
+  flows from 0.2.17 keep their previous output. ``band_width`` also
+  works in linear mode, where it carves out a leading dead-zone
+  before the ramp starts. RADIAL ignores ``mode`` — a rotation-
+  symmetric "linear" radial has no meaningful interpretation, so
+  the node falls back to the symmetric ramp.
+
 ## [0.2.17] — 2026-04-27
 
 ### Added

@@ -5,7 +5,11 @@ import numpy as np
 import pytest
 
 from core.io_data import IoDataType
-from nodes.sources.gradient_source import GradientDirection, GradientSource
+from nodes.sources.gradient_source import (
+    GradientDirection,
+    GradientMode,
+    GradientSource,
+)
 
 
 def _emit(node: GradientSource) -> np.ndarray:
@@ -165,3 +169,110 @@ def test_direction_setter_rejects_unknown_value() -> None:
 def test_is_reactive_true() -> None:
     """Single-frame source — the editor should re-run on any param edit."""
     assert GradientSource().is_reactive is True
+
+
+# ── LINEAR mode ───────────────────────────────────────────────────────────────
+
+
+def test_default_mode_is_symmetric() -> None:
+    """Saved flows from before the mode parameter was added must keep
+    behaving like a centred double gradient — SYMMETRIC stays the default."""
+    assert GradientSource().mode == GradientMode.SYMMETRIC
+
+
+def test_linear_vertical_runs_top_to_bottom() -> None:
+    """One-sided gradient: 0 at the top, 255 at the bottom, no mirror."""
+    node = GradientSource()
+    node.width = 16
+    node.height = 64
+    node.direction = GradientDirection.VERTICAL
+    node.mode = GradientMode.LINEAR
+    node.band_width = 0.0
+    img = _emit(node)
+    assert img[0].max() == 0
+    assert img[-1].max() == 255
+    # Centre row sits roughly at the midpoint, *not* at zero (which is
+    # the SYMMETRIC behaviour). Cosine-eased ramp passes 0.5 at the
+    # midpoint, so the centre value is ~127.
+    assert 100 < int(img[32, 0]) < 155
+
+
+def test_linear_horizontal_runs_left_to_right() -> None:
+    node = GradientSource()
+    node.width = 64
+    node.height = 16
+    node.direction = GradientDirection.HORIZONTAL
+    node.mode = GradientMode.LINEAR
+    node.band_width = 0.0
+    img = _emit(node)
+    assert img[:, 0].max() == 0
+    assert img[:, -1].max() == 255
+
+
+def test_linear_is_monotonic_along_axis() -> None:
+    """A one-sided gradient never decreases as you move along the axis —
+    that's the defining property that distinguishes it from a double
+    gradient."""
+    node = GradientSource()
+    node.width = 16
+    node.height = 64
+    node.direction = GradientDirection.VERTICAL
+    node.mode = GradientMode.LINEAR
+    node.band_width = 0.0
+    node.smooth = False  # linear ramp gives strict monotonicity
+    img = _emit(node)
+    column = img[:, 0].astype(int)
+    diffs = np.diff(column)
+    assert (diffs >= 0).all(), f"non-monotonic column: {column.tolist()}"
+
+
+def test_linear_band_width_acts_as_leading_dead_zone() -> None:
+    """In LINEAR mode, ``band_width`` carves out a flat zero region at
+    the *start* of the axis (not centred), then the ramp covers the
+    rest."""
+    node = GradientSource()
+    node.width = 16
+    node.height = 100
+    node.direction = GradientDirection.VERTICAL
+    node.mode = GradientMode.LINEAR
+    node.band_width = 0.5  # first 50% of rows stay at 0
+    node.smooth = False
+    img = _emit(node)
+    # First half of rows are within the dead zone -> all zero.
+    assert img[:50].max() == 0
+    # Last row reaches the maximum.
+    assert img[-1].max() == 255
+
+
+def test_radial_ignores_mode() -> None:
+    """RADIAL has no meaningful linear variant — selecting LINEAR must
+    produce the same output as SYMMETRIC."""
+    sym = GradientSource()
+    sym.width = 33
+    sym.height = 33
+    sym.direction = GradientDirection.RADIAL
+    sym.mode = GradientMode.SYMMETRIC
+    img_sym = _emit(sym)
+
+    lin = GradientSource()
+    lin.width = 33
+    lin.height = 33
+    lin.direction = GradientDirection.RADIAL
+    lin.mode = GradientMode.LINEAR
+    img_lin = _emit(lin)
+
+    np.testing.assert_array_equal(img_sym, img_lin)
+
+
+def test_mode_setter_accepts_int_and_enum() -> None:
+    node = GradientSource()
+    node.mode = 1
+    assert node.mode == GradientMode.LINEAR
+    node.mode = GradientMode.SYMMETRIC
+    assert node.mode == GradientMode.SYMMETRIC
+
+
+def test_mode_setter_rejects_unknown_value() -> None:
+    node = GradientSource()
+    with pytest.raises(ValueError):
+        node.mode = 99
