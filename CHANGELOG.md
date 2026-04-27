@@ -10,6 +10,17 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.20] — 2026-04-27
+
+### Added
+- **Node palette persists section expand/collapse state.** The expand/collapse
+  state of each section in the Node List palette (Sources, Sinks, …) is now
+  saved to `~/.image-inquest/node_list_state.json` on app close and restored
+  on the next launch. New sections default to expanded (matching first-run
+  behaviour); stale entries for removed sections are ignored. Search-driven
+  expansion is never persisted — only manual toggles and the expand-all /
+  collapse-all buttons update the saved state. Issue: #190
+
 ## [0.2.19] — 2026-04-27
 
 ### Added

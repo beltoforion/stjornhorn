@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.19</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.20</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.20</h2>
+      <ul class="tips">
+        <li><strong>Node palette remembers collapsed sections.</strong> The expand/collapse state of each section in the Node List palette (Sources, Sinks, …) is now saved to <code>~/.image-inquest/node_list_state.json</code> when you close the app and restored on the next launch. New sections (e.g. from plugins) default to expanded. Search-driven expansion is never persisted — only manual toggles and the expand-all / collapse-all buttons update the saved state.</li>
+      </ul>
     </section>
 
     <section>

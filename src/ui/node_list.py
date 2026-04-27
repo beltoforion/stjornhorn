@@ -57,6 +57,12 @@ class NodeList(QWidget):
     def __init__(self, registry: NodeRegistry, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
+        # In-memory map of section_name → expanded. Updated on every
+        # user-initiated toggle; search-driven expansions are excluded.
+        # Issue: #190
+        self._section_states: dict[str, bool] = {}
+        self._search_active: bool = False
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
@@ -92,7 +98,12 @@ class NodeList(QWidget):
         layout.addWidget(self._tree, 1)
 
         self._populate(registry)
+        # Connect expand/collapse tracking AFTER the initial expandAll so
+        # the programmatic expansion doesn't populate _section_states —
+        # restore_section_states() will fill it from disk on the next call.
         self._tree.expandAll()
+        self._tree.itemExpanded.connect(self._on_item_expanded)
+        self._tree.itemCollapsed.connect(self._on_item_collapsed)
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
@@ -122,6 +133,8 @@ class NodeList(QWidget):
             # row (not just the disclosure triangle) to toggle expansion.
             header.setFlags(Qt.ItemFlag.ItemIsEnabled)
             header.setData(0, Qt.ItemDataRole.UserRole, None)
+            # Store the raw section name for state persistence (Issue: #190).
+            header.setData(0, Qt.ItemDataRole.UserRole + 1, section)
             self._tree.addTopLevelItem(header)
 
             if not entries:
@@ -146,6 +159,19 @@ class NodeList(QWidget):
 
     def _on_search(self, text: str) -> None:
         query = text.strip().lower()
+        if not query:
+            # Restore all items to visible and re-apply the user's saved
+            # expand/collapse state (search may have temporarily changed it).
+            for i in range(self._tree.topLevelItemCount()):
+                section = self._tree.topLevelItem(i)
+                section.setHidden(False)
+                for j in range(section.childCount()):
+                    section.child(j).setHidden(False)
+            self._search_active = False
+            self._apply_section_states()
+            return
+
+        self._search_active = True
         for i in range(self._tree.topLevelItemCount()):
             section = self._tree.topLevelItem(i)
             any_visible = False
@@ -153,25 +179,70 @@ class NodeList(QWidget):
                 child = section.child(j)
                 payload = child.data(0, Qt.ItemDataRole.UserRole)
                 if payload is None:
-                    # Placeholder "(none)" row — hide it during a search
-                    # so empty sections don't get a misleading match.
-                    child.setHidden(bool(query))
+                    # Placeholder "(none)" row — hide during a search.
+                    child.setHidden(True)
                     continue
-                matches = (not query) or (query in child.text(0).lower())
+                matches = query in child.text(0).lower()
                 child.setHidden(not matches)
                 any_visible = any_visible or matches
             # Section headers stay visible (context matters), but expand
             # automatically while a search is active so matches are not
             # hidden behind a collapsed group.
             section.setHidden(False)
-            if query:
-                section.setExpanded(any_visible)
+            section.setExpanded(any_visible)
 
     def _expand_all(self) -> None:
+        # Clear the search-active guard so signals record the new state.
+        prev = self._search_active
+        self._search_active = False
         self._tree.expandAll()
+        self._search_active = prev
 
     def _collapse_all(self) -> None:
+        prev = self._search_active
+        self._search_active = False
         self._tree.collapseAll()
+        self._search_active = prev
+
+    # ── Section-state persistence (Issue: #190) ────────────────────────────────
+
+    def _on_item_expanded(self, item: QTreeWidgetItem) -> None:
+        if self._search_active:
+            return
+        name = item.data(0, Qt.ItemDataRole.UserRole + 1)
+        if name is not None:
+            self._section_states[name] = True
+
+    def _on_item_collapsed(self, item: QTreeWidgetItem) -> None:
+        if self._search_active:
+            return
+        name = item.data(0, Qt.ItemDataRole.UserRole + 1)
+        if name is not None:
+            self._section_states[name] = False
+
+    def _apply_section_states(self) -> None:
+        """Expand/collapse each section according to ``_section_states``."""
+        for i in range(self._tree.topLevelItemCount()):
+            item = self._tree.topLevelItem(i)
+            name = item.data(0, Qt.ItemDataRole.UserRole + 1)
+            if name is not None:
+                item.setExpanded(self._section_states.get(name, True))
+
+    def get_section_states(self) -> dict[str, bool]:
+        """Return a snapshot of the current section expand/collapse state."""
+        return dict(self._section_states)
+
+    def restore_section_states(self, state: dict) -> None:
+        """Apply *state* (section_name → expanded?) to the palette.
+
+        Keys not present in the tree are ignored (stale entries from a
+        removed section). Sections absent from *state* default to expanded
+        (first-run behaviour). Safe to call on an empty tree.
+        """
+        for key, val in state.items():
+            if isinstance(key, str) and isinstance(val, bool):
+                self._section_states[key] = val
+        self._apply_section_states()
 
 
 class _DraggableTree(QTreeWidget):

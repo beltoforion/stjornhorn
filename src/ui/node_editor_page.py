@@ -33,6 +33,7 @@ from typing_extensions import override
 
 from ui.page import PageBase, ToolbarSection
 from ui.dock_layout import restore_dock_layout, save_dock_layout
+from ui.node_list_state import restore_node_list_state, save_node_list_state
 from ui.node_list import NodeList
 from ui.recent_flows import RecentFlowsManager
 from ui.message_banner import MessageBanner
@@ -302,6 +303,16 @@ class NodeEditorPage(PageBase):
     def save_dock_layout(self) -> None:
         """Persist the current dock arrangement so the next launch restores it."""
         save_dock_layout(self._inner)
+
+    # ── Node-list section-state persistence (Issue: #190) ─────────────────────
+
+    def restore_node_list_state(self) -> None:
+        """Apply the persisted palette section expand/collapse state, if any."""
+        restore_node_list_state(self._node_list)
+
+    def save_node_list_state(self) -> None:
+        """Persist the current palette section expand/collapse state."""
+        save_node_list_state(self._node_list)
 
     def _apply_layout_inspector_right(self) -> None:
         """Inspector full-height on the right, Node List full-height on the left.

@@ -160,6 +160,8 @@ class MainWindow(QMainWindow):
         # them. Defaults (Node List left, Inspector right) stay in place
         # if there's no saved layout. Issue: #183
         self._editor_page.restore_dock_layout()
+        # Re-apply palette section expand/collapse state. Issue: #190
+        self._editor_page.restore_node_list_state()
 
         # If a flow was supplied on the command line, jump straight into
         # the editor. Failure falls through to the start page (already
@@ -418,9 +420,10 @@ class MainWindow(QMainWindow):
     # ── Lifecycle ──────────────────────────────────────────────────────────────
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
-        """Persist the editor's dock arrangement before the app exits.
+        """Persist editor state before the app exits.
 
-        Issue: #183
+        Issue: #183, #190
         """
         self._editor_page.save_dock_layout()
+        self._editor_page.save_node_list_state()
         super().closeEvent(event)
