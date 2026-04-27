@@ -8,11 +8,11 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -2019.8933112693378,
-        -703.9085525165752
+        -2173.684273432652,
+        -613.7006895541374
       ],
       "port_defaults": {
-        "file_path": "video/Fluss1.mp4",
+        "file_path": "video.mp4",
         "max_num_frames": -1
       }
     },
@@ -21,48 +21,98 @@
       "module": "nodes.filters.fft2d",
       "class": "Fft2D",
       "position": [
-        -1463.9787985865726,
-        -566.7703180212014
+        -1584.0274858837504,
+        -878.4118597926628
       ],
       "port_defaults": {}
     },
     {
       "id": 2,
-      "module": "nodes.filters.grayscale",
-      "class": "Grayscale",
-      "position": [
-        -1651.6257394117793,
-        -653.6189964445805
-      ],
-      "port_defaults": {}
-    },
-    {
-      "id": 3,
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1316.9826045867721,
-        -817.6622326411866
-      ],
-      "port_defaults": {},
-      "size": [
-        800.0,
-        566.3328026476795
-      ]
-    },
-    {
-      "id": 4,
-      "module": "nodes.filters.display",
-      "class": "Display",
-      "position": [
-        -2020.897994340671,
-        -389.54531911373573
+        -2133.6710036198383,
+        -210.0785946694702
       ],
       "port_defaults": {},
       "size": [
         701.4034820637042,
         491.17561400442
       ]
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.hsv_split",
+      "class": "HsvSplit",
+      "position": [
+        -1803.4718692905396,
+        -735.8979259086545
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        -1584.0274858837504,
+        -738.4118597926628
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        -1584.0274858837504,
+        -598.4118597926628
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
+      "position": [
+        -1264.7553621308723,
+        -757.883126876122
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 7,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1389.5490568311006,
+        -472.76090425726494
+      ],
+      "port_defaults": {},
+      "size": [
+        800.0,
+        539.0
+      ]
+    },
+    {
+      "id": 8,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [
+        -1803.4718692905396,
+        -567.8979259086545
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 9,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        -1584.0274858837504,
+        -458.41185979266277
+      ],
+      "port_defaults": {}
     }
   ],
   "connections": [
@@ -73,23 +123,106 @@
       "dst_input": 0
     },
     {
-      "src_node": 2,
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 0
     },
     {
+      "src_node": 3,
+      "src_output": 1,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 2,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 1,
+      "dst_node": 6,
+      "dst_input": 2
+    },
+    {
+      "src_node": 5,
+      "src_output": 1,
+      "dst_node": 6,
+      "dst_input": 3
+    },
+    {
       "src_node": 1,
       "src_output": 1,
-      "dst_node": 3,
+      "dst_node": 6,
+      "dst_input": 1
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 7,
       "dst_input": 0
     },
     {
       "src_node": 0,
       "src_output": 0,
-      "dst_node": 4,
+      "dst_node": 8,
+      "dst_input": 0
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 9,
+      "dst_input": 0
+    },
+    {
+      "src_node": 9,
+      "src_output": 1,
+      "dst_node": 6,
       "dst_input": 0
     }
   ],
-  "backdrops": []
+  "backdrops": [
+    {
+      "position": [
+        -1610.0274858837504,
+        -926.4118597926628
+      ],
+      "size": [
+        172.0,
+        614.0
+      ],
+      "title": "FFT",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    },
+    {
+      "position": [
+        -1829.4718692905396,
+        -783.8979259086545
+      ],
+      "size": [
+        172.0,
+        334.0
+      ],
+      "title": "Convert",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    }
+  ]
 }
