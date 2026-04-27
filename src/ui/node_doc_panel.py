@@ -275,9 +275,13 @@ def _render_output(port: dict) -> str:
 def render_node_summary(desc: dict) -> str:
     """HTML for the *always-visible* portion of the panel.
 
-    Carries the node name, section, and the docstring's first
-    paragraph (the PEP 257 summary line). Designed to fit in a few
-    rows so the panel doesn't squeeze the Node List dock above it.
+    Carries the node name, section, the docstring's first
+    paragraph (PEP 257 summary line), and the *Inputs* and
+    *Outputs* tables — the structural information a user needs to
+    decide how to wire the node, which would be unhelpful behind
+    a disclosure. Parameters and the rest of the docstring move
+    into the collapsible :func:`render_node_details` body.
+
     Pure function — no Qt — so it's testable without a
     ``QApplication``.
     """
@@ -302,18 +306,29 @@ def render_node_summary(desc: dict) -> str:
     if paragraphs:
         parts.append(f'<p class="brief">{paragraphs[0]}</p>')
 
+    if inputs := desc.get("inputs", []):
+        parts.append("<h2>Inputs</h2><dl>")
+        parts.extend(_render_input(p) for p in inputs)
+        parts.append("</dl>")
+
+    if outputs := desc.get("outputs", []):
+        parts.append("<h2>Outputs</h2><dl>")
+        parts.extend(_render_output(p) for p in outputs)
+        parts.append("</dl>")
+
     return "".join(parts)
 
 
 def render_node_details(desc: dict) -> str:
     """HTML for the *collapsible* portion of the panel.
 
-    Contains everything except the summary head: the rest of the
-    docstring (paragraphs after the PEP 257 summary line) followed
-    by Inputs, Outputs and Parameters tables. Empty sections are
-    *omitted* entirely (a sink with no outputs simply doesn't show
-    an Outputs heading) so the body stays compact even when the
-    user opens the disclosure.
+    Contains the rest of the docstring (paragraphs after the PEP 257
+    summary line) followed by the Parameters table. Inputs and
+    Outputs live in the always-visible :func:`render_node_summary`
+    head — they describe how to wire the node, which is needed
+    upfront. Empty sections are *omitted* entirely (a node with no
+    params simply doesn't show a Parameters heading) so the body
+    stays compact when the user opens the disclosure.
     """
     parts: list[str] = [_PANEL_CSS]
 
@@ -324,16 +339,6 @@ def render_node_details(desc: dict) -> str:
     paragraphs = _docstring_paragraphs(desc.get("docstring", ""))
     for p in paragraphs[1:]:
         parts.append(f'<p class="doc">{p}</p>')
-
-    if inputs := desc.get("inputs", []):
-        parts.append("<h2>Inputs</h2><dl>")
-        parts.extend(_render_input(p) for p in inputs)
-        parts.append("</dl>")
-
-    if outputs := desc.get("outputs", []):
-        parts.append("<h2>Outputs</h2><dl>")
-        parts.extend(_render_output(p) for p in outputs)
-        parts.append("</dl>")
 
     if params := desc.get("params", []):
         parts.append("<h2>Parameters</h2><dl>")
@@ -348,12 +353,14 @@ def has_details(desc: dict) -> bool:
     beyond just the stylesheet — i.e. there *is* something for the
     user to expand. Lets the widget hide the *Details* toggle on
     nodes that have nothing more to show, instead of dangling an
-    empty disclosure."""
+    empty disclosure.
+
+    Inputs and Outputs are *not* counted: they live in the
+    always-visible summary head and are never behind the
+    disclosure, so their presence shouldn't make the toggle
+    appear when there's nothing else to expand into.
+    """
     if any(p.strip() for p in _docstring_paragraphs(desc.get("docstring", ""))[1:]):
-        return True
-    if desc.get("inputs"):
-        return True
-    if desc.get("outputs"):
         return True
     if desc.get("params"):
         return True

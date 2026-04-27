@@ -80,11 +80,30 @@ def test_summary_includes_display_name_section_and_brief() -> None:
     assert "three layout strategies." in out
 
 
+def test_summary_includes_inputs_and_outputs() -> None:
+    """Inputs and Outputs are structural — a user needs them to
+    decide how to wire the node, so they live in the always-visible
+    summary head, not behind the disclosure."""
+    out = render_node_summary(_example_desc())
+    assert "<h2>Inputs</h2>" in out
+    assert "<h2>Outputs</h2>" in out
+    # Required marker survives the move from details to summary.
+    assert "required" in out
+
+
 def test_summary_does_not_include_subsequent_paragraphs() -> None:
     """The second-and-later paragraphs of the docstring belong in
     the collapsible details section so the summary stays compact."""
     out = render_node_summary(_example_desc())
     assert "Output dtype and channel count" not in out
+
+
+def test_summary_does_not_include_parameters() -> None:
+    """Parameters can be many and detailed (descriptions, ranges,
+    enum mappings) — they belong in the collapsible details body,
+    not in the always-visible head."""
+    out = render_node_summary(_example_desc())
+    assert "<h2>Parameters</h2>" not in out
 
 
 def test_summary_keeps_module_path_in_h1_title_tooltip_only() -> None:
@@ -106,6 +125,16 @@ def test_summary_renders_when_docstring_is_missing() -> None:
     assert '<p class="brief">' not in out
 
 
+def test_summary_omits_inputs_section_when_node_has_no_inputs() -> None:
+    """A source has no inputs; that absence is itself information,
+    rendered as the missing section heading rather than a
+    placeholder."""
+    desc = _example_desc()
+    desc["inputs"] = []
+    out = render_node_summary(desc)
+    assert "<h2>Inputs</h2>" not in out
+
+
 # ── render_node_details ────────────────────────────────────────────────────────
 
 def test_details_omits_summary_paragraph() -> None:
@@ -117,24 +146,28 @@ def test_details_omits_summary_paragraph() -> None:
     assert "Output dtype and channel count" in out
 
 
-def test_details_renders_inputs_outputs_parameters() -> None:
+def test_details_does_not_repeat_inputs_outputs() -> None:
+    """Inputs and Outputs are now in the always-visible summary
+    head; the details body must not duplicate them."""
     out = render_node_details(_example_desc())
-    assert "<h2>Inputs</h2>" in out
-    assert "<h2>Outputs</h2>" in out
+    assert "<h2>Inputs</h2>" not in out
+    assert "<h2>Outputs</h2>" not in out
+
+
+def test_details_renders_parameters() -> None:
+    """Parameters belong in the collapsible body — the descriptions
+    and enum mappings can be long enough to dominate a narrow
+    panel, so they only appear when the user asks for them."""
+    out = render_node_details(_example_desc())
     assert "<h2>Parameters</h2>" in out
 
 
-def test_details_marks_required_input() -> None:
-    out = render_node_details(_example_desc())
-    assert "required" in out
-
-
 def test_details_renders_param_metadata_extras() -> None:
+    """Parameter description, default, range and enum mapping all
+    appear under the Parameters section in the details body."""
     out = render_node_details(_example_desc())
-    assert "Target width in pixels." in out
-    assert "default <code>256</code>" in out
-    assert "min <code>1</code>" in out
-    assert "unit <code>px</code>" in out
+    assert "Layout strategy." in out
+    assert "default <code>0</code>" in out
 
 
 def test_details_renders_enum_mapping() -> None:
@@ -144,7 +177,7 @@ def test_details_renders_enum_mapping() -> None:
     assert "2=BEST_FIT" in out
 
 
-def test_details_omits_empty_sections() -> None:
+def test_details_omits_empty_parameters_section() -> None:
     desc = _example_desc()
     desc["params"] = []
     out = render_node_details(desc)
@@ -153,28 +186,32 @@ def test_details_omits_empty_sections() -> None:
 
 # ── has_details ────────────────────────────────────────────────────────────────
 
-def test_has_details_true_when_node_has_ports_or_extra_paragraphs() -> None:
+def test_has_details_true_when_node_has_params() -> None:
+    """Inputs and Outputs are no longer behind the disclosure, so
+    the disclosure should fire for params or extra docstring
+    paragraphs only."""
     assert has_details(_example_desc())
 
 
-def test_has_details_false_for_bare_node() -> None:
-    """A node with no inputs, outputs, params, and only a
-    one-paragraph docstring has nothing to expand into."""
+def test_has_details_false_when_only_inputs_outputs_present() -> None:
+    """A node whose only "extra" content is inputs/outputs has
+    *nothing* to disclose — those tables are always visible. The
+    toggle would dangle into a blank panel and confuse the user."""
     desc = {
-        "class_name": "NoOp",
-        "display_name": "No-Op",
+        "class_name": "Pass",
+        "display_name": "Pass",
         "section": "",
         "module": "",
-        "docstring": "Does nothing.",
-        "inputs": [],
-        "outputs": [],
+        "docstring": "Just passes through.",
+        "inputs": [{"name": "image", "accepted_types": ["IMAGE"], "optional": False}],
+        "outputs": [{"name": "image", "emits": ["IMAGE"]}],
         "params": [],
     }
     assert not has_details(desc)
 
 
 def test_has_details_true_for_only_extra_paragraphs() -> None:
-    """Even with no ports, a multi-paragraph docstring still has
+    """Even with no params, a multi-paragraph docstring still has
     meaningful content for the details section."""
     desc = {
         "class_name": "Doc",
@@ -187,6 +224,22 @@ def test_has_details_true_for_only_extra_paragraphs() -> None:
         "params": [],
     }
     assert has_details(desc)
+
+
+def test_has_details_false_for_bare_node() -> None:
+    """A node with no params and only a one-paragraph docstring
+    has nothing to expand into."""
+    desc = {
+        "class_name": "NoOp",
+        "display_name": "No-Op",
+        "section": "",
+        "module": "",
+        "docstring": "Does nothing.",
+        "inputs": [],
+        "outputs": [],
+        "params": [],
+    }
+    assert not has_details(desc)
 
 
 # ── prose cleanup (shared by both renderers) ───────────────────────────────────
@@ -283,11 +336,17 @@ def test_real_node_round_trips_through_describe_node() -> None:
     details = render_node_details(desc)
 
     assert ">Gaussian Blur</h1>" in summary
+    # Inputs (including the editable param ports) and Outputs are
+    # in the summary head now.
+    assert "<h2>Inputs</h2>" in summary
+    assert "<h2>Outputs</h2>" in summary
+    assert "ksize" in summary
+    assert "sigma" in summary
     assert ":class:" not in summary
     assert ":func:" not in summary
 
-    assert "<h2>Inputs</h2>" in details
-    assert "ksize" in details
-    assert "sigma" in details
+    # Details must not duplicate the input/output tables.
+    assert "<h2>Inputs</h2>" not in details
+    assert "<h2>Outputs</h2>" not in details
     assert ":class:" not in details
     assert ":func:" not in details

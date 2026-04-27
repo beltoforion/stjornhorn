@@ -60,15 +60,18 @@ def test_show_class_renders_summary_and_keeps_details_collapsed(
     panel = NodeDocPanel()
     panel.show_class(GaussianBlur)
     assert "Gaussian Blur" in panel._summary.text()
+    # GaussianBlur has params, so the disclosure must show; details
+    # body stays collapsed by default until the user clicks.
     assert not panel._toggle.isHidden(), (
-        "GaussianBlur has ports + params, so the disclosure must show"
+        "GaussianBlur has params, so the disclosure must show"
     )
     assert panel._details.isHidden(), (
         "details body must be collapsed by default"
     )
-    # The details HTML is loaded even while hidden — toggling on
-    # later must not require a re-render.
-    assert "ksize" in panel._details.toMarkdown()
+    # Inputs/Outputs live in the always-visible summary head — the
+    # user must see them without expanding the disclosure.
+    assert "ksize" in panel._summary.text()
+    assert "sigma" in panel._summary.text()
 
 
 def test_clicking_toggle_expands_details(qapp: QApplication) -> None:

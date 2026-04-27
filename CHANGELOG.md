@@ -24,15 +24,18 @@ once a first tagged release is cut.
   text. Class docstrings are PEP-257-cleandoc'd so body
   indentation doesn't survive into HTML. ENUM-typed default
   values render as the member name (``SCALE``) instead of the raw
-  ``<MyEnum.SCALE: 0>`` repr. Body content is now collapsed under
-  a *Details* disclosure by default — only the node name, section
-  and the docstring's first paragraph stay visible at rest, so the
-  panel takes minimal vertical space until the user asks for more.
-  The disclosure's open / closed state survives selection changes
-  within a session, so a user reading docs can switch between
-  nodes without re-clicking it. Nodes with nothing in their
-  details body — undocumented filters with no params — hide the
-  toggle entirely instead of dangling an empty disclosure.)* A new ``QDockWidget`` under the Node
+  ``<MyEnum.SCALE: 0>`` repr. Body content is now split between
+  an always-visible *summary* (node name, section, brief
+  description, **Inputs** and **Outputs**) and a collapsible
+  *Details* disclosure (rest of the docstring, **Parameters**).
+  Inputs and outputs are structural — the user needs them upfront
+  to decide how to wire the node — so they sit in the head;
+  descriptions and parameter ranges are longer-form and live
+  behind the disclosure. The disclosure's open / closed state
+  survives selection changes within a session, so a user reading
+  docs can switch between nodes without re-clicking it. Nodes
+  with nothing in their details body hide the toggle entirely
+  instead of dangling an empty disclosure.)* A new ``QDockWidget`` under the Node
   List that shows full documentation for the currently selected
   node: the class docstring, every input and output port with its
   accepted types, every parameter with type / default / range / unit,
