@@ -10,6 +10,20 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.16] — 2026-04-27
+
+### Added
+- **Apply Colormap filter.** New ``ApplyColormap`` node under
+  *Color Spaces* that colorizes a single-channel ``IMAGE_GREY`` input
+  through one of eleven OpenCV palettes — VIRIDIS (default), PLASMA,
+  MAGMA, INFERNO, JET, TURBO, HOT, BONE, PARULA, OCEAN, COOL —
+  emitting a 3-channel BGR ``IMAGE``. Designed as the display-side
+  companion to producers of greyscale fields (FFT magnitude, depth
+  maps, channel splits) so visualization stays out of the producer
+  node. JET is the historically common spectrogram / FFT-magnitude
+  palette in MATLAB, Audacity and similar tools; TURBO is the modern
+  perceptually-improved drop-in.
+
 ## [0.2.15] — 2026-04-26
 
 ### Added

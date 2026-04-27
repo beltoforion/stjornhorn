@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.15</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.16</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.16</h2>
+      <ul class="tips">
+        <li><strong>Apply Colormap filter.</strong> A new node under <em>Color Spaces</em> that colorizes a greyscale image through one of eleven palettes — VIRIDIS / PLASMA / MAGMA / INFERNO (matplotlib's perceptually uniform family), JET and TURBO (the classic and modern FFT / spectrogram defaults), plus HOT, BONE, PARULA, OCEAN, COOL. Drop it after an <em>FFT 2D</em> node's <code>magnitude</code> output to view spectra in colour, or after any single-channel split to colour-code intensity fields.</li>
+      </ul>
     </section>
 
     <section>
