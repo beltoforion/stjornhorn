@@ -1,8 +1,8 @@
 """Documentation panel that mirrors the currently selected node.
 
 A dockable widget that consumes :func:`core.node_doc.describe_node` and
-renders the result as Markdown. The panel updates from two selection
-sources:
+renders the result as compact HTML. The panel updates from two
+selection sources:
 
 * the :class:`~ui.node_list.NodeList` palette on the left — clicking
   an entry shows the docs for that class.
@@ -16,7 +16,11 @@ of a blank panel — a missing tooltip equivalent. Issue: #187
 """
 from __future__ import annotations
 
+import enum
+import html
 import importlib
+import inspect
+import re
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
@@ -33,164 +37,271 @@ if TYPE_CHECKING:
     from core.node_registry import NodeEntry
 
 
-_EMPTY_STATE_MARKDOWN: str = (
-    "_Select a node in the palette or on the canvas to see its "
-    "documentation here._"
+_EMPTY_STATE_HTML: str = (
+    '<p style="color: #9a9a9f; font-style: italic;">'
+    "Select a node in the palette or on the canvas to see its "
+    "documentation here."
+    "</p>"
+)
+
+#: Inline stylesheet for the rendered docs. Tuned for a narrow dock
+#: (≈ 220 px is the realistic minimum a user wants to give it):
+#: small fonts, no fixed-width meta blocks, ``word-break: break-word``
+#: on every potentially-long code span so a dotted module path or a
+#: long file-dialog filter wraps instead of forcing a horizontal
+#: scrollbar. ``<dl>`` instead of bullets so the param name + body
+#: lines vertically align with no list-marker gutter. Colour palette
+#: mirrors the rest of the editor (panel ``#2f2f33`` / muted text
+#: ``#9a9a9f`` / accent ``#f0c83c``).
+_PANEL_CSS: str = """
+<style>
+  body { font-family: 'Segoe UI', sans-serif; font-size: 11px;
+         line-height: 1.35; color: #e0e0e0;
+         word-wrap: break-word; overflow-wrap: anywhere; }
+  h1   { font-size: 14px; margin: 0 0 2px; font-weight: 600;
+         color: #f0c83c; }
+  .meta { color: #9a9a9f; font-size: 10px; margin: 0 0 6px; }
+  .doc  { margin: 0 0 6px; }
+  h2   { font-size: 10px; font-weight: 600; text-transform: uppercase;
+         letter-spacing: 0.6px; color: #9a9a9f;
+         margin: 6px 0 2px; padding-bottom: 1px;
+         border-bottom: 1px solid #1a1a1d; }
+  dl   { margin: 0 0 4px; }
+  dt   { font-weight: 600; margin-top: 3px; }
+  dt .type { font-weight: 400; color: #9a9a9f; font-size: 10px;
+             margin-left: 3px; }
+  dt .req  { color: #e8a86b; font-size: 9px; margin-left: 3px;
+             text-transform: uppercase; letter-spacing: 0.4px; }
+  dd   { margin: 0 0 0 8px; color: #cfcfd0; }
+  dd .extras { color: #9a9a9f; font-size: 10px; }
+  code { color: #cfcfd0; word-break: break-all; }
+</style>
+"""
+
+#: Sphinx cross-reference role pattern. Captures the back-ticked
+#: target so the role prefix can be stripped without losing the
+#: identifier itself. ``:class:`Resize``` becomes ``Resize``.
+#:
+#: All six role names that actually appear in the codebase today are
+#: handled with one pattern; new roles only need to be added if they
+#: contain characters outside ``[a-z]``.
+_SPHINX_ROLE_RE: re.Pattern[str] = re.compile(
+    r":(?:class|func|meth|attr|data|mod|obj):`([^`]+)`"
 )
 
 
-def _render_type_list(types: list[str]) -> str:
-    """Format a list of :class:`IoDataType` names for inline display."""
+def _strip_sphinx_roles(text: str) -> str:
+    """Replace ``:role:`target``` with just ``target``.
+
+    Source docstrings and metadata descriptions use Sphinx
+    cross-reference roles for IDE / autodoc tooling, but the panel
+    is for end users — the role prefix is noise. The captured target
+    sometimes contains a tilde-prefix
+    (``:class:`~ui.flow_scene.FlowScene```) which we shorten to the
+    last dotted component the same way Sphinx renders it.
+    """
+    def _replace(match: re.Match[str]) -> str:
+        target = match.group(1)
+        if target.startswith("~"):
+            target = target[1:].rsplit(".", 1)[-1]
+        return target
+    return _SPHINX_ROLE_RE.sub(_replace, text)
+
+
+#: RST inline-code (``` ``foo`` ```) — Sphinx renders this in
+#: monospace; the panel mirrors that with ``<code>`` tags so the
+#: backtick noise doesn't leak into prose. Single-backtick RST is
+#: deliberately ignored because it conflicts with default-value
+#: syntax in metadata.
+_RST_INLINE_CODE_RE: re.Pattern[str] = re.compile(r"``([^`]+)``")
+
+
+def _render_prose(text: str) -> str:
+    """Turn a docstring / metadata description into HTML body text.
+
+    Steps, in order:
+      1. Strip Sphinx role prefixes (``:class:`x``` → ``x``).
+      2. Dedent — class docstrings carry their indentation, which
+         would survive in HTML as awkward leading spaces in the
+         middle of paragraphs.
+      3. HTML-escape so user content can't smuggle markup.
+      4. Re-introduce the two pieces of light formatting that survive
+         escaping: RST inline code (``` ``foo`` ```) becomes
+         ``<code>foo</code>``.
+    """
+    text = _strip_sphinx_roles(text)
+    # ``inspect.cleandoc`` is the standard PEP 257 docstring cleanup:
+    # it leaves the first line alone, then strips the *minimum* common
+    # leading whitespace from the remaining lines. Plain
+    # ``textwrap.dedent`` does not work here because a class docstring's
+    # first line has zero indentation while the body is indented to
+    # match the class — the common prefix is empty and dedent is a
+    # no-op. ``cleandoc`` understands that convention.
+    text = inspect.cleandoc(text)
+    text = html.escape(text)
+    text = _RST_INLINE_CODE_RE.sub(r"<code>\1</code>", text)
+    return text
+
+
+def _format_types(types: list[str]) -> str:
+    """Render a list of :class:`IoDataType` names as HTML ``<code>``
+    elements joined by a thin separator."""
     if not types:
-        return "_(none)_"
-    return " | ".join(f"`{t}`" for t in types)
+        return '<span style="color: #9a9a9f;">(none)</span>'
+    return " | ".join(f"<code>{html.escape(t)}</code>" for t in types)
 
 
-def _render_default(value: object) -> str:
-    """Format a default value for inline display.
+def _format_default(value: object) -> str:
+    """Format a default value for inline display in the extras line.
 
-    Strings are quoted; everything else is repr'd. Keeps long paths
-    readable and unambiguous about whether a value is text or numeric.
+    Python ``Enum`` members repr as ``<MyEnum.NAME: 0>`` — that string
+    leaks the class name and angle brackets into the panel. Render
+    just the member name instead, matching the form the param widget
+    shows. Numeric and string scalars use the obvious representation.
     """
+    if isinstance(value, enum.Enum):
+        return html.escape(value.name)
     if isinstance(value, str):
-        return f"`'{value}'`"
-    return f"`{value!r}`"
+        return html.escape(f"'{value}'")
+    return html.escape(repr(value))
 
 
-def _render_enum_mapping(enum: dict) -> str:
-    """Format an ``enum`` metadata mapping (already normalised to
-    ``dict[int, str]`` by :func:`describe_node`) as a comma-separated
-    list of ``int=NAME`` pairs."""
-    return ", ".join(f"{k}={v}" for k, v in sorted(enum.items()))
+def _format_enum_mapping(mapping: dict) -> str:
+    """``{0: 'SCALE', 1: 'CROP_OR_FILL'}`` →
+    ``0=SCALE, 1=CROP_OR_FILL`` (HTML-escaped)."""
+    pairs = (f"{k}={html.escape(str(v))}" for k, v in sorted(mapping.items()))
+    return ", ".join(pairs)
 
 
-def _render_param_extras(p: dict) -> list[str]:
-    """Pull the small grab-bag of non-description metadata into a
-    bullet's trailing ``…`` suffix line — kept short so the panel
-    stays readable when many params line up."""
-    extras: list[str] = []
-    if "default" in p:
-        extras.append(f"default {_render_default(p['default'])}")
-    if "min" in p:
-        extras.append(f"min `{p['min']}`")
-    if "max" in p:
-        extras.append(f"max `{p['max']}`")
-    if "step" in p:
-        extras.append(f"step `{p['step']}`")
-    if "unit" in p:
-        extras.append(f"unit `{p['unit']}`")
-    if "enum" in p:
-        extras.append(_render_enum_mapping(p["enum"]))
-    if "filter" in p:
-        extras.append(f"filter `{p['filter']}`")
-    return extras
-
-
-def _render_input_bullet(port: dict) -> str:
-    """Render one input port as a Markdown bullet.
-
-    Two variants: image-flow ports (no ``param_type``) get the simple
-    ``name — TYPES (required|optional)`` shape; param-style ports get
-    the same plus a parenthetical type tag, the description (if any)
-    and a metadata-extras suffix line.
+def _format_extras(p: dict) -> str:
+    """Render the small grab-bag of non-description metadata as one
+    semi-colon-separated line. Returns ``""`` when nothing useful is
+    present so the caller can drop the line entirely.
     """
-    name = port["name"]
-    types = _render_type_list(port["accepted_types"])
-    required = "" if port["optional"] else " *(required)*"
+    parts: list[str] = []
+    if "default" in p:
+        parts.append(f"default <code>{_format_default(p['default'])}</code>")
+    if "min" in p:
+        parts.append(f"min <code>{html.escape(str(p['min']))}</code>")
+    if "max" in p:
+        parts.append(f"max <code>{html.escape(str(p['max']))}</code>")
+    if "step" in p:
+        parts.append(f"step <code>{html.escape(str(p['step']))}</code>")
+    if "unit" in p:
+        parts.append(f"unit <code>{html.escape(str(p['unit']))}</code>")
+    if "enum" in p:
+        parts.append(_format_enum_mapping(p["enum"]))
+    if "filter" in p:
+        parts.append(f"filter <code>{html.escape(str(p['filter']))}</code>")
+    return " · ".join(parts)
 
-    if "param_type" not in port:
-        return f"- **{name}** — {types}{required}"
 
-    pt = port["param_type"]
-    description = port.get("description", "")
-    head = f"- **{name}** *(`{pt}`)* — {types}{required}"
-    if description:
-        head += f"  \n  {description}"
-    extras = _render_param_extras(port)
+def _render_input(port: dict) -> str:
+    """Render one input port as a ``<dt>`` + optional ``<dd>``."""
+    name = html.escape(port["name"])
+    types = _format_types(port["accepted_types"])
+    bits = [f'<span class="type">{types}</span>']
+    if not port["optional"]:
+        bits.append('<span class="req">required</span>')
+    if "param_type" in port:
+        bits.append(
+            f'<span class="type">'
+            f'{html.escape(port["param_type"])}</span>'
+        )
+    dt = f"<dt>{name} {' '.join(bits)}</dt>"
+    dd_lines: list[str] = []
+    if port.get("description"):
+        dd_lines.append(_render_prose(port["description"]))
+    extras = _format_extras(port)
     if extras:
-        head += f"  \n  _{' · '.join(extras)}_"
-    return head
+        dd_lines.append(f'<span class="extras">{extras}</span>')
+    if not dd_lines:
+        return dt
+    return f"{dt}<dd>{'<br>'.join(dd_lines)}</dd>"
 
 
-def _render_param_bullet(param: dict) -> str:
-    """Render one constant :class:`NodeParam` as a Markdown bullet."""
-    name = param["name"]
+def _render_param(param: dict) -> str:
+    """Render one constant ``NodeParam`` as a ``<dt>`` + optional
+    ``<dd>``."""
+    name = html.escape(param["name"])
     pt = param.get("param_type", "")
-    description = param.get("description", "")
-    head = f"- **{name}** *(`{pt}`)*"
-    if description:
-        head += f" — {description}"
-    extras = _render_param_extras(param)
+    type_html = f'<span class="type">{html.escape(pt)}</span>' if pt else ""
+    dt = f"<dt>{name} {type_html}</dt>"
+    dd_lines: list[str] = []
+    if param.get("description"):
+        dd_lines.append(_render_prose(param["description"]))
+    extras = _format_extras(param)
     if extras:
-        head += f"  \n  _{' · '.join(extras)}_"
-    return head
+        dd_lines.append(f'<span class="extras">{extras}</span>')
+    if not dd_lines:
+        return dt
+    return f"{dt}<dd>{'<br>'.join(dd_lines)}</dd>"
 
 
-def _render_output_bullet(port: dict) -> str:
-    return f"- **{port['name']}** — {_render_type_list(port['emits'])}"
+def _render_output(port: dict) -> str:
+    return (
+        f'<dt>{html.escape(port["name"])} '
+        f'<span class="type">{_format_types(port["emits"])}</span></dt>'
+    )
 
 
 def render_node_doc(desc: dict) -> str:
-    """Turn a :func:`core.node_doc.describe_node` dict into Markdown.
+    """Turn a :func:`core.node_doc.describe_node` dict into HTML.
 
     Pure function — no Qt, no class instantiation. Tests against this
     function exercise the entire rendering contract without an
     ``QApplication``.
 
-    Sections appear in the same order whether or not they have
-    content, so users can predict where to look. Empty sections
-    render as ``_(none)_`` rather than being omitted, because their
-    absence carries information ("this node has no parameters" /
-    "this is a sink with no outputs").
+    Empty sections are *omitted* entirely (a sink with no outputs
+    just doesn't show an Outputs heading) so the panel stays
+    compact. Section boundaries appear in a fixed order whenever
+    they appear, so users can predict where to look.
     """
-    lines: list[str] = []
-    lines.append(f"# {desc['display_name']}")
-    lines.append("")
+    parts: list[str] = [_PANEL_CSS]
 
-    section = desc.get("section", "")
-    module = desc.get("module", "")
-    class_name = desc.get("class_name", "")
-    if section or module or class_name:
-        bits: list[str] = []
-        if section:
-            bits.append(f"**Section:** {section}")
-        if module and class_name:
-            bits.append(f"`{module}.{class_name}`")
-        elif class_name:
-            bits.append(f"`{class_name}`")
-        lines.append(" · ".join(bits))
-        lines.append("")
+    # H1 carries an HTML ``title`` attribute with the dotted module
+    # path so a curious user can hover to see where the class lives,
+    # without that long string forcing the dock open. Most QTextBrowser
+    # builds honour ``title`` as a tooltip; on those that don't, the
+    # information is still accessible via the source.
+    display_name = html.escape(desc["display_name"])
+    module = desc.get("module") or ""
+    class_name = desc.get("class_name") or ""
+    full_path = f"{module}.{class_name}" if module and class_name else class_name
+    h1_title = f' title="{html.escape(full_path)}"' if full_path else ""
+    parts.append(f'<h1{h1_title}>{display_name}</h1>')
+
+    if section := desc.get("section"):
+        parts.append(f'<p class="meta">{html.escape(section)}</p>')
 
     docstring = desc.get("docstring", "").strip()
     if docstring:
-        lines.append(docstring)
-        lines.append("")
+        # Convert the docstring's blank-line paragraph breaks into
+        # ``<p>`` elements, leave the rest as-is. Preserves intent
+        # without paying for a full Markdown / RST renderer.
+        paragraphs = [
+            f'<p class="doc">{_render_prose(p).strip()}</p>'
+            for p in docstring.split("\n\n")
+            if p.strip()
+        ]
+        parts.extend(paragraphs)
 
-    inputs = desc.get("inputs", [])
-    lines.append("## Inputs")
-    if inputs:
-        lines.extend(_render_input_bullet(p) for p in inputs)
-    else:
-        lines.append("_(none)_")
-    lines.append("")
+    if inputs := desc.get("inputs", []):
+        parts.append("<h2>Inputs</h2><dl>")
+        parts.extend(_render_input(p) for p in inputs)
+        parts.append("</dl>")
 
-    outputs = desc.get("outputs", [])
-    lines.append("## Outputs")
-    if outputs:
-        lines.extend(_render_output_bullet(p) for p in outputs)
-    else:
-        lines.append("_(none)_")
-    lines.append("")
+    if outputs := desc.get("outputs", []):
+        parts.append("<h2>Outputs</h2><dl>")
+        parts.extend(_render_output(p) for p in outputs)
+        parts.append("</dl>")
 
-    params = desc.get("params", [])
-    lines.append("## Parameters")
-    if params:
-        lines.extend(_render_param_bullet(p) for p in params)
-    else:
-        lines.append("_(none)_")
-    lines.append("")
+    if params := desc.get("params", []):
+        parts.append("<h2>Parameters</h2><dl>")
+        parts.extend(_render_param(p) for p in params)
+        parts.append("</dl>")
 
-    return "\n".join(lines)
+    return "".join(parts)
 
 
 class NodeDocPanel(QWidget):
@@ -233,11 +344,13 @@ class NodeDocPanel(QWidget):
         try:
             desc = describe_node(cls)
         except Exception as exc:  # noqa: BLE001 — we're a UI fallback path
-            self._browser.setMarkdown(
-                f"_Could not introspect `{cls.__name__}`: {exc}_"
+            self._browser.setHtml(
+                f'<p class="meta">Could not introspect '
+                f'<code>{html.escape(cls.__name__)}</code>: '
+                f"{html.escape(str(exc))}</p>"
             )
             return
-        self._browser.setMarkdown(render_node_doc(desc))
+        self._browser.setHtml(render_node_doc(desc))
 
     def show_entry(self, entry: NodeEntry) -> None:
         """Render documentation for a palette :class:`NodeEntry`.
@@ -251,12 +364,14 @@ class NodeDocPanel(QWidget):
             module = importlib.import_module(entry.module)
             cls = getattr(module, entry.class_name)
         except Exception as exc:  # noqa: BLE001 — we're a UI fallback path
-            self._browser.setMarkdown(
-                f"_Could not load `{entry.module}.{entry.class_name}`: {exc}_"
+            self._browser.setHtml(
+                f'<p class="meta">Could not load '
+                f'<code>{html.escape(f"{entry.module}.{entry.class_name}")}</code>: '
+                f"{html.escape(str(exc))}</p>"
             )
             return
         self.show_class(cls)
 
     def clear(self) -> None:
         """Show the empty-state hint."""
-        self._browser.setMarkdown(_EMPTY_STATE_MARKDOWN)
+        self._browser.setHtml(_EMPTY_STATE_HTML)

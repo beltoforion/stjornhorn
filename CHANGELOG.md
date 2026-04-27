@@ -13,7 +13,18 @@ once a first tagged release is cut.
 ## [0.2.21] — 2026-04-27
 
 ### Added
-- **Node Documentation dock.** A new ``QDockWidget`` under the Node
+- **Node Documentation dock.** *(Layout follow-up: re-tuned for
+  narrow docks — small fonts, compact ``<dl>`` layout instead of
+  Markdown bullets, dotted module path moved off the visible meta
+  line into the H1 ``title`` tooltip so the panel no longer
+  forces a wide dock. Sphinx cross-reference roles
+  (``:class:`Resize```, ``:func:`cv2.GaussianBlur```, …) and RST
+  inline code (``` ``foo`` ```) are stripped / converted before
+  rendering so the dev syntax doesn't leak into the user-facing
+  text. Class docstrings are PEP-257-cleandoc'd so body
+  indentation doesn't survive into HTML. ENUM-typed default
+  values render as the member name (``SCALE``) instead of the raw
+  ``<MyEnum.SCALE: 0>`` repr.)* A new ``QDockWidget`` under the Node
   List that shows full documentation for the currently selected
   node: the class docstring, every input and output port with its
   accepted types, every parameter with type / default / range / unit,
