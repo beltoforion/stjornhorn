@@ -10,6 +10,31 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.21] — 2026-04-27
+
+### Added
+- **Node Documentation dock.** A new ``QDockWidget`` under the Node
+  List that shows full documentation for the currently selected
+  node: the class docstring, every input and output port with its
+  accepted types, every parameter with type / default / range / unit,
+  and (for ``ENUM`` params) the integer-to-name mapping rendered as
+  ``0=NAME, 1=…``. Two selection sources feed the panel:
+  - **Palette click** — the new
+    ``NodeList.entry_selected(NodeEntry)`` signal previews the
+    docs of the class the user is about to drop.
+  - **Canvas click** — selecting a node on the graph takes
+    precedence and shows the docs of the class the user is
+    actually configuring.
+  Driven by the existing ``core.node_doc.describe_node`` introspection
+  helper, so the panel automatically grows richer as the
+  documentation sweep tracked under issue #187 progresses (more
+  ``description`` keys → more body text in the panel). Toggle through
+  the *View* menu; position and visibility persist across sessions
+  via ``dock_layout.json`` like the existing docks. The Markdown
+  renderer is a pure function (``ui.node_doc_panel.render_node_doc``)
+  so the bulk of the rendering logic is testable without an
+  ``QApplication``.
+
 ## [0.2.20] — 2026-04-27
 
 ### Changed
