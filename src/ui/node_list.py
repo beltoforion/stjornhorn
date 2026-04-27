@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QMimeData, QSize, Qt
+from PySide6.QtCore import QMimeData, QSize, Qt, Signal
 from PySide6.QtGui import QDrag
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -20,10 +20,39 @@ from PySide6.QtWidgets import (
 from ui.icons import material_icon
 
 if TYPE_CHECKING:
-    from core.node_registry import NodeRegistry
+    from core.node_registry import NodeEntry, NodeRegistry
 
 #: Custom MIME type carrying a JSON-encoded NodeEntry descriptor.
 NODE_LIST_MIME_TYPE: str = "application/x-image-inquest-node"
+
+#: Cap on the palette tooltip length. Long enough for one descriptive
+#: paragraph, short enough that a tooltip popup doesn't fill the screen
+#: when a node ships an examples-heavy docstring.
+_PALETTE_TOOLTIP_MAX_CHARS: int = 400
+
+
+def _palette_tooltip(entry: NodeEntry) -> str:
+    """Build the hover tooltip shown on a node's palette entry.
+
+    The previous tooltip was the dotted import path
+    (``nodes.filters.resize.Resize``) — accurate but useless to a user
+    deciding whether to drop the node. Now we surface the first
+    paragraph of the class docstring instead, falling back to the
+    import path only when the class hasn't been documented yet (so
+    the sweep tracked under issue #187 has a visible reason to
+    happen).
+    """
+    if entry.docstring:
+        # ``ast.get_docstring(..., clean=True)`` already strips the
+        # surrounding indentation, so a blank line reliably marks the
+        # first paragraph break.
+        first_paragraph = entry.docstring.split("\n\n", 1)[0].strip()
+        if len(first_paragraph) > _PALETTE_TOOLTIP_MAX_CHARS:
+            first_paragraph = (
+                first_paragraph[: _PALETTE_TOOLTIP_MAX_CHARS - 1].rstrip() + "…"
+            )
+        return first_paragraph
+    return f"{entry.module}.{entry.class_name}"
 
 #: Canonical display order for the well-known palette sections. Any
 #: section not listed here (e.g. defined by a user-provided plugin node)
@@ -59,10 +88,25 @@ class NodeList(QWidget):
     :meth:`restore_section_states`. Search-driven temporary expansion is
     not written into :attr:`_section_states`; only explicit user toggles
     (and the expand-all / collapse-all buttons) count. Issue: #190
+
+    Selecting a leaf (without dragging) emits :attr:`entry_selected`
+    with the registry's :class:`~core.node_registry.NodeEntry` so the
+    documentation panel can render docs for the picked class. Section
+    rows and the "(none)" placeholder emit ``None`` so consumers can
+    drop back to an empty state.
     """
+
+    #: Emitted whenever the current selection changes. Carries the
+    #: :class:`~core.node_registry.NodeEntry` for a leaf row, or ``None``
+    #: when a section header / placeholder / nothing is selected.
+    entry_selected = Signal(object)
 
     def __init__(self, registry: NodeRegistry, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        # Cache the registry so currentItemChanged can map a clicked
+        # leaf back to its full NodeEntry without round-tripping
+        # through the tree's JSON payload (which is drag-only).
+        self._registry: NodeRegistry = registry
 
         # In-memory truth for per-section expanded state. Updated by
         # itemExpanded / itemCollapsed signals (but not while a search is
@@ -104,6 +148,7 @@ class NodeList(QWidget):
         layout.addLayout(toolbar)
 
         self._tree = _DraggableTree()
+        self._tree.currentItemChanged.connect(self._on_current_item_changed)
         layout.addWidget(self._tree, 1)
 
         self._populate(registry)
@@ -138,6 +183,33 @@ class NodeList(QWidget):
             expanded = states.get(key, True)  # default: expanded
             self._section_states[key] = expanded
         self._apply_section_states()
+
+    # ── Selection ──────────────────────────────────────────────────────────────
+
+    def _on_current_item_changed(
+        self,
+        current: QTreeWidgetItem | None,
+        _previous: QTreeWidgetItem | None,
+    ) -> None:
+        """Translate a tree-row selection change into an
+        :attr:`entry_selected` emission carrying the matched
+        :class:`NodeEntry` (or ``None`` for non-leaf rows)."""
+        if current is None:
+            self.entry_selected.emit(None)
+            return
+        payload = current.data(0, Qt.ItemDataRole.UserRole)
+        if not payload:
+            # Section header or "(none)" placeholder — clear the panel.
+            self.entry_selected.emit(None)
+            return
+        try:
+            decoded = json.loads(payload)
+            class_name = decoded["class_name"]
+        except (ValueError, KeyError):
+            self.entry_selected.emit(None)
+            return
+        entry = self._registry.nodes.get(class_name)
+        self.entry_selected.emit(entry)
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
@@ -200,7 +272,7 @@ class NodeList(QWidget):
                     "section":      entry.section,
                 })
                 item.setData(0, Qt.ItemDataRole.UserRole, payload)
-                item.setToolTip(0, f"{entry.module}.{entry.class_name}")
+                item.setToolTip(0, _palette_tooltip(entry))
                 header.addChild(item)
 
     def _on_search(self, text: str) -> None:

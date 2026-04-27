@@ -10,7 +10,7 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
-## [0.2.20] — 2026-04-27
+## [0.2.22] — 2026-04-27
 
 ### Added
 - **Node-palette section state persists across sessions.** The
@@ -27,6 +27,87 @@ once a first tagged release is cut.
   layout (issue #183) and palette section state (issue #190) in one
   call. `MainWindow.closeEvent` and `__init__` now loop over all pages
   rather than hardcoding the editor page.
+
+## [0.2.21] — 2026-04-27
+
+### Added
+- **Node Documentation dock.** *(Layout follow-up: re-tuned for
+  narrow docks — small fonts, compact ``<dl>`` layout instead of
+  Markdown bullets, dotted module path moved off the visible meta
+  line into the H1 ``title`` tooltip so the panel no longer
+  forces a wide dock. Sphinx cross-reference roles
+  (``:class:`Resize```, ``:func:`cv2.GaussianBlur```, …) and RST
+  inline code (``` ``foo`` ```) are stripped / converted before
+  rendering so the dev syntax doesn't leak into the user-facing
+  text. Class docstrings are PEP-257-cleandoc'd so body
+  indentation doesn't survive into HTML. ENUM-typed default
+  values render as the member name (``SCALE``) instead of the raw
+  ``<MyEnum.SCALE: 0>`` repr. Body content is now split between
+  an always-visible *summary* (node name, section, brief
+  description, **Inputs** and **Outputs**) and a collapsible
+  *Details* disclosure (rest of the docstring, **Parameters**).
+  Inputs and outputs are structural — the user needs them upfront
+  to decide how to wire the node — so they sit in the head;
+  descriptions and parameter ranges are longer-form and live
+  behind the disclosure. The disclosure's open / closed state
+  survives selection changes within a session, so a user reading
+  docs can switch between nodes without re-clicking it. Nodes
+  with nothing in their details body hide the toggle entirely
+  instead of dangling an empty disclosure.)* A new ``QDockWidget`` under the Node
+  List that shows full documentation for the currently selected
+  node: the class docstring, every input and output port with its
+  accepted types, every parameter with type / default / range / unit,
+  and (for ``ENUM`` params) the integer-to-name mapping rendered as
+  ``0=NAME, 1=…``. Two selection sources feed the panel:
+  - **Palette click** — the new
+    ``NodeList.entry_selected(NodeEntry)`` signal previews the
+    docs of the class the user is about to drop.
+  - **Canvas click** — selecting a node on the graph takes
+    precedence and shows the docs of the class the user is
+    actually configuring.
+  Driven by the existing ``core.node_doc.describe_node`` introspection
+  helper, so the panel automatically grows richer as the
+  documentation sweep tracked under issue #187 progresses (more
+  ``description`` keys → more body text in the panel). Toggle through
+  the *View* menu; position and visibility persist across sessions
+  via ``dock_layout.json`` like the existing docks. The Markdown
+  renderer is a pure function (``ui.node_doc_panel.render_node_doc``)
+  so the bulk of the rendering logic is testable without an
+  ``QApplication``.
+
+## [0.2.20] — 2026-04-27
+
+### Changed
+- **Node palette tooltips now show the class docstring instead of
+  the import path.** Hovering ``Resize`` in the left-hand palette
+  used to show the dev-internal string
+  ``nodes.filters.resize.Resize`` — accurate but useless to a user
+  deciding whether to drop the node. The tooltip now renders the
+  first paragraph of the class docstring (capped at 400 chars), and
+  falls back to the import path only when the class has no docstring
+  yet — so the documentation sweep tracked under issue #187 has a
+  visible reason to happen. ``NodeEntry`` gains a ``docstring`` field
+  populated by the AST scanner, so this requires no module imports
+  at scan time.
+
+### Added
+- **Parameter widgets show port descriptions on hover.** First
+  user-visible consumer of the ``core.node_doc`` metadata schema
+  (introduced in 0.2.19): every inline param widget — spinboxes,
+  combo boxes, checkboxes, line edits, file-path rows — now surfaces
+  the port's ``"description"`` metadata as a Qt tooltip on the
+  widget *and* on every hover-target child, so the help text fires
+  whether the user's cursor is on the wrapper or on the inner
+  control. Pre-existing per-control tooltips (e.g. the path
+  widget's "Open in system image viewer" eye button) are preserved.
+- **Initial documentation sweep.** ``Gaussian Blur`` (ksize, sigma),
+  ``Resize`` (width, height, method), ``Rotate`` (angle, expand),
+  ``Image Source`` (file_path) and ``File Sink`` (output_path) gain
+  ``description`` (and where appropriate ``min`` / ``unit``) entries
+  on their parameter ports. Five nodes' worth of the lint test in
+  ``tests/test_node_documentation.py`` flip from ``XFAIL`` to
+  ``XPASS`` as a result; the rest of the corpus follows in
+  subsequent thematic doc-only PRs tracked under issue #187.
 
 ## [0.2.19] — 2026-04-27
 

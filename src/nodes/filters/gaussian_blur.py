@@ -29,14 +29,32 @@ class GaussianBlur(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=5,
-            metadata={"default": 5, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 5,
+                "param_type": NodeParamType.INT,
+                "min": 1,
+                "unit": "px",
+                "description": (
+                    "Kernel side length in pixels. Must be odd; even values "
+                    "are bumped up to the next odd integer. Larger kernels "
+                    "blur more strongly and run more slowly."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "sigma",
             {IoDataType.SCALAR},
             optional=True,
             default_value=0.0,
-            metadata={"default": 0.0, "param_type": NodeParamType.FLOAT},
+            metadata={
+                "default": 0.0,
+                "param_type": NodeParamType.FLOAT,
+                "min": 0.0,
+                "description": (
+                    "Standard deviation of the Gaussian. Set to 0 to derive "
+                    "it from the kernel size automatically (OpenCV's default)."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
