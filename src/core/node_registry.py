@@ -25,6 +25,7 @@ class NodeEntry:
     category:     str   # "Sources" | "Filters" | "Sinks" (from base class)
     section:      str   # Palette section (from the node's own __init__)
     module:       str   # Importable dotted path, e.g. "nodes.sources.file_source"
+    docstring:    str = ""  # Class docstring (cleaned, may be empty)
 
 
 class NodeRegistry:
@@ -79,7 +80,7 @@ class NodeRegistry:
             module = ".".join(path.relative_to(src_root).with_suffix("").parts)
             found, file_errors = _parse_node_file(path)
             errors.extend(file_errors)
-            for class_name, display_name, category, section in found:
+            for class_name, display_name, category, section, docstring in found:
                 logger.info(f"  - {class_name} (display_name={display_name}, category={category}, section={section}, module={module})")
 
                 if reject_conflicts and class_name in self._nodes:
@@ -97,6 +98,7 @@ class NodeRegistry:
                         category=category,
                         section=section,
                         module=module,
+                        docstring=docstring,
                     )
 
         return errors
@@ -169,8 +171,8 @@ _DEFAULT_SECTION_FOR_CATEGORY: dict[str, str] = {
 
 def _parse_node_file(
     path: Path,
-) -> tuple[list[tuple[str, str, str, str]], list[ScanError]]:
-    """Return ([(class_name, display_name, category, section), ...], [errors]) for a file."""
+) -> tuple[list[tuple[str, str, str, str, str]], list[ScanError]]:
+    """Return ([(class_name, display_name, category, section, docstring), ...], [errors]) for a file."""
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
@@ -179,7 +181,7 @@ def _parse_node_file(
     except OSError as e:
         return [], [ScanError(file=path, message=f"Could not read file: {e}")]
 
-    results: list[tuple[str, str, str, str]] = []
+    results: list[tuple[str, str, str, str, str]] = []
     errors: list[ScanError] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
@@ -197,8 +199,15 @@ def _parse_node_file(
 
 def _extract_node_entry(
     class_node: ast.ClassDef,
-) -> tuple[str, str, str, str] | None:
-    """Return (class_name, display_name, category, section) if the class is a node, else None."""
+) -> tuple[str, str, str, str, str] | None:
+    """Return (class_name, display_name, category, section, docstring) if the class is a node, else None.
+
+    The docstring is read directly from the AST so the registry can
+    expose it without importing the node module — keeping scan-time
+    cheap and isolated from import errors. Empty when the class has
+    no docstring; the AST helper strips the surrounding indentation
+    so the value matches :func:`inspect.getdoc` output.
+    """
     init = _find_init(class_node)
     if init is None or not _has_super_init(init):
         return None
@@ -210,7 +219,8 @@ def _extract_node_entry(
         _extract_super_init_section(init)
         or _DEFAULT_SECTION_FOR_CATEGORY.get(category, "Filters")
     )
-    return class_node.name, display_name, category, section
+    docstring = ast.get_docstring(class_node) or ""
+    return class_node.name, display_name, category, section, docstring
 
 
 def _detect_category(class_node: ast.ClassDef) -> str:
