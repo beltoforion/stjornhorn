@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.17",
+  "app_version": "0.2.18",
   "name": "video_tiltshift",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -1700.0,
-        -800.0
+        -1697.9622288212852,
+        -850.9442794678652
       ],
       "port_defaults": {
         "file_path": "video.mp4",
@@ -21,8 +21,8 @@
       "module": "nodes.filters.gaussian_blur",
       "class": "GaussianBlur",
       "position": [
-        -1340.0,
-        -640.0
+        -1307.0622741836935,
+        -507.0547842961979
       ],
       "port_defaults": {
         "ksize": 51,
@@ -38,14 +38,15 @@
       "module": "nodes.sources.gradient_source",
       "class": "GradientSource",
       "position": [
-        -1700.0,
-        -440.0
+        -1604.0323125847237,
+        -714.807453126518
       ],
       "port_defaults": {
         "width": 512,
         "height": 512,
         "direction": 0,
-        "band_width": 0.2,
+        "mode": 1,
+        "band_width": 0.6,
         "smooth": true
       }
     },
@@ -54,13 +55,13 @@
       "module": "nodes.filters.masked_blend",
       "class": "MaskedBlend",
       "position": [
-        -980.0,
-        -780.0
+        -1307.0622741836935,
+        -675.0547842961979
       ],
       "port_defaults": {},
       "size": [
         220.0,
-        140.0
+        148.0
       ]
     },
     {
@@ -68,8 +69,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -680.0,
-        -900.0
+        -870.8018994605613,
+        -725.3743453537172
       ],
       "port_defaults": {},
       "size": [
@@ -82,14 +83,24 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        140.0,
-        -640.0
+        -428.5266551332713,
+        -916.2024920777791
       ],
       "port_defaults": {
         "output_path": "out_tiltshift.mp4",
         "fps": 30.0,
         "codec": 0
       }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
+      "position": [
+        -867.071636543064,
+        -918.015916010929
+      ],
+      "port_defaults": {}
     }
   ],
   "connections": [
@@ -118,16 +129,40 @@
       "dst_input": 2
     },
     {
-      "src_node": 3,
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
       "src_output": 0,
       "dst_node": 4,
       "dst_input": 0
     },
     {
-      "src_node": 4,
+      "src_node": 1,
       "src_output": 0,
-      "dst_node": 5,
-      "dst_input": 0
+      "dst_node": 6,
+      "dst_input": 2
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 1
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 3
     }
   ],
   "backdrops": [
