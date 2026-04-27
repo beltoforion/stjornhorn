@@ -7,7 +7,7 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort, OutputPort
 
 
@@ -64,16 +64,16 @@ class ApplyColormap(NodeBase):
         self._colormap: Colormap = Colormap.VIRIDIS
 
         self._add_input(InputPort("image", {IoDataType.IMAGE_GREY}))
-        self._add_input(InputPort(
+        # ``colormap`` is a constant (NodeParam, not a port-style input)
+        # so it isn't drivable from upstream — the palette is a
+        # build-time visualization choice, not something a streaming
+        # source would animate per frame. Renders as an inline combo
+        # box above the input rows, with no socket dot.
+        self._add_param(NodeParam(
             "colormap",
-            {IoDataType.ENUM},
-            optional=True,
-            default_value=Colormap.VIRIDIS,
-            metadata={
-                "default": Colormap.VIRIDIS,
-                "enum": Colormap,
-                "param_type": NodeParamType.ENUM,
-            },
+            NodeParamType.ENUM,
+            default=Colormap.VIRIDIS,
+            metadata={"enum": Colormap},
         ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
 
