@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.15",
+  "app_version": "0.2.16",
   "name": "video_fft",
   "nodes": [
     {
@@ -21,8 +21,8 @@
       "module": "nodes.filters.fft2d",
       "class": "Fft2D",
       "position": [
-        -1584.0274858837504,
-        -878.4118597926628
+        -1585.4291259697588,
+        -879.813499878671
       ],
       "port_defaults": {}
     },
@@ -31,8 +31,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -2133.6710036198383,
-        -210.0785946694702
+        -1805.6872234939024,
+        -302.5868403460163
       ],
       "port_defaults": {},
       "size": [
@@ -75,8 +75,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1264.7553621308723,
-        -757.883126876122
+        -1001.2470259613169,
+        -745.2683661020476
       ],
       "port_defaults": {}
     },
@@ -85,8 +85,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1389.5490568311006,
-        -472.76090425726494
+        -1093.802998683355,
+        -534.433068041629
       ],
       "port_defaults": {},
       "size": [
@@ -113,6 +113,42 @@
         -458.41185979266277
       ],
       "port_defaults": {}
+    },
+    {
+      "id": 10,
+      "module": "nodes.filters.apply_colormap",
+      "class": "ApplyColormap",
+      "position": [
+        -1327.353161449836,
+        -843.7873317769812
+      ],
+      "port_defaults": {
+        "colormap": 13
+      }
+    },
+    {
+      "id": 11,
+      "module": "nodes.filters.apply_colormap",
+      "class": "ApplyColormap",
+      "position": [
+        -1327.353161449836,
+        -703.7873317769812
+      ],
+      "port_defaults": {
+        "colormap": 13
+      }
+    },
+    {
+      "id": 12,
+      "module": "nodes.filters.apply_colormap",
+      "class": "ApplyColormap",
+      "position": [
+        -1327.353161449836,
+        -563.7873317769812
+      ],
+      "port_defaults": {
+        "colormap": 13
+      }
     }
   ],
   "connections": [
@@ -147,24 +183,6 @@
       "dst_input": 0
     },
     {
-      "src_node": 4,
-      "src_output": 1,
-      "dst_node": 6,
-      "dst_input": 2
-    },
-    {
-      "src_node": 5,
-      "src_output": 1,
-      "dst_node": 6,
-      "dst_input": 3
-    },
-    {
-      "src_node": 1,
-      "src_output": 1,
-      "dst_node": 6,
-      "dst_input": 1
-    },
-    {
       "src_node": 6,
       "src_output": 0,
       "dst_node": 7,
@@ -187,6 +205,42 @@
       "src_output": 1,
       "dst_node": 6,
       "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 1,
+      "dst_node": 10,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 1,
+      "dst_node": 11,
+      "dst_input": 0
+    },
+    {
+      "src_node": 5,
+      "src_output": 1,
+      "dst_node": 12,
+      "dst_input": 0
+    },
+    {
+      "src_node": 10,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 1
+    },
+    {
+      "src_node": 11,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 2
+    },
+    {
+      "src_node": 12,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 3
     }
   ],
   "backdrops": [
@@ -221,6 +275,23 @@
         70,
         60,
         40,
+        140
+      ]
+    },
+    {
+      "position": [
+        -1353.353161449836,
+        -891.7873317769812
+      ],
+      "size": [
+        221.984375,
+        474.0
+      ],
+      "title": "Color",
+      "color": [
+        70,
+        45,
+        70,
         140
       ]
     }
