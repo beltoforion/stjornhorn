@@ -20,10 +20,39 @@ from PySide6.QtWidgets import (
 from ui.icons import material_icon
 
 if TYPE_CHECKING:
-    from core.node_registry import NodeRegistry
+    from core.node_registry import NodeEntry, NodeRegistry
 
 #: Custom MIME type carrying a JSON-encoded NodeEntry descriptor.
 NODE_LIST_MIME_TYPE: str = "application/x-image-inquest-node"
+
+#: Cap on the palette tooltip length. Long enough for one descriptive
+#: paragraph, short enough that a tooltip popup doesn't fill the screen
+#: when a node ships an examples-heavy docstring.
+_PALETTE_TOOLTIP_MAX_CHARS: int = 400
+
+
+def _palette_tooltip(entry: NodeEntry) -> str:
+    """Build the hover tooltip shown on a node's palette entry.
+
+    The previous tooltip was the dotted import path
+    (``nodes.filters.resize.Resize``) — accurate but useless to a user
+    deciding whether to drop the node. Now we surface the first
+    paragraph of the class docstring instead, falling back to the
+    import path only when the class hasn't been documented yet (so
+    the sweep tracked under issue #187 has a visible reason to
+    happen).
+    """
+    if entry.docstring:
+        # ``ast.get_docstring(..., clean=True)`` already strips the
+        # surrounding indentation, so a blank line reliably marks the
+        # first paragraph break.
+        first_paragraph = entry.docstring.split("\n\n", 1)[0].strip()
+        if len(first_paragraph) > _PALETTE_TOOLTIP_MAX_CHARS:
+            first_paragraph = (
+                first_paragraph[: _PALETTE_TOOLTIP_MAX_CHARS - 1].rstrip() + "…"
+            )
+        return first_paragraph
+    return f"{entry.module}.{entry.class_name}"
 
 #: Canonical display order for the well-known palette sections. Any
 #: section not listed here (e.g. defined by a user-provided plugin node)
@@ -141,7 +170,7 @@ class NodeList(QWidget):
                     "section":      entry.section,
                 })
                 item.setData(0, Qt.ItemDataRole.UserRole, payload)
-                item.setToolTip(0, f"{entry.module}.{entry.class_name}")
+                item.setToolTip(0, _palette_tooltip(entry))
                 header.addChild(item)
 
     def _on_search(self, text: str) -> None:

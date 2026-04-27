@@ -216,6 +216,7 @@
       <h2>What's new in v0.2.20</h2>
       <ul class="tips">
         <li><strong>Parameter widgets show port descriptions on hover.</strong> The first user-visible consumer of the <code>core.node_doc</code> metadata schema: when a node author fills in a <code>"description"</code> key on a parameter port, the editor surfaces it as a tooltip on the inline spinbox / combo / checkbox / file-path widget. <code>Gaussian Blur</code>, <code>Resize</code>, <code>Rotate</code>, <code>Image Source</code> and <code>File Sink</code> now ship with hover help; the rest of the corpus follows in subsequent doc-sweep PRs (issue #187). Existing per-control tooltips like the path widget's "Open in system image viewer" are preserved.</li>
+        <li><strong>Node palette tooltips show what each node does.</strong> Hovering a node in the left-hand palette used to display its dotted import path (<code>nodes.filters.resize.Resize</code>) — accurate but useless. The tooltip now shows the first paragraph of the class docstring instead, falling back to the import path only when the class hasn't been documented yet. Picked up automatically as the doc sweep progresses.</li>
       </ul>
     </section>
 

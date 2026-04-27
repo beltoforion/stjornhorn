@@ -12,6 +12,19 @@ once a first tagged release is cut.
 
 ## [0.2.20] — 2026-04-27
 
+### Changed
+- **Node palette tooltips now show the class docstring instead of
+  the import path.** Hovering ``Resize`` in the left-hand palette
+  used to show the dev-internal string
+  ``nodes.filters.resize.Resize`` — accurate but useless to a user
+  deciding whether to drop the node. The tooltip now renders the
+  first paragraph of the class docstring (capped at 400 chars), and
+  falls back to the import path only when the class has no docstring
+  yet — so the documentation sweep tracked under issue #187 has a
+  visible reason to happen. ``NodeEntry`` gains a ``docstring`` field
+  populated by the AST scanner, so this requires no module imports
+  at scan time.
+
 ### Added
 - **Parameter widgets show port descriptions on hover.** First
   user-visible consumer of the ``core.node_doc`` metadata schema
