@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.11",
+  "app_version": "0.2.15",
   "name": "video_fft",
   "nodes": [
     {
@@ -8,11 +8,11 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -1831.0,
-        -542.0
+        -2019.8933112693378,
+        -703.9085525165752
       ],
       "port_defaults": {
-        "file_path": "video.mp4",
+        "file_path": "video/Fluss1.mp4",
         "max_num_frames": -1
       }
     },
@@ -21,8 +21,8 @@
       "module": "nodes.filters.fft2d",
       "class": "Fft2D",
       "position": [
-        -1270.0,
-        -704.0
+        -1463.9787985865726,
+        -566.7703180212014
       ],
       "port_defaults": {}
     },
@@ -31,8 +31,8 @@
       "module": "nodes.filters.grayscale",
       "class": "Grayscale",
       "position": [
-        -1464.0,
-        -724.0
+        -1651.6257394117793,
+        -653.6189964445805
       ],
       "port_defaults": {}
     },
@@ -41,13 +41,27 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1045.0,
-        -737.0
+        -1316.9826045867721,
+        -817.6622326411866
       ],
       "port_defaults": {},
       "size": [
-        585.0,
-        591.0
+        800.0,
+        566.3328026476795
+      ]
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -2020.897994340671,
+        -389.54531911373573
+      ],
+      "port_defaults": {},
+      "size": [
+        701.4034820637042,
+        491.17561400442
       ]
     }
   ],
@@ -68,6 +82,12 @@
       "src_node": 1,
       "src_output": 1,
       "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
       "dst_input": 0
     }
   ],
