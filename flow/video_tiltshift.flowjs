@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "app_version": "0.2.17",
+  "name": "video_tiltshift",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.video_source",
+      "class": "VideoSource",
+      "position": [
+        -1700.0,
+        -800.0
+      ],
+      "port_defaults": {
+        "file_path": "video.mp4",
+        "max_num_frames": -1
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.gaussian_blur",
+      "class": "GaussianBlur",
+      "position": [
+        -1340.0,
+        -640.0
+      ],
+      "port_defaults": {
+        "ksize": 51,
+        "sigma": 0.0
+      },
+      "size": [
+        220.0,
+        148.0
+      ]
+    },
+    {
+      "id": 2,
+      "module": "nodes.sources.gradient_source",
+      "class": "GradientSource",
+      "position": [
+        -1700.0,
+        -440.0
+      ],
+      "port_defaults": {
+        "width": 512,
+        "height": 512,
+        "direction": 0,
+        "band_width": 0.2,
+        "smooth": true
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.masked_blend",
+      "class": "MaskedBlend",
+      "position": [
+        -980.0,
+        -780.0
+      ],
+      "port_defaults": {},
+      "size": [
+        220.0,
+        140.0
+      ]
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -680.0,
+        -900.0
+      ],
+      "port_defaults": {},
+      "size": [
+        720.0,
+        540.0
+      ]
+    },
+    {
+      "id": 5,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        140.0,
+        -640.0
+      ],
+      "port_defaults": {
+        "output_path": "out_tiltshift.mp4",
+        "fps": 30.0,
+        "codec": 0
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 1
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 2
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": [
+    {
+      "position": [
+        -1740.0,
+        -880.0
+      ],
+      "size": [
+        720.0,
+        540.0
+      ],
+      "title": "Sharp + blurred branches",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    }
+  ]
+}

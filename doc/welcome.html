@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.16</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.17</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,15 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.17</h2>
+      <ul class="tips">
+        <li><strong>Masked Blend filter.</strong> A new node under <em>Composit</em> that blends two images through a separate greyscale mask: <code>out = base*(1-m) + overlay*m</code>. The mask can be any greyscale producer — a procedural gradient, a threshold output, a hand-painted PNG — so soft compositing no longer has to be baked into a BGRA overlay's alpha channel.</li>
+        <li><strong>Gradient Source.</strong> A new procedural source under <em>Sources</em> that emits a single-channel gradient image. Pick <em>vertical</em>, <em>horizontal</em> or <em>radial</em> direction, set a central plateau width and a smooth-vs-linear ramp, and feed it into <em>Masked Blend</em> for tilt-shift, vignette, soft-edged compositing, etc.</li>
+        <li><strong>Tilt-shift sample flow.</strong> ``video_tiltshift.flowjs`` chains a video source through a Gaussian blur and a Masked Blend driven by a vertical Gradient Source — the classic miniature-faking effect with a sharp horizontal band and softly blurred top / bottom.</li>
+      </ul>
     </section>
 
     <section>

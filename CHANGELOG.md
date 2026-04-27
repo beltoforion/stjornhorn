@@ -10,6 +10,33 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.17] — 2026-04-27
+
+### Added
+- **Masked Blend filter.** New ``MaskedBlend`` node under *Composit*
+  that blends two images through a separate greyscale mask:
+  ``out = base * (1 - m) + overlay * m`` with ``m = mask / 255``.
+  Fills the gap left by ``Overlay``, which only supports a uniform
+  alpha or a per-pixel alpha baked into a BGRA overlay's 4th channel
+  — ``MaskedBlend`` accepts the mask as a separate input so any
+  greyscale producer (procedural gradient, threshold output, distance
+  field, hand-painted PNG) can drive the blend. Mismatched mask
+  resolutions are auto-resized to the base's dimensions so a small
+  procedural gradient can mask a full-resolution video stream
+  without manual size matching.
+- **Gradient Source.** New procedural ``GradientSource`` node under
+  *Sources* that emits a single-channel ``IMAGE_GREY`` gradient
+  image. Configurable direction (``VERTICAL`` / ``HORIZONTAL`` /
+  ``RADIAL``), a central plateau width and a smooth-vs-linear ramp
+  toggle. Reactive, so size / direction / band edits live-update the
+  downstream preview. Designed as the procedural mask source for
+  ``MaskedBlend`` (tilt-shift, vignette, soft compositing) without
+  having to ship a pre-rendered PNG.
+- **Tilt-shift sample flow.** ``flow/video_tiltshift.flowjs`` chains
+  ``VideoSource`` → ``GaussianBlur`` → ``MaskedBlend`` driven by a
+  vertical ``GradientSource``, producing the classic miniature-faking
+  effect (sharp horizontal band, softly blurred top / bottom).
+
 ## [0.2.16] — 2026-04-27
 
 ### Added
