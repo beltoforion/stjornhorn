@@ -1,8 +1,19 @@
 """Documentation panel that mirrors the currently selected node.
 
 A dockable widget that consumes :func:`core.node_doc.describe_node` and
-renders the result as compact HTML. The panel updates from two
-selection sources:
+renders the result in two parts: a small always-visible *summary*
+(node name, section, brief description — the docstring's first
+paragraph) and a collapsible *details* section that holds the rest of
+the docstring plus the full input / output / parameter tables.
+
+The split keeps the panel compact at rest — most of the time the
+user just needs the name and the one-line summary — while still
+making the full docs reachable in two clicks: select the node, hit
+*Details*. The toggle's open/closed state survives selection
+changes within a session, so a user reading docs can tab between
+nodes without re-opening the disclosure each time.
+
+The panel updates from two selection sources:
 
 * the :class:`~ui.node_list.NodeList` palette on the left — clicking
   an entry shows the docs for that class.
@@ -25,7 +36,11 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QFrame,
+    QLabel,
+    QSizePolicy,
     QTextBrowser,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -38,21 +53,21 @@ if TYPE_CHECKING:
 
 
 _EMPTY_STATE_HTML: str = (
-    '<p style="color: #9a9a9f; font-style: italic;">'
+    '<span style="color: #9a9a9f; font-style: italic;">'
     "Select a node in the palette or on the canvas to see its "
     "documentation here."
-    "</p>"
+    "</span>"
 )
 
-#: Inline stylesheet for the rendered docs. Tuned for a narrow dock
-#: (≈ 220 px is the realistic minimum a user wants to give it):
-#: small fonts, no fixed-width meta blocks, ``word-break: break-word``
-#: on every potentially-long code span so a dotted module path or a
-#: long file-dialog filter wraps instead of forcing a horizontal
-#: scrollbar. ``<dl>`` instead of bullets so the param name + body
-#: lines vertically align with no list-marker gutter. Colour palette
-#: mirrors the rest of the editor (panel ``#2f2f33`` / muted text
-#: ``#9a9a9f`` / accent ``#f0c83c``).
+#: CSS shared by the summary label and the details browser. Tuned for
+#: a narrow dock (≈ 220 px is the realistic minimum a user wants to
+#: give it): small fonts, no fixed-width meta blocks,
+#: ``word-break: break-all`` on every potentially-long ``<code>``
+#: span so a dotted module path or a long file-dialog filter wraps
+#: instead of forcing a horizontal scrollbar. ``<dl>`` instead of
+#: bullets so the param name + body lines vertically align with no
+#: list-marker gutter. Colour palette mirrors the rest of the editor
+#: (panel ``#2f2f33`` / muted text ``#9a9a9f`` / accent ``#f0c83c``).
 _PANEL_CSS: str = """
 <style>
   body { font-family: 'Segoe UI', sans-serif; font-size: 11px;
@@ -60,7 +75,8 @@ _PANEL_CSS: str = """
          word-wrap: break-word; overflow-wrap: anywhere; }
   h1   { font-size: 14px; margin: 0 0 2px; font-weight: 600;
          color: #f0c83c; }
-  .meta { color: #9a9a9f; font-size: 10px; margin: 0 0 6px; }
+  .meta { color: #9a9a9f; font-size: 10px; margin: 0 0 4px; }
+  .brief{ margin: 0 0 4px; color: #cfcfd0; }
   .doc  { margin: 0 0 6px; }
   h2   { font-size: 10px; font-weight: 600; text-transform: uppercase;
          letter-spacing: 0.6px; color: #9a9a9f;
@@ -82,9 +98,9 @@ _PANEL_CSS: str = """
 #: target so the role prefix can be stripped without losing the
 #: identifier itself. ``:class:`Resize``` becomes ``Resize``.
 #:
-#: All six role names that actually appear in the codebase today are
-#: handled with one pattern; new roles only need to be added if they
-#: contain characters outside ``[a-z]``.
+#: All seven role names that actually appear in the codebase today
+#: are handled with one pattern; new roles only need to be added if
+#: they contain characters outside ``[a-z]``.
 _SPHINX_ROLE_RE: re.Pattern[str] = re.compile(
     r":(?:class|func|meth|attr|data|mod|obj):`([^`]+)`"
 )
@@ -121,26 +137,38 @@ def _render_prose(text: str) -> str:
 
     Steps, in order:
       1. Strip Sphinx role prefixes (``:class:`x``` → ``x``).
-      2. Dedent — class docstrings carry their indentation, which
-         would survive in HTML as awkward leading spaces in the
-         middle of paragraphs.
+      2. PEP-257 cleandoc — class docstrings carry their indentation,
+         which would survive in HTML as awkward leading spaces in the
+         middle of paragraphs. Plain ``textwrap.dedent`` is a no-op
+         here because the common prefix is empty (first line has zero
+         indentation, body has class-level indent); ``cleandoc``
+         understands that convention.
       3. HTML-escape so user content can't smuggle markup.
       4. Re-introduce the two pieces of light formatting that survive
          escaping: RST inline code (``` ``foo`` ```) becomes
          ``<code>foo</code>``.
     """
     text = _strip_sphinx_roles(text)
-    # ``inspect.cleandoc`` is the standard PEP 257 docstring cleanup:
-    # it leaves the first line alone, then strips the *minimum* common
-    # leading whitespace from the remaining lines. Plain
-    # ``textwrap.dedent`` does not work here because a class docstring's
-    # first line has zero indentation while the body is indented to
-    # match the class — the common prefix is empty and dedent is a
-    # no-op. ``cleandoc`` understands that convention.
     text = inspect.cleandoc(text)
     text = html.escape(text)
     text = _RST_INLINE_CODE_RE.sub(r"<code>\1</code>", text)
     return text
+
+
+def _docstring_paragraphs(docstring: str) -> list[str]:
+    """Split a class docstring into paragraphs, each already prose-rendered.
+
+    The first paragraph is the convention-defined "summary" line per
+    PEP 257, so the panel uses it as the always-visible brief. The
+    rest live inside the collapsible details section.
+    """
+    if not docstring.strip():
+        return []
+    return [
+        _render_prose(p).strip()
+        for p in docstring.split("\n\n")
+        if p.strip()
+    ]
 
 
 def _format_types(types: list[str]) -> str:
@@ -175,9 +203,8 @@ def _format_enum_mapping(mapping: dict) -> str:
 
 def _format_extras(p: dict) -> str:
     """Render the small grab-bag of non-description metadata as one
-    semi-colon-separated line. Returns ``""`` when nothing useful is
-    present so the caller can drop the line entirely.
-    """
+    centred-dot-separated line. Returns ``""`` when nothing useful is
+    present so the caller can drop the line entirely."""
     parts: list[str] = []
     if "default" in p:
         parts.append(f"default <code>{_format_default(p['default'])}</code>")
@@ -245,25 +272,22 @@ def _render_output(port: dict) -> str:
     )
 
 
-def render_node_doc(desc: dict) -> str:
-    """Turn a :func:`core.node_doc.describe_node` dict into HTML.
+def render_node_summary(desc: dict) -> str:
+    """HTML for the *always-visible* portion of the panel.
 
-    Pure function — no Qt, no class instantiation. Tests against this
-    function exercise the entire rendering contract without an
+    Carries the node name, section, and the docstring's first
+    paragraph (the PEP 257 summary line). Designed to fit in a few
+    rows so the panel doesn't squeeze the Node List dock above it.
+    Pure function — no Qt — so it's testable without a
     ``QApplication``.
-
-    Empty sections are *omitted* entirely (a sink with no outputs
-    just doesn't show an Outputs heading) so the panel stays
-    compact. Section boundaries appear in a fixed order whenever
-    they appear, so users can predict where to look.
     """
     parts: list[str] = [_PANEL_CSS]
 
     # H1 carries an HTML ``title`` attribute with the dotted module
     # path so a curious user can hover to see where the class lives,
     # without that long string forcing the dock open. Most QTextBrowser
-    # builds honour ``title`` as a tooltip; on those that don't, the
-    # information is still accessible via the source.
+    # builds honour ``title`` as a tooltip; on those that don't the
+    # information is still accessible from the source.
     display_name = html.escape(desc["display_name"])
     module = desc.get("module") or ""
     class_name = desc.get("class_name") or ""
@@ -274,17 +298,32 @@ def render_node_doc(desc: dict) -> str:
     if section := desc.get("section"):
         parts.append(f'<p class="meta">{html.escape(section)}</p>')
 
-    docstring = desc.get("docstring", "").strip()
-    if docstring:
-        # Convert the docstring's blank-line paragraph breaks into
-        # ``<p>`` elements, leave the rest as-is. Preserves intent
-        # without paying for a full Markdown / RST renderer.
-        paragraphs = [
-            f'<p class="doc">{_render_prose(p).strip()}</p>'
-            for p in docstring.split("\n\n")
-            if p.strip()
-        ]
-        parts.extend(paragraphs)
+    paragraphs = _docstring_paragraphs(desc.get("docstring", ""))
+    if paragraphs:
+        parts.append(f'<p class="brief">{paragraphs[0]}</p>')
+
+    return "".join(parts)
+
+
+def render_node_details(desc: dict) -> str:
+    """HTML for the *collapsible* portion of the panel.
+
+    Contains everything except the summary head: the rest of the
+    docstring (paragraphs after the PEP 257 summary line) followed
+    by Inputs, Outputs and Parameters tables. Empty sections are
+    *omitted* entirely (a sink with no outputs simply doesn't show
+    an Outputs heading) so the body stays compact even when the
+    user opens the disclosure.
+    """
+    parts: list[str] = [_PANEL_CSS]
+
+    # Skip the summary line; everything else from the docstring goes
+    # into the details body. The summary already lives in the
+    # always-visible head, so duplicating it here would just push
+    # the useful content further down.
+    paragraphs = _docstring_paragraphs(desc.get("docstring", ""))
+    for p in paragraphs[1:]:
+        parts.append(f'<p class="doc">{p}</p>')
 
     if inputs := desc.get("inputs", []):
         parts.append("<h2>Inputs</h2><dl>")
@@ -304,30 +343,112 @@ def render_node_doc(desc: dict) -> str:
     return "".join(parts)
 
 
+def has_details(desc: dict) -> bool:
+    """``True`` when ``render_node_details`` would produce content
+    beyond just the stylesheet — i.e. there *is* something for the
+    user to expand. Lets the widget hide the *Details* toggle on
+    nodes that have nothing more to show, instead of dangling an
+    empty disclosure."""
+    if any(p.strip() for p in _docstring_paragraphs(desc.get("docstring", ""))[1:]):
+        return True
+    if desc.get("inputs"):
+        return True
+    if desc.get("outputs"):
+        return True
+    if desc.get("params"):
+        return True
+    return False
+
+
 class NodeDocPanel(QWidget):
     """Dockable panel that renders the docs of the currently selected node.
 
-    Stateless beyond the most recently displayed class — the host page
-    is responsible for wiring selection signals into :meth:`show_class`
-    or :meth:`show_entry`.
+    Layout (top to bottom):
+      1. Always-visible summary (``QLabel`` with rich text) —
+         display name, section, brief description.
+      2. Toggle button (``QToolButton``) — disclosure triangle that
+         collapses / expands the details body.
+      3. Collapsible details body (``QTextBrowser``) — the rest of
+         the docstring plus Inputs / Outputs / Parameters.
+
+    The toggle's expanded state is preserved across selection
+    changes within the session, so a user reading docs can switch
+    between nodes without re-clicking the disclosure each time.
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        # ``True`` while the currently-shown class has something in its
+        # details body. Tracked separately from ``QWidget.isVisible``
+        # because the latter depends on the parent's realised visibility
+        # and gives misleading answers in unit tests where the panel is
+        # never ``show()``-n.
+        self._has_details: bool = False
 
-        self._browser = QTextBrowser()
-        self._browser.setOpenExternalLinks(True)
-        # The browser is read-only by default; explicitly disable text
-        # interaction beyond mouse selection so a stray double-click on
-        # a fragment of the docs doesn't accidentally start text editing
-        # via inherited focus styling.
-        self._browser.setTextInteractionFlags(
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(4)
+
+        # ── Summary head: rich-text QLabel sized to its content ───
+        # Using QLabel rather than a second QTextBrowser keeps the
+        # head compact (no scrollbars, no fixed default height) and
+        # auto-shrinks to the prose it carries. ``setWordWrap`` is
+        # essential for narrow docks; ``OpenExternalLinks`` is on
+        # in case future descriptions embed an HTTP link.
+        self._summary = QLabel()
+        self._summary.setTextFormat(Qt.TextFormat.RichText)
+        self._summary.setWordWrap(True)
+        self._summary.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.LinksAccessibleByMouse
+        )
+        self._summary.setOpenExternalLinks(True)
+        self._summary.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed,
+        )
+        layout.addWidget(self._summary)
+
+        # ── Toggle: flat button with disclosure arrow ────────────
+        # Hidden when the current node has nothing in its details
+        # body (e.g. an undocumented filter with no params); the
+        # summary already says everything there is to say.
+        self._toggle = QToolButton()
+        self._toggle.setCheckable(True)
+        self._toggle.setChecked(False)
+        self._toggle.setText("Details")
+        self._toggle.setArrowType(Qt.ArrowType.RightArrow)
+        self._toggle.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon,
+        )
+        self._toggle.setAutoRaise(True)
+        self._toggle.setSizePolicy(
+            QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed,
+        )
+        self._toggle.setStyleSheet(
+            "QToolButton { color: #9a9a9f; font-size: 10px; "
+            "text-transform: uppercase; letter-spacing: 0.6px; "
+            "padding: 2px 0; border: none; }"
+        )
+        self._toggle.toggled.connect(self._on_toggle)
+        layout.addWidget(self._toggle, alignment=Qt.AlignmentFlag.AlignLeft)
+
+        # Thin separator sits between the toggle and the body so the
+        # disclosure has a visible "lid" even when the body is hidden.
+        # Borrowed colour from the rest of the editor's panel borders.
+        self._rule = QFrame()
+        self._rule.setFrameShape(QFrame.Shape.HLine)
+        self._rule.setStyleSheet("color: #1a1a1d;")
+        layout.addWidget(self._rule)
+
+        # ── Details body: full-height QTextBrowser ───────────────
+        self._details = QTextBrowser()
+        self._details.setOpenExternalLinks(True)
+        self._details.setVisible(False)
+        self._details.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
-        layout.addWidget(self._browser)
+        layout.addWidget(self._details, 1)
 
         self.clear()
 
@@ -336,42 +457,85 @@ class NodeDocPanel(QWidget):
     def show_class(self, cls: type[NodeBase]) -> None:
         """Render documentation for a node *class*.
 
-        The class is instantiated via :func:`describe_node` to read its
-        actual port and param shape. Failures fall back to the empty
-        state with a brief explanation rather than propagating — the
+        The class is instantiated via :func:`describe_node` to read
+        its actual port and param shape. Failures fall back to a
+        small explanatory message rather than propagating — the
         panel is supposed to be informative, not a crash surface.
         """
         try:
             desc = describe_node(cls)
         except Exception as exc:  # noqa: BLE001 — we're a UI fallback path
-            self._browser.setHtml(
-                f'<p class="meta">Could not introspect '
-                f'<code>{html.escape(cls.__name__)}</code>: '
-                f"{html.escape(str(exc))}</p>"
+            self._show_error(
+                f"Could not introspect <code>{html.escape(cls.__name__)}</code>: "
+                f"{html.escape(str(exc))}"
             )
             return
-        self._browser.setHtml(render_node_doc(desc))
+        self._show_desc(desc)
 
     def show_entry(self, entry: NodeEntry) -> None:
         """Render documentation for a palette :class:`NodeEntry`.
 
-        Imports ``entry.module`` lazily (first selection only — Python
-        caches the module thereafter) and resolves the class via
-        :func:`getattr`. Same fallback behaviour as :meth:`show_class`
-        for failures.
+        Imports ``entry.module`` lazily (first selection only —
+        Python caches the module thereafter) and resolves the class
+        via :func:`getattr`. Same fallback behaviour as
+        :meth:`show_class` for failures.
         """
         try:
             module = importlib.import_module(entry.module)
             cls = getattr(module, entry.class_name)
         except Exception as exc:  # noqa: BLE001 — we're a UI fallback path
-            self._browser.setHtml(
-                f'<p class="meta">Could not load '
-                f'<code>{html.escape(f"{entry.module}.{entry.class_name}")}</code>: '
-                f"{html.escape(str(exc))}</p>"
+            full = f"{entry.module}.{entry.class_name}"
+            self._show_error(
+                f"Could not load <code>{html.escape(full)}</code>: "
+                f"{html.escape(str(exc))}"
             )
             return
         self.show_class(cls)
 
     def clear(self) -> None:
-        """Show the empty-state hint."""
-        self._browser.setHtml(_EMPTY_STATE_HTML)
+        """Show the empty-state hint and hide the disclosure."""
+        self._summary.setText(_EMPTY_STATE_HTML)
+        self._details.setHtml("")
+        self._has_details = False
+        self._toggle.setVisible(False)
+        self._rule.setVisible(False)
+        self._details.setVisible(False)
+
+    # ── Internals ──────────────────────────────────────────────────────────────
+
+    def _show_desc(self, desc: dict) -> None:
+        self._summary.setText(render_node_summary(desc))
+        self._details.setHtml(render_node_details(desc))
+        # Hide the disclosure entirely when there's nothing to
+        # disclose, instead of dangling an empty toggle that opens
+        # to a blank panel and confuses the user.
+        self._has_details = has_details(desc)
+        self._toggle.setVisible(self._has_details)
+        self._rule.setVisible(self._has_details)
+        # Body visibility follows the user's last toggle state, but
+        # if there's nothing to show the body must also stay hidden.
+        self._details.setVisible(self._has_details and self._toggle.isChecked())
+
+    def _show_error(self, message_html: str) -> None:
+        """Display a fallback message in the summary head and hide
+        the disclosure, mirroring the empty-state shape."""
+        self._summary.setText(
+            f'<span style="color: #e8a86b;">{message_html}</span>'
+        )
+        self._details.setHtml("")
+        self._has_details = False
+        self._toggle.setVisible(False)
+        self._rule.setVisible(False)
+        self._details.setVisible(False)
+
+    def _on_toggle(self, checked: bool) -> None:
+        """React to the user toggling the disclosure: flip the arrow
+        direction and show / hide the details body."""
+        self._toggle.setArrowType(
+            Qt.ArrowType.DownArrow if checked else Qt.ArrowType.RightArrow,
+        )
+        # Only show the body when there's actually content for it.
+        # ``_has_details`` mirrors ``has_details(desc)`` from the most
+        # recent ``_show_desc`` call and stays meaningful regardless of
+        # the panel's realised visibility (matters for headless tests).
+        self._details.setVisible(checked and self._has_details)
