@@ -155,6 +155,12 @@ class MainWindow(QMainWindow):
 
         self._activate_page(self._start_page)
 
+        # Re-apply any previously persisted dock arrangement so the
+        # Output Inspector / Node List come up where the user last left
+        # them. Defaults (Node List left, Inspector right) stay in place
+        # if there's no saved layout. Issue: #183
+        self._editor_page.restore_dock_layout()
+
         # If a flow was supplied on the command line, jump straight into
         # the editor. Failure falls through to the start page (already
         # active) so a bad CLI arg never blocks app launch.
@@ -408,3 +414,13 @@ class MainWindow(QMainWindow):
             self.setWindowTitle(f"{APP_DISPLAY_NAME} — {page_title}")
         else:
             self.setWindowTitle(APP_DISPLAY_NAME)
+
+    # ── Lifecycle ──────────────────────────────────────────────────────────────
+
+    def closeEvent(self, event) -> None:  # type: ignore[override]
+        """Persist the editor's dock arrangement before the app exits.
+
+        Issue: #183
+        """
+        self._editor_page.save_dock_layout()
+        super().closeEvent(event)

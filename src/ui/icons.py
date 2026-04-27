@@ -53,6 +53,8 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "select_all":   "e162",
     "unfold_more":  "e5d7",
     "unfold_less":  "e5d6",
+    "vertical_split":   "e949",
+    "horizontal_split": "e947",
 }
 
 

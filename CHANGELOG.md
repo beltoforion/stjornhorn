@@ -10,6 +10,40 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.15] — 2026-04-26
+
+### Added
+- **Dock-layout presets.** New ``View → Dock Layout`` submenu with two
+  one-click arrangements: *Inspector on Right (default)* and
+  *Inspector under Node List* (the pre-0.2.14 layout). Qt's
+  drag-and-drop into a split-with-existing-dock zone is precise enough
+  to be hard to discover when the source dock is on the opposite side
+  of the canvas, so both useful arrangements are exposed as menu
+  entries in addition to the existing freeform drag affordances.
+  Issue: #183
+
+## [0.2.14] — 2026-04-26
+
+### Changed
+- **Output Inspector docks on the right by default.** Previously the
+  Output Inspector shared the left dock area with the Node List in a
+  50/50 vertical split. The inspector's content (a stack of large
+  image previews) is taller than wide and benefits from a full-height
+  column on its own; the Node List keeps the left, the Inspector
+  takes the right, and the canvas keeps everything in between. All
+  the existing Qt dock affordances (drag, float, tab, hide) are
+  unchanged. Issue: #183
+
+### Added
+- **Persistent dock layout.** The editor's dock arrangement (Node
+  List / Output Inspector positions, sizes, floating / tabbed state,
+  visibility) is now saved on app exit and restored on the next
+  launch. The layout lives under
+  ``~/.image-inquest/dock_layout.json`` as a versioned base64
+  wrapper around ``QMainWindow.saveState()``. Corrupt, missing, or
+  wrong-version files fall back silently to the right-hand default
+  so the editor always comes up in a usable state. Issue: #183
+
 ## [0.2.13] — 2026-04-26
 
 ### Fixed

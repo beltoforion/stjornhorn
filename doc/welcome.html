@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.13</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.15</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,21 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.15</h2>
+      <ul class="tips">
+        <li><strong>Dock layout presets.</strong> The View → Dock Layout submenu now offers two one-click arrangements: <em>Inspector on Right (default)</em> and <em>Inspector under Node List</em> (the pre-0.2.14 layout). Qt's drag-and-drop into a split-with-existing-dock zone is precise enough to be hard to discover when the source dock is on the opposite side of the canvas, so the two layouts users actually want are exposed as menu entries in addition to the freeform drag affordances.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.14</h2>
+      <ul class="tips">
+        <li><strong>Output Inspector docked on the right by default.</strong> The image preview panel now opens as a tall full-height column on the right of the editor instead of sharing a half-height slot with the Node List on the left. Image previews stack vertically, so a narrow-but-tall column fits the panel's aspect better and gives the canvas more horizontal room. Drag, float, tab, or close the dock as before — Qt's standard dock affordances are unchanged.</li>
+        <li><strong>Dock layout persists across sessions.</strong> Whatever you reshape the Node List / Output Inspector docks into is saved when you close the app and re-applied on the next launch. The layout lives under <code>~/.image-inquest/dock_layout.json</code> as a versioned base64-wrapped <code>QMainWindow.saveState()</code>. Corrupt or missing files fall back silently to the right-side default.</li>
+      </ul>
     </section>
 
     <section>
