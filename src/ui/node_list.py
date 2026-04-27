@@ -52,10 +52,25 @@ class NodeList(QWidget):
     :data:`NODE_LIST_MIME_TYPE` MIME type carrying a JSON descriptor of
     the node (module, class_name, display_name, category, section). The
     flow canvas reads that payload on drop and instantiates the node.
+
+    Section expand/collapse state is tracked in-memory in
+    :attr:`_section_states` and can be persisted / restored by the
+    owning page via :meth:`get_section_states` /
+    :meth:`restore_section_states`. Search-driven temporary expansion is
+    not written into :attr:`_section_states`; only explicit user toggles
+    (and the expand-all / collapse-all buttons) count. Issue: #190
     """
 
     def __init__(self, registry: NodeRegistry, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+
+        # In-memory truth for per-section expanded state. Updated by
+        # itemExpanded / itemCollapsed signals (but not while a search is
+        # active) and by the expand-all / collapse-all buttons.
+        self._section_states: dict[str, bool] = {}
+        # Guard flag: True while a search is active so signal-driven
+        # expand/collapse changes don't overwrite the user's saved state.
+        self._search_active: bool = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -94,7 +109,51 @@ class NodeList(QWidget):
         self._populate(registry)
         self._tree.expandAll()
 
+        # Seed _section_states from the just-expanded tree so the in-memory
+        # state is consistent before restore_section_states is called.
+        for i in range(self._tree.topLevelItemCount()):
+            item = self._tree.topLevelItem(i)
+            self._section_states[item.text(0)] = True
+
+        # Wire expand/collapse signals. Connected after populate + expandAll
+        # so the initial bulk-expand doesn't touch _section_states.
+        self._tree.itemExpanded.connect(self._on_item_expanded)
+        self._tree.itemCollapsed.connect(self._on_item_collapsed)
+
+    # ── Public state API (called by the owning page) ───────────────────────────
+
+    def get_section_states(self) -> dict[str, bool]:
+        """Return a shallow copy of the current per-section expanded map."""
+        return dict(self._section_states)
+
+    def restore_section_states(self, states: dict[str, bool]) -> None:
+        """Apply *states* to the tree, defaulting new sections to expanded.
+
+        Stale keys (sections that no longer exist) are ignored. Safe to
+        call on an empty tree.
+        """
+        for i in range(self._tree.topLevelItemCount()):
+            item = self._tree.topLevelItem(i)
+            key = item.text(0)
+            expanded = states.get(key, True)  # default: expanded
+            self._section_states[key] = expanded
+        self._apply_section_states()
+
     # ── Internals ──────────────────────────────────────────────────────────────
+
+    def _apply_section_states(self) -> None:
+        """Expand/collapse each section header to match :attr:`_section_states`."""
+        for i in range(self._tree.topLevelItemCount()):
+            item = self._tree.topLevelItem(i)
+            item.setExpanded(self._section_states.get(item.text(0), True))
+
+    def _on_item_expanded(self, item: QTreeWidgetItem) -> None:
+        if not self._search_active and self._tree.indexOfTopLevelItem(item) != -1:
+            self._section_states[item.text(0)] = True
+
+    def _on_item_collapsed(self, item: QTreeWidgetItem) -> None:
+        if not self._search_active and self._tree.indexOfTopLevelItem(item) != -1:
+            self._section_states[item.text(0)] = False
 
     def _populate(self, registry: NodeRegistry) -> None:
         grouped = registry.nodes_by_section()
@@ -146,6 +205,7 @@ class NodeList(QWidget):
 
     def _on_search(self, text: str) -> None:
         query = text.strip().lower()
+        self._search_active = bool(query)
         for i in range(self._tree.topLevelItemCount()):
             section = self._tree.topLevelItem(i)
             any_visible = False
@@ -162,15 +222,22 @@ class NodeList(QWidget):
                 any_visible = any_visible or matches
             # Section headers stay visible (context matters), but expand
             # automatically while a search is active so matches are not
-            # hidden behind a collapsed group.
+            # hidden behind a collapsed group. When search clears, snap
+            # back to the user's saved state.
             section.setHidden(False)
             if query:
                 section.setExpanded(any_visible)
+        if not query:
+            self._apply_section_states()
 
     def _expand_all(self) -> None:
+        for key in self._section_states:
+            self._section_states[key] = True
         self._tree.expandAll()
 
     def _collapse_all(self) -> None:
+        for key in self._section_states:
+            self._section_states[key] = False
         self._tree.collapseAll()
 
 

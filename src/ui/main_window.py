@@ -155,11 +155,11 @@ class MainWindow(QMainWindow):
 
         self._activate_page(self._start_page)
 
-        # Re-apply any previously persisted dock arrangement so the
-        # Output Inspector / Node List come up where the user last left
-        # them. Defaults (Node List left, Inspector right) stay in place
-        # if there's no saved layout. Issue: #183
-        self._editor_page.restore_dock_layout()
+        # Re-apply any previously persisted per-page UI state (dock layout,
+        # node-palette section state, …). Each page's restore_state() is a
+        # no-op by default; overriding pages handle their own concerns.
+        for page in self._pages_list:
+            page.restore_state()
 
         # If a flow was supplied on the command line, jump straight into
         # the editor. Failure falls through to the start page (already
@@ -418,9 +418,7 @@ class MainWindow(QMainWindow):
     # ── Lifecycle ──────────────────────────────────────────────────────────────
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
-        """Persist the editor's dock arrangement before the app exits.
-
-        Issue: #183
-        """
-        self._editor_page.save_dock_layout()
+        """Persist per-page UI state before the app exits."""
+        for page in self._pages_list:
+            page.save_state()
         super().closeEvent(event)
