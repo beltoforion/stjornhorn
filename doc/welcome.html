@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.18</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.19</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.19</h2>
+      <ul class="tips">
+        <li><strong>Node-documentation schema.</strong> A new <code>core.node_doc</code> module declares the <code>PortMetadata</code> contract every input port and node param can fill in (description, min/max, unit, enum mapping) and provides a <code>describe_node()</code> introspection helper that turns any node class into a structured catalog entry. Ground-work for the upcoming AI flow assistant (issue #187) and for richer parameter-panel tooltips. A companion lint test in <code>tests/test_node_documentation.py</code> documents the target — currently <code>xfail</code>-marked while the existing 43-node corpus is brought up to spec, so CI stays green and already-compliant nodes show up as <code>XPASS</code>.</li>
+      </ul>
     </section>
 
     <section>

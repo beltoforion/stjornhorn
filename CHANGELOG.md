@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.19] — 2026-04-27
+
+### Added
+- **Node-documentation schema and introspection helper.** New
+  ``core.node_doc`` module that declares the ``PortMetadata``
+  ``TypedDict`` recognised in every ``InputPort.metadata`` /
+  ``NodeParam.metadata``, and provides ``describe_node(cls)`` —
+  a JSON-serialisable description of a node class (display name,
+  section, docstring, ports, params, normalised enum mappings).
+  Two consumers are intended: parameter-panel tooltips in the editor,
+  and the AI flow assistant (issue #187) whose system prompt needs a
+  machine-readable catalog of every available node. A companion lint
+  test (``tests/test_node_documentation.py``) is currently
+  ``xfail``-marked while the existing node corpus is brought up to
+  spec; already-compliant nodes show up as ``XPASS`` so the sweep
+  progress is visible without breaking CI. Pure additive change — no
+  existing node behaviour is altered.
+
 ## [0.2.18] — 2026-04-27
 
 ### Added
