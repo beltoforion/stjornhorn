@@ -33,7 +33,18 @@ class Median(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=3,
-            metadata={"default": 3, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 3,
+                "param_type": NodeParamType.INT,
+                "min": 1,
+                "unit": "px",
+                "description": (
+                    "Kernel side length in pixels. Must be odd; even "
+                    "values are bumped up to the next odd integer. "
+                    "Larger kernels remove more noise at the cost of "
+                    "fine detail."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

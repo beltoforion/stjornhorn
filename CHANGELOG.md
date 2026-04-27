@@ -10,6 +10,38 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.22] — 2026-04-27
+
+### Changed
+- **Filter documentation sweep.** Every parameter on the eighteen
+  filter nodes that were still undocumented after v0.2.20 now ships
+  with a ``"description"`` metadata key, and where it makes sense
+  also a numeric ``min`` / ``max`` bound and a ``unit`` suffix.
+  Affected nodes:
+  ``AdaptiveGaussianThreshold``, ``ApplyColormap``, ``Clamp``,
+  ``Crop``, ``DebugParam``, ``Delay``, ``Dither``, ``Flip``,
+  ``Math``, ``Median``, ``Ncc``, ``Notify``, ``Overlay``,
+  ``Scale``, ``Shift``, ``SubpixelMosaic``, ``TemporalMean``,
+  ``TemporalMedian``.
+
+  Visible effects:
+  - Hovering an inline parameter widget on these nodes now shows
+    the description as a tooltip (introduced in v0.2.20).
+  - The Node Documentation panel (v0.2.21) renders the full
+    descriptions, ranges and units in its Inputs and Parameters
+    sections.
+  - Numeric param widgets that gained a ``min`` / ``max`` now
+    constrain the spin-box range instead of accepting and then
+    rejecting out-of-range values at run time. The bounds match
+    what the existing setters already enforced — e.g.
+    ``Median.size >= 1``, ``Crop.width >= 1`` — so no saved flow
+    stops working; the change is purely a friendlier edit
+    surface.
+
+  Lint progress: ``test_param_ports_have_description`` flips from
+  18 ``XFAIL`` cases to 18 ``XPASS``; the six remaining ``XFAIL``s
+  are all sources / sinks and are scoped for a follow-up sweep PR.
+
 ## [0.2.21] — 2026-04-27
 
 ### Added

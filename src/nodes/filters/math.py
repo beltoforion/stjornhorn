@@ -161,13 +161,31 @@ class Math(NodeBase):
                 {IoDataType.SCALAR},
                 optional=True,
                 default_value=default,
-                metadata={"default": default, "param_type": NodeParamType.FLOAT},
+                metadata={
+                    "default": default,
+                    "param_type": NodeParamType.FLOAT,
+                    "description": (
+                        f"Operand {name!r} in the expression. Unconnected "
+                        "ports use the inline-edited default."
+                    ),
+                },
             ))
 
         self._add_param(NodeParam(
             "expression",
             NodeParamType.STRING,
             default="a",
+            metadata={
+                "description": (
+                    "Arithmetic expression in the variables a, b, c, d "
+                    "plus the helpers sin / cos / tan / asin / acos / "
+                    "atan / atan2 / sinh / cosh / tanh / sqrt / exp / "
+                    "log / log2 / log10 / abs / floor / ceil / round / "
+                    "min / max / deg / rad and the constants pi and e. "
+                    "Examples: 'a + b', 'a * b + c * d', "
+                    "'sin(a * pi/180) * b', 'a if b > 0 else c'."
+                ),
+            },
         ))
 
         self._add_output(OutputPort("result", {IoDataType.SCALAR}))
