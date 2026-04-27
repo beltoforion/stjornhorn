@@ -10,6 +10,53 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.21] — 2026-04-27
+
+### Added
+- **Node Documentation dock.** *(Layout follow-up: re-tuned for
+  narrow docks — small fonts, compact ``<dl>`` layout instead of
+  Markdown bullets, dotted module path moved off the visible meta
+  line into the H1 ``title`` tooltip so the panel no longer
+  forces a wide dock. Sphinx cross-reference roles
+  (``:class:`Resize```, ``:func:`cv2.GaussianBlur```, …) and RST
+  inline code (``` ``foo`` ```) are stripped / converted before
+  rendering so the dev syntax doesn't leak into the user-facing
+  text. Class docstrings are PEP-257-cleandoc'd so body
+  indentation doesn't survive into HTML. ENUM-typed default
+  values render as the member name (``SCALE``) instead of the raw
+  ``<MyEnum.SCALE: 0>`` repr. Body content is now split between
+  an always-visible *summary* (node name, section, brief
+  description, **Inputs** and **Outputs**) and a collapsible
+  *Details* disclosure (rest of the docstring, **Parameters**).
+  Inputs and outputs are structural — the user needs them upfront
+  to decide how to wire the node — so they sit in the head;
+  descriptions and parameter ranges are longer-form and live
+  behind the disclosure. The disclosure's open / closed state
+  survives selection changes within a session, so a user reading
+  docs can switch between nodes without re-clicking it. Nodes
+  with nothing in their details body hide the toggle entirely
+  instead of dangling an empty disclosure.)* A new ``QDockWidget`` under the Node
+  List that shows full documentation for the currently selected
+  node: the class docstring, every input and output port with its
+  accepted types, every parameter with type / default / range / unit,
+  and (for ``ENUM`` params) the integer-to-name mapping rendered as
+  ``0=NAME, 1=…``. Two selection sources feed the panel:
+  - **Palette click** — the new
+    ``NodeList.entry_selected(NodeEntry)`` signal previews the
+    docs of the class the user is about to drop.
+  - **Canvas click** — selecting a node on the graph takes
+    precedence and shows the docs of the class the user is
+    actually configuring.
+  Driven by the existing ``core.node_doc.describe_node`` introspection
+  helper, so the panel automatically grows richer as the
+  documentation sweep tracked under issue #187 progresses (more
+  ``description`` keys → more body text in the panel). Toggle through
+  the *View* menu; position and visibility persist across sessions
+  via ``dock_layout.json`` like the existing docks. The Markdown
+  renderer is a pure function (``ui.node_doc_panel.render_node_doc``)
+  so the bulk of the rendering logic is testable without an
+  ``QApplication``.
+
 ## [0.2.20] — 2026-04-27
 
 ### Changed

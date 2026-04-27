@@ -33,6 +33,8 @@ from typing_extensions import override
 
 from ui.page import PageBase, ToolbarSection
 from ui.dock_layout import restore_dock_layout, save_dock_layout
+from ui.node_doc_panel import NodeDocPanel
+from ui.node_item import NodeItem
 from ui.node_list import NodeList
 from ui.recent_flows import RecentFlowsManager
 from ui.message_banner import MessageBanner
@@ -145,6 +147,34 @@ class NodeEditorPage(PageBase):
         self._viewer_fullscreen_shortcut.activated.connect(
             self._toggle_viewer_fullscreen
         )
+
+        # Node Documentation dock — read-only Markdown view of the
+        # currently selected node's docstring, ports and params. Kept
+        # in its own dock so the user can hide / float / re-tab it
+        # through the existing dock-layout machinery; the View menu
+        # exposes the standard toggleViewAction. Defaults to the
+        # left dock area, stacked under the Node List so the two
+        # related panels live in the same column. Issue: #187
+        self._node_doc_panel = NodeDocPanel()
+        self._node_doc_dock = QDockWidget("Node Documentation", self._inner)
+        self._node_doc_dock.setObjectName("NodeDocDock")
+        self._node_doc_dock.setWidget(self._node_doc_panel)
+        self._node_doc_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
+        self._inner.addDockWidget(
+            Qt.DockWidgetArea.LeftDockWidgetArea, self._node_doc_dock,
+        )
+        self._inner.splitDockWidget(
+            self._node_list_dock, self._node_doc_dock, Qt.Orientation.Vertical,
+        )
+
+        # Selection wiring: the panel mirrors whichever selection source
+        # last fired. Palette clicks emit a NodeEntry; canvas clicks land
+        # via the FlowScene selection signal and are translated here into
+        # the underlying node class. A canvas selection takes precedence
+        # over a palette click since it represents "the node I'm
+        # currently configuring" — the more useful target for the docs.
+        self._node_list.entry_selected.connect(self._on_palette_entry_selected)
+        self._scene.selectionChanged.connect(self._on_canvas_selection_changed)
 
         # Actions: reused by both the page menu and the main toolbar.
         self._actions = self._build_actions()
@@ -270,6 +300,7 @@ class NodeEditorPage(PageBase):
 
         view_menu = menu.addMenu("View")
         view_menu.addAction(self._node_list_dock.toggleViewAction())
+        view_menu.addAction(self._node_doc_dock.toggleViewAction())
         view_menu.addAction(self._viewer_dock.toggleViewAction())
         view_menu.addSeparator()
         # Preset dock arrangements. Qt's drag-and-drop into a split-with-
@@ -455,7 +486,6 @@ class NodeEditorPage(PageBase):
             :attr:`toolbar_layout_changed` so MainWindow rebuilds the
             toolbar instead of leaving an orphan separator.
         """
-        from ui.node_item import NodeItem
         selected_nodes = sum(
             1 for s in self._scene.selectedItems() if isinstance(s, NodeItem)
         )
@@ -476,6 +506,41 @@ class NodeEditorPage(PageBase):
     def _on_stack_horizontal_clicked(self) -> None:
         """Align selected nodes on a shared Y axis and stack them horizontally."""
         self._scene.stack_selected_horizontally()
+
+    def _on_palette_entry_selected(self, entry: object | None) -> None:
+        """Mirror the palette's selection in the documentation panel.
+
+        Skipped while the canvas already has a selected node — that
+        selection represents "the node the user is currently working
+        on" and is the more useful target for the docs view. When the
+        canvas clears (no node selected), the palette selection takes
+        over again on the next palette click.
+        """
+        if any(isinstance(s, NodeItem) for s in self._scene.selectedItems()):
+            return
+        if entry is None:
+            self._node_doc_panel.clear()
+            return
+        self._node_doc_panel.show_entry(entry)
+
+    def _on_canvas_selection_changed(self) -> None:
+        """Mirror the canvas's selection in the documentation panel.
+
+        Picks the first selected :class:`NodeItem` (multi-select shows
+        the docs of the topmost one — Qt's selection order is stable
+        per session and the alternative — flipping back to the empty
+        state on every multi-select — is more confusing in practice).
+        With no node selected, the panel falls back to the empty state
+        so a stale class doesn't linger after the user clicks on
+        empty canvas.
+        """
+        node_items = [
+            s for s in self._scene.selectedItems() if isinstance(s, NodeItem)
+        ]
+        if not node_items:
+            self._node_doc_panel.clear()
+            return
+        self._node_doc_panel.show_class(type(node_items[0].node))
 
     def _on_viewer_top_level_changed(self, floating: bool) -> None:
         """Promote the floating Output Inspector to a real top-level window.

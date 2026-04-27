@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QMimeData, QSize, Qt
+from PySide6.QtCore import QMimeData, QSize, Qt, Signal
 from PySide6.QtGui import QDrag
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -81,10 +81,25 @@ class NodeList(QWidget):
     :data:`NODE_LIST_MIME_TYPE` MIME type carrying a JSON descriptor of
     the node (module, class_name, display_name, category, section). The
     flow canvas reads that payload on drop and instantiates the node.
+
+    Selecting a leaf (without dragging) emits :attr:`entry_selected`
+    with the registry's :class:`~core.node_registry.NodeEntry` so the
+    documentation panel can render docs for the picked class. Section
+    rows and the "(none)" placeholder emit ``None`` so consumers can
+    drop back to an empty state.
     """
+
+    #: Emitted whenever the current selection changes. Carries the
+    #: :class:`~core.node_registry.NodeEntry` for a leaf row, or ``None``
+    #: when a section header / placeholder / nothing is selected.
+    entry_selected = Signal(object)
 
     def __init__(self, registry: NodeRegistry, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        # Cache the registry so currentItemChanged can map a clicked
+        # leaf back to its full NodeEntry without round-tripping
+        # through the tree's JSON payload (which is drag-only).
+        self._registry: NodeRegistry = registry
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -118,10 +133,38 @@ class NodeList(QWidget):
         layout.addLayout(toolbar)
 
         self._tree = _DraggableTree()
+        self._tree.currentItemChanged.connect(self._on_current_item_changed)
         layout.addWidget(self._tree, 1)
 
         self._populate(registry)
         self._tree.expandAll()
+
+    # ── Selection ──────────────────────────────────────────────────────────────
+
+    def _on_current_item_changed(
+        self,
+        current: QTreeWidgetItem | None,
+        _previous: QTreeWidgetItem | None,
+    ) -> None:
+        """Translate a tree-row selection change into an
+        :attr:`entry_selected` emission carrying the matched
+        :class:`NodeEntry` (or ``None`` for non-leaf rows)."""
+        if current is None:
+            self.entry_selected.emit(None)
+            return
+        payload = current.data(0, Qt.ItemDataRole.UserRole)
+        if not payload:
+            # Section header or "(none)" placeholder — clear the panel.
+            self.entry_selected.emit(None)
+            return
+        try:
+            decoded = json.loads(payload)
+            class_name = decoded["class_name"]
+        except (ValueError, KeyError):
+            self.entry_selected.emit(None)
+            return
+        entry = self._registry.nodes.get(class_name)
+        self.entry_selected.emit(entry)
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
