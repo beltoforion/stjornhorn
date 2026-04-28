@@ -114,22 +114,30 @@ High
       raises on Median.size (matching the old setter), even though
       OddIntParam's shape would round it to 1.
 
-    PR-2b (in flight on branch claude/h2-pr2b-bool-enum-overlay):
-      Added BoolParam, EnumParam, ClampedFloatParam and a
-      min_exclusive / max_exclusive flag on FloatParam. Migrated:
-      Overlay, Subpixel Mosaic, Flip, Dither, Rotate, Scale.
-      Overlay is the headline since it exercises every new type in
-      one node. StringParam + FilePathParam still TODO; they land
-      with the filters that use them in PR-2c (Notify, NCC).
+    PR-2b (merged): added BoolParam, EnumParam, ClampedFloatParam
+      and a min_exclusive / max_exclusive flag on FloatParam.
+      Migrated: Overlay (headline — exercises every new type),
+      Subpixel Mosaic, Flip, Dither, Rotate, Scale.
 
-    PR-2c (planned): add StringParam + FilePathParam. Migrate the
-      remaining port-style filters: Notify (STRING + ENUM), NCC
-      (BOOL + FILE_PATH), Math (FLOAT + STRING). Then tackle
-      sources + sinks, deciding the NodeParam merger question
-      (open question 3). file_path setters with side effects
-      (open question 1) drive the on_change= hook design.
+    PR-2c (in flight on branch claude/h2-pr2c-string-filepath):
+      added StringParam and FilePathParam (Path-typed storage with
+      base_dir-aware store_relative_to coerce). Migrated NCC (full)
+      and Notify (partial — message ported, severity stays as
+      NodeParam until constant=True lands). Math NOT migrated:
+      its expression param has compile-on-set semantics, will move
+      with PR-2d's NodeParam merger work.
 
-    PR-2d (planned): retire the legacy _add_input(InputPort(...)) +
+    PR-2d (planned): introduce constant=True flag on the descriptor
+      protocol so NodeParam can subsume into the descriptor model
+      cleanly (constant params don't auto-create an InputPort and
+      render inline in the UI's params slot). Migrate the remaining
+      NodeParam-using filters: Apply Colormap, Resize, Math
+      (expression), Notify (severity). Then tackle sources / sinks,
+      which mostly use NodeParam for file paths and codec choices —
+      the on_change= hook design (open question 1) lands with
+      ImageSource since its file_path setter triggers a re-decode.
+
+    PR-2e (planned): retire the legacy _add_input(InputPort(...)) +
       @property path from NodeBase once empty. Move H2, H4, M9 to
       Resolved.
 

@@ -8,8 +8,9 @@ from typing_extensions import override
 
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParamType
-from core.path_utils import resolve_against, store_relative_to
+from core.node_base import NodeBase
+from core.params import BoolParam, FilePathParam
+from core.path_utils import resolve_against
 from core.port import InputPort, OutputPort
 
 _SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
@@ -33,85 +34,53 @@ class Ncc(NodeBase):
     on each axis.
     """
 
+    template = FilePathParam(
+        "pad.jpg",
+        filter="Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)",
+        base_dir=INPUT_DIR,
+        description=(
+            "Path to the template image to search for. Loaded "
+            "once per run and converted to greyscale at load "
+            "time, so the per-frame cost is the matchTemplate "
+            "call only."
+        ),
+    )
+    retain_size = BoolParam(
+        True,
+        description=(
+            "When on, the match map is pasted onto a canvas the "
+            "same size as the input, with each response at the "
+            "template-centre pixel. When off, the raw response "
+            "is emitted (smaller than the input by template "
+            "size minus one on each axis)."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("NCC", section="Processing")
-        self._retain_size: bool = True
-        self._template_path: Path = Path()
-        self._template: np.ndarray | None = None
+        # Loaded template image (lazy — populated by before_run /
+        # process_impl). Distinct slot from ``self._template`` (which
+        # is the descriptor's ``Path`` storage) so the two don't
+        # collide.
+        self._template_image: np.ndarray | None = None
 
         self._add_input(InputPort("image", {IoDataType.IMAGE_GREY}))
-        self._add_input(InputPort(
-            "template",
-            {IoDataType.PATH},
-            optional=True,
-            default_value="pad.jpg",
-            metadata={
-                "default": "pad.jpg",
-                "filter": "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)",
-                "base_dir": INPUT_DIR,
-                "param_type": NodeParamType.FILE_PATH,
-                "description": (
-                    "Path to the template image to search for. Loaded "
-                    "once per run and converted to greyscale at load "
-                    "time, so the per-frame cost is the matchTemplate "
-                    "call only."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "retain_size",
-            {IoDataType.BOOL},
-            optional=True,
-            default_value=True,
-            metadata={
-                "default": True,
-                "param_type": NodeParamType.BOOL,
-                "description": (
-                    "When on, the match map is pasted onto a canvas the "
-                    "same size as the input, with each response at the "
-                    "template-centre pixel. When off, the raw response "
-                    "is emitted (smaller than the input by template "
-                    "size minus one on each axis)."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def retain_size(self) -> bool:
-        return self._retain_size
-
-    @retain_size.setter
-    def retain_size(self, value: bool) -> None:
-        self._retain_size = bool(value)
-
-    @property
-    def template(self) -> Path:
-        return self._template_path
-
-    @template.setter
-    def template(self, path: str | Path) -> None:
-        self._template_path = store_relative_to(path, INPUT_DIR)
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def _before_run_impl(self) -> None:
         super()._before_run_impl()
-        self._template = self._load_template()
+        self._template_image = self._load_template()
 
     @override
     def process_impl(self) -> None:
-        if self._template is None:
+        if self._template_image is None:
             # before_run wasn't called (e.g. direct unit-test use); load lazily.
-            self._template = self._load_template()
+            self._template_image = self._load_template()
 
         image: np.ndarray = self.inputs[0].data.image
-        template = self._template
+        template = self._template_image
 
         res = cv2.matchTemplate(image, template, cv2.TM_CCORR_NORMED)
         res = cv2.normalize(
@@ -141,7 +110,7 @@ class Ncc(NodeBase):
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _resolved_template_path(self) -> Path:
-        return resolve_against(self._template_path, INPUT_DIR)
+        return resolve_against(self._template, INPUT_DIR)
 
     def _load_template(self) -> np.ndarray:
         resolved = self._resolved_template_path()

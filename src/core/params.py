@@ -28,6 +28,7 @@ Backlog item H2 (see ``refacturing.txt``).
 from __future__ import annotations
 
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from core.io_data import IoDataType
@@ -428,3 +429,127 @@ class EnumParam(_ParamBase):
         meta["enum"] = self.enum_cls
         return meta
 
+
+
+class StringParam(_ParamBase):
+    """String node parameter.
+
+    Coerces incoming values via ``str(value)``. Optional ``placeholder``
+    is rendered by the line-edit widget when the field is empty;
+    optional ``max_length`` caps the typed text at the widget level (the
+    descriptor still accepts arbitrary input, the widget enforces).
+    """
+
+    _NODE_PARAM_TYPE = NodeParamType.STRING
+    _PORT_TYPE = IoDataType.STRING
+
+    def __init__(
+        self,
+        default: str = "",
+        *,
+        placeholder: str | None = None,
+        max_length: int | None = None,
+        description: str | None = None,
+        optional: bool = True,
+    ) -> None:
+        super().__init__(
+            default,
+            description=description,
+            optional=optional,
+        )
+        self.placeholder: str | None = placeholder
+        self.max_length: int | None = max_length
+
+    def _coerce(self, value: object) -> str:
+        return str(value)
+
+    def _build_metadata(self) -> dict[str, object]:
+        meta = super()._build_metadata()
+        if self.placeholder is not None:
+            meta["placeholder"] = self.placeholder
+        if self.max_length is not None:
+            meta["max_length"] = self.max_length
+        return meta
+
+
+class FilePathParam(_ParamBase):
+    """File-path node parameter (open / save / directory).
+
+    The widget renders a line edit + browse button + view-in-OS button.
+    ``mode`` selects the dialog flavour:
+
+      * ``"open"`` (default) — pick an existing file.
+      * ``"save"`` — choose a destination file (can be new).
+      * ``"directory"`` — pick a folder.
+
+    ``filter`` is the file-dialog filter string (e.g.
+    ``"PNG (*.png);;All files (*)"``); ignored in directory mode.
+    ``base_dir`` is the root for relative paths the line edit displays
+    *and* the anchor :func:`core.path_utils.store_relative_to` uses
+    when normalising an incoming path. ``None`` skips the normalising
+    step and lets the widget pick the display fallback
+    (``constants.OUTPUT_DIR`` for save mode, ``constants.INPUT_DIR``
+    otherwise — same fallback the legacy hand-rolled widget used).
+
+    Storage type is :class:`pathlib.Path`. ``_coerce`` runs incoming
+    str / Path inputs through :func:`store_relative_to(base_dir)` so
+    paths inside ``base_dir`` are stashed in their portable relative
+    form (matching the saved-flow representation). When ``base_dir``
+    is ``None`` the value is converted to :class:`Path` unchanged.
+    """
+
+    _NODE_PARAM_TYPE = NodeParamType.FILE_PATH
+    _PORT_TYPE = IoDataType.PATH
+
+    _VALID_MODES = ("open", "save", "directory")
+
+    def __init__(
+        self,
+        default: str | Path = "",
+        *,
+        mode: str = "open",
+        filter: str | None = None,
+        base_dir: Path | None = None,
+        caption: str | None = None,
+        description: str | None = None,
+        optional: bool = True,
+    ) -> None:
+        if mode not in self._VALID_MODES:
+            raise ValueError(
+                f"FilePathParam mode must be one of {self._VALID_MODES} "
+                f"(got {mode!r})"
+            )
+        super().__init__(
+            default,
+            description=description,
+            optional=optional,
+        )
+        self.mode: str = mode
+        self.filter: str | None = filter
+        self.base_dir: Path | None = base_dir
+        self.caption: str | None = caption
+
+    def _coerce(self, value: object) -> Path:
+        # Late import — path_utils sits below the core/ tree and pulling
+        # it in at module load time would extend the import graph for
+        # every node that doesn't actually use a FilePathParam.
+        from core.path_utils import store_relative_to
+
+        if self.base_dir is not None:
+            return store_relative_to(value, self.base_dir)
+        return Path(value) if not isinstance(value, Path) else value
+
+    def _build_metadata(self) -> dict[str, object]:
+        meta = super()._build_metadata()
+        # The widget reads ``mode`` / ``filter`` / ``base_dir`` /
+        # ``caption`` from metadata; only emit non-default values to
+        # keep the dict small and the saved-flow representation tidy.
+        if self.mode != "open":
+            meta["mode"] = self.mode
+        if self.filter is not None:
+            meta["filter"] = self.filter
+        if self.base_dir is not None:
+            meta["base_dir"] = self.base_dir
+        if self.caption is not None:
+            meta["caption"] = self.caption
+        return meta

@@ -287,6 +287,9 @@ def test_ncc_converts_colour_template_to_greyscale_at_before_run(tmp_path: Path)
     node.template = tpl_path
     node.before_run()
 
-    assert node._template is not None
-    assert node._template.ndim == 2
-    assert node._template.shape == template_grey.shape
+    # The descriptor's storage slot ``_template`` holds the Path; the
+    # loaded greyscale image lives on ``_template_image`` after
+    # ``before_run`` runs.
+    assert node._template_image is not None
+    assert node._template_image.ndim == 2
+    assert node._template_image.shape == template_grey.shape
