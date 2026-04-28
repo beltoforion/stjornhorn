@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.25</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.26</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.26</h2>
+      <ul class="tips">
+        <li><strong>Param-widget plumbing centralised.</strong> The six param-editor widgets embedded in every node (Int, Float, Bool, String, Enum, FilePath) used to each repeat the same zero-margin <code>QHBoxLayout</code> setup and the same min-width / fixed-height pair on their value control. That ritual now lives in two helpers on <code>ParamWidgetBase</code> — <code>_make_row_layout()</code> and <code>_size_value_control()</code> — so the layout shape is named in one place. No behaviour change. Backlog item H3.</li>
+      </ul>
     </section>
 
     <section>

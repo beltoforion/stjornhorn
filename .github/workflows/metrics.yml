@@ -1,0 +1,101 @@
+name: code-metrics
+
+# Tracks size and complexity metrics for the Python sources under `src/` so
+# regressions (file/function bloat, runaway cyclomatic complexity, dropping
+# maintainability index) become visible in PRs and on `main`.
+#
+# Output is rendered into the workflow run's step summary and also uploaded
+# as a JSON/text artifact for downstream tooling.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'requirements-dev.txt'
+      - '.github/workflows/metrics.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'requirements-dev.txt'
+      - '.github/workflows/metrics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install radon
+        run: |
+          python -m pip install --upgrade pip
+          pip install radon
+
+      - name: Compute metrics
+        run: |
+          set -eu
+          mkdir -p metrics-out
+
+          # Raw size metrics (LOC, LLOC, SLOC, comments).
+          radon raw -s src > metrics-out/raw.txt
+          radon raw -s --json src > metrics-out/raw.json
+
+          # Cyclomatic complexity per function/method, ranked A–F.
+          # `-n C` flags everything rated C or worse for the summary.
+          radon cc -s -a src > metrics-out/cc.txt
+          radon cc -s -a --json src > metrics-out/cc.json
+          radon cc -s -n C src > metrics-out/cc-hotspots.txt || true
+
+          # Maintainability index per file (0–100, higher is better).
+          # `-n B` flags files rated B or worse.
+          radon mi -s src > metrics-out/mi.txt
+          radon mi -s --json src > metrics-out/mi.json
+          radon mi -s -n B src > metrics-out/mi-hotspots.txt || true
+
+      - name: Render step summary
+        run: |
+          {
+            echo "## Code metrics (radon)"
+            echo
+            echo "### Raw size"
+            echo '```'
+            tail -n 20 metrics-out/raw.txt
+            echo '```'
+            echo
+            echo "### Cyclomatic complexity (average + hotspots ≥ C)"
+            echo '```'
+            tail -n 5 metrics-out/cc.txt
+            echo '```'
+            if [ -s metrics-out/cc-hotspots.txt ]; then
+              echo '<details><summary>Functions rated C or worse</summary>'
+              echo
+              echo '```'
+              cat metrics-out/cc-hotspots.txt
+              echo '```'
+              echo '</details>'
+            else
+              echo "_No functions rated C or worse._"
+            fi
+            echo
+            echo "### Maintainability index (hotspots ≤ B)"
+            if [ -s metrics-out/mi-hotspots.txt ]; then
+              echo '```'
+              cat metrics-out/mi-hotspots.txt
+              echo '```'
+            else
+              echo "_All files rated A._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: code-metrics
+          path: metrics-out/
+          retention-days: 30
