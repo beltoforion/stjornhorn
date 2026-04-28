@@ -4,7 +4,7 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, QMarginsF, QPoint, Qt
+from PySide6.QtCore import QEvent, QPoint, Qt
 from PySide6.QtGui import QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QGraphicsView
 
@@ -146,13 +146,27 @@ class FlowView(QGraphicsView):
         self.scale(factor, factor)
 
     def fit_to_contents(self) -> None:
-        """Zoom and scroll so that all scene items are visible."""
-        rect = self.scene().itemsBoundingRect()
-        if rect.isNull():
+        """Resize the canvas to the node layout plus 5% padding on each
+        side, then zoom and scroll so the whole canvas fills the viewport.
+
+        The node bounding rect is naturally centered in the expanded
+        sceneRect (equal padding on all four sides), so nodes stay in
+        their existing scene coordinates and wires don't shift. Calling
+        ``fit_to_contents`` repeatedly is idempotent — the canvas is
+        recomputed from the current item bounds every time, not grown
+        relative to the previous sceneRect.
+
+        Issue: #191
+        """
+        scene = self.scene()
+        rect = scene.itemsBoundingRect()
+        if rect.isEmpty():
             return
-        # Add a small margin so nodes don't touch the viewport edges.
-        rect = rect.marginsAdded(QMarginsF(40, 40, 40, 40))
-        self.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
+        pad_x = rect.width() * 0.05
+        pad_y = rect.height() * 0.05
+        canvas = rect.adjusted(-pad_x, -pad_y, pad_x, pad_y)
+        scene.setSceneRect(canvas)
+        self.fitInView(canvas, Qt.AspectRatioMode.KeepAspectRatio)
         # Clamp if fitInView zoomed beyond our limits.
         scale = self.transform().m11()
         if scale > self._ZOOM_MAX:
