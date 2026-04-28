@@ -5,7 +5,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 
 from enum import Enum
-from typing import Callable, final, override
+from typing import Callable, final
+
+from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
 from core.port import InputPort, OutputPort
@@ -137,6 +139,25 @@ class NodeBase(ABC):
     #: NodeList palette picks it up via AST scanning.
     DEFAULT_SECTION: str = "Filters"
 
+    #: Class-level descriptors collected by :meth:`__init_subclass__`.
+    #: Populated lazily so the cycle ``params.py → node_base.py`` stays
+    #: clean: the import only runs at subclass-creation time, after
+    #: both modules have finished loading. Empty for subclasses that
+    #: declare no descriptor-style params (legacy nodes that still use
+    #: the explicit ``InputPort(...)`` + ``@property`` pattern).
+    _param_descriptors: tuple = ()
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        super().__init_subclass__(**kwargs)
+        # Late import — see the class-level docstring above.
+        from core.params import _ParamBase
+        descriptors: list[_ParamBase] = []
+        for base in reversed(cls.__mro__):
+            for attr_name, attr in vars(base).items():
+                if isinstance(attr, _ParamBase) and attr not in descriptors:
+                    descriptors.append(attr)
+        cls._param_descriptors = tuple(descriptors)
+
     def __init__(self, display_name: str, section: str | None = None) -> None:
         self._display_name = display_name
         self._section = section if section is not None else self.DEFAULT_SECTION
@@ -144,6 +165,16 @@ class NodeBase(ABC):
         self._outputs: list[OutputPort] = []
         self._params: list[NodeParam] = []
         self._skipped: bool = False
+        # Initialise every descriptor's backing slot to its declared
+        # default before subclass ``__init__`` runs, so ``self._<name>``
+        # exists from the first line after ``super().__init__()``. The
+        # default is written via ``object.__setattr__`` to bypass the
+        # descriptor's ``__set__`` — the descriptor author is trusted to
+        # have provided a valid default, and this runs before validation
+        # rules that depend on other (not-yet-set) descriptor values
+        # would have any chance to trigger.
+        for desc in self._param_descriptors:
+            object.__setattr__(self, desc._private, desc.default)
 
     # ── Port registration (called from subclass __init__) ──────────────────────
 
@@ -177,11 +208,20 @@ class NodeBase(ABC):
         Call this at the end of a subclass ``__init__`` so the node's
         attributes match the values it advertises from the moment it
         is constructed — *before* any UI builder, save routine or
-        scheduler can read stale data. Two sources of editable values
+        scheduler can read stale data. Three sources of editable values
         are honoured:
 
-        * Port-style: an :class:`InputPort` whose metadata carries a
-          ``"param_type"`` key — drivable from upstream when connected.
+        * Descriptor-style: a class-level :class:`~core.params._ParamBase`
+          subclass (e.g. :class:`~core.params.IntParam`,
+          :class:`~core.params.OddIntParam`). Their matching
+          :class:`InputPort` is auto-created here — placed *after* the
+          explicit ports the subclass added in its ``__init__`` so the
+          image-first / params-second visual ordering is preserved.
+        * Port-style legacy: an :class:`InputPort` constructed by hand
+          in the subclass and registered via ``_add_input``, with
+          ``"param_type"`` in its metadata. Co-exists with descriptor-
+          style during the H2 migration; will retire once every node
+          has moved over.
         * Constant-style: a :class:`NodeParam` registered via
           ``_add_param`` — always edited inline only, never connection-
           driven (sources / sinks use these for config like file paths
@@ -193,6 +233,15 @@ class NodeBase(ABC):
         a fallback value before this method runs, so a rejected default
         leaves the node in a still-valid state.
         """
+        # Auto-create descriptor-driven ports. Skip any whose port the
+        # subclass already added explicitly — defensive against a node
+        # that ports to descriptors incrementally and still keeps a
+        # hand-rolled InputPort for one of its params.
+        existing_names = {p.name for p in self._inputs}
+        for desc in self._param_descriptors:
+            if desc.name in existing_names:
+                continue
+            self._add_input(desc.make_port())
         for port in self._inputs:
             if not port.has_default:
                 continue

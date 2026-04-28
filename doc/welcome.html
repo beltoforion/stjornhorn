@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.26</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.27</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.27</h2>
+      <ul class="tips">
+        <li><strong>Class-level node-parameter descriptors (PR-1 of 2).</strong> Node parameters used to require three separate declarations — a backing attribute, an <code>InputPort</code> built by hand, and a <code>@property</code>/<code>@setter</code> with validation — all keyed by the same name and easy to drift. The new <code>core.params</code> module ships <code>IntParam</code>, <code>OddIntParam</code>, and <code>FloatParam</code> descriptors that own all three concerns in one declaration. <code>NodeBase</code> walks them at <code>__init_subclass__</code>-time, initialises private slots from the declared default, and auto-creates the matching <code>InputPort</code> in <code>_apply_default_params</code> after any explicit ports the subclass added (image-first ordering preserved). <code>OddIntParam</code> demonstrates the OCP win: kernel-size-must-be-odd is named once and inherited by any filter that needs it. Migrated <code>GaussianBlur</code> as the proof; the other ~40 nodes will follow in PR-2. No behaviour change visible to users; the <code>.flowjs</code> save format is unchanged. Backlog item H2.</li>
+      </ul>
     </section>
 
     <section>
