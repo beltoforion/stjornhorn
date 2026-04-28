@@ -10,6 +10,21 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.23] — 2026-04-28
+
+### Added
+- **Backdrop resize grips.** Backdrops can now be resized after
+  creation. Hovering or selecting a backdrop reveals eight grips
+  (four corners, four edge midpoints); dragging any grip resizes
+  the rectangle live, with the opposite corner / edge anchored.
+  Width and height clamp at the existing
+  ``MIN_BACKDROP_WIDTH`` / ``MIN_BACKDROP_HEIGHT`` so the frame
+  never collapses into an unclickable sliver. Resizing changes
+  only the frame's geometry — the framed nodes are never swept
+  (that still requires dragging the body). Resized geometry
+  round-trips through save / load like every other backdrop
+  property. Issue #192.
+
 ## [0.2.22] — 2026-04-27
 
 ### Added

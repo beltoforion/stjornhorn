@@ -273,3 +273,158 @@ def test_create_group_marks_scene_dirty(qapp: QApplication) -> None:
     assert scene.is_dirty is False
     scene.create_group_around_selection()
     assert scene.is_dirty is True
+
+
+# ── Interactive resize grips (issue #192) ─────────────────────────────────────
+
+
+def _grip_named(backdrop: BackdropItem, name: str):
+    """Look up a child resize grip by its compass name."""
+    return next(g for g in backdrop._grips if g.name == name)  # noqa: SLF001
+
+
+def _drive_grip(backdrop: BackdropItem, name: str, dx: float, dy: float):
+    """Simulate a grip press + drag without spinning a Qt event loop.
+
+    Mirrors the bookkeeping the real ``mousePressEvent`` /
+    ``mouseMoveEvent`` would set, then invokes ``_apply_resize``
+    with the requested scene-coord delta. Returns the grip so the
+    caller can assert on its press-time snapshot if needed.
+    """
+    grip = _grip_named(backdrop, name)
+    grip._press_scene_pos = QPointF(0, 0)            # noqa: SLF001
+    grip._press_backdrop_pos = QPointF(backdrop.pos())  # noqa: SLF001
+    grip._press_width = backdrop.width                # noqa: SLF001
+    grip._press_height = backdrop.height              # noqa: SLF001
+    grip._dirty_during_drag = False                   # noqa: SLF001
+    grip._apply_resize(dx, dy)                        # noqa: SLF001
+    return grip
+
+
+def test_backdrop_has_eight_resize_grips(qapp: QApplication) -> None:
+    backdrop = BackdropItem()
+    assert len(backdrop._grips) == 8
+    names = {g.name for g in backdrop._grips}
+    assert names == {"nw", "n", "ne", "w", "e", "sw", "s", "se"}
+
+
+def test_grips_are_hidden_by_default(qapp: QApplication) -> None:
+    """Idle backdrops shouldn't show their grips — they'd compete
+    with the chrome of the framed nodes."""
+    backdrop = BackdropItem()
+    assert all(not g.isVisible() for g in backdrop._grips)
+
+
+def test_grips_become_visible_when_selected(qapp: QApplication) -> None:
+    scene = FlowScene()
+    scene.set_flow(Flow(name="grip_select"))
+    backdrop = scene.add_backdrop(QPointF(0, 0))
+    backdrop.setSelected(True)
+    assert all(g.isVisible() for g in backdrop._grips)
+    backdrop.setSelected(False)
+    assert all(not g.isVisible() for g in backdrop._grips)
+
+
+def test_grips_stay_visible_while_cursor_crosses_from_body_to_grip(
+    qapp: QApplication,
+) -> None:
+    """Qt routes hover to the topmost item, so the body sees a
+    hoverLeave the moment the cursor enters a child grip. The grips
+    must stay visible across that transition or the user can never
+    actually grab them."""
+    backdrop = BackdropItem()
+    backdrop._body_hovered = True               # noqa: SLF001 — simulate body hoverEnter
+    backdrop._refresh_grip_visibility()         # noqa: SLF001
+    assert all(g.isVisible() for g in backdrop._grips)
+    # Cursor moves onto a grip: body fires hoverLeave, grip fires hoverEnter.
+    backdrop._body_hovered = False              # noqa: SLF001
+    backdrop._on_grip_hover_changed(entering=True)  # noqa: SLF001
+    backdrop._refresh_grip_visibility()         # noqa: SLF001
+    assert all(g.isVisible() for g in backdrop._grips)
+    # Cursor leaves the grip back into open scene: both flags clear, grips hide.
+    backdrop._on_grip_hover_changed(entering=False)  # noqa: SLF001
+    assert all(not g.isVisible() for g in backdrop._grips)
+
+
+def test_se_grip_grows_width_and_height_keeping_top_left_anchored(
+    qapp: QApplication,
+) -> None:
+    backdrop = BackdropItem(width=200, height=150)
+    backdrop.setPos(QPointF(40, 30))
+    _drive_grip(backdrop, "se", dx=50, dy=20)
+    assert backdrop.width == pytest.approx(250)
+    assert backdrop.height == pytest.approx(170)
+    # SE grip leaves the top-left corner alone.
+    assert backdrop.pos() == QPointF(40, 30)
+
+
+def test_nw_grip_shrinks_size_and_moves_top_left(qapp: QApplication) -> None:
+    backdrop = BackdropItem(width=200, height=150)
+    backdrop.setPos(QPointF(40, 30))
+    _drive_grip(backdrop, "nw", dx=20, dy=10)
+    # Width/height shrink by the drag delta, top-left moves the same.
+    assert backdrop.width == pytest.approx(180)
+    assert backdrop.height == pytest.approx(140)
+    assert backdrop.pos().x() == pytest.approx(60)
+    assert backdrop.pos().y() == pytest.approx(40)
+
+
+def test_n_grip_changes_only_height_and_top_y(qapp: QApplication) -> None:
+    backdrop = BackdropItem(width=200, height=150)
+    backdrop.setPos(QPointF(40, 30))
+    _drive_grip(backdrop, "n", dx=999, dy=15)
+    # The horizontal axis is untouched — dx is irrelevant for N.
+    assert backdrop.width == pytest.approx(200)
+    assert backdrop.height == pytest.approx(135)
+    assert backdrop.pos().x() == pytest.approx(40)
+    assert backdrop.pos().y() == pytest.approx(45)
+
+
+def test_resize_clamps_at_minimum_dimensions(qapp: QApplication) -> None:
+    """Dragging a grip past the minimum holds the anchored corner
+    truly fixed instead of letting it drift past."""
+    backdrop = BackdropItem(width=200, height=150)
+    backdrop.setPos(QPointF(40, 30))
+    # Way over-shrink via NW grip — drag goes far past the minimum.
+    _drive_grip(backdrop, "nw", dx=10_000, dy=10_000)
+    assert backdrop.width == pytest.approx(MIN_BACKDROP_WIDTH)
+    assert backdrop.height == pytest.approx(MIN_BACKDROP_HEIGHT)
+    # Anchored corner (bottom-right) must be where it was at press-time.
+    assert backdrop.pos().x() == pytest.approx(40 + (200 - MIN_BACKDROP_WIDTH))
+    assert backdrop.pos().y() == pytest.approx(30 + (150 - MIN_BACKDROP_HEIGHT))
+
+
+def test_resize_does_not_sweep_framed_nodes(qapp: QApplication) -> None:
+    """The framed nodes must stay put during a resize — only a
+    body-drag is allowed to move them."""
+    from nodes.sources.image_source import ImageSource
+    scene = FlowScene()
+    scene.set_flow(Flow(name="resize_no_sweep"))
+    backdrop = scene.add_backdrop(QPointF(0, 0), width=400, height=300)
+    node = scene.add_node(ImageSource(), QPointF(50, 50))
+    start_pos = node.pos()
+    _drive_grip(backdrop, "se", dx=80, dy=60)
+    assert node.pos() == start_pos
+
+
+def test_resized_geometry_round_trips_through_save_and_load(
+    qapp: QApplication, tmp_path: Path,
+) -> None:
+    scene = FlowScene()
+    flow = Flow(name="resize_roundtrip")
+    scene.set_flow(flow)
+    backdrop = scene.add_backdrop(
+        QPointF(100, 50), title="Mask prep", width=300, height=180,
+    )
+    _drive_grip(backdrop, "se", dx=50, dy=40)
+    assert backdrop.width == 350 and backdrop.height == 220
+
+    path = tmp_path / "bd_resized.flowjs"
+    save_flow_to(path, scene, flow)
+
+    fresh = FlowScene()
+    load_flow_into(path, fresh)
+    [reloaded] = fresh.iter_backdrops()
+    assert reloaded.width == 350
+    assert reloaded.height == 220
+    assert reloaded.pos().x() == 100 and reloaded.pos().y() == 50
