@@ -10,6 +10,31 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.34] — 2026-04-28
+
+### Changed
+- **InputPort supports multiple listeners (M11).** The legacy
+  ``set_on_state_changed`` single-callback slot was a footgun:
+  ``NodeBase`` wired its dispatcher there during port registration,
+  but anyone else calling the same setter (debug hooks, UI
+  indicators, tests) silently overwrote the dispatcher and broke
+  the node's per-frame execution. Replaced with
+  ``add_listener`` / ``remove_listener`` — multiple observers
+  coexist on the same port without clobbering each other. Listener
+  invocation iterates a snapshot of the list so a listener that
+  registers another mid-fire doesn't corrupt the iteration.
+  ``NodeBase._add_input`` switched to ``add_listener``.
+
+### Migration
+- Tests that called ``port.set_on_state_changed(callback)`` are
+  renamed to ``port.add_listener(callback)``. The semantics for a
+  single-listener port are identical; the only difference is that
+  a second call no longer replaces the first.
+
+### Resolved (refacturing backlog)
+- **M11** — port single-callback slot retired in favour of a
+  multi-listener registration API.
+
 ## [0.2.33] — 2026-04-28
 
 ### Removed

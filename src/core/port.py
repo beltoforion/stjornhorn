@@ -14,10 +14,15 @@ class InputPort:
     ``accepted_types`` declares which :class:`~core.io_data.IoDataType`
     values this port can receive.
 
-    ``on_state_changed`` is a zero-argument callback invoked each time
-    the port's state changes — either because new data was ``receive``-d
-    or because the upstream signalled :meth:`finish`. Nodes use it to
-    drive their dispatch logic.
+    State changes (data arrival via :meth:`receive` or end-of-stream
+    via :meth:`finish`) fan out to every listener registered with
+    :meth:`add_listener`. :class:`~core.node_base.NodeBase` registers
+    its dispatcher hookup that way; tests, debug helpers and other
+    observers can register their own listener on top without
+    clobbering the dispatcher. Listeners fire in registration order;
+    if one raises, the exception propagates and later listeners do
+    not run (matching the all-or-nothing behaviour of the legacy
+    single-callback slot).
 
     An input port can be fed by **at most one** upstream
     :class:`OutputPort` — fan-in is not supported. The binding is
@@ -59,7 +64,9 @@ class InputPort:
         self.name = name
         self.accepted_types: frozenset[IoDataType] = frozenset(accepted_types)
         self.optional: bool = optional
-        self._on_state_changed = on_state_changed
+        self._listeners: list[Callable[[], None]] = []
+        if on_state_changed is not None:
+            self._listeners.append(on_state_changed)
         self._data: IoData | None = None
         self._finished: bool = False
         self._upstream: "OutputPort | None" = None
@@ -129,29 +136,51 @@ class InputPort:
             )
         self._data = data
         self._fresh = True
-        if self._on_state_changed is not None:
-            self._on_state_changed()
+        self._notify_listeners()
 
     def finish(self) -> None:
         """Mark this input as finished; no further data will arrive.
 
-        Fires the state-changed callback exactly like :meth:`receive` so
-        the owning node's dispatcher re-evaluates and can forward the
+        Fires every listener exactly like :meth:`receive` so the
+        owning node's dispatcher re-evaluates and can forward the
         lifecycle signal downstream once every input has finished.
         """
         if self._finished:
             return
         self._finished = True
-        if self._on_state_changed is not None:
-            self._on_state_changed()
+        self._notify_listeners()
 
-    def set_on_state_changed(self, callback: Callable[[], None]) -> None:
-        """Set the callback invoked each time this port's state changes
-        (data arrival or finish). :class:`~core.node_base.NodeBase` uses
-        this during port registration to wire every input to the owning
-        node's dispatcher.
+    def add_listener(self, callback: Callable[[], None]) -> None:
+        """Register a zero-argument callback for state changes.
+
+        Multiple listeners can be attached to the same port — fired
+        in registration order. :class:`~core.node_base.NodeBase`
+        registers its dispatcher this way during port registration;
+        external observers (debug hooks, tests, the UI's
+        port-change indicators) layer their own listeners on top
+        without clobbering the dispatcher hookup, which was the
+        documented footgun in the legacy
+        :meth:`set_on_state_changed` slot.
         """
-        self._on_state_changed = callback
+        self._listeners.append(callback)
+
+    def remove_listener(self, callback: Callable[[], None]) -> None:
+        """Unregister a previously-added listener.
+
+        No-op if *callback* isn't currently attached. Symmetric with
+        :meth:`add_listener` so transient observers (test fixtures,
+        scoped UI handlers) can clean up after themselves.
+        """
+        try:
+            self._listeners.remove(callback)
+        except ValueError:
+            pass
+
+    def _notify_listeners(self) -> None:
+        # Iterate a snapshot so a listener that calls add_listener /
+        # remove_listener mid-fire doesn't mutate the list under us.
+        for listener in tuple(self._listeners):
+            listener()
 
     def clear(self) -> None:
         """Drop buffered data so the owning node can receive the next frame.

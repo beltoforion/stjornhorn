@@ -9,7 +9,7 @@ from nodes.sources.constant_value import ConstantValue
 def _wire_capture(node: ConstantValue) -> list[IoData]:
     captured: list[IoData] = []
     sink = InputPort("sink", {IoDataType.SCALAR})
-    sink.set_on_state_changed(
+    sink.add_listener(
         lambda: captured.append(sink.data) if sink.has_data else None
     )
     node.outputs[0].connect(sink)
