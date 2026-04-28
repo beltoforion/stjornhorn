@@ -1,4 +1,8 @@
 # Repository Rules
+## Code Quality and Maintainability
+- You are as much a software architect as you are a developer. Design Patterns are your friend. If a new feature is requested think about the bigger picture. Is this feature also relevant for other parts of the application should you pull functionaolity up to a base class. Shoud you create base classes for similar logic?
+- Don't use magic numbers or magic strings
+- Always have code maintainability in mind. Avoid code duplication and code smells in general. If you find issues whilst working on the code bring them up and suggest improvements.
 
 ## Pull Requests
 - When a pull request changes source code, increment the version number as part of the PR. Skip the bump for PRs that only touch docs, config, CI, or similar non-source changes.
