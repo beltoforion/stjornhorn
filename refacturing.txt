@@ -1,0 +1,137 @@
+Stjörnhorn — Refacturing Backlog
+================================
+
+Living punch list of architectural / SOLID / code-quality issues worth
+addressing. Maintained by Claude Code. New findings are appended (or
+inserted into the right severity bucket); resolved items are marked
+[DONE] with the date and the PR/commit that closed them rather than
+deleted, so the history of what shifted is recoverable.
+
+Status markers:
+  [OPEN]      — not started
+  [WIP]       — work in progress on a branch
+  [DONE]      — landed on main; references PR/commit
+  [WITHDRAWN] — reconsidered, no longer pursued (with reason)
+
+Last reviewed: 2026-04-28
+
+
+High
+----
+
+[OPEN] H1. NodeBase is a god class.
+  SRP / OCP. src/core/node_base.py:113-536 mixes push-dispatch
+  (_signal_input_ready), freshness/optional gating, observer plumbing,
+  name-reflected port↔attribute bridge (_populate_port_driven_attributes),
+  skip pass-through, and run lifecycle.
+  Direction: extract PortDispatcher, PortAttributeBridge, SkipStrategy;
+  leave NodeBase as data shape + abstract process_impl.
+
+[OPEN] H2. Convention-driven port↔attribute coupling via name reflection.
+  Hidden coupling. src/core/node_base.py:407-447 does
+  setattr(self, port.name, value) and snapshots
+  getattr(self, f"_{port.name}"). Every concrete node (e.g.
+  src/nodes/filters/gaussian_blur.py:23-25,68-74) must declare
+  self._<name>, a setter, and a port named <name> — three-place
+  duplication, silent skip when the attribute is missing.
+  Direction: a Param descriptor that owns storage, validation, default,
+  metadata, port wiring as one declaration.
+
+[OPEN] H3. Param-widget subclasses duplicate >90% boilerplate.
+  Duplication / OCP. src/ui/param_widgets.py:138-289 — every widget
+  repeats QHBoxLayout(self), setContentsMargins(0,0,0,0), identical
+  _on_value_changed → _write_to_node + emit, identical _initial_value,
+  identical fixed-size calls.
+  Direction: a _SingleControlParamWidget base taking control factory +
+  value-coerce funcs; concrete widgets shrink to ~10 lines.
+
+[OPEN] H4. Identical port-construction boilerplate in ~35 filter files.
+  Duplication / OCP. E.g. src/nodes/filters/rotate.py:28-57,
+  src/nodes/filters/gaussian_blur.py:27-58. default_value and
+  metadata["default"] mirrored, descriptions freeform per node.
+  Direction: helper factories like
+  scalar_param("angle", default=0.0, unit="deg", desc=...) returning a
+  fully-formed InputPort; same factory keeps doc/metadata single-source.
+
+[OPEN] H5. NodeItem is a 1065-line god class.
+  SRP. src/ui/node_item.py:336-1065 does layout, painting, geometry,
+  child-handle ownership, focus management, port building, widget
+  building, preview embedding, label truncation. _compute_width
+  (737-806) and _layout_param_widgets (1007-1065) duplicate label-width
+  logic. _CloseButtonItem / _SkipButtonItem (176-333) are near-identical.
+  Direction: split NodeLayout / NodeChrome / NodeBuilder; introduce a
+  HeaderButtonItem base.
+
+[OPEN] H6. flow_io.py reaches deep into UI types via getattr on port names.
+  Hidden coupling. src/ui/flow_io.py:66-69 does
+  getattr(node, p.name, None) — same convention-coupling as H2. Also
+  touches item.user_size, item.body_height, link.src_port.node_item.node
+  — a UI-layer module assembling canonical persistence.
+  Direction: a FlowSnapshot DTO from the model + a thin scene overlay
+  (positions, sizes, backdrops).
+
+
+Medium
+------
+
+[OPEN] M7. Module-level mutable _process_observer is global.
+  src/core/node_base.py:21-34 — two simultaneous flows clobber each
+  other's observers. Direction: per-Flow / per-run observer threaded
+  via context, not a module attribute.
+
+[OPEN] M8. _process_skipped hard-codes type-matching policy.
+  OCP. src/core/node_base.py:460-480 — "first input whose
+  accepted_types & out.emits" is fixed; e.g. RgbaSplit with three
+  outputs cannot override.
+  Direction: strategy or overridable _skip_match(out) -> InputPort | None.
+
+[OPEN] M9. Two parallel widget dispatch tables.
+  Duplication. src/ui/param_widgets.py:546-553 (enum→class) vs
+  src/ui/preview_widgets.py:222-224 (type(node) dict); ENUM widget
+  re-hardcodes metadata["enum"] validation (304-312).
+  Direction: one WidgetRegistry, or push factory onto the Param
+  descriptor.
+
+[OPEN] M10. NodeEditorPage mixes page-shell with run orchestration & threading.
+  SRP. src/ui/node_editor_page.py:580-720 assembles QThread, FlowRunner,
+  signal chains, status messages, viewer auto-pick (_best_viewer_node).
+  Direction: a FlowRunController QObject owning thread/runner lifecycle
+  and exposing started/finished/failed signals; page becomes a thin
+  observer.
+
+[OPEN] M11. Port.set_on_state_changed is a single-callback slot.
+  ISP / leaky API. src/core/port.py:148-154 — overwriting it silently
+  breaks NodeBase._add_input's dispatcher hookup.
+  Direction: add_listener (multi-subscriber) with the internal
+  dispatcher hookup non-replaceable.
+
+[OPEN] M12. FlowScene.connect_ports mixes raise-on-error with return-None.
+  ISP / leaky. src/ui/flow_scene.py:205-232 raises TypeError on
+  incompatible ports but returns None for "trivial" rejections —
+  callers must both try/except *and* check None.
+  Direction: a Result / dedicated error enum, or always raise.
+
+
+Low
+---
+
+[OPEN] L13. _apply_default_params swallows every exception with debug log.
+  Robustness. src/core/node_base.py:208-222 — masks setter bugs at
+  construction time.
+
+[OPEN] L14. Magic numbers in NodeItem layout outside the constants block.
+  src/ui/node_item.py:358-391 defines a clean block, but 100.0 (preview
+  min height, line 947) and 2/4 paddings in boundingRect (line 501) are
+  inline. Pull to the same constants block.
+
+[OPEN] L15. FlowScene.keyPressEvent uses isinstance(focusItem(), QGraphicsProxyWidget) to detect "user is typing".
+  Leaky / fragile. src/ui/flow_scene.py:558 — couples scene-level key
+  dispatch to a Qt implementation detail.
+  Direction: a focus-policy delegate or an explicit "edit mode" flag
+  from NodeItem.
+
+
+Resolved
+--------
+
+(empty — fill as items land)

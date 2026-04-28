@@ -4,6 +4,7 @@
 - Follow the SOLID principles — Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion. Call out violations when you see them and prefer designs that respect these principles over expedient shortcuts.
 - Don't use magic numbers or magic strings
 - Always have code maintainability in mind. Avoid code duplication and code smells in general. If you find issues whilst working on the code bring them up and suggest improvements.
+- Maintain `refacturing.txt` at the repo root as the living architectural / SOLID / code-quality backlog. When you spot a new finding while working, append it (with file:line refs and a one-line direction) under the right severity bucket. When a refactor lands, move the entry to the *Resolved* section with the date and PR/commit, don't delete it. Update the "Last reviewed" stamp when you do a sweep. This file may be edited and pushed directly without asking.
 
 ## Pull Requests
 - When a pull request changes source code, increment the version number as part of the PR. Skip the bump for PRs that only touch docs, config, CI, or similar non-source changes.
