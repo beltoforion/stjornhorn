@@ -4,7 +4,7 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, QPoint, Qt
+from PySide6.QtCore import QEvent, QPoint, QRectF, Qt
 from PySide6.QtGui import QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QGraphicsView
 
@@ -149,18 +149,28 @@ class FlowView(QGraphicsView):
         """Resize the canvas to the node layout plus 5% padding on each
         side, then zoom and scroll so the whole canvas fills the viewport.
 
-        The node bounding rect is naturally centered in the expanded
-        sceneRect (equal padding on all four sides), so nodes stay in
-        their existing scene coordinates and wires don't shift. Calling
-        ``fit_to_contents`` repeatedly is idempotent — the canvas is
-        recomputed from the current item bounds every time, not grown
-        relative to the previous sceneRect.
+        The bounding rect is computed from structural items only — node
+        bodies and backdrops — *not* from wires. ``LinkItem`` is a cubic
+        Bezier whose control points extend the path's bounding rect
+        beyond the straight line between its ports; if wires curve more
+        on one side of the graph, that asymmetry shifts the canvas
+        centre and the visible node cluster ends up off-centre even
+        though the rect is technically centered. Anchoring on structural
+        items makes Fit reflect the layout the user is actually
+        positioning. Idempotent on repeat calls; no-op on empty scenes.
 
         Issue: #191
         """
+        from ui.backdrop_item import BackdropItem
+        from ui.node_item import NodeItem
+
         scene = self.scene()
-        rect = scene.itemsBoundingRect()
-        if rect.isEmpty():
+        rect: QRectF | None = None
+        for item in scene.items():
+            if isinstance(item, (NodeItem, BackdropItem)):
+                item_rect = item.sceneBoundingRect()
+                rect = item_rect if rect is None else rect.united(item_rect)
+        if rect is None or rect.isEmpty():
             return
         pad_x = rect.width() * 0.05
         pad_y = rect.height() * 0.05

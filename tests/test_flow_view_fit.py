@@ -21,8 +21,20 @@ from PySide6.QtWidgets import QApplication
 from core.flow import Flow
 from nodes.filters.grayscale import Grayscale
 from nodes.sources.image_source import ImageSource
+from ui.backdrop_item import BackdropItem
 from ui.flow_scene import FlowScene
 from ui.flow_view import FlowView
+from ui.node_item import NodeItem
+
+
+def _structural_bounds(scene: FlowScene):
+    """Mirror of the rect Fit anchors on: nodes + backdrops, no wires."""
+    rect = None
+    for item in scene.items():
+        if isinstance(item, (NodeItem, BackdropItem)):
+            r = item.sceneBoundingRect()
+            rect = r if rect is None else rect.united(r)
+    return rect
 
 
 @pytest.fixture(scope="module")
@@ -42,7 +54,7 @@ def _populated_view() -> tuple[FlowView, FlowScene]:
 
 def test_fit_resizes_scene_rect_with_5pct_padding(qapp: QApplication) -> None:
     view, scene = _populated_view()
-    items = scene.itemsBoundingRect()
+    items = _structural_bounds(scene)
 
     view.fit_to_contents()
 
@@ -59,7 +71,7 @@ def test_fit_resizes_scene_rect_with_5pct_padding(qapp: QApplication) -> None:
 
 def test_fit_centers_layout_in_canvas(qapp: QApplication) -> None:
     view, scene = _populated_view()
-    items = scene.itemsBoundingRect()
+    items = _structural_bounds(scene)
 
     view.fit_to_contents()
     canvas = scene.sceneRect()
@@ -74,7 +86,7 @@ def test_fit_centers_viewport_on_layout(qapp: QApplication) -> None:
     view, scene = _populated_view()
     view.show()
     qapp.processEvents()
-    items = scene.itemsBoundingRect()
+    items = _structural_bounds(scene)
 
     view.fit_to_contents()
 
@@ -92,7 +104,7 @@ def test_fit_clamps_zoom_and_still_centers(qapp: QApplication) -> None:
     view.resize(2000, 1500)  # huge viewport → fitInView would want >5× zoom
     view.show()
     qapp.processEvents()
-    items = scene.itemsBoundingRect()
+    items = _structural_bounds(scene)
 
     view.fit_to_contents()
 
