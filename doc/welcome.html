@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.26</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.27</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.27</h2>
+      <ul class="tips">
+        <li><strong>Display node shows total frame count.</strong> The top-left debug overlay now has two lines: FPS (from tick 2 as before) and <em>N</em> — the running count of frames processed since the last run started. The count is visible from the very first frame so you can tell at a glance how far into a stream the node is. The new <code>frames_processed</code> property exposes the same counter to tests and the UI without scraping the overlay text. Issue #207.</li>
+      </ul>
     </section>
 
     <section>

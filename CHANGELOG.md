@@ -10,6 +10,19 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.27] — 2026-04-28
+
+### Added
+- **Display node shows total frame count.** The top-left debug overlay
+  now carries a second line — `N <count>` — showing the total number of
+  frames processed since the current run started. The count is visible
+  from the very first tick (unlike FPS which needs a measurable `dt`
+  and only appears from tick 2). A new read-only property
+  `frames_processed` exposes the same counter to tests and the UI
+  without scraping the overlay text. The helper method that paints the
+  overlay is renamed `_draw_overlay` (was `_draw_fps_overlay`) to
+  reflect that it now carries more than FPS. Closes #207.
+
 ## [0.2.26] — 2026-04-28
 
 ### Changed
