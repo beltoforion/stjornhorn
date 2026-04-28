@@ -16,9 +16,18 @@ from __future__ import annotations
 
 import pytest
 
+from enum import IntEnum
+
 from core.io_data import IMAGE_TYPES, IoDataType
 from core.node_base import NodeBase
-from core.params import FloatParam, IntParam, OddIntParam
+from core.params import (
+    BoolParam,
+    ClampedFloatParam,
+    EnumParam,
+    FloatParam,
+    IntParam,
+    OddIntParam,
+)
 from core.port import InputPort, OutputPort
 
 
@@ -190,3 +199,117 @@ def test_existing_input_with_same_name_blocks_auto_creation() -> None:
     count_ports = [p for p in node.inputs if p.name == "count"]
     assert len(count_ports) == 1
     assert count_ports[0].metadata.get("explicit") is True
+
+
+# ── Bool / Enum / Clamped / exclusive bound ──────────────────────────────────
+
+class _Mood(IntEnum):
+    HAPPY = 1
+    SAD   = 2
+    BORED = 3
+
+
+class _ExtraParamsNode(NodeBase):
+    """Test node exercising BoolParam / EnumParam / ClampedFloatParam /
+    FloatParam(min_exclusive=...)."""
+
+    enabled = BoolParam(False, description="Toggle")
+    mood = EnumParam(_Mood, _Mood.HAPPY, description="Vibe")
+    opacity = ClampedFloatParam(0.5, min=0.0, max=1.0)
+    factor = FloatParam(1.0, min=0.0, min_exclusive=True)
+
+    def __init__(self) -> None:
+        super().__init__("Extra", section="Tests")
+        self._add_output(OutputPort("image", set(IMAGE_TYPES)))
+        self._apply_default_params()
+
+    def process_impl(self) -> None: pass
+
+
+def test_bool_param_coerces_truthy_and_falsy() -> None:
+    node = _ExtraParamsNode()
+    node.enabled = 1
+    assert node.enabled is True
+    node.enabled = ""
+    assert node.enabled is False
+
+
+def test_bool_param_port_uses_bool_io_type() -> None:
+    node = _ExtraParamsNode()
+    port = next(p for p in node.inputs if p.name == "enabled")
+    assert IoDataType.BOOL in port.accepted_types
+
+
+def test_enum_param_accepts_member() -> None:
+    node = _ExtraParamsNode()
+    node.mood = _Mood.SAD
+    assert node.mood is _Mood.SAD
+
+
+def test_enum_param_accepts_int_value() -> None:
+    node = _ExtraParamsNode()
+    node.mood = 3
+    assert node.mood is _Mood.BORED
+
+
+def test_enum_param_accepts_name_string() -> None:
+    node = _ExtraParamsNode()
+    node.mood = "SAD"
+    assert node.mood is _Mood.SAD
+
+
+def test_enum_param_rejects_unknown_value() -> None:
+    node = _ExtraParamsNode()
+    with pytest.raises(ValueError):
+        node.mood = 999
+
+
+def test_enum_param_default_must_be_member() -> None:
+    with pytest.raises(TypeError):
+        EnumParam(_Mood, 1)  # int, not _Mood
+
+
+def test_enum_param_metadata_carries_class() -> None:
+    node = _ExtraParamsNode()
+    port = next(p for p in node.inputs if p.name == "mood")
+    assert port.metadata["enum"] is _Mood
+
+
+def test_clamped_float_param_clamps_above_max() -> None:
+    node = _ExtraParamsNode()
+    node.opacity = 2.5
+    assert node.opacity == 1.0
+
+
+def test_clamped_float_param_clamps_below_min() -> None:
+    node = _ExtraParamsNode()
+    node.opacity = -0.3
+    assert node.opacity == 0.0
+
+
+def test_clamped_float_param_in_range_passes_through() -> None:
+    node = _ExtraParamsNode()
+    node.opacity = 0.7
+    assert node.opacity == 0.7
+
+
+def test_clamped_float_metadata_still_carries_bounds() -> None:
+    """Widget needs min/max for the slider even though the descriptor
+    enforces them via clamping rather than raising."""
+    node = _ExtraParamsNode()
+    port = next(p for p in node.inputs if p.name == "opacity")
+    assert port.metadata["min"] == 0.0
+    assert port.metadata["max"] == 1.0
+
+
+def test_float_min_exclusive_rejects_boundary() -> None:
+    """``min_exclusive=True`` makes the bound strict — value == min raises."""
+    node = _ExtraParamsNode()
+    with pytest.raises(ValueError, match=r"factor must be > 0"):
+        node.factor = 0.0
+
+
+def test_float_min_exclusive_accepts_just_above_boundary() -> None:
+    node = _ExtraParamsNode()
+    node.factor = 0.001
+    assert node.factor == 0.001

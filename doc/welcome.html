@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.28</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.29</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.29</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — second batch (PR-2b of H2).</strong> Six more filters (Overlay, Subpixel Mosaic, Flip, Dither, Rotate, Scale) ported from hand-rolled <code>InputPort</code> + <code>@property</code>/<code>@setter</code> declarations to class-level descriptors. The descriptor module gained four new types: <code>BoolParam</code> for toggles, <code>EnumParam</code> for combo-box selections (auto-coerces ints, names, and members), <code>ClampedFloatParam</code> for soft-bounded sliders that saturate instead of raising (used by <code>Overlay.alpha</code> — out-of-range stays clamped to <code>[0, 1]</code>), and a <code>min_exclusive</code> / <code>max_exclusive</code> flag on <code>FloatParam</code> for strict bounds (used by <code>Overlay.scale</code> which requires <code>&gt; 0</code>). All pre-existing per-filter tests pass unchanged. Backlog item H2.</li>
+      </ul>
     </section>
 
     <section>

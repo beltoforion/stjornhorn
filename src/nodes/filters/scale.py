@@ -6,8 +6,9 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import EnumParam, IntParam
 from core.port import InputPort, OutputPort
 
 
@@ -16,11 +17,7 @@ class Interpolation(IntEnum):
 
     Values mirror the corresponding ``cv2.INTER_*`` flags exactly so the
     enum member can be passed straight into :func:`cv2.resize` without a
-    lookup table. Backed by :class:`IntEnum` so the integer
-    representation (persisted in saved flows) round-trips cleanly: JSON
-    stores the int, the setter accepts both ints and enum members, and
-    the ``ENUM`` param widget renders a combo box of ``name``-based
-    labels.
+    lookup table.
     """
     NEAREST   = cv2.INTER_NEAREST
     LINEAR    = cv2.INTER_LINEAR
@@ -38,78 +35,31 @@ class Scale(NodeBase):
     size is needed, compute the matching scale factor.
     """
 
+    scale_percent = IntParam(
+        100,
+        min=1,
+        unit="%",
+        description=(
+            "Scale factor in percent. 100 leaves the image "
+            "unchanged; 50 halves it; 200 doubles it."
+        ),
+    )
+    interpolation = EnumParam(
+        Interpolation,
+        Interpolation.LINEAR,
+        description=(
+            "Resampling method. NEAREST is fast and pixelated; "
+            "LINEAR / CUBIC / LANCZOS4 produce progressively "
+            "smoother results at higher cost; AREA is OpenCV's "
+            "preferred choice when downsampling."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Scale", section="Transform")
-        self._scale_percent: int = 100
-        self._interpolation: Interpolation = Interpolation.LINEAR
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "scale_percent",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=100,
-            metadata={
-                "default": 100,
-                "param_type": NodeParamType.INT,
-                "min": 1,
-                "unit": "%",
-                "description": (
-                    "Scale factor in percent. 100 leaves the image "
-                    "unchanged; 50 halves it; 200 doubles it."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "interpolation",
-            {IoDataType.ENUM},
-            optional=True,
-            default_value=Interpolation.LINEAR,
-            metadata={
-                "default": Interpolation.LINEAR,
-                "enum": Interpolation,
-                "param_type": NodeParamType.ENUM,
-                "description": (
-                    "Resampling method. NEAREST is fast and pixelated; "
-                    "LINEAR / CUBIC / LANCZOS4 produce progressively "
-                    "smoother results at higher cost; AREA is OpenCV's "
-                    "preferred choice when downsampling."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def scale_percent(self) -> int:
-        return self._scale_percent
-
-    @scale_percent.setter
-    def scale_percent(self, value: int) -> None:
-        v = int(value)
-        if v <= 0:
-            raise ValueError(f"scale_percent must be > 0 (got {v})")
-        self._scale_percent = v
-
-    @property
-    def interpolation(self) -> Interpolation:
-        return self._interpolation
-
-    @interpolation.setter
-    def interpolation(self, value: int | Interpolation) -> None:
-        try:
-            # Interpolation(int) validates the integer and raises on unknown
-            # values; passing an Interpolation member just returns itself.
-            self._interpolation = Interpolation(value)
-        except ValueError as e:
-            raise ValueError(
-                f"interpolation must be one of {[m.value for m in Interpolation]} (got {value!r})"
-            ) from e
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

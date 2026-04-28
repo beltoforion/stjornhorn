@@ -27,6 +27,7 @@ Backlog item H2 (see ``refacturing.txt``).
 """
 from __future__ import annotations
 
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from core.io_data import IoDataType
@@ -241,6 +242,9 @@ class FloatParam(_ParamBase):
 
     Coerces incoming values via ``float(value)``. Optional ``min`` /
     ``max`` bounds raise :class:`ValueError` on out-of-range writes.
+    Set ``min_exclusive=True`` / ``max_exclusive=True`` to make the
+    bound strict (``> min`` rather than ``>= min``) — used e.g. by
+    ``Overlay.scale`` which must be strictly positive.
     ``step`` and ``decimals`` flow into the spin-box widget metadata.
     """
 
@@ -253,6 +257,8 @@ class FloatParam(_ParamBase):
         *,
         min: float | None = None,
         max: float | None = None,
+        min_exclusive: bool = False,
+        max_exclusive: bool = False,
         step: float | None = None,
         decimals: int | None = None,
         unit: str | None = None,
@@ -267,6 +273,8 @@ class FloatParam(_ParamBase):
         )
         self.min: float | None = min
         self.max: float | None = max
+        self.min_exclusive: bool = min_exclusive
+        self.max_exclusive: bool = max_exclusive
         self.step: float | None = step
         self.decimals: int | None = decimals
 
@@ -274,14 +282,20 @@ class FloatParam(_ParamBase):
         return float(value)
 
     def _validate(self, value: float) -> None:
-        if self.min is not None and value < self.min:
-            raise ValueError(
-                f"{self.name} must be >= {self.min} (got {value})"
-            )
-        if self.max is not None and value > self.max:
-            raise ValueError(
-                f"{self.name} must be <= {self.max} (got {value})"
-            )
+        if self.min is not None:
+            below = value <= self.min if self.min_exclusive else value < self.min
+            if below:
+                op = ">" if self.min_exclusive else ">="
+                raise ValueError(
+                    f"{self.name} must be {op} {self.min} (got {value})"
+                )
+        if self.max is not None:
+            above = value >= self.max if self.max_exclusive else value > self.max
+            if above:
+                op = "<" if self.max_exclusive else "<="
+                raise ValueError(
+                    f"{self.name} must be {op} {self.max} (got {value})"
+                )
 
     def _build_metadata(self) -> dict[str, object]:
         meta = super()._build_metadata()
@@ -294,3 +308,123 @@ class FloatParam(_ParamBase):
         if self.decimals is not None:
             meta["decimals"] = self.decimals
         return meta
+
+
+class ClampedFloatParam(FloatParam):
+    """Float parameter whose ``min`` / ``max`` clamp rather than raise.
+
+    Use when out-of-range input is a UX choice, not a user error — e.g.
+    an opacity slider where 1.5 is conceptually just 1.0 ("fully
+    opaque") and a negative value is just 0.0 ("fully transparent").
+    Validation is suppressed and the bounds are enforced by
+    :meth:`_shape` instead, so the widget still gets ``min`` / ``max``
+    in its metadata (the spin-box stays bounded) but a port-driven or
+    programmatic write that lands outside the range is silently clamped
+    rather than rejected.
+
+    Both bounds are inclusive — the exclusive variants
+    (``min_exclusive`` / ``max_exclusive``) on :class:`FloatParam` do
+    not apply here because clamping a value to an open bound is
+    ill-defined.
+    """
+
+    def _validate(self, value: float) -> None:
+        # Bounds enforced via _shape (clamp), not _validate (raise).
+        pass
+
+    def _shape(self, value: float) -> float:
+        if self.min is not None and value < self.min:
+            return self.min
+        if self.max is not None and value > self.max:
+            return self.max
+        return value
+
+
+class BoolParam(_ParamBase):
+    """Boolean node parameter.
+
+    Coerces incoming values via ``bool(value)``. No validation hook
+    needed — every value Python accepts as truthy/falsy is valid.
+    """
+
+    _NODE_PARAM_TYPE = NodeParamType.BOOL
+    _PORT_TYPE = IoDataType.BOOL
+
+    def __init__(
+        self,
+        default: bool,
+        *,
+        description: str | None = None,
+        optional: bool = True,
+    ) -> None:
+        super().__init__(
+            default,
+            description=description,
+            optional=optional,
+        )
+
+    def _coerce(self, value: object) -> bool:
+        return bool(value)
+
+
+class EnumParam(_ParamBase):
+    """Enum-valued node parameter.
+
+    The enum class is required; the descriptor stores the chosen
+    member, the :class:`InputPort` carries the class itself in its
+    metadata under ``"enum"`` so the param-widget builder can populate
+    the combo box.
+
+    Coercion accepts the enum member, its ``.value``, or its ``.name``
+    (string), to make ``__set__`` forgiving for port-driven streams
+    that may carry either form. Raises :class:`ValueError` if the
+    incoming value can't be mapped to a member of the enum.
+    """
+
+    _NODE_PARAM_TYPE = NodeParamType.ENUM
+    _PORT_TYPE = IoDataType.ENUM
+
+    def __init__(
+        self,
+        enum_cls: type[Enum],
+        default: Enum,
+        *,
+        description: str | None = None,
+        optional: bool = True,
+    ) -> None:
+        if not (isinstance(enum_cls, type) and issubclass(enum_cls, Enum)):
+            raise TypeError(
+                f"EnumParam requires an Enum subclass, got {enum_cls!r}"
+            )
+        if not isinstance(default, enum_cls):
+            raise TypeError(
+                f"EnumParam default {default!r} is not a member of {enum_cls.__name__}"
+            )
+        super().__init__(
+            default,
+            description=description,
+            optional=optional,
+        )
+        self.enum_cls: type[Enum] = enum_cls
+
+    def _coerce(self, value: object) -> Enum:
+        if isinstance(value, self.enum_cls):
+            return value
+        try:
+            return self.enum_cls(value)
+        except (ValueError, KeyError):
+            pass
+        if isinstance(value, str):
+            try:
+                return self.enum_cls[value]
+            except KeyError:
+                pass
+        raise ValueError(
+            f"{self.name}: cannot map {value!r} to a {self.enum_cls.__name__} member"
+        )
+
+    def _build_metadata(self) -> dict[str, object]:
+        meta = super()._build_metadata()
+        meta["enum"] = self.enum_cls
+        return meta
+
