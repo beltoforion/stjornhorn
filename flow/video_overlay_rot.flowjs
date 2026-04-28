@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.7",
+  "app_version": "0.2.26",
   "name": "video_overlay_rot",
   "nodes": [
     {
@@ -83,7 +83,7 @@
       "port_defaults": {
         "min_value": 0,
         "max_value": 1000,
-        "increment": 1.0,
+        "increment": 2.0,
         "loop": false
       }
     },
@@ -100,6 +100,20 @@
         "c": 0.0,
         "d": 0.0,
         "expression": "a+150"
+      }
+    },
+    {
+      "id": 7,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        -1218.4955097670615,
+        -966.921032885173
+      ],
+      "port_defaults": {
+        "output_path": "out.mp4",
+        "fps": 30.0,
+        "codec": 0
       }
     }
   ],
@@ -139,6 +153,12 @@
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 4
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
     }
   ],
   "backdrops": [
