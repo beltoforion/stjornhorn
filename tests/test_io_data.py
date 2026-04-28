@@ -201,6 +201,38 @@ def test_repr_for_non_numeric_payloads_uses_value_form() -> None:
     assert "value='hi'" in repr(IoData.from_string("hi"))
 
 
+# ── source_path propagation (issue #159) ─────────────────────────────────────
+
+def test_image_default_source_path_is_none() -> None:
+    """Existing call sites that don't pass ``source_path`` keep the
+    None default — no behaviour change for legacy callers."""
+    data = IoData.from_image(np.zeros((4, 4, 3), dtype=np.uint8))
+    assert data.source_path is None
+
+
+def test_image_can_carry_source_path() -> None:
+    src = Path("/in/ship.jpg")
+    data = IoData.from_image(np.zeros((4, 4, 3), dtype=np.uint8), source_path=src)
+    assert data.source_path == src
+
+
+def test_with_image_propagates_source_path() -> None:
+    """Pass-through filters using ``with_image`` must keep the
+    originating source path so sinks downstream can derive output
+    filenames from the input."""
+    src = Path("/in/ship.jpg")
+    original = IoData.from_image(np.zeros((4, 4, 3), dtype=np.uint8), source_path=src)
+    derived = original.with_image(np.ones((4, 4, 3), dtype=np.uint8))
+    assert derived.source_path == src
+    assert derived.type is IoDataType.IMAGE
+
+
+def test_with_image_propagates_none_source_path() -> None:
+    original = IoData.from_image(np.zeros((4, 4, 3), dtype=np.uint8))
+    derived = original.with_image(np.ones((4, 4, 3), dtype=np.uint8))
+    assert derived.source_path is None
+
+
 def test_image_types_set_unaffected_by_new_kinds() -> None:
     """``IMAGE_TYPES`` must keep being just IMAGE + IMAGE_GREY — adding
     BOOL/STRING/ENUM/PATH must not pollute the set that filters use to

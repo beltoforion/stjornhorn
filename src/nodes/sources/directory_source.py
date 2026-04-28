@@ -105,7 +105,7 @@ class DirectorySource(SourceNodeBase):
             image = self._load_image(path)
             if image is None:
                 continue
-            self.outputs[0].send(IoData.from_image(image))
+            self.outputs[0].send(IoData.from_image(image, source_path=path))
             yield
 
     @override

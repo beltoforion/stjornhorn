@@ -53,16 +53,22 @@ class IoData:
     payload value on this channel.
     """
 
-    def __init__(self, type: IoDataType, payload: Any) -> None:
+    def __init__(
+        self,
+        type: IoDataType,
+        payload: Any,
+        source_path: Path | None = None,
+    ) -> None:
         self._type = type
         self._payload = payload
+        self._source_path: Path | None = source_path
 
     # ── Factory methods ────────────────────────────────────────────────────────
 
     @classmethod
-    def from_image(cls, image: np.ndarray) -> IoData:
+    def from_image(cls, image: np.ndarray, source_path: Path | None = None) -> IoData:
         """Wrap a (potentially multi-channel) image as :data:`IoDataType.IMAGE`."""
-        return cls(IoDataType.IMAGE, payload=image)
+        return cls(IoDataType.IMAGE, payload=image, source_path=source_path)
 
     @classmethod
     def from_greyscale(cls, image: np.ndarray) -> IoData:
@@ -149,6 +155,18 @@ class IoData:
         return self._type
 
     @property
+    def source_path(self) -> Path | None:
+        """Originating source filename, when known.
+
+        Stamped by source nodes (e.g. ``ImageSource``, ``VideoSource``,
+        ``DirectorySource``) onto each :class:`IoData` they emit, and
+        propagated through pass-through filters via :meth:`with_image`.
+        Sinks read it to expand ``$input_stem$`` / ``$input_name$`` /
+        ``$input_ext$`` placeholders in their ``output_path``.
+        """
+        return self._source_path
+
+    @property
     def payload(self) -> Any:
         """The underlying value, regardless of payload kind.
 
@@ -178,9 +196,11 @@ class IoData:
 
         Use this in pass-through filters so the output type (IMAGE vs
         IMAGE_GREY) matches the input without the filter having to branch on
-        it explicitly.
+        it explicitly. The originating :attr:`source_path` is preserved
+        so sinks downstream can still derive output filenames from the
+        input.
         """
-        return IoData(self._type, payload=image)
+        return IoData(self._type, payload=image, source_path=self._source_path)
 
     def __repr__(self) -> str:
         # Image / SCALAR / MATRIX payloads expose a numpy ``shape``; the

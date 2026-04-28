@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.25</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.26</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.26</h2>
+      <ul class="tips">
+        <li><strong>Output-filename placeholders for File Sink and Video Sink.</strong> The <code>output_path</code> parameter now accepts <code>$token$</code> placeholders that expand at write time — <code>$input_stem$</code>, <code>$input_name$</code>, <code>$input_ext$</code> (source filename and extension), <code>$flow_name$</code>, <code>$frame_index$</code> (zero-padded 4-digit counter) and <code>$timestamp$</code>. Two patterns this unlocks: <em>stream-to-stills</em> (<code>frame_$frame_index$.png</code> dumps a video to <code>frame_0000.png</code>, <code>frame_0001.png</code>, … in one pass) and <em>per-input batch naming</em> (<code>$input_stem$.$flow_name$.png</code> on <code>ship.jpg</code> in flow <code>denoise_v2</code> writes <code>ship.denoise_v2.png</code>). Paths with no tokens behave exactly as before. Issue #159.</li>
+      </ul>
     </section>
 
     <section>

@@ -10,6 +10,39 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.26] — 2026-04-28
+
+### Added
+- **Output-filename placeholders for `FileSink` and `VideoSink`.**
+  The `output_path` parameter now expands ``$token$`` placeholders at
+  write time, so the on-disk filename can be derived from whatever's
+  flowing through the flow rather than typed by hand. Issue #159.
+
+  Tokens:
+  - ``$input_stem$`` — source filename without extension (``ship``)
+  - ``$input_name$`` — source filename with extension (``ship.jpg``)
+  - ``$input_ext$`` — extension without dot (``jpg``)
+  - ``$flow_name$`` — currently-loaded flow name
+  - ``$frame_index$`` — zero-padded 4-digit frame counter (``0001``)
+  - ``$timestamp$`` — run start time (``YYYYMMDD_HHMMSS``)
+
+  Use cases unlocked by this:
+  - **Stream → numbered stills.** Set a `FileSink` ``output_path`` to
+    ``frame_$frame_index$.png`` and a video stream is dumped to
+    ``frame_0000.png``, ``frame_0001.png``, … in one pass instead of
+    overwriting a single file or renaming after the run.
+  - **Per-input batch naming.** ``$input_stem$.$flow_name$.png`` on
+    ``ship.jpg`` in flow ``denoise_v2`` writes ``ship.denoise_v2.png``
+    — the source filename is preserved and the flow name distinguishes
+    one experiment from another.
+
+  Backwards-compatible: paths with no tokens (the default
+  ``out.png`` / ``out.mp4``) still write the literal filename. Source
+  nodes (``ImageSource``, ``VideoSource``, ``DirectorySource``)
+  stamp the originating file path onto each emitted ``IoData``;
+  pass-through filters propagate it via ``IoData.with_image()`` so
+  the source filename reaches the sink intact.
+
 ## [0.2.25] — 2026-04-28
 
 ### Added

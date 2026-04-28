@@ -34,6 +34,25 @@ def set_process_observer(callback: Callable[["NodeBase"], None] | None) -> None:
     _process_observer = callback
 
 
+# Name of the currently-executing flow. Set by :meth:`core.flow.Flow.run`
+# before any node fires, cleared on completion. Read by sinks to expand
+# the ``$flow_name$`` placeholder in their ``output_path``. Module-level
+# rather than threaded through every node call because the push-based
+# dispatcher doesn't otherwise carry a Flow reference across boundaries.
+_current_flow_name: str | None = None
+
+
+def set_current_flow_name(name: str | None) -> None:
+    """Install (or clear) the name of the currently-running flow."""
+    global _current_flow_name
+    _current_flow_name = name
+
+
+def get_current_flow_name() -> str | None:
+    """Return the name of the currently-running flow, if any."""
+    return _current_flow_name
+
+
 class NodeParamType(Enum):
     """Enumeration of parameter types for node parameters."""
     FILE_PATH = 0,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
@@ -8,7 +9,13 @@ from typing_extensions import override
 
 from constants import OUTPUT_DIR
 from core.io_data import IMAGE_TYPES
-from core.node_base import NodeParam, NodeParamType, SinkNodeBase
+from core.node_base import (
+    NodeParam,
+    NodeParamType,
+    SinkNodeBase,
+    get_current_flow_name,
+)
+from core.path_placeholders import expand_placeholders, has_placeholders
 from core.path_utils import resolve_against, store_relative_to
 from core.port import InputPort
 
@@ -26,6 +33,11 @@ class FileSink(SinkNodeBase):
     as an absolute path. Relative paths are resolved against ``OUTPUT_DIR``
     at run time, which keeps saved flows portable across machines that
     share the same output layout.
+
+    The ``output_path`` accepts ``$token$`` placeholders that expand at
+    write time, e.g. ``frame_$frame_index$.png`` or
+    ``$input_stem$.$flow_name$.png`` — see
+    :mod:`core.path_placeholders` for the supported tokens. Issue: #159.
     """
 
     def __init__(self):
@@ -33,6 +45,11 @@ class FileSink(SinkNodeBase):
 
         self._output_path: Path = Path("out.png")
         self._output_format: OutputFormat = OutputFormat.SAME_AS_INPUT
+
+        # Per-run state for placeholder expansion. Reset in
+        # ``_before_run_impl`` so a second run starts at frame 0.
+        self._frame_index: int = 0
+        self._run_started_at: datetime | None = None
 
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_param(NodeParam(
@@ -44,10 +61,12 @@ class FileSink(SinkNodeBase):
                 "filter": "Images (*.png *.jpg *.jpeg)",
                 "base_dir": OUTPUT_DIR,
                 "description": (
-                    "Where to write each frame. The file is overwritten on "
-                    "every frame, so this sink fits a single still or the "
-                    "last frame of a stream — chain a unique filename per "
-                    "frame upstream if you need a sequence."
+                    "Where to write each frame. Accepts $token$ placeholders "
+                    "expanded per frame — e.g. $input_stem$ (source filename), "
+                    "$flow_name$, $frame_index$ (zero-padded), $timestamp$. "
+                    "Without a frame-varying token the file is overwritten on "
+                    "every frame, so chain $frame_index$ or $input_stem$ in "
+                    "the path if you want a sequence rather than one file."
                 ),
             },
         ))
@@ -76,8 +95,15 @@ class FileSink(SinkNodeBase):
     # ── SinkNodeBase interface ──────────────────────────────────────────────────
 
     @override
+    def _before_run_impl(self) -> None:
+        super()._before_run_impl()
+        self._frame_index = 0
+        self._run_started_at = datetime.now()
+
+    @override
     def process_impl(self) -> None:
-        resolved = self._resolved_path()
+        in_data = self.inputs[0].data
+        resolved = self._resolved_path(source_path=in_data.source_path)
 
         if self._output_format == OutputFormat.SAME_AS_INPUT:
             output = resolved
@@ -86,10 +112,25 @@ class FileSink(SinkNodeBase):
         else:
             raise ValueError(f"Unsupported output format: {self._output_format}")
 
-        cv2.imwrite(str(output), self.inputs[0].data.image)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(output), in_data.image)
+        self._frame_index += 1
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
-    def _resolved_path(self) -> Path:
-        """Return an absolute path; relative values are joined with OUTPUT_DIR."""
+    def _resolved_path(self, source_path: Path | None = None) -> Path:
+        """Return an absolute path; relative values are joined with OUTPUT_DIR.
+
+        Expands ``$token$`` placeholders before resolving. Issue: #159.
+        """
+        raw = str(self._output_path)
+        if has_placeholders(raw):
+            expanded = expand_placeholders(
+                raw,
+                source_path=source_path,
+                flow_name=get_current_flow_name(),
+                frame_index=self._frame_index,
+                run_started_at=self._run_started_at,
+            )
+            return resolve_against(Path(expanded), OUTPUT_DIR)
         return resolve_against(self._output_path, OUTPUT_DIR)

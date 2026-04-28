@@ -4,7 +4,12 @@ import logging
 import re
 from collections.abc import Iterator
 
-from core.node_base import NodeBase, SinkNodeBase, SourceNodeBase
+from core.node_base import (
+    NodeBase,
+    SinkNodeBase,
+    SourceNodeBase,
+    set_current_flow_name,
+)
 from core.port import InputPort, OutputPort
 
 logger = logging.getLogger(__name__)
@@ -201,6 +206,10 @@ class Flow:
         # short-circuit the next Run.
         self._stop_requested = False
 
+        # Publish the flow name so sinks can expand ``$flow_name$``
+        # placeholders in their output paths. Cleared in ``finally``.
+        set_current_flow_name(self._name)
+
         logger.info("initializing nodes")
 
         # initialize all nodes before starting any source
@@ -267,4 +276,6 @@ class Flow:
                     node.after_run(success)
                 except Exception:
                     logger.exception(f"Exception during cleanup of node {node.display_name} ({type(node).__name__})")
+
+            set_current_flow_name(None)
 

@@ -100,7 +100,7 @@ class VideoSource(SourceNodeBase):
                 ok, frame = cap.read()
                 if not ok:
                     break
-                self.outputs[0].send(IoData.from_image(frame))
+                self.outputs[0].send(IoData.from_image(frame, source_path=resolved))
                 frame_count += 1
                 yield
                 if self._max_num_frames >= 0 and frame_count >= self._max_num_frames:

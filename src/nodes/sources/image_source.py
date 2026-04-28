@@ -99,7 +99,7 @@ class ImageSource(SourceNodeBase):
             if image.ndim == 2:
                 image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
-        self.outputs[0].send(IoData.from_image(image))
+        self.outputs[0].send(IoData.from_image(image, source_path=resolved))
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
