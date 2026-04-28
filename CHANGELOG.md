@@ -10,7 +10,7 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
-## [0.2.22] — 2026-04-27
+## [0.2.23] — 2026-04-28
 
 ### Changed
 - **Filter documentation sweep.** Every parameter on the eighteen
@@ -41,6 +41,24 @@ once a first tagged release is cut.
   Lint progress: ``test_param_ports_have_description`` flips from
   18 ``XFAIL`` cases to 18 ``XPASS``; the six remaining ``XFAIL``s
   are all sources / sinks and are scoped for a follow-up sweep PR.
+
+## [0.2.22] — 2026-04-27
+
+### Added
+- **Node-palette section state persists across sessions.** The
+  expand/collapse state of every section in the node palette (Sources,
+  Sinks, …) is saved to `~/.image-inquest/node_list_state.json` on app
+  close and restored on the next launch. Search-driven expansion is not
+  persisted — only manual toggles and the expand-all / collapse-all
+  buttons are remembered. New sections default to expanded; stale keys
+  for removed sections are silently ignored. Issue #190.
+- **Generic per-page state persistence API in `PageBase`.** `PageBase`
+  gains `save_state()` / `restore_state()` lifecycle hooks (concrete
+  no-ops by default) so any page can opt into persistence without
+  modifying `MainWindow`. `NodeEditorPage` overrides both to cover dock
+  layout (issue #183) and palette section state (issue #190) in one
+  call. `MainWindow.closeEvent` and `__init__` now loop over all pages
+  rather than hardcoding the editor page.
 
 ## [0.2.21] — 2026-04-27
 
