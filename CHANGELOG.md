@@ -10,6 +10,34 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.29] — 2026-04-28
+
+### Added
+- **``BoolParam``, ``EnumParam``, ``ClampedFloatParam`` descriptors;
+  ``min_exclusive`` / ``max_exclusive`` flag on ``FloatParam``.**
+  Four new pieces in ``core.params`` covering the descriptor types
+  the next batch of filters needed:
+  - ``BoolParam`` — toggle backed by ``IoDataType.BOOL``.
+  - ``EnumParam`` — combo-box backed by ``IoDataType.ENUM``; coerce
+    accepts the enum member, its ``.value``, or its ``.name``.
+  - ``ClampedFloatParam`` — float whose ``min`` / ``max`` clamp via
+    ``_shape`` rather than raise via ``_validate``. Used when
+    out-of-range input is a UX choice (``Overlay.alpha`` —
+    ``2.5`` becomes ``1.0``, no exception).
+  - ``FloatParam(min_exclusive=True)`` / ``max_exclusive=True`` —
+    strict bounds (``> min`` rather than ``>= min``). Used by
+    ``Overlay.scale`` which must be strictly positive.
+
+### Changed
+- **Param descriptor sweep — batch 2 (H2 PR-2b).** Migrated six more
+  filters: Overlay, Subpixel Mosaic, Flip, Dither, Rotate, Scale.
+  Each loses its ``self._<name>`` init lines, hand-rolled
+  ``_add_input(InputPort(...))`` constructions, and per-param
+  ``@property``/``@setter`` pairs in favour of single descriptor
+  declarations. ``Overlay`` is the headline migration since it
+  exercises all five descriptor types in one node — including the
+  new clamping float and exclusive-bound float.
+
 ## [0.2.28] — 2026-04-28
 
 ### Changed

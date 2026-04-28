@@ -8,8 +8,9 @@ import numba
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import EnumParam
 from core.port import InputPort, OutputPort
 
 
@@ -111,52 +112,24 @@ class Dither(NodeBase):
     original OCVL implementation.
     """
 
+    method = EnumParam(
+        DitherMethod,
+        DitherMethod.STUCKI,
+        description=(
+            "Dithering algorithm. BAYER2 / 4 / 8 are ordered-dither "
+            "matrices (cheap, regular pattern). NOISE is white-noise "
+            "thresholding. FLOYD_STEINBERG, STUCKI, ATKINSON, BURKES, "
+            "SIERRA distribute quantisation error to neighbouring "
+            "pixels for finer detail. DIFFUSION_X / _XY are minimal "
+            "1- or 2-cell diffusion variants."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Dither", section="Processing")
-        self._method: DitherMethod = DitherMethod.STUCKI
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "method",
-            {IoDataType.ENUM},
-            optional=True,
-            default_value=DitherMethod.STUCKI,
-            metadata={
-                "default": DitherMethod.STUCKI,
-                "enum": DitherMethod,
-                "param_type": NodeParamType.ENUM,
-                "description": (
-                    "Dithering algorithm. BAYER2 / 4 / 8 are ordered-dither "
-                    "matrices (cheap, regular pattern). NOISE is white-noise "
-                    "thresholding. FLOYD_STEINBERG, STUCKI, ATKINSON, BURKES, "
-                    "SIERRA distribute quantisation error to neighbouring "
-                    "pixels for finer detail. DIFFUSION_X / _XY are minimal "
-                    "1- or 2-cell diffusion variants."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def method(self) -> DitherMethod:
-        return self._method
-
-    @method.setter
-    def method(self, value: int | DitherMethod) -> None:
-        try:
-            # DitherMethod(int) validates the integer and raises on unknown
-            # values; passing a DitherMethod member just returns itself.
-            self._method = DitherMethod(value)
-        except ValueError as e:
-            raise ValueError(
-                f"method must be one of {[m.value for m in DitherMethod]} (got {value!r})"
-            ) from e
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

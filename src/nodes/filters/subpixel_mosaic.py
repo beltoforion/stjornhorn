@@ -6,7 +6,8 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.node_base import NodeBase
+from core.params import BoolParam
 from core.port import InputPort, OutputPort
 
 
@@ -28,65 +29,28 @@ class SubpixelMosaic(NodeBase):
     scatter kernel is JIT-compiled by numba (``@njit(cache=True)``).
     """
 
+    keep_aspect = BoolParam(
+        False,
+        description=(
+            "When on, the mosaic canvas is resampled to 2w × 2h "
+            "so the output matches the source aspect ratio. "
+            "When off, the raw 1.5w × 2h mosaic is emitted "
+            "(vertical stretch of 4/3)."
+        ),
+    )
+    output_grayscale = BoolParam(
+        False,
+        description=(
+            "When on, drops the colour and emits the per-pixel "
+            "sample intensity as a single-channel image."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Subpixel Mosaic", section="Experimental")
-        self._keep_aspect: bool = False
-        self._output_grayscale: bool = False
-
         self._add_input(InputPort("image", {IoDataType.IMAGE}))
-        self._add_input(InputPort(
-            "keep_aspect",
-            {IoDataType.BOOL},
-            optional=True,
-            default_value=False,
-            metadata={
-                "default": False,
-                "param_type": NodeParamType.BOOL,
-                "description": (
-                    "When on, the mosaic canvas is resampled to 2w × 2h "
-                    "so the output matches the source aspect ratio. "
-                    "When off, the raw 1.5w × 2h mosaic is emitted "
-                    "(vertical stretch of 4/3)."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "output_grayscale",
-            {IoDataType.BOOL},
-            optional=True,
-            default_value=False,
-            metadata={
-                "default": False,
-                "param_type": NodeParamType.BOOL,
-                "description": (
-                    "When on, drops the colour and emits the per-pixel "
-                    "sample intensity as a single-channel image."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def keep_aspect(self) -> bool:
-        return self._keep_aspect
-
-    @keep_aspect.setter
-    def keep_aspect(self, value: bool) -> None:
-        self._keep_aspect = bool(value)
-
-    @property
-    def output_grayscale(self) -> bool:
-        return self._output_grayscale
-
-    @output_grayscale.setter
-    def output_grayscale(self, value: bool) -> None:
-        self._output_grayscale = bool(value)
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:
