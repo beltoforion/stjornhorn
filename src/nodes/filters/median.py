@@ -4,71 +4,38 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import OddIntParam
 from core.port import InputPort, OutputPort
 
 
 class Median(NodeBase):
     """Apply a median blur with a square kernel.
 
-    Wraps ``cv2.medianBlur``; the kernel ``size`` must be odd and ≥ 1.
-    Accepts both colour (``IMAGE``) and greyscale (``IMAGE_GREY``) inputs
-    and emits the same type on the output. Ported from the original OCVL
-    ``MedianProcessor``.
-
-    The ``size`` editable property is declared directly as an
-    ``InputPort`` with ``param_type`` in its metadata; no separate
-    params-list override is needed. ``NodeBase.params`` filters the
-    input ports down to the param-style subset that the UI iterates.
+    Wraps ``cv2.medianBlur``; the kernel ``size`` must be odd and ≥ 1
+    — :class:`~core.params.OddIntParam` enforces both invariants so the
+    UI spin-box can step in odd numbers and accept (then bump) even
+    typed input. Accepts both colour (``IMAGE``) and greyscale
+    (``IMAGE_GREY``) inputs and emits the same type on the output.
     """
+
+    size = OddIntParam(
+        3,
+        min=1,
+        unit="px",
+        description=(
+            "Kernel side length in pixels. Must be odd; even values "
+            "are bumped up to the next odd integer. Larger kernels "
+            "remove more noise at the cost of fine detail."
+        ),
+    )
 
     def __init__(self) -> None:
         super().__init__("Median", section="Processing")
-        self._size: int = 3
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "size",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=3,
-            metadata={
-                "default": 3,
-                "param_type": NodeParamType.INT,
-                "min": 1,
-                "unit": "px",
-                "description": (
-                    "Kernel side length in pixels. Must be odd; even "
-                    "values are bumped up to the next odd integer. "
-                    "Larger kernels remove more noise at the cost of "
-                    "fine detail."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def size(self) -> int:
-        return self._size
-
-    @size.setter
-    def size(self, value: int) -> None:
-        v = int(value)
-        if v < 1:
-            raise ValueError(f"size must be >= 1 (got {v})")
-        if v % 2 == 0:
-            # cv2.medianBlur requires an odd kernel — round up rather than
-            # reject so the UI spinbox feels natural when the user types
-            # an even number mid-edit.
-            v += 1
-        self._size = v
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

@@ -5,7 +5,8 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.node_base import NodeBase
+from core.params import IntParam, OddIntParam
 from core.port import InputPort, OutputPort
 
 
@@ -14,82 +15,39 @@ class AdaptiveGaussianThreshold(NodeBase):
 
     Wraps ``cv2.adaptiveThreshold`` with
     ``ADAPTIVE_THRESH_GAUSSIAN_C`` and ``THRESH_BINARY``. ``block_size``
-    must be odd and > 1; ``c`` is the constant subtracted from the
-    weighted mean. Ported from the original OCVL
-    ``AdaptiveGuaussianThresholdProcessor`` [sic].
+    must be odd and >= 3 — :class:`~core.params.OddIntParam` enforces
+    the odd-only invariant; the ``min=3`` check catches the lower bound
+    after the even→odd bump (so 2 → 3 is accepted).
 
     Accepts colour or greyscale inputs; 3-channel inputs are internally
     converted to greyscale first. The output is always a single-channel
     binary :data:`IoDataType.IMAGE_GREY` payload.
     """
 
+    block_size = OddIntParam(
+        101,
+        min=3,
+        unit="px",
+        description=(
+            "Side length of the neighbourhood used to compute the "
+            "local threshold. Must be odd and >= 3; even values "
+            "are bumped up to the next odd integer."
+        ),
+    )
+    c = IntParam(
+        -32,
+        description=(
+            "Constant subtracted from the local weighted mean. "
+            "Negative values bias toward classifying pixels as "
+            "white; positive values bias toward black."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Adaptive Gaussian Threshold", section="Processing")
-        self._block_size: int = 101
-        self._c: int = -32
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "block_size",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=101,
-            metadata={
-                "default": 101,
-                "param_type": NodeParamType.INT,
-                "min": 3,
-                "unit": "px",
-                "description": (
-                    "Side length of the neighbourhood used to compute the "
-                    "local threshold. Must be odd and >= 3; even values "
-                    "are bumped up to the next odd integer."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "c",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=-32,
-            metadata={
-                "default": -32,
-                "param_type": NodeParamType.INT,
-                "description": (
-                    "Constant subtracted from the local weighted mean. "
-                    "Negative values bias toward classifying pixels as "
-                    "white; positive values bias toward black."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def block_size(self) -> int:
-        return self._block_size
-
-    @block_size.setter
-    def block_size(self, value: int) -> None:
-        v = int(value)
-        if v < 3:
-            raise ValueError(f"block_size must be >= 3 (got {v})")
-        if v % 2 == 0:
-            # cv2.adaptiveThreshold requires odd — coerce like Median does.
-            v += 1
-        self._block_size = v
-
-    @property
-    def c(self) -> int:
-        return self._c
-
-    @c.setter
-    def c(self, value: int) -> None:
-        self._c = int(value)
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

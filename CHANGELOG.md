@@ -10,6 +10,33 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.28] — 2026-04-28
+
+### Changed
+- **Param descriptor sweep — batch 1 (H2 PR-2a).** Migrated eight
+  more filters to the class-level descriptor pattern landed in
+  PR-1: Median, Delay, Clamp, Shift, Temporal Mean, Temporal Median,
+  Adaptive Gaussian Threshold and Crop. Each loses the
+  ``self._<name>`` init line, the hand-rolled
+  ``_add_input(InputPort(...))``, and the ``@property``/``@setter``
+  pair in favour of a single descriptor declaration. Files are
+  30–50% smaller; metadata, validation and port construction now
+  live in one place per parameter.
+- **Descriptor protocol: validation runs before shaping.**
+  ``_ParamBase.__set__`` is now ``coerce → validate → shape`` rather
+  than ``coerce → validate``. Domain subclasses override the new
+  ``_shape`` hook (e.g. ``OddIntParam``'s even→odd rounding) so a
+  literal value below ``min`` raises rather than being silently
+  shaped up into range. Preserves the semantics of the hand-rolled
+  setters this descriptor replaces — e.g. ``Median.size = 0`` still
+  raises ``ValueError``.
+
+### Deferred
+- ``Overlay`` and the remaining nodes that need new descriptor
+  types (Bool/String/Enum/FilePath, plus a clamping float for
+  ``Overlay.alpha`` and an exclusive-bound float for
+  ``Overlay.scale``) move in subsequent PRs.
+
 ## [0.2.27] — 2026-04-28
 
 ### Changed

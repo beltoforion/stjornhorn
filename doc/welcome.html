@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.27</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.28</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.28</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — first batch (PR-2a of H2).</strong> Eight more filters (Median, Delay, Clamp, Shift, Temporal Mean, Temporal Median, Adaptive Gaussian Threshold, Crop) ported from the hand-rolled <code>InputPort</code> + <code>@property</code>/<code>@setter</code> triple-declaration to the new class-level descriptors. Each migrated file is 30–50% smaller and its parameters now live in one declaration with single-source-of-truth metadata, validation and port construction. Median picks up <code>OddIntParam</code> just like Gaussian Blur — same odd-only invariant, named once. The descriptor protocol gained a <code>_shape</code> hook that runs <em>after</em> validation, so a literal value below <code>min</code> raises rather than being shaped up into range; this matches the hand-rolled setters this descriptor replaces (e.g. <code>Median.size = 0</code> still raises, even though the odd-shape would otherwise round it to 1). The <code>Overlay</code> node and the remaining nodes that need new descriptor types (Bool/String/Enum/FilePath, plus a clamping float and an exclusive-bound float) follow in subsequent PRs.</li>
+      </ul>
     </section>
 
     <section>
