@@ -215,6 +215,7 @@
     <section>
       <h2>What's new in v0.2.23</h2>
       <ul class="tips">
+        <li><strong>Backdrop resize grips.</strong> Backdrops are now interactively resizable: hovering or selecting one reveals eight grips (four corners, four edge midpoints). Drag any grip to resize the frame live, with the opposite corner / edge anchored. Width and height clamp at the existing minimum so a backdrop can't collapse into an invisible sliver. Resizing only changes the frame's geometry — the framed nodes still move only when you drag the body. Issue #192.</li>
         <li><strong>Filter documentation sweep.</strong> Every parameter on the eighteen filter nodes that were still undocumented after v0.2.20 (Adaptive Gaussian Threshold, Apply Colormap, Clamp, Crop, Debug Params, Delay, Dither, Flip, Math, Median, NCC, Notify, Overlay, Scale, Shift, Subpixel Mosaic, Temporal Mean, Temporal Median) now ships with a hover-tooltip description, and where applicable a min / max bound and a unit suffix (px, deg, %, s, frames). The Node Documentation panel and the per-widget hover tooltips both pick up the new content automatically. Lint progress: 24 → 6 XFAIL remaining (sources / sinks).</li>
       </ul>
     </section>
