@@ -110,6 +110,33 @@ class ParamWidgetBase(QWidget):
 
     # ── Helpers shared by all subclasses ───────────────────────────────────────
 
+    def _make_row_layout(self, spacing: int = 0) -> QHBoxLayout:
+        """Install a zero-margin :class:`QHBoxLayout` on this widget and
+        return it so the caller can attach value-bearing controls.
+
+        Every concrete param widget hosts its controls in a horizontal
+        row with no contents margins (so the row sits flush against the
+        node body's parameter slot). Centralising the boilerplate keeps
+        all widgets visually consistent and shrinks each subclass.
+        """
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(spacing)
+        return layout
+
+    @staticmethod
+    def _size_value_control(control: QWidget) -> None:
+        """Apply the standard min-width / fixed-height to a value control.
+
+        See :data:`PARAM_VALUE_MIN_WIDTH` and :data:`PARAM_VALUE_HEIGHT`
+        for the rationale on the chosen pixel values. Used by every
+        single-control numeric / string / enum widget; FilePath sizes
+        its line edit separately because it shares the row with two
+        buttons.
+        """
+        control.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
+        control.setFixedHeight(PARAM_VALUE_HEIGHT)
+
     def _initial_value(self, fallback: object) -> object:
         """Return the value the widget should display on first creation.
 
@@ -143,14 +170,10 @@ class IntParamWidget(ParamWidgetBase):
         self._spin = QSpinBox()
         self._spin.setRange(-10_000_000, 10_000_000)
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self._spin.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
-        self._spin.setFixedHeight(PARAM_VALUE_HEIGHT)
+        self._size_value_control(self._spin)
         self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(int(self._initial_value(0)))
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._spin)
+        self._make_row_layout().addWidget(self._spin)
 
     def _on_value_changed(self, value: int) -> None:
         self._write_to_node(value)
@@ -184,14 +207,10 @@ class FloatParamWidget(ParamWidgetBase):
         self._spin.setDecimals(int(meta.get("decimals", 3)))
         self._spin.setSingleStep(float(meta.get("step", 0.1)))
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self._spin.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
-        self._spin.setFixedHeight(PARAM_VALUE_HEIGHT)
+        self._size_value_control(self._spin)
         self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(float(self._initial_value(0.0)))
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._spin)
+        self._make_row_layout().addWidget(self._spin)
 
     def _on_value_changed(self, value: float) -> None:
         self._write_to_node(value)
@@ -214,10 +233,7 @@ class BoolParamWidget(ParamWidgetBase):
         self._check = QCheckBox()
         self._check.toggled.connect(self._on_value_changed)
         self._check.setChecked(bool(self._initial_value(False)))
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._check)
+        self._make_row_layout().addWidget(self._check)
 
     def _on_value_changed(self, value: bool) -> None:
         self._write_to_node(value)
@@ -249,8 +265,7 @@ class StringParamWidget(ParamWidgetBase):
         meta = port.metadata
 
         self._line = QLineEdit()
-        self._line.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
-        self._line.setFixedHeight(PARAM_VALUE_HEIGHT)
+        self._size_value_control(self._line)
         placeholder = meta.get("placeholder")
         if placeholder is not None:
             self._line.setPlaceholderText(str(placeholder))
@@ -260,10 +275,7 @@ class StringParamWidget(ParamWidgetBase):
 
         self._line.setText(str(self._initial_value("")))
         self._line.editingFinished.connect(self._on_editing_finished)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._line)
+        self._make_row_layout().addWidget(self._line)
 
     def _on_editing_finished(self) -> None:
         value = self._line.text()
@@ -313,8 +325,7 @@ class EnumParamWidget(ParamWidgetBase):
         self._enum_cls: type[Enum] = enum_cls
 
         self._combo = SceneAwareComboBox()
-        self._combo.setMinimumWidth(PARAM_VALUE_MIN_WIDTH)
-        self._combo.setFixedHeight(PARAM_VALUE_HEIGHT)
+        self._size_value_control(self._combo)
         for member in self._enum_cls:
             self._combo.addItem(self._label_for(member), member)
 
@@ -326,10 +337,7 @@ class EnumParamWidget(ParamWidgetBase):
         # initial value back to the node via the setter (and fire a
         # spurious param_changed).
         self._combo.currentIndexChanged.connect(self._on_index_changed)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._combo)
+        self._make_row_layout().addWidget(self._combo)
 
     def _on_index_changed(self, _index: int) -> None:
         member = self._combo.currentData()
@@ -416,12 +424,10 @@ class FilePathParamWidget(ParamWidgetBase):
         self._line.textChanged.connect(self._update_view_enabled)
 
         # initialize self._path and the line edit's text to the node's current value (or the
-        self.set_value(str(self._initial_value(""))) 
+        self.set_value(str(self._initial_value("")))
         self._update_view_enabled()
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        layout = self._make_row_layout(spacing=4)
         layout.addWidget(self._line, 1)
         layout.addWidget(browse, 0)
         layout.addWidget(self._view, 0)
