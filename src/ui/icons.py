@@ -55,6 +55,7 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "unfold_less":  "e5d6",
     "vertical_split":   "e949",
     "horizontal_split": "e947",
+    "settings":         "e8b8",
 }
 
 

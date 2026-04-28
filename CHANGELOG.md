@@ -10,6 +10,17 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.25] — 2026-04-28
+
+### Added
+- **Settings page.** A new top-level page (toolbar selector next to
+  *Log*) hosts persistent application settings. The first entry is
+  *Enable debug logging*: when off (default) the rotating log file
+  captures INFO and above, when on it captures the full DEBUG stream.
+  The toggle is saved to ``~/.image-inquest/settings.json`` and is
+  applied both at next startup and live to the currently-running file
+  handler.
+
 ## [0.2.24] — 2026-04-28
 
 ### Fixed
