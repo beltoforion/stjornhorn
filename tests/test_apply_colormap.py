@@ -72,7 +72,11 @@ def test_colormap_setter_accepts_int_values() -> None:
 
 def test_colormap_setter_rejects_unknown_value() -> None:
     node = ApplyColormap()
-    with pytest.raises(ValueError, match="colormap must be one of"):
+    # EnumParam phrases this as "colormap: cannot map 9999 to a
+    # Colormap member"; the legacy hand-rolled setter said "colormap
+    # must be one of [...]". Either way an unknown int raises
+    # ValueError at assignment time.
+    with pytest.raises(ValueError, match="colormap"):
         node.colormap = 9999
 
 

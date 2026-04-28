@@ -398,3 +398,63 @@ def test_filepath_param_coerce_returns_path() -> None:
     node = _PathishNode()
     node.target = "foo.png"
     assert isinstance(node.target, Path)
+
+
+# ── constant=True path ───────────────────────────────────────────────────────
+
+class _ConstantParamNode(NodeBase):
+    """Test node mixing port-style and constant-style descriptors."""
+
+    rate = IntParam(2, min=1)  # port-style — auto-creates an InputPort.
+    label = StringParam("hello", constant=True)
+    enabled = BoolParam(True, constant=True)
+
+    def __init__(self) -> None:
+        super().__init__("Const", section="Tests")
+        self._add_output(OutputPort("image", set(IMAGE_TYPES)))
+        self._apply_default_params()
+
+    def process_impl(self) -> None: pass
+
+
+def test_constant_descriptor_does_not_create_input_port() -> None:
+    node = _ConstantParamNode()
+    input_names = {p.name for p in node.inputs}
+    assert "rate" in input_names           # port-style descriptor → port
+    assert "label" not in input_names      # constant-style → no port
+    assert "enabled" not in input_names    # constant-style → no port
+
+
+def test_constant_descriptor_appears_on_node_params() -> None:
+    node = _ConstantParamNode()
+    param_names = {p.name for p in node.params}
+    assert "label" in param_names
+    assert "enabled" in param_names
+    assert "rate" not in param_names  # port-style stays out of node.params
+
+
+def test_constant_descriptor_satisfies_node_param_interface() -> None:
+    """The descriptor itself is appended to ``node.params``; the UI's
+    existing dispatch reads ``.name``, ``.metadata``,
+    ``.default_value`` and ``.upstream`` on each entry, so the
+    descriptor must satisfy that contract directly."""
+    node = _ConstantParamNode()
+    label_desc = next(p for p in node.params if p.name == "label")
+    assert label_desc.default_value == "hello"
+    assert label_desc.upstream is None
+    assert label_desc.metadata["param_type"].name == "STRING"
+
+
+def test_constant_descriptor_default_applied_at_construction() -> None:
+    node = _ConstantParamNode()
+    assert node.label == "hello"
+    assert node.enabled is True
+
+
+def test_constant_descriptor_setter_runs_validation() -> None:
+    """Constant descriptors share the same coerce/validate/shape pipeline
+    as port-style descriptors, so setting through the public attribute
+    still goes through the descriptor's __set__."""
+    node = _ConstantParamNode()
+    node.enabled = 0
+    assert node.enabled is False
