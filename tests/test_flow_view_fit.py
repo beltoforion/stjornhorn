@@ -69,6 +69,39 @@ def test_fit_centers_layout_in_canvas(qapp: QApplication) -> None:
     assert (items.top()  - canvas.top())  == pytest.approx(canvas.bottom() - items.bottom())
 
 
+def test_fit_centers_viewport_on_layout(qapp: QApplication) -> None:
+    """The viewport's scene-space center must match the layout center."""
+    view, scene = _populated_view()
+    view.show()
+    qapp.processEvents()
+    items = scene.itemsBoundingRect()
+
+    view.fit_to_contents()
+
+    viewport_center_scene = view.mapToScene(view.viewport().rect().center())
+    assert viewport_center_scene.x() == pytest.approx(items.center().x(), abs=1.0)
+    assert viewport_center_scene.y() == pytest.approx(items.center().y(), abs=1.0)
+
+
+def test_fit_clamps_zoom_and_still_centers(qapp: QApplication) -> None:
+    """Tiny layouts that would zoom past _ZOOM_MAX must still end up centered."""
+    scene = FlowScene()
+    scene.set_flow(Flow(name="tiny"))
+    scene.add_node(ImageSource(), QPointF(0, 0))  # single small node
+    view = FlowView(scene)
+    view.resize(2000, 1500)  # huge viewport → fitInView would want >5× zoom
+    view.show()
+    qapp.processEvents()
+    items = scene.itemsBoundingRect()
+
+    view.fit_to_contents()
+
+    assert view.transform().m11() <= view._ZOOM_MAX + 1e-9
+    viewport_center_scene = view.mapToScene(view.viewport().rect().center())
+    assert viewport_center_scene.x() == pytest.approx(items.center().x(), abs=1.0)
+    assert viewport_center_scene.y() == pytest.approx(items.center().y(), abs=1.0)
+
+
 def test_fit_is_idempotent(qapp: QApplication) -> None:
     view, scene = _populated_view()
 

@@ -22,7 +22,11 @@ once a first tagged release is cut.
   each side (= 10% larger overall), leaves the layout naturally
   centered in the canvas, and then zooms the view to show the whole
   canvas. Repeated clicks are idempotent (canvas doesn't grow on
-  every press); an empty scene is a no-op. Issue #191.
+  every press); an empty scene is a no-op. Tiny layouts that would
+  zoom past the 5× cap are clamped to the cap *and* re-centered on
+  the canvas — the previous code only reset the transform to 1:1
+  and left the scroll bars wherever they happened to be, leaving
+  small graphs visibly off-center. Issue #191.
 
 ## [0.2.23] — 2026-04-28
 

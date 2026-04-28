@@ -167,10 +167,16 @@ class FlowView(QGraphicsView):
         canvas = rect.adjusted(-pad_x, -pad_y, pad_x, pad_y)
         scene.setSceneRect(canvas)
         self.fitInView(canvas, Qt.AspectRatioMode.KeepAspectRatio)
-        # Clamp if fitInView zoomed beyond our limits.
+        # If the layout is small enough that fitInView zoomed past our
+        # max, clamp the scale — but keep the layout centered. The old
+        # implementation called resetTransform() here, which dropped the
+        # view back to 1:1 *without* re-centering, so small graphs ended
+        # up wherever the scroll bars happened to be. Issue: #191
         scale = self.transform().m11()
         if scale > self._ZOOM_MAX:
-            self.reset_zoom()
+            self.resetTransform()
+            self.scale(self._ZOOM_MAX, self._ZOOM_MAX)
+        self.centerOn(canvas.center())
 
     def reset_zoom(self) -> None:
         """Reset the view transform to the default 1:1 scale."""
