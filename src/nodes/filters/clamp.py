@@ -4,7 +4,8 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.node_base import NodeBase
+from core.params import FloatParam
 from core.port import InputPort, OutputPort
 
 
@@ -22,63 +23,24 @@ class Clamp(NodeBase):
     invert the range.
     """
 
+    min_value = FloatParam(
+        0.0,
+        description="Lower bound. Values below this are clipped up to it.",
+    )
+    max_value = FloatParam(
+        1.0,
+        description=(
+            "Upper bound. Values above this are clipped down to it. "
+            "If the upper bound ends up below the lower bound the "
+            "two are swapped so the range is always usable."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Clamp", section="Math")
-        self._min_value: float = 0.0
-        self._max_value: float = 1.0
-
         self._add_input(InputPort("value", {IoDataType.SCALAR}))
-        self._add_input(InputPort(
-            "min_value",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0.0,
-            metadata={
-                "default": 0.0,
-                "param_type": NodeParamType.FLOAT,
-                "description": (
-                    "Lower bound. Values below this are clipped up to it."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "max_value",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=1.0,
-            metadata={
-                "default": 1.0,
-                "param_type": NodeParamType.FLOAT,
-                "description": (
-                    "Upper bound. Values above this are clipped down to it. "
-                    "If the upper bound ends up below the lower bound the "
-                    "two are swapped so the range is always usable."
-                ),
-            },
-        ))
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def min_value(self) -> float:
-        return self._min_value
-
-    @min_value.setter
-    def min_value(self, value: float) -> None:
-        self._min_value = float(value)
-
-    @property
-    def max_value(self) -> float:
-        return self._max_value
-
-    @max_value.setter
-    def max_value(self, value: float) -> None:
-        self._max_value = float(value)
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

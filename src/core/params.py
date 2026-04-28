@@ -88,7 +88,8 @@ class _ParamBase:
     def __set__(self, instance: object, value: object) -> None:
         coerced = self._coerce(value)
         self._validate(coerced)
-        object.__setattr__(instance, self._private, coerced)
+        shaped = self._shape(coerced)
+        object.__setattr__(instance, self._private, shaped)
 
     # ── Hooks for subclasses ───────────────────────────────────────────────────
 
@@ -96,8 +97,10 @@ class _ParamBase:
         """Convert *value* to the descriptor's storage type.
 
         Default: identity. Numeric subclasses override to ``int(value)``
-        / ``float(value)``; domain subclasses (e.g. :class:`OddIntParam`)
-        chain into ``super()._coerce`` and apply additional shaping.
+        / ``float(value)``. The result of ``_coerce`` is what
+        :meth:`_validate` sees, so range checks reject literal user
+        input *before* any domain-specific shaping rounds it into a
+        valid form.
         """
         return value
 
@@ -106,8 +109,23 @@ class _ParamBase:
 
         Subclasses with declared bounds (``min`` / ``max``) raise
         :class:`ValueError` here so a mis-set value fails loudly at the
-        property assignment, not at downstream-consumer time.
+        property assignment, not at downstream-consumer time. Runs on
+        the type-coerced (but not yet shaped) value so the user can't
+        bypass the bound by feeding a value the shape hook would round
+        into range.
         """
+
+    def _shape(self, value: Any) -> Any:
+        """Apply domain-specific shaping after validation passes.
+
+        Default: identity. Domain subclasses (e.g. :class:`OddIntParam`)
+        override to round the validated value into its canonical form
+        — odd integer, probability ∈ [0, 1], wrapped angle, etc.
+        Running after :meth:`_validate` means a user-supplied value
+        that's out of range fails at assignment time even when the
+        shape hook *could* have rounded it into range.
+        """
+        return value
 
     # ── InputPort factory ──────────────────────────────────────────────────────
 
@@ -198,7 +216,7 @@ class IntParam(_ParamBase):
 
 
 class OddIntParam(IntParam):
-    """Integer parameter coerced to the nearest odd value (rounding up).
+    """Integer parameter shaped to the nearest odd value (rounding up).
 
     Shared invariant for OpenCV-style kernel-size params: Gaussian /
     Median / Bilateral / box filters all require an odd kernel side
@@ -206,11 +224,16 @@ class OddIntParam(IntParam):
     ``v + 1 if v % 2 == 0 else v`` in its own setter; collecting it
     here means the rule is named once and any future filter that needs
     odd-only ints picks it up by changing one declaration.
+
+    Shaping runs *after* :meth:`_validate`, so a literal value below
+    ``min`` raises rather than being shaped up into range — matches
+    the behaviour of the hand-rolled setters this descriptor replaces
+    (e.g. the legacy ``Median.size`` rejected ``0`` outright instead
+    of silently bumping it to ``1``).
     """
 
-    def _coerce(self, value: object) -> int:
-        v = super()._coerce(value)
-        return v + 1 if v % 2 == 0 else v
+    def _shape(self, value: int) -> int:
+        return value + 1 if value % 2 == 0 else value
 
 
 class FloatParam(_ParamBase):

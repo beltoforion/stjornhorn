@@ -96,19 +96,40 @@ High
        Every saved flow under flow/ instantiates and indexed
        connection access still works.
 
-  Status (2026-04-28, PR-1 in flight on branch claude/h2-param-descriptor):
-    Landed core/params.py with _ParamBase + IntParam + OddIntParam +
-    FloatParam (Bool/String/Enum/FilePath descriptors deferred to PR-2
-    when a node that uses each kind shows up). NodeBase collects
-    descriptors via __init_subclass__; defaults written via
-    object.__setattr__ in __init__ before any subclass code runs;
-    descriptor-driven ports auto-created in _apply_default_params after
-    the explicit subclass ports so image-first ordering is preserved.
-    GaussianBlur migrated as proof: 95 → 57 lines (~40% smaller),
-    every existing test_new_filters.py GaussianBlur test still passes.
-    New tests/test_param_descriptors.py (17 tests) locks down descriptor
-    mechanics; new tests/test_flow_back_compat.py (15 tests) round-trips
-    every saved flow.
+  Status:
+    PR-1 (merged, 2026-04-28): core/params.py with _ParamBase +
+      IntParam + OddIntParam + FloatParam. NodeBase collects
+      descriptors via __init_subclass__; defaults written via
+      object.__setattr__ in __init__ before any subclass code runs;
+      descriptor-driven ports auto-created in _apply_default_params
+      after the explicit subclass ports so image-first ordering is
+      preserved. GaussianBlur migrated as proof: 95 → 57 lines.
+      tests/test_param_descriptors.py + tests/test_flow_back_compat.py.
+
+    PR-2a (in flight on branch claude/h2-pr2a-numeric-filters):
+      Sweep batch 1 — eight filters using only IntParam / FloatParam
+      / OddIntParam: Median, Delay, Clamp, Shift, Temporal Mean,
+      Temporal Median, Adaptive Gaussian Threshold, Crop. Each loses
+      30–50% LoC. Descriptor protocol gained a _shape hook running
+      after _validate so 0 still raises on Median.size (matching the
+      old setter), even though OddIntParam's shape would round it to
+      1. Test test_filters.py::test_median_rejects_non_positive_size
+      preserved unchanged.
+
+    PR-2b (planned): add ClampedFloatParam (Overlay.alpha) and
+      min_exclusive flag on FloatParam (Overlay.scale > 0). Migrate
+      Overlay. This PR also lands BoolParam + StringParam + EnumParam
+      + FilePathParam descriptors and migrates the next batch of
+      filters that need them: Apply Colormap, Dither, Flip, Notify,
+      Resize, Rotate, Scale, Subpixel Mosaic, Math, NCC.
+
+    PR-2c (planned): sources + sinks. Decides the NodeParam merger
+      question (open question 3). file_path setters with side
+      effects (open question 1) drive the on_change= hook design.
+
+    PR-2d (planned): retire the legacy _add_input(InputPort(...)) +
+      @property path from NodeBase once empty. Move H2, H4, M9 to
+      Resolved.
 
 [WIP] H3. Param-widget subclasses duplicate >90% boilerplate.
   Duplication / OCP. src/ui/param_widgets.py:138-289 — every widget

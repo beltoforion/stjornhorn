@@ -3,8 +3,9 @@ from __future__ import annotations
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import IntParam
 from core.port import InputPort, OutputPort
 
 
@@ -17,110 +18,39 @@ class Crop(NodeBase):
     even if the user-specified rectangle reaches outside the input.
     """
 
+    x = IntParam(
+        0,
+        min=0,
+        unit="px",
+        description="Left edge of the ROI in input-pixel coordinates.",
+    )
+    y = IntParam(
+        0,
+        min=0,
+        unit="px",
+        description="Top edge of the ROI in input-pixel coordinates.",
+    )
+    width = IntParam(
+        100,
+        min=1,
+        unit="px",
+        description=(
+            "ROI width in pixels. Clamped to the input bounds, so "
+            "the node always emits a positive-area image."
+        ),
+    )
+    height = IntParam(
+        100,
+        min=1,
+        unit="px",
+        description="ROI height in pixels. Same clamping as width.",
+    )
+
     def __init__(self) -> None:
         super().__init__("Crop", section="Transform")
-        self._x:      int = 0
-        self._y:      int = 0
-        self._width:  int = 100
-        self._height: int = 100
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "x",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0,
-            metadata={
-                "default": 0,
-                "param_type": NodeParamType.INT,
-                "min": 0,
-                "unit": "px",
-                "description": "Left edge of the ROI in input-pixel coordinates.",
-            },
-        ))
-        self._add_input(InputPort(
-            "y",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0,
-            metadata={
-                "default": 0,
-                "param_type": NodeParamType.INT,
-                "min": 0,
-                "unit": "px",
-                "description": "Top edge of the ROI in input-pixel coordinates.",
-            },
-        ))
-        self._add_input(InputPort(
-            "width",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=100,
-            metadata={
-                "default": 100,
-                "param_type": NodeParamType.INT,
-                "min": 1,
-                "unit": "px",
-                "description": (
-                    "ROI width in pixels. Clamped to the input bounds, so "
-                    "the node always emits a positive-area image."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "height",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=100,
-            metadata={
-                "default": 100,
-                "param_type": NodeParamType.INT,
-                "min": 1,
-                "unit": "px",
-                "description": "ROI height in pixels. Same clamping as width.",
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    @property
-    def x(self) -> int:
-        return self._x
-
-    @x.setter
-    def x(self, value: int) -> None:
-        self._x = int(value)
-
-    @property
-    def y(self) -> int:
-        return self._y
-
-    @y.setter
-    def y(self, value: int) -> None:
-        self._y = int(value)
-
-    @property
-    def width(self) -> int:
-        return self._width
-
-    @width.setter
-    def width(self, value: int) -> None:
-        v = int(value)
-        if v < 1:
-            raise ValueError(f"width must be >= 1 (got {v})")
-        self._width = v
-
-    @property
-    def height(self) -> int:
-        return self._height
-
-    @height.setter
-    def height(self, value: int) -> None:
-        v = int(value)
-        if v < 1:
-            raise ValueError(f"height must be >= 1 (got {v})")
-        self._height = v
 
     @override
     def process_impl(self) -> None:

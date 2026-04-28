@@ -85,19 +85,15 @@ def test_odd_int_param_leaves_odd_unchanged() -> None:
     assert node.kernel == 9
 
 
-def test_odd_int_param_zero_coerces_to_one_within_min() -> None:
-    """0 is even → coerced to 1 → satisfies min=1, no raise. The min
-    check intentionally applies to the *coerced* value, so the
-    odd-only invariant takes priority over a strict literal min.
+def test_odd_int_param_below_min_raises_before_shaping() -> None:
+    """The min gate applies to the type-coerced value, *before* the
+    odd-only shape runs — so 0 raises rather than being silently
+    bumped up to 1. Matches the behaviour of the hand-rolled setters
+    this descriptor replaces.
     """
     node = _DescriptorNode()
-    node.kernel = 0
-    assert node.kernel == 1
-
-
-def test_odd_int_param_negative_below_min_after_coerce_raises() -> None:
-    """Negatives still trip min after coerce: -2 → -1 (odd) < min=1."""
-    node = _DescriptorNode()
+    with pytest.raises(ValueError, match=r"kernel must be >= 1"):
+        node.kernel = 0
     with pytest.raises(ValueError, match=r"kernel must be >= 1"):
         node.kernel = -2
 
