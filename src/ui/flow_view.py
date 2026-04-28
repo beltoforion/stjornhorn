@@ -4,7 +4,7 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, QMarginsF, QPoint, Qt
+from PySide6.QtCore import QEvent, QPoint, QRectF, Qt
 from PySide6.QtGui import QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QGraphicsView
 
@@ -146,17 +146,47 @@ class FlowView(QGraphicsView):
         self.scale(factor, factor)
 
     def fit_to_contents(self) -> None:
-        """Zoom and scroll so that all scene items are visible."""
-        rect = self.scene().itemsBoundingRect()
-        if rect.isNull():
+        """Resize the canvas to the node layout plus 5% padding on each
+        side, then zoom and scroll so the whole canvas fills the viewport.
+
+        The bounding rect is computed from structural items only — node
+        bodies and backdrops — *not* from wires. ``LinkItem`` is a cubic
+        Bezier whose control points extend the path's bounding rect
+        beyond the straight line between its ports; if wires curve more
+        on one side of the graph, that asymmetry shifts the canvas
+        centre and the visible node cluster ends up off-centre even
+        though the rect is technically centered. Anchoring on structural
+        items makes Fit reflect the layout the user is actually
+        positioning. Idempotent on repeat calls; no-op on empty scenes.
+
+        Issue: #191
+        """
+        from ui.backdrop_item import BackdropItem
+        from ui.node_item import NodeItem
+
+        scene = self.scene()
+        rect: QRectF | None = None
+        for item in scene.items():
+            if isinstance(item, (NodeItem, BackdropItem)):
+                item_rect = item.sceneBoundingRect()
+                rect = item_rect if rect is None else rect.united(item_rect)
+        if rect is None or rect.isEmpty():
             return
-        # Add a small margin so nodes don't touch the viewport edges.
-        rect = rect.marginsAdded(QMarginsF(40, 40, 40, 40))
-        self.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
-        # Clamp if fitInView zoomed beyond our limits.
+        pad_x = rect.width() * 0.05
+        pad_y = rect.height() * 0.05
+        canvas = rect.adjusted(-pad_x, -pad_y, pad_x, pad_y)
+        scene.setSceneRect(canvas)
+        self.fitInView(canvas, Qt.AspectRatioMode.KeepAspectRatio)
+        # If the layout is small enough that fitInView zoomed past our
+        # max, clamp the scale — but keep the layout centered. The old
+        # implementation called resetTransform() here, which dropped the
+        # view back to 1:1 *without* re-centering, so small graphs ended
+        # up wherever the scroll bars happened to be. Issue: #191
         scale = self.transform().m11()
         if scale > self._ZOOM_MAX:
-            self.reset_zoom()
+            self.resetTransform()
+            self.scale(self._ZOOM_MAX, self._ZOOM_MAX)
+        self.centerOn(canvas.center())
 
     def reset_zoom(self) -> None:
         """Reset the view transform to the default 1:1 scale."""

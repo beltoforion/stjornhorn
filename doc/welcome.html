@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.23</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.24</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.24</h2>
+      <ul class="tips">
+        <li><strong>Fit really fits.</strong> The toolbar's <em>Fit</em> action in the node editor used to only adjust the viewport's zoom — the underlying canvas (sceneRect) was untouched, so the layout often ended up off-center inside an over- or under-sized canvas. Fit now resizes the canvas to the node bounding rect plus 5% padding on each side (= 10% larger overall), leaves the layout naturally centered in that canvas, then zooms the view to show the whole canvas. Idempotent — repeated clicks don't grow the canvas — and a no-op on an empty scene. Issue #191.</li>
+      </ul>
     </section>
 
     <section>

@@ -10,6 +10,31 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.24] — 2026-04-28
+
+### Fixed
+- **Fit toolbar action now resizes the canvas, not just the
+  viewport.** Previously *Fit* only called ``QGraphicsView.fitInView``
+  with a fixed 40 px margin, so the underlying ``sceneRect`` was
+  never touched and the layout often ended up off-center inside an
+  over- or under-sized canvas. Fit now computes the node bounding
+  rect, expands the ``sceneRect`` to that rect plus 5% padding on
+  each side (= 10% larger overall), leaves the layout naturally
+  centered in the canvas, and then zooms the view to show the whole
+  canvas. Repeated clicks are idempotent (canvas doesn't grow on
+  every press); an empty scene is a no-op. Tiny layouts that would
+  zoom past the 5× cap are clamped to the cap *and* re-centered on
+  the canvas — the previous code only reset the transform to 1:1
+  and left the scroll bars wherever they happened to be, leaving
+  small graphs visibly off-center. The fit rect is now computed
+  from structural items only (nodes + backdrops), not from
+  ``itemsBoundingRect()``. Wires are cubic Beziers whose control
+  points extend the path's bounding rect beyond the straight line
+  between ports; on graphs where wires curve more on one side, that
+  asymmetry shifted the centre and the visible node cluster ended
+  up off-centre even though the rect was technically centered.
+  Issue #191.
+
 ## [0.2.23] — 2026-04-28
 
 ### Added
