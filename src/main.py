@@ -58,6 +58,7 @@ from constants import (
 )
 from log import setup_logging
 from ui.main_window import MainWindow
+from ui.settings import read_debug_logging
 from ui.theme import apply_dark_theme
 
 logger = logging.getLogger(__name__)
@@ -329,7 +330,7 @@ def main(argv: list[str]) -> int:
     )
     args, qt_args = parser.parse_known_args(argv)
 
-    setup_logging(LOG_DIR)
+    setup_logging(LOG_DIR, level=logging.DEBUG if read_debug_logging() else logging.INFO)
     _seed_user_data()
     logger.info("Starting %s v%s", APP_NAME, APP_VERSION)
     # Record the interpreter the app is bound to — handy when triaging

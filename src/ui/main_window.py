@@ -21,9 +21,12 @@ from PySide6.QtWidgets import (
 from constants import APP_DISPLAY_NAME, BUILTIN_NODES_DIR, USER_NODES_DIR
 from core.flow import Flow
 from core.node_registry import NodeRegistry
+from log import set_debug_logging
 from ui.node_editor_page import NodeEditorPage
 from ui.page import PageBase
 from ui.recent_flows import RecentFlowsManager
+from ui.settings import get_settings
+from ui.settings_page import SettingsPage
 from ui.start_page import StartPage
 from ui.log_page import LogPage
 
@@ -74,9 +77,10 @@ class MainWindow(QMainWindow):
         self._pages = QStackedWidget()
         self.setCentralWidget(self._pages)
 
-        self._start_page  = StartPage(self._recent_flows)
-        self._editor_page = NodeEditorPage(self._registry, self._recent_flows)
-        self._log_page    = LogPage()
+        self._start_page    = StartPage(self._recent_flows)
+        self._editor_page   = NodeEditorPage(self._registry, self._recent_flows)
+        self._log_page      = LogPage()
+        self._settings_page = SettingsPage()
 
         # Single source of truth for the set of pages. Adding a new page
         # means: construct it, append it here, and every loop below —
@@ -86,7 +90,14 @@ class MainWindow(QMainWindow):
             self._start_page,
             self._editor_page,
             self._log_page,
+            self._settings_page,
         ]
+
+        # Apply persisted debug-logging flag to the live file handler and
+        # keep it in sync as the user toggles it from the Settings page.
+        settings = get_settings()
+        set_debug_logging(settings.debug_logging)
+        settings.debug_logging_changed.connect(set_debug_logging)
 
         for page in self._pages_list:
             self._pages.addWidget(page)

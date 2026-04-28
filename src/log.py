@@ -57,6 +57,12 @@ class _FixedWidthFormatter(logging.Formatter):
         return super().format(rec)
 
 
+#: Module-level handles to the configured handlers, kept around so
+#: :func:`set_debug_logging` can flip their level after startup without
+#: rebuilding the logging stack.
+_file_handler: logging.handlers.RotatingFileHandler | None = None
+
+
 def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     """Configure the root logger.
 
@@ -64,6 +70,8 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
         log_dir: Directory where the log file is written (created if absent).
         level:   Minimum level captured by the file handler (default DEBUG).
     """
+    global _file_handler
+
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "image-inquest.log"
 
@@ -80,6 +88,7 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     )
     file_handler.setLevel(level)
     file_handler.setFormatter(fmt)
+    _file_handler = file_handler
 
     # Console handler — only warnings and above to avoid noise
     console_handler = logging.StreamHandler()
@@ -87,7 +96,10 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     console_handler.setFormatter(fmt)
 
     root = logging.getLogger()
-    root.setLevel(level)
+    # Root must stay at the lowest level we ever want to forward to a
+    # handler, otherwise records get filtered before reaching the file
+    # handler whose level we may flip up later.
+    root.setLevel(logging.DEBUG)
     root.addHandler(file_handler)
     root.addHandler(console_handler)
 
@@ -107,6 +119,23 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     logger.info("Logging initialised → %s", log_file)
     if _faulthandler_file is not None:
         logger.info("faulthandler dump → %s", _faulthandler_file.name)
+
+
+def set_debug_logging(enabled: bool) -> None:
+    """Flip the file log handler between DEBUG and INFO at runtime.
+
+    Called from the settings page when the user toggles "Enable debug
+    logging". No-op if :func:`setup_logging` has not been called yet.
+    """
+    if _file_handler is None:
+        return
+    new_level = logging.DEBUG if enabled else logging.INFO
+    if _file_handler.level == new_level:
+        return
+    _file_handler.setLevel(new_level)
+    logging.getLogger(__name__).info(
+        "File log level → %s", logging.getLevelName(new_level),
+    )
 
 
 def _enable_faulthandler(log_dir: Path) -> None:
