@@ -7,7 +7,8 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.node_base import NodeBase
+from core.params import EnumParam
 from core.port import InputPort, OutputPort
 
 
@@ -17,9 +18,9 @@ class Colormap(IntEnum):
     Values mirror OpenCV's ``cv2.COLORMAP_*`` flags so the enum member
     can be passed straight into :func:`cv2.applyColorMap`. Backed by
     :class:`IntEnum` so the integer representation (persisted in saved
-    flows) round-trips cleanly: JSON stores the int, the setter accepts
-    both ints and enum members, and the ``ENUM`` param widget renders a
-    combo box of ``name``-based labels.
+    flows) round-trips cleanly: JSON stores the int, the descriptor's
+    ``_coerce`` accepts both ints and enum members, and the ``ENUM``
+    param widget renders a combo box of ``name``-based labels.
 
     The selection covers the perceptually-uniform family popularised by
     matplotlib (VIRIDIS / PLASMA / MAGMA / INFERNO), the
@@ -59,50 +60,26 @@ class ApplyColormap(NodeBase):
     and crush the high end into a tiny color band.
     """
 
+    # ``constant=True``: the palette is a build-time visualization
+    # choice, not something a streaming source would animate per
+    # frame, so the node renders the combo inline with no socket dot.
+    colormap = EnumParam(
+        Colormap,
+        Colormap.VIRIDIS,
+        constant=True,
+        description=(
+            "Lookup table used to colorize the greyscale input. "
+            "VIRIDIS / PLASMA / MAGMA / INFERNO are perceptually "
+            "uniform; JET and TURBO are the classic spectrogram "
+            "/ FFT-magnitude palettes."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Apply Colormap", section="Color Spaces")
-        self._colormap: Colormap = Colormap.VIRIDIS
-
         self._add_input(InputPort("image", {IoDataType.IMAGE_GREY}))
-        # ``colormap`` is a constant (NodeParam, not a port-style input)
-        # so it isn't drivable from upstream — the palette is a
-        # build-time visualization choice, not something a streaming
-        # source would animate per frame. Renders as an inline combo
-        # box above the input rows, with no socket dot.
-        self._add_param(NodeParam(
-            "colormap",
-            NodeParamType.ENUM,
-            default=Colormap.VIRIDIS,
-            metadata={
-                "enum": Colormap,
-                "description": (
-                    "Lookup table used to colorize the greyscale input. "
-                    "VIRIDIS / PLASMA / MAGMA / INFERNO are perceptually "
-                    "uniform; JET and TURBO are the classic spectrogram "
-                    "/ FFT-magnitude palettes."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def colormap(self) -> Colormap:
-        return self._colormap
-
-    @colormap.setter
-    def colormap(self, value: int | Colormap) -> None:
-        try:
-            self._colormap = Colormap(value)
-        except ValueError as e:
-            raise ValueError(
-                f"colormap must be one of {[m.value for m in Colormap]} (got {value!r})"
-            ) from e
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

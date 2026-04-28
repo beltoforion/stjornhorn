@@ -233,15 +233,26 @@ class NodeBase(ABC):
         a fallback value before this method runs, so a rejected default
         leaves the node in a still-valid state.
         """
-        # Auto-create descriptor-driven ports. Skip any whose port the
-        # subclass already added explicitly — defensive against a node
-        # that ports to descriptors incrementally and still keeps a
-        # hand-rolled InputPort for one of its params.
-        existing_names = {p.name for p in self._inputs}
+        # Auto-create descriptor-driven ports / register constant
+        # descriptors. Skip names the subclass already registered
+        # explicitly so a partial migration (mixing descriptor and
+        # legacy declarations) stays consistent.
+        existing_input_names = {p.name for p in self._inputs}
+        existing_param_names = {p.name for p in self._params}
         for desc in self._param_descriptors:
-            if desc.name in existing_names:
-                continue
-            self._add_input(desc.make_port())
+            if desc.constant:
+                if desc.name in existing_param_names:
+                    continue
+                # The descriptor itself satisfies the NodeParam read
+                # interface (.name / .metadata / .default_value /
+                # .upstream — see core.params._ParamBase) so the UI's
+                # existing node.params dispatch picks it up without a
+                # wrapper.
+                self._params.append(desc)
+            else:
+                if desc.name in existing_input_names:
+                    continue
+                self._add_input(desc.make_port())
         for port in self._inputs:
             if not port.has_default:
                 continue

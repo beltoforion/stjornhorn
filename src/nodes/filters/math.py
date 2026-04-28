@@ -8,8 +8,9 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
-from core.port import InputPort, OutputPort
+from core.node_base import NodeBase
+from core.params import FloatParam, StringParam
+from core.port import OutputPort
 
 
 # AST node types accepted inside a Math expression. Anything else is
@@ -103,6 +104,92 @@ _ALLOWED_NAMES: Final[frozenset[str]] = frozenset(
 )
 
 
+def _validate_ast(tree: ast.AST) -> None:
+    """Walk *tree* and reject anything not on the strict whitelist.
+
+    Four classes of check, all enforced uniformly via :func:`ast.walk`
+    so a deeply-nested escape attempt cannot hide behind a permissive
+    parent node:
+
+    1. Every visited node's *type* must appear in
+       :data:`_ALLOWED_AST_NODES`. This is the primary defense — it
+       rejects ``Attribute``, ``Subscript``, ``Lambda``, ``Starred``,
+       f-strings, comprehensions, walrus, etc.
+    2. Every :class:`ast.Name` must reference one of the four
+       variables, an allowed function or an allowed constant.
+    3. Every :class:`ast.Call` must have a bare ``ast.Name`` as its
+       callable, and that name must be in :data:`_ALLOWED_FUNCTIONS`
+       (so ``pi(A)`` and ``(sin if A else cos)(B)`` both fail).
+       Keyword arguments are explicitly rejected.
+    4. Every :class:`ast.Constant`'s *value* must be one of
+       :data:`_ALLOWED_CONSTANT_TYPES`. Strings, bytes, ``None`` and
+       ``Ellipsis`` are rejected — they have no use in an arithmetic
+       expression and disallowing them keeps the threat surface
+       boring.
+    """
+    for node in ast.walk(tree):
+        node_type = type(node)
+        if node_type not in _ALLOWED_AST_NODES:
+            raise ValueError(
+                f"disallowed expression element: {node_type.__name__}"
+            )
+        if isinstance(node, ast.Name):
+            if node.id not in _ALLOWED_NAMES:
+                raise ValueError(f"unknown name in expression: {node.id!r}")
+        elif isinstance(node, ast.Call):
+            if not (
+                isinstance(node.func, ast.Name)
+                and node.func.id in _ALLOWED_FUNCTIONS
+            ):
+                raise ValueError(
+                    "only bare top-level calls to whitelisted "
+                    "functions are allowed"
+                )
+            if node.keywords:
+                raise ValueError("keyword arguments are not allowed")
+        elif isinstance(node, ast.Constant):
+            if type(node.value) not in _ALLOWED_CONSTANT_TYPES:
+                raise ValueError(
+                    f"disallowed constant type: {type(node.value).__name__}"
+                )
+
+
+def _compile_expression(text: str):
+    """Parse, validate and compile an expression string.
+
+    Raises :class:`ValueError` on syntax errors or whitelist violations;
+    returns the compiled bytecode object on success.
+    """
+    try:
+        tree = ast.parse(text, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"invalid expression syntax: {exc.msg}") from exc
+    _validate_ast(tree)
+    return compile(tree, "<math-expr>", "eval")
+
+
+class _ExpressionParam(StringParam):
+    """StringParam that compiles the expression on every set.
+
+    The validated bytecode is stashed on the owning instance under
+    ``_compiled`` so :meth:`Math.process_impl` can call ``eval()``
+    without re-parsing per frame. ``__set__`` is overridden in one
+    place rather than spread across coerce / validate hooks because
+    the compile result is needed *and* the original-text storage
+    needs to land atomically — both written together so a bad
+    expression leaves the previous valid one in place.
+    """
+
+    def __set__(self, instance: object, value: object) -> None:
+        text = str(value).strip()
+        if not text:
+            raise ValueError(f"{self.name} must not be empty")
+        compiled = _compile_expression(text)
+        # Atomic adoption: only commit once compile + validation succeed.
+        object.__setattr__(instance, self._private, text)
+        object.__setattr__(instance, "_compiled", compiled)
+
+
 class Math(NodeBase):
     """Evaluate an arithmetic expression on up to four SCALAR streams.
 
@@ -142,106 +229,53 @@ class Math(NodeBase):
       the UI rather than mid-flow.
     """
 
+    a = FloatParam(
+        0.0,
+        optional=False,
+        description=(
+            "First operand of the expression. The dispatcher fires "
+            "once `a` has data."
+        ),
+    )
+    b = FloatParam(
+        0.0,
+        description=(
+            "Operand 'b' in the expression. Unconnected ports use "
+            "the inline-edited default."
+        ),
+    )
+    c = FloatParam(
+        0.0,
+        description=(
+            "Operand 'c' in the expression. Unconnected ports use "
+            "the inline-edited default."
+        ),
+    )
+    d = FloatParam(
+        0.0,
+        description=(
+            "Operand 'd' in the expression. Unconnected ports use "
+            "the inline-edited default."
+        ),
+    )
+    expression = _ExpressionParam(
+        "a",
+        constant=True,
+        description=(
+            "Arithmetic expression in the variables a, b, c, d "
+            "plus the helpers sin / cos / tan / asin / acos / "
+            "atan / atan2 / sinh / cosh / tanh / sqrt / exp / "
+            "log / log2 / log10 / abs / floor / ceil / round / "
+            "min / max / deg / rad and the constants pi and e. "
+            "Examples: 'a + b', 'a * b + c * d', "
+            "'sin(a * pi/180) * b', 'a if b > 0 else c'."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Math", section="Math")
-        self._a: float = 0.0
-        self._b: float = 0.0
-        self._c: float = 0.0
-        self._d: float = 0.0
-        self._expression: str = "a"
-        # Compiled bytecode for the current expression, refreshed by
-        # the :meth:`expression` setter. Stored separately so per-frame
-        # evaluation skips the parse step.
-        self._compiled = self._compile_expression(self._expression)
-
-        self._add_input(InputPort("a", {IoDataType.SCALAR}))
-        for name, default in (("b", 0.0), ("c", 0.0), ("d", 0.0)):
-            self._add_input(InputPort(
-                name,
-                {IoDataType.SCALAR},
-                optional=True,
-                default_value=default,
-                metadata={
-                    "default": default,
-                    "param_type": NodeParamType.FLOAT,
-                    "description": (
-                        f"Operand {name!r} in the expression. Unconnected "
-                        "ports use the inline-edited default."
-                    ),
-                },
-            ))
-
-        self._add_param(NodeParam(
-            "expression",
-            NodeParamType.STRING,
-            default="a",
-            metadata={
-                "description": (
-                    "Arithmetic expression in the variables a, b, c, d "
-                    "plus the helpers sin / cos / tan / asin / acos / "
-                    "atan / atan2 / sinh / cosh / tanh / sqrt / exp / "
-                    "log / log2 / log10 / abs / floor / ceil / round / "
-                    "min / max / deg / rad and the constants pi and e. "
-                    "Examples: 'a + b', 'a * b + c * d', "
-                    "'sin(a * pi/180) * b', 'a if b > 0 else c'."
-                ),
-            },
-        ))
-
         self._add_output(OutputPort("result", {IoDataType.SCALAR}))
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def expression(self) -> str:
-        return self._expression
-
-    @expression.setter
-    def expression(self, value: str) -> None:
-        text = str(value).strip()
-        if not text:
-            raise ValueError("expression must not be empty")
-        compiled = self._compile_expression(text)
-        # Atomic adoption: only commit the new expression once compile
-        # + validation succeed; on failure ``self._compiled`` keeps
-        # evaluating the previous valid expression.
-        self._expression = text
-        self._compiled = compiled
-
-    @property
-    def a(self) -> float:
-        return self._a
-
-    @a.setter
-    def a(self, value: object) -> None:
-        self._a = float(value)
-
-    @property
-    def b(self) -> float:
-        return self._b
-
-    @b.setter
-    def b(self, value: object) -> None:
-        self._b = float(value)
-
-    @property
-    def c(self) -> float:
-        return self._c
-
-    @c.setter
-    def c(self, value: object) -> None:
-        self._c = float(value)
-
-    @property
-    def d(self) -> float:
-        return self._d
-
-    @d.setter
-    def d(self, value: object) -> None:
-        self._d = float(value)
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:
@@ -261,67 +295,3 @@ class Math(NodeBase):
             namespace,
         )
         self.outputs[0].send(IoData.from_scalar(result))
-
-    # ── Internals ──────────────────────────────────────────────────────────────
-
-    @staticmethod
-    def _compile_expression(text: str):
-        try:
-            tree = ast.parse(text, mode="eval")
-        except SyntaxError as exc:
-            raise ValueError(f"invalid expression syntax: {exc.msg}") from exc
-        Math._validate_ast(tree)
-        return compile(tree, "<math-expr>", "eval")
-
-    @staticmethod
-    def _validate_ast(tree: ast.AST) -> None:
-        """Walk *tree* and reject anything not on the strict whitelist.
-
-        Four classes of check, all enforced uniformly via
-        :func:`ast.walk` so a deeply-nested escape attempt cannot hide
-        behind a permissive parent node:
-
-        1. Every visited node's *type* must appear in
-           :data:`_ALLOWED_AST_NODES`. This is the primary defense —
-           it rejects ``Attribute``, ``Subscript``, ``Lambda``,
-           ``Starred``, f-strings, comprehensions, walrus, etc.
-        2. Every :class:`ast.Name` must reference one of the four
-           variables, an allowed function or an allowed constant.
-        3. Every :class:`ast.Call` must have a bare ``ast.Name`` as
-           its callable, and that name must be in
-           :data:`_ALLOWED_FUNCTIONS` (so ``pi(A)`` and
-           ``(sin if A else cos)(B)`` both fail). Keyword arguments
-           are explicitly rejected.
-        4. Every :class:`ast.Constant`'s *value* must be one of
-           :data:`_ALLOWED_CONSTANT_TYPES`. Strings, bytes, ``None``
-           and ``Ellipsis`` are rejected — they have no use in an
-           arithmetic expression and disallowing them keeps the
-           threat surface boring.
-        """
-        for node in ast.walk(tree):
-            node_type = type(node)
-            if node_type not in _ALLOWED_AST_NODES:
-                raise ValueError(
-                    f"disallowed expression element: {node_type.__name__}"
-                )
-            if isinstance(node, ast.Name):
-                if node.id not in _ALLOWED_NAMES:
-                    raise ValueError(
-                        f"unknown name in expression: {node.id!r}"
-                    )
-            elif isinstance(node, ast.Call):
-                if not (
-                    isinstance(node.func, ast.Name)
-                    and node.func.id in _ALLOWED_FUNCTIONS
-                ):
-                    raise ValueError(
-                        "only bare top-level calls to whitelisted "
-                        "functions are allowed"
-                    )
-                if node.keywords:
-                    raise ValueError("keyword arguments are not allowed")
-            elif isinstance(node, ast.Constant):
-                if type(node.value) not in _ALLOWED_CONSTANT_TYPES:
-                    raise ValueError(
-                        f"disallowed constant type: {type(node.value).__name__}"
-                    )

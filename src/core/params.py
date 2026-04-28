@@ -67,14 +67,26 @@ class _ParamBase:
         unit: str | None = None,
         description: str | None = None,
         optional: bool = True,
+        constant: bool = False,
     ) -> None:
         self.default: object = default
         self.unit: str | None = unit
         self.description: str | None = description
         self.optional: bool = optional
+        # ``constant=True`` declares a node-level parameter that's
+        # *not* drivable from upstream (file path on a source, codec
+        # choice on a sink, colormap selection on a visualisation
+        # node). NodeBase registers it via ``_add_param`` instead of
+        # auto-creating an :class:`InputPort`, so the UI renders it
+        # inline with no socket dot — matching the legacy
+        # :class:`~core.node_base.NodeParam` UX.
+        self.constant: bool = constant
         # Set by __set_name__ when the descriptor is bound to its class.
         self.name: str = ""
         self._private: str = ""
+        # Lazy-built and cached so the UI can read .metadata as if the
+        # descriptor were a NodeParam (which exposes a plain dict).
+        self._cached_metadata: dict[str, object] | None = None
 
     # ── Descriptor protocol ────────────────────────────────────────────────────
 
@@ -155,15 +167,52 @@ class _ParamBase:
         Called once per node instance from
         :meth:`~core.node_base.NodeBase._apply_default_params` so every
         node with descriptor-style params gets the matching
-        upstream-driveable input port for free.
+        upstream-driveable input port for free. Only invoked when
+        ``constant=False``; constant descriptors register themselves
+        as :class:`~core.node_base.NodeParam`-shaped entries on
+        ``node.params`` instead.
         """
         return InputPort(
             self.name,
             {self._PORT_TYPE},
             optional=self.optional,
             default_value=self.default,
-            metadata=self._build_metadata(),
+            metadata=self.metadata,
         )
+
+    # ── NodeParam-compatible read interface ────────────────────────────────────
+    #
+    # When ``constant=True`` the descriptor itself is appended to
+    # ``node._params`` and the UI's existing dispatch on
+    # :class:`~core.node_base.NodeParam` picks it up. NodeParam exposes
+    # ``name``, ``metadata``, ``default_value`` and ``upstream``; the
+    # descriptor already has ``name``, and these three properties round
+    # out the contract so the UI doesn't have to special-case
+    # descriptor-backed params.
+
+    @property
+    def metadata(self) -> dict[str, object]:
+        """Lazily-built metadata dict, cached after first access.
+
+        The dict contents never change after class definition (it
+        captures the descriptor's declared min / max / unit / description
+        / etc.) so caching is safe and avoids rebuilding on every UI
+        read of a constant param.
+        """
+        if self._cached_metadata is None:
+            self._cached_metadata = self._build_metadata()
+        return self._cached_metadata
+
+    @property
+    def default_value(self) -> object:
+        """Alias for :attr:`default` matching the NodeParam interface."""
+        return self.default
+
+    @property
+    def upstream(self) -> None:
+        """Always ``None``; descriptors are not upstream-driven on the
+        ``node.params`` path. Mirrors :attr:`NodeParam.upstream`."""
+        return None
 
 
 class IntParam(_ParamBase):
@@ -185,12 +234,14 @@ class IntParam(_ParamBase):
         unit: str | None = None,
         description: str | None = None,
         optional: bool = True,
+        constant: bool = False,
     ) -> None:
         super().__init__(
             default,
             unit=unit,
             description=description,
             optional=optional,
+            constant=constant,
         )
         self.min: int | None = min
         self.max: int | None = max
@@ -265,12 +316,14 @@ class FloatParam(_ParamBase):
         unit: str | None = None,
         description: str | None = None,
         optional: bool = True,
+        constant: bool = False,
     ) -> None:
         super().__init__(
             default,
             unit=unit,
             description=description,
             optional=optional,
+            constant=constant,
         )
         self.min: float | None = min
         self.max: float | None = max
@@ -357,11 +410,13 @@ class BoolParam(_ParamBase):
         *,
         description: str | None = None,
         optional: bool = True,
+        constant: bool = False,
     ) -> None:
         super().__init__(
             default,
             description=description,
             optional=optional,
+            constant=constant,
         )
 
     def _coerce(self, value: object) -> bool:
@@ -392,6 +447,7 @@ class EnumParam(_ParamBase):
         *,
         description: str | None = None,
         optional: bool = True,
+        constant: bool = False,
     ) -> None:
         if not (isinstance(enum_cls, type) and issubclass(enum_cls, Enum)):
             raise TypeError(
@@ -405,6 +461,7 @@ class EnumParam(_ParamBase):
             default,
             description=description,
             optional=optional,
+            constant=constant,
         )
         self.enum_cls: type[Enum] = enum_cls
 
@@ -451,11 +508,13 @@ class StringParam(_ParamBase):
         max_length: int | None = None,
         description: str | None = None,
         optional: bool = True,
+        constant: bool = False,
     ) -> None:
         super().__init__(
             default,
             description=description,
             optional=optional,
+            constant=constant,
         )
         self.placeholder: str | None = placeholder
         self.max_length: int | None = max_length
@@ -513,6 +572,7 @@ class FilePathParam(_ParamBase):
         caption: str | None = None,
         description: str | None = None,
         optional: bool = True,
+        constant: bool = False,
     ) -> None:
         if mode not in self._VALID_MODES:
             raise ValueError(
@@ -523,6 +583,7 @@ class FilePathParam(_ParamBase):
             default,
             description=description,
             optional=optional,
+            constant=constant,
         )
         self.mode: str = mode
         self.filter: str | None = filter

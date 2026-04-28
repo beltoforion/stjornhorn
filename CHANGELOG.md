@@ -10,6 +10,40 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.31] — 2026-04-28
+
+### Added
+- **``constant=True`` flag on the descriptor protocol.** When set,
+  the descriptor doesn't auto-create an :class:`InputPort`; instead
+  ``NodeBase`` appends it to ``self._params`` so the UI's existing
+  inline-no-socket dispatch picks it up. The descriptor itself
+  satisfies the :class:`NodeParam` read interface (``name``,
+  ``metadata``, ``default_value``, ``upstream``) so no wrapper is
+  needed. Threads through every concrete descriptor's
+  ``__init__``.
+- **``_ExpressionParam(StringParam)`` in ``Math``.** A small custom
+  subclass that compiles + validates the expression atomically on
+  every ``__set__``. Replaces the hand-rolled
+  ``@expression.setter`` and the static-method
+  ``_compile_expression`` / ``_validate_ast`` pair, both of which
+  moved to module scope so the descriptor can call them. Per-frame
+  evaluation still skips the parse step — the compiled bytecode
+  lives on a side-slot ``_compiled`` written by the descriptor's
+  ``__set__`` alongside the canonical text.
+
+### Changed
+- **Param descriptor sweep — batch 4 (H2 PR-2d).** Migrated the
+  four NodeParam-using filters: ``ApplyColormap``, ``Resize``,
+  ``Math`` and ``Notify``'s ``severity``. Each loses its
+  hand-rolled ``_add_param(NodeParam(...))`` declaration plus
+  associated ``@property``/``@setter`` pair in favour of one
+  descriptor declaration with ``constant=True``. The error message
+  on out-of-range enum sets shifted from the legacy
+  ``"X must be one of [...]"`` to ``EnumParam``'s
+  ``"X: cannot map ... to a Y member"`` — the two corresponding
+  tests (``test_apply_colormap``, ``test_resize``) updated to
+  match.
+
 ## [0.2.30] — 2026-04-28
 
 ### Added

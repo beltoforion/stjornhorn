@@ -6,8 +6,9 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import EnumParam, IntParam
 from core.port import InputPort, OutputPort
 
 
@@ -61,100 +62,37 @@ class Resize(NodeBase):
     #: bilinear vs. bicubic vs. area control.
     _INTERPOLATION: int = cv2.INTER_LINEAR
 
+    width = IntParam(
+        256,
+        min=1,
+        unit="px",
+        description="Target width in pixels.",
+    )
+    height = IntParam(
+        256,
+        min=1,
+        unit="px",
+        description="Target height in pixels.",
+    )
+    # ``constant=True``: the resize strategy is a build-time choice,
+    # not something a streaming source would animate per frame.
+    # Renders inline with no socket dot.
+    method = EnumParam(
+        ResizeMethod,
+        ResizeMethod.SCALE,
+        constant=True,
+        description=(
+            "Layout strategy. SCALE stretches to fit. CROP_OR_FILL "
+            "preserves aspect ratio and either crops or pads. "
+            "BEST_FIT preserves aspect ratio and pads only."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Resize", section="Transform")
-        self._width:  int = 256
-        self._height: int = 256
-        self._method: ResizeMethod = ResizeMethod.SCALE
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "width",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=256,
-            metadata={
-                "default": 256,
-                "param_type": NodeParamType.INT,
-                "min": 1,
-                "unit": "px",
-                "description": "Target width in pixels.",
-            },
-        ))
-        self._add_input(InputPort(
-            "height",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=256,
-            metadata={
-                "default": 256,
-                "param_type": NodeParamType.INT,
-                "min": 1,
-                "unit": "px",
-                "description": "Target height in pixels.",
-            },
-        ))
-        # ``method`` is a constant (NodeParam, not a port-style input)
-        # so it isn't drivable from upstream — the resize strategy is
-        # a build-time choice, not something a streaming source would
-        # animate per frame. Renders as an inline combo box above the
-        # input rows, with no socket dot.
-        self._add_param(NodeParam(
-            "method",
-            NodeParamType.ENUM,
-            default=ResizeMethod.SCALE,
-            metadata={
-                "enum": ResizeMethod,
-                "description": (
-                    "Layout strategy. SCALE stretches to fit. CROP_OR_FILL "
-                    "preserves aspect ratio and either crops or pads. "
-                    "BEST_FIT preserves aspect ratio and pads only."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def width(self) -> int:
-        return self._width
-
-    @width.setter
-    def width(self, value: int) -> None:
-        v = int(value)
-        if v < 1:
-            raise ValueError(f"width must be >= 1 (got {v})")
-        self._width = v
-
-    @property
-    def height(self) -> int:
-        return self._height
-
-    @height.setter
-    def height(self, value: int) -> None:
-        v = int(value)
-        if v < 1:
-            raise ValueError(f"height must be >= 1 (got {v})")
-        self._height = v
-
-    @property
-    def method(self) -> ResizeMethod:
-        return self._method
-
-    @method.setter
-    def method(self, value: int | ResizeMethod) -> None:
-        try:
-            self._method = ResizeMethod(value)
-        except ValueError as exc:
-            raise ValueError(
-                f"method must be one of {[m.value for m in ResizeMethod]} "
-                f"(got {value!r})"
-            ) from exc
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

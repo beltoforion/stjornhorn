@@ -6,8 +6,8 @@ from typing_extensions import override
 
 from core import notifications
 from core.io_data import IMAGE_TYPES
-from core.node_base import NodeBase, NodeParam, NodeParamType
-from core.params import StringParam
+from core.node_base import NodeBase
+from core.params import EnumParam, StringParam
 from core.port import InputPort, OutputPort
 
 
@@ -58,48 +58,25 @@ class Notify(NodeBase):
             "per frame."
         ),
     )
+    # ``constant=True``: the severity is a once-per-node UX choice,
+    # not a per-frame value worth driving from upstream — render
+    # inline with no socket dot.
+    severity = EnumParam(
+        NotifySeverity,
+        NotifySeverity.INFO,
+        constant=True,
+        description=(
+            "INFO (blue) and WARNING (amber) keep the run going; "
+            "ERROR (red) raises a RuntimeError that aborts at "
+            "this node."
+        ),
+    )
 
     def __init__(self) -> None:
         super().__init__("Notify", section="UI")
-        # ``severity`` stays a NodeParam (constant — UI renders it
-        # inline with no socket dot) until the descriptor protocol
-        # gains a ``constant=True`` flag in PR-2d. The hand-rolled
-        # @property/@setter below validates the same way EnumParam
-        # would; merging it cleanly into the descriptor model is
-        # blocked on the broader NodeParam-merger decision.
-        self._severity: NotifySeverity = NotifySeverity.INFO
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_param(NodeParam(
-            "severity",
-            NodeParamType.ENUM,
-            default=NotifySeverity.INFO,
-            metadata={
-                "enum": NotifySeverity,
-                "description": (
-                    "INFO (blue) and WARNING (amber) keep the run going; "
-                    "ERROR (red) raises a RuntimeError that aborts at "
-                    "this node."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    @property
-    def severity(self) -> NotifySeverity:
-        return self._severity
-
-    @severity.setter
-    def severity(self, value: int | NotifySeverity) -> None:
-        try:
-            self._severity = NotifySeverity(value)
-        except ValueError as exc:
-            raise ValueError(
-                f"severity must be one of {[s.value for s in NotifySeverity]} "
-                f"(got {value!r})"
-            ) from exc
 
     @override
     def process_impl(self) -> None:

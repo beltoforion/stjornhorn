@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.30</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.31</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.31</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — fourth batch (PR-2d of H2).</strong> Descriptor protocol gained a <code>constant=True</code> flag. Constant descriptors don't auto-create an <code>InputPort</code>; instead they sit on <code>node.params</code> and the UI's existing inline-no-socket render path picks them up. Migrated the four NodeParam-using filters: <code>ApplyColormap</code>, <code>Resize</code>, <code>Math</code> and <code>Notify</code>'s <code>severity</code>. Math gets a small custom <code>_ExpressionParam(StringParam)</code> descriptor that compiles the AST atomically on every set, replacing the hand-rolled <code>@expression.setter</code>. Sources / sinks (which also use <code>NodeParam</code> heavily) move in PR-2e together with the <code>on_change=</code> hook design (<code>ImageSource.file_path</code> triggers a re-decode). Backlog item H2.</li>
+      </ul>
     </section>
 
     <section>

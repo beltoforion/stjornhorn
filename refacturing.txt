@@ -119,27 +119,31 @@ High
       Migrated: Overlay (headline — exercises every new type),
       Subpixel Mosaic, Flip, Dither, Rotate, Scale.
 
-    PR-2c (in flight on branch claude/h2-pr2c-string-filepath):
-      added StringParam and FilePathParam (Path-typed storage with
-      base_dir-aware store_relative_to coerce). Migrated NCC (full)
-      and Notify (partial — message ported, severity stays as
-      NodeParam until constant=True lands). Math NOT migrated:
-      its expression param has compile-on-set semantics, will move
-      with PR-2d's NodeParam merger work.
+    PR-2c (merged): added StringParam and FilePathParam (Path-typed
+      storage with base_dir-aware store_relative_to coerce). Migrated
+      NCC (full) and Notify (partial — message ported, severity
+      pending PR-2d).
 
-    PR-2d (planned): introduce constant=True flag on the descriptor
-      protocol so NodeParam can subsume into the descriptor model
-      cleanly (constant params don't auto-create an InputPort and
-      render inline in the UI's params slot). Migrate the remaining
-      NodeParam-using filters: Apply Colormap, Resize, Math
-      (expression), Notify (severity). Then tackle sources / sinks,
-      which mostly use NodeParam for file paths and codec choices —
-      the on_change= hook design (open question 1) lands with
-      ImageSource since its file_path setter triggers a re-decode.
+    PR-2d (in flight on branch claude/h2-pr2d-constants):
+      added constant=True flag on the descriptor protocol — constant
+      descriptors register themselves on node.params instead of
+      auto-creating an InputPort, and the descriptor satisfies the
+      NodeParam read interface directly (no wrapper). Migrated the
+      four remaining NodeParam-using filters: ApplyColormap, Resize,
+      Math (with a custom _ExpressionParam subclass that compiles
+      atomically on set), Notify (severity finished). Sources / sinks
+      defer to PR-2e since they decide the on_change= hook design.
 
-    PR-2e (planned): retire the legacy _add_input(InputPort(...)) +
-      @property path from NodeBase once empty. Move H2, H4, M9 to
-      Resolved.
+    PR-2e (planned): migrate sources + sinks (constant_value,
+      directory_source, gradient_source, image_source, value_source,
+      video_source, file_sink, video_sink). image_source.file_path
+      drives the on_change= hook design — the setter triggers a
+      re-decode, which the descriptor needs to invoke per-instance
+      after the value lands.
+
+    PR-2f (planned): retire the legacy _add_input(InputPort(...)) +
+      @property path from NodeBase once every node is descriptor-
+      based. Move H2, H4, M9 to Resolved.
 
 [WIP] H3. Param-widget subclasses duplicate >90% boilerplate.
   Duplication / OCP. src/ui/param_widgets.py:138-289 — every widget
