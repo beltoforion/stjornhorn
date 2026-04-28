@@ -49,7 +49,16 @@ class Scale(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=100,
-            metadata={"default": 100, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 100,
+                "param_type": NodeParamType.INT,
+                "min": 1,
+                "unit": "%",
+                "description": (
+                    "Scale factor in percent. 100 leaves the image "
+                    "unchanged; 50 halves it; 200 doubles it."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "interpolation",
@@ -60,6 +69,12 @@ class Scale(NodeBase):
                 "default": Interpolation.LINEAR,
                 "enum": Interpolation,
                 "param_type": NodeParamType.ENUM,
+                "description": (
+                    "Resampling method. NEAREST is fast and pixelated; "
+                    "LINEAR / CUBIC / LANCZOS4 produce progressively "
+                    "smoother results at higher cost; AREA is OpenCV's "
+                    "preferred choice when downsampling."
+                ),
             },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))

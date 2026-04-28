@@ -73,7 +73,15 @@ class ApplyColormap(NodeBase):
             "colormap",
             NodeParamType.ENUM,
             default=Colormap.VIRIDIS,
-            metadata={"enum": Colormap},
+            metadata={
+                "enum": Colormap,
+                "description": (
+                    "Lookup table used to colorize the greyscale input. "
+                    "VIRIDIS / PLASMA / MAGMA / INFERNO are perceptually "
+                    "uniform; JET and TURBO are the classic spectrogram "
+                    "/ FFT-magnitude palettes."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
 

@@ -62,13 +62,26 @@ class Notify(NodeBase):
                 "default":     "",
                 "placeholder": "message shown in the banner",
                 "param_type":  NodeParamType.STRING,
+                "description": (
+                    "Text shown in the floating banner (or carried by "
+                    "the raised RuntimeError when severity is ERROR). "
+                    "Wire any STRING source in to drive the message "
+                    "per frame."
+                ),
             },
         ))
         self._add_param(NodeParam(
             "severity",
             NodeParamType.ENUM,
             default=NotifySeverity.INFO,
-            metadata={"enum": NotifySeverity},
+            metadata={
+                "enum": NotifySeverity,
+                "description": (
+                    "INFO (blue) and WARNING (amber) keep the run going; "
+                    "ERROR (red) raises a RuntimeError that aborts at "
+                    "this node."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

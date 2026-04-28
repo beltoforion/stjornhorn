@@ -34,14 +34,32 @@ class AdaptiveGaussianThreshold(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=101,
-            metadata={"default": 101, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 101,
+                "param_type": NodeParamType.INT,
+                "min": 3,
+                "unit": "px",
+                "description": (
+                    "Side length of the neighbourhood used to compute the "
+                    "local threshold. Must be odd and >= 3; even values "
+                    "are bumped up to the next odd integer."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "c",
             {IoDataType.SCALAR},
             optional=True,
             default_value=-32,
-            metadata={"default": -32, "param_type": NodeParamType.INT},
+            metadata={
+                "default": -32,
+                "param_type": NodeParamType.INT,
+                "description": (
+                    "Constant subtracted from the local weighted mean. "
+                    "Negative values bias toward classifying pixels as "
+                    "white; positive values bias toward black."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
 

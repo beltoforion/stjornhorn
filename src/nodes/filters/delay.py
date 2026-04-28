@@ -29,7 +29,16 @@ class Delay(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=5.0,
-            metadata={"default": 5.0, "param_type": NodeParamType.FLOAT},
+            metadata={
+                "default": 5.0,
+                "param_type": NodeParamType.FLOAT,
+                "min": 0.0,
+                "unit": "s",
+                "description": (
+                    "How long to sleep between frames, in seconds. "
+                    "Set to 0 to disable the pacing entirely."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

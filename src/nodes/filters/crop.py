@@ -30,28 +30,55 @@ class Crop(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=0,
-            metadata={"default": 0, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 0,
+                "param_type": NodeParamType.INT,
+                "min": 0,
+                "unit": "px",
+                "description": "Left edge of the ROI in input-pixel coordinates.",
+            },
         ))
         self._add_input(InputPort(
             "y",
             {IoDataType.SCALAR},
             optional=True,
             default_value=0,
-            metadata={"default": 0, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 0,
+                "param_type": NodeParamType.INT,
+                "min": 0,
+                "unit": "px",
+                "description": "Top edge of the ROI in input-pixel coordinates.",
+            },
         ))
         self._add_input(InputPort(
             "width",
             {IoDataType.SCALAR},
             optional=True,
             default_value=100,
-            metadata={"default": 100, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 100,
+                "param_type": NodeParamType.INT,
+                "min": 1,
+                "unit": "px",
+                "description": (
+                    "ROI width in pixels. Clamped to the input bounds, so "
+                    "the node always emits a positive-area image."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "height",
             {IoDataType.SCALAR},
             optional=True,
             default_value=100,
-            metadata={"default": 100, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 100,
+                "param_type": NodeParamType.INT,
+                "min": 1,
+                "unit": "px",
+                "description": "ROI height in pixels. Same clamping as width.",
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

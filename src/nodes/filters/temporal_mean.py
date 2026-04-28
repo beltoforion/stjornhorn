@@ -33,7 +33,17 @@ class TemporalMean(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=5,
-            metadata={"default": 5, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 5,
+                "param_type": NodeParamType.INT,
+                "min": 1,
+                "unit": "frames",
+                "description": (
+                    "Number of recent frames averaged per output. "
+                    "Larger values denoise more aggressively but blur "
+                    "any motion in the scene."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 
