@@ -10,6 +10,48 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.33] — 2026-04-28
+
+### Removed
+- **Legacy hand-rolled-port code paths in ``NodeBase``** (H2 PR-2f).
+  The two ``setattr`` loops at the end of
+  ``_apply_default_params`` (one walking ``self._inputs`` for ports
+  with ``"param_type"`` metadata, the other walking
+  ``self._params``) are gone. Every node in the codebase uses
+  class-level descriptors after PR-2e, and descriptors write their
+  defaults through the full ``__set__`` pipeline (coerce / validate
+  / shape) at ``NodeBase.__init__`` time. The loops were dead code
+  in production after PR-2e; this PR removes them and tightens the
+  contract.
+
+### Changed
+- **Default writes go through the descriptor pipeline at
+  construction time.** ``NodeBase.__init__`` previously used
+  ``object.__setattr__`` to skip validation when initialising each
+  descriptor's backing slot — the defaults were re-applied through
+  ``setattr`` later in ``_apply_default_params``. With the legacy
+  loop gone, ``__init__`` now uses ``setattr`` directly so the full
+  pipeline runs once, atomically. A misconfigured default (e.g. an
+  even value on an ``OddIntParam``) now fails loudly at
+  construction rather than landing silently.
+- **``_populate_port_driven_attributes`` gates on ``"param_type"``
+  metadata** instead of the silent ``hasattr`` skip that had been
+  papering over hand-rolled ports without backing attributes. The
+  intent is now explicit: only param-style ports (the ones a
+  descriptor auto-creates) participate in the per-frame
+  populate / restore dance; image / data-flow inputs are skipped
+  because the gate filters them out.
+
+### Resolved (refacturing backlog)
+- **H2** — convention-driven port↔attribute coupling — done across
+  PRs #208 / #209 / #211 / #212 / #213 / #214 and this PR.
+- **H3** — param-widget boilerplate — done in PR #205.
+- **H4** — port-construction boilerplate — subsumed by H2.
+- **M9** — parallel widget dispatch tables — subsumed by H2.
+- **L13** — ``_apply_default_params`` swallowing exceptions — the
+  exception-swallowing loop is gone with the rest of the legacy
+  path.
+
 ## [0.2.32] — 2026-04-28
 
 ### Changed

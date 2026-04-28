@@ -10,8 +10,25 @@ from __future__ import annotations
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase
+from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort, OutputPort
+
+
+def _param_port(name: str, **kwargs) -> InputPort:
+    """Build a SCALAR param-style InputPort for these tests.
+
+    The framework's port-driven attribute machinery skips ports
+    without ``"param_type"`` metadata (those are image / data-flow
+    sockets that have no ``self._<name>`` attribute to populate).
+    Real production code goes through :mod:`core.params` descriptors,
+    which always set the metadata; this helper keeps the test ports
+    consistent with that contract without pulling a full descriptor
+    declaration into every test fixture.
+    """
+    metadata = kwargs.pop("metadata", None) or {}
+    metadata.setdefault("param_type", NodeParamType.FLOAT)
+    metadata.setdefault("default", 0.0)
+    return InputPort(name, {IoDataType.SCALAR}, metadata=metadata, **kwargs)
 
 
 class _AngleNode(NodeBase):
@@ -23,7 +40,7 @@ class _AngleNode(NodeBase):
         super().__init__("angle-node", section="Filters")
         self._angle: float = 0.0
         self._fired_with: list[float] = []
-        self._add_input(InputPort("angle", {IoDataType.SCALAR}))
+        self._add_input(_param_port("angle"))
         self._add_output(OutputPort("out", {IoDataType.SCALAR}))
 
     @property
@@ -108,8 +125,10 @@ def test_unconnected_port_does_not_overwrite_attribute() -> None:
             self._observed: list[float] = []
             # Required image input so the dispatcher fires (we need
             # *some* trigger), and an optional unconnected angle port.
+            # trigger has no metadata — it's just a fire-the-dispatcher
+            # input, not a param-style port that should be auto-populated.
             self._add_input(InputPort("trigger", {IoDataType.SCALAR}))
-            self._add_input(InputPort("angle", {IoDataType.SCALAR}, optional=True))
+            self._add_input(_param_port("angle", optional=True))
             self._add_output(OutputPort("out", {IoDataType.SCALAR}))
 
         @property
@@ -181,7 +200,7 @@ def test_setter_validation_runs_on_streamed_value() -> None:
             super().__init__("scale-node", section="Filters")
             self._scale: float = 1.0
             self._fired_with: list[float] = []
-            self._add_input(InputPort("scale", {IoDataType.SCALAR}))
+            self._add_input(_param_port("scale"))
             self._add_output(OutputPort("out", {IoDataType.SCALAR}))
 
         @property
@@ -229,8 +248,8 @@ def test_setter_rejection_rolls_back_partial_writes() -> None:
             super().__init__("two-setter", section="Filters")
             self._a: int = 100
             self._b: float = 1.0
-            self._add_input(InputPort("a", {IoDataType.SCALAR}))
-            self._add_input(InputPort("b", {IoDataType.SCALAR}))
+            self._add_input(_param_port("a"))
+            self._add_input(_param_port("b"))
             self._add_output(OutputPort("out", {IoDataType.SCALAR}))
 
         @property

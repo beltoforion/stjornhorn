@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.32</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.33</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.33</h2>
+      <ul class="tips">
+        <li><strong>H2 closed: descriptor migration complete.</strong> Final cleanup retires the legacy code paths in <code>NodeBase</code> now that every node uses class-level <code>core.params</code> descriptors. The setattr loops that walked <code>self._inputs</code> / <code>self._params</code> applying defaults are gone — defaults now flow exclusively through each descriptor's <code>__set__</code> pipeline at <code>NodeBase.__init__</code> time, so a misconfigured default fails loudly at construction rather than silently logging and carrying on. <code>_populate_port_driven_attributes</code> tightened to gate on <code>"param_type"</code> in port metadata (replacing the old silent <code>hasattr</code> skip). Backlog items <strong>H2</strong>, <strong>H3</strong>, <strong>H4</strong>, <strong>M9</strong>, and <strong>L13</strong> all moved to <em>Resolved</em> in <code>refacturing.txt</code>.</li>
+      </ul>
     </section>
 
     <section>
