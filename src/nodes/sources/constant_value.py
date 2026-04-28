@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeParam, NodeParamType, SourceNodeBase
+from core.node_base import SourceNodeBase
+from core.params import FloatParam
 from core.port import OutputPort
 
 
@@ -23,26 +24,12 @@ class ConstantValue(SourceNodeBase):
     when the file path changes.
     """
 
+    value = FloatParam(0.0, constant=True)
+
     def __init__(self) -> None:
         super().__init__("Constant Value", section="Sources")
-        self._value: float = 0.0
-        self._add_param(NodeParam(
-            "value",
-            NodeParamType.FLOAT,
-            default=0.0,
-        ))
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))
         self._apply_default_params()
-
-    @property
-    def value(self) -> float:
-        return self._value
-
-    @value.setter
-    def value(self, v: float) -> None:
-        self._value = float(v)
-
-    # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @property
     @override

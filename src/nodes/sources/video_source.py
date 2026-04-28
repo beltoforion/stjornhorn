@@ -8,8 +8,9 @@ from typing_extensions import override
 
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeParam, NodeParamType, SourceNodeBase
-from core.path_utils import resolve_against, store_relative_to
+from core.node_base import SourceNodeBase
+from core.params import FilePathParam, IntParam
+from core.path_utils import resolve_against
 from core.port import OutputPort
 
 _SUPPORTED_EXTS = {".mp4", ".avi", ".mov", ".mkv"}
@@ -35,44 +36,18 @@ class VideoSource(SourceNodeBase):
       max_num_frames -- maximum number of frames to decode (-1 = all)
     """
 
+    file_path = FilePathParam(
+        "video.mp4",
+        constant=True,
+        filter="Video (*.mp4 *.avi *.mov *.mkv)",
+        base_dir=INPUT_DIR,
+    )
+    max_num_frames = IntParam(-1, constant=True)
+
     def __init__(self) -> None:
         super().__init__("Video Source", section="Sources")
-        self._file_path: Path = Path()
-        self._max_num_frames: int = -1
-        self._add_param(NodeParam(
-            "file_path",
-            NodeParamType.FILE_PATH,
-            default="video.mp4",
-            metadata={
-                "filter": "Video (*.mp4 *.avi *.mov *.mkv)",
-                "base_dir": INPUT_DIR,
-            },
-        ))
-        self._add_param(NodeParam(
-            "max_num_frames",
-            NodeParamType.INT,
-            default=-1,
-        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
-
-    @property
-    def file_path(self) -> Path:
-        return self._file_path
-
-    @file_path.setter
-    def file_path(self, path: str | Path) -> None:
-        self._file_path = store_relative_to(path, INPUT_DIR)
-
-    @property
-    def max_num_frames(self) -> int:
-        return self._max_num_frames
-
-    @max_num_frames.setter
-    def max_num_frames(self, value: int) -> None:
-        self._max_num_frames = int(value)
-
-    # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @override
     def iter_frames(self) -> Iterator[None]:

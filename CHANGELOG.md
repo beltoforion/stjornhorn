@@ -10,6 +10,30 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.32] — 2026-04-28
+
+### Changed
+- **Param descriptor sweep — batch 5, final node migration
+  (H2 PR-2e).** Migrated the remaining nine nodes:
+  - Sources: ``ConstantValue``, ``DirectorySource``,
+    ``GradientSource``, ``ImageSource``, ``ValueSource``,
+    ``VideoSource``.
+  - Sinks: ``FileSink``, ``VideoSink``.
+  - Test fixture: ``DebugParam`` (one parameter of every type, used
+    to exercise the param-widget code paths during development).
+  After this PR every node in the codebase uses class-level
+  ``core.params`` descriptors for its parameters; zero hand-rolled
+  ``_add_input(InputPort(...))`` + ``@property``/``@setter`` pairs
+  for parameter ports remain anywhere under ``src/nodes/``.
+
+### Notes
+- The ``on_change=`` hook flagged in ``refacturing.txt`` H2 as an
+  open question for ``ImageSource.file_path`` turned out
+  unnecessary — the existing setter only normalises the path via
+  ``store_relative_to(INPUT_DIR)``, and ``FilePathParam._coerce``
+  already does that. The hook stays parked in the design notes in
+  case a future side-effect setter actually needs it.
+
 ## [0.2.31] — 2026-04-28
 
 ### Added

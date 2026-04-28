@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.31</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.32</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.32</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — final batch (PR-2e of H2).</strong> Migrated all six sources (Constant Value, Directory Source, Gradient Source, Image Source, Value Source, Video Source) and both sinks (File Sink, Video Sink), plus the Debug Param test node. Every node in the codebase now uses class-level <code>core.params</code> descriptors for its parameters; zero hand-rolled <code>InputPort</code>+<code>@property</code>/<code>@setter</code> declarations remain. The <code>on_change=</code> hook flagged as an open question for <code>ImageSource.file_path</code> turned out unnecessary — the existing setter only normalises the path via <code>store_relative_to</code>, which <code>FilePathParam._coerce</code> already does for free. Backlog item H2 — PR-2f next will retire the legacy paths from <code>NodeBase</code> and move H2 / H4 / M9 to <em>Resolved</em>.</li>
+      </ul>
     </section>
 
     <section>

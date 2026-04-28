@@ -9,8 +9,9 @@ from typing_extensions import override
 
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeParam, NodeParamType, SourceNodeBase
-from core.path_utils import resolve_against, store_relative_to
+from core.node_base import SourceNodeBase
+from core.params import FilePathParam
+from core.path_utils import resolve_against
 from core.port import OutputPort
 
 _SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".cr2"}
@@ -35,35 +36,22 @@ class ImageSource(SourceNodeBase):
       file_path -- path to the input image (relative to INPUT_DIR when possible)
     """
 
+    file_path = FilePathParam(
+        "ship.jpg",
+        constant=True,
+        filter="Images (*.webp *.png *.jpg *.jpeg *.cr2)",
+        base_dir=INPUT_DIR,
+        description=(
+            "Path to the input image. JPEG, PNG, WebP and CR2 (RAW) "
+            "are supported. Paths inside the input folder are stored "
+            "relative to it so the flow stays portable."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Image Source", section="Sources")
-        self._file_path: Path = Path()
-        self._add_param(NodeParam(
-            "file_path",
-            NodeParamType.FILE_PATH,
-            default="ship.jpg",
-            metadata={
-                "filter": "Images (*.webp *.png *.jpg *.jpeg *.cr2)",
-                "base_dir": INPUT_DIR,
-                "description": (
-                    "Path to the input image. JPEG, PNG, WebP and CR2 (RAW) "
-                    "are supported. Paths inside the input folder are stored "
-                    "relative to it so the flow stays portable."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
-
-    @property
-    def file_path(self) -> Path:
-        return self._file_path
-
-    @file_path.setter
-    def file_path(self, path: str | Path) -> None:
-        self._file_path = store_relative_to(path, INPUT_DIR)
-
-    # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @property
     @override
@@ -100,8 +88,6 @@ class ImageSource(SourceNodeBase):
                 image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
         self.outputs[0].send(IoData.from_image(image))
-
-    # ── Internals ──────────────────────────────────────────────────────────────
 
     def _resolved_path(self) -> Path:
         """Return an absolute path; relative values are joined with INPUT_DIR."""

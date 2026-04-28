@@ -8,8 +8,9 @@ from typing_extensions import override
 
 from constants import OUTPUT_DIR
 from core.io_data import IMAGE_TYPES
-from core.node_base import NodeParam, NodeParamType, SinkNodeBase
-from core.path_utils import resolve_against, store_relative_to
+from core.node_base import SinkNodeBase
+from core.params import FilePathParam
+from core.path_utils import resolve_against
 from core.port import InputPort
 
 
@@ -28,34 +29,27 @@ class FileSink(SinkNodeBase):
     share the same output layout.
     """
 
+    output_path = FilePathParam(
+        "out.png",
+        constant=True,
+        mode="save",
+        filter="Images (*.png *.jpg *.jpeg)",
+        base_dir=OUTPUT_DIR,
+        description=(
+            "Where to write each frame. The file is overwritten on "
+            "every frame, so this sink fits a single still or the "
+            "last frame of a stream — chain a unique filename per "
+            "frame upstream if you need a sequence."
+        ),
+    )
+
     def __init__(self):
         super().__init__("File Sink", section="Sinks")
-
-        self._output_path: Path = Path("out.png")
+        # ``output_format`` is set programmatically (not a UI param) so
+        # it stays as a plain attribute with a hand-rolled property.
         self._output_format: OutputFormat = OutputFormat.SAME_AS_INPUT
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_param(NodeParam(
-            "output_path",
-            NodeParamType.FILE_PATH,
-            default="out.png",
-            metadata={
-                "mode": "save",
-                "filter": "Images (*.png *.jpg *.jpeg)",
-                "base_dir": OUTPUT_DIR,
-                "description": (
-                    "Where to write each frame. The file is overwritten on "
-                    "every frame, so this sink fits a single still or the "
-                    "last frame of a stream — chain a unique filename per "
-                    "frame upstream if you need a sequence."
-                ),
-            },
-        ))
-        # Sync attributes with declared port defaults; see
-        # NodeBase._apply_default_params for rationale.
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
 
     @property
     def output_format(self) -> OutputFormat:
@@ -64,16 +58,6 @@ class FileSink(SinkNodeBase):
     @output_format.setter
     def output_format(self, output_format: OutputFormat) -> None:
         self._output_format = output_format
-
-    @property
-    def output_path(self) -> Path:
-        return self._output_path
-
-    @output_path.setter
-    def output_path(self, output_path: str | Path) -> None:
-        self._output_path = store_relative_to(output_path, OUTPUT_DIR)
-
-    # ── SinkNodeBase interface ──────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

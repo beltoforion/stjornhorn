@@ -11,8 +11,9 @@ from typing_extensions import override
 
 from constants import INPUT_DIR
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeParam, NodeParamType, SourceNodeBase
-from core.path_utils import resolve_against, store_relative_to
+from core.node_base import SourceNodeBase
+from core.params import BoolParam, FilePathParam
+from core.path_utils import resolve_against
 from core.port import OutputPort
 
 
@@ -52,45 +53,19 @@ class DirectorySource(SourceNodeBase):
       include_subdirectories  -- recurse into nested folders when True
     """
 
+    directory = FilePathParam(
+        "",
+        constant=True,
+        mode="directory",
+        base_dir=INPUT_DIR,
+        caption="Select Image Directory",
+    )
+    include_subdirectories = BoolParam(False, constant=True)
+
     def __init__(self) -> None:
         super().__init__("Directory Source", section="Sources")
-        self._directory: Path = Path()
-        self._include_subdirectories: bool = False
-        self._add_param(NodeParam(
-            "directory",
-            NodeParamType.FILE_PATH,
-            default="",
-            metadata={
-                "mode":     "directory",
-                "base_dir": INPUT_DIR,
-                "caption":  "Select Image Directory",
-            },
-        ))
-        self._add_param(NodeParam(
-            "include_subdirectories",
-            NodeParamType.BOOL,
-            default=False,
-        ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
-
-    @property
-    def directory(self) -> Path:
-        return self._directory
-
-    @directory.setter
-    def directory(self, path: str | Path) -> None:
-        self._directory = store_relative_to(path, INPUT_DIR)
-
-    @property
-    def include_subdirectories(self) -> bool:
-        return self._include_subdirectories
-
-    @include_subdirectories.setter
-    def include_subdirectories(self, value: bool) -> None:
-        self._include_subdirectories = bool(value)
-
-    # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @override
     def iter_frames(self) -> Iterator[None]:
