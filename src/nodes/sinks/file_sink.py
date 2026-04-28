@@ -34,10 +34,40 @@ class FileSink(SinkNodeBase):
     at run time, which keeps saved flows portable across machines that
     share the same output layout.
 
-    The ``output_path`` accepts ``$token$`` placeholders that expand at
-    write time, e.g. ``frame_$frame_index$.png`` or
-    ``$input_stem$.$flow_name$.png`` — see
-    :mod:`core.path_placeholders` for the supported tokens. Issue: #159.
+    The ``output_path`` accepts ``$token$`` placeholders that expand
+    every frame at write time. Without a frame-varying token the same
+    file is overwritten on every frame, so a stream collapses to its
+    final frame; chain ``$frame_index$`` or ``$input_stem$`` (when the
+    upstream source streams multiple files) to get one output file per
+    frame.
+
+    Supported tokens:
+
+      ``$input_stem$``    Originating source filename without extension
+                          (``ship`` for ``ship.jpg``). Empty when no
+                          upstream source stamped a path on the frame.
+      ``$input_name$``    Originating source filename with extension
+                          (``ship.jpg``). Empty when unknown.
+      ``$input_ext$``     Extension of the originating source, dot
+                          stripped (``jpg``). Empty when unknown.
+      ``$flow_name$``     Name of the currently-running flow.
+      ``$frame_index$``   Zero-padded 4-digit per-run frame counter,
+                          starting at ``0000`` and incrementing for
+                          each frame written by this sink.
+      ``$timestamp$``     Run start time as ``YYYYMMDD_HHMMSS``,
+                          stable for the duration of one Run.
+
+    Unknown tokens are left as-is in the resulting filename so typos
+    surface visibly. Paths with no tokens are written byte-for-byte
+    (the common ``out.png`` case is unchanged). Issue: #159.
+
+    Examples (assuming ``ship.jpg`` is the upstream source and the flow
+    is named ``denoise_v2``)::
+
+        out.png                          → out.png
+        frame_$frame_index$.png          → frame_0000.png, frame_0001.png, ...
+        $input_stem$.$flow_name$.png     → ship.denoise_v2.png
+        runs/$timestamp$/$input_name$    → runs/20260428_182300/ship.jpg
     """
 
     def __init__(self):
@@ -61,12 +91,21 @@ class FileSink(SinkNodeBase):
                 "filter": "Images (*.png *.jpg *.jpeg)",
                 "base_dir": OUTPUT_DIR,
                 "description": (
-                    "Where to write each frame. Accepts $token$ placeholders "
-                    "expanded per frame — e.g. $input_stem$ (source filename), "
-                    "$flow_name$, $frame_index$ (zero-padded), $timestamp$. "
+                    "Where to write each frame. Relative paths are resolved "
+                    "against the output folder.\n"
+                    "\n"
+                    "Accepts $token$ placeholders expanded per frame:\n"
+                    "  $input_stem$   — source filename without extension (ship)\n"
+                    "  $input_name$   — source filename with extension (ship.jpg)\n"
+                    "  $input_ext$    — source extension, no dot (jpg)\n"
+                    "  $flow_name$    — currently-running flow name\n"
+                    "  $frame_index$  — zero-padded 4-digit frame counter (0000)\n"
+                    "  $timestamp$    — run start time (YYYYMMDD_HHMMSS)\n"
+                    "\n"
                     "Without a frame-varying token the file is overwritten on "
-                    "every frame, so chain $frame_index$ or $input_stem$ in "
-                    "the path if you want a sequence rather than one file."
+                    "every frame. Use $frame_index$ for stream → numbered "
+                    "stills, or $input_stem$ when the upstream source streams "
+                    "multiple files (DirectorySource)."
                 ),
             },
         ))

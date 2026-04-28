@@ -53,6 +53,34 @@ class VideoSink(SinkNodeBase):
     interactive preview, monitor-relative resize and blocking
     ``waitKey`` are dropped, and GIF support is omitted because
     ``imageio`` isn't a pipeline dependency.
+
+    The ``output_path`` accepts ``$token$`` placeholders, resolved once
+    when the writer opens on the first frame:
+
+      ``$input_stem$``    Originating source filename without extension
+                          (``ship`` for ``ship.mp4``). Empty when the
+                          upstream source did not stamp a path.
+      ``$input_name$``    Originating source filename with extension.
+      ``$input_ext$``     Extension of the originating source, dot
+                          stripped.
+      ``$flow_name$``     Name of the currently-running flow.
+      ``$timestamp$``     Run start time as ``YYYYMMDD_HHMMSS``.
+      ``$frame_index$``   Locked to ``0000``. The path is fixed for the
+                          whole stream — one container per Run — so a
+                          per-frame counter has no useful interpretation
+                          here. Use :class:`FileSink` if you want a
+                          frame-by-frame numbered output.
+
+    Paths with no tokens are written byte-for-byte (the common
+    ``out.mp4`` case is unchanged). Unknown tokens are left as-is so
+    typos surface visibly. Issue: #159.
+
+    Examples (assuming ``video.mp4`` is the upstream source and the flow
+    is named ``denoise_v2``)::
+
+        out.mp4                          → out.mp4
+        $input_stem$.$flow_name$.mp4     → video.denoise_v2.mp4
+        runs/$timestamp$/$input_name$    → runs/20260428_182300/video.mp4
     """
 
     def __init__(self) -> None:
@@ -80,12 +108,20 @@ class VideoSink(SinkNodeBase):
                 "filter": "Video (*.mp4)",
                 "base_dir": OUTPUT_DIR,
                 "description": (
-                    "Where to write the encoded video. Accepts $token$ "
-                    "placeholders resolved on writer open — e.g. "
-                    "$input_stem$ (source filename), $flow_name$, "
-                    "$timestamp$. The path is fixed for the whole stream, "
-                    "so placeholders that change per frame "
-                    "($frame_index$) are not useful here."
+                    "Where to write the encoded video. Relative paths are "
+                    "resolved against the output folder.\n"
+                    "\n"
+                    "Accepts $token$ placeholders, resolved once when the "
+                    "writer opens on the first frame:\n"
+                    "  $input_stem$   — source filename without extension\n"
+                    "  $input_name$   — source filename with extension\n"
+                    "  $input_ext$    — source extension, no dot\n"
+                    "  $flow_name$    — currently-running flow name\n"
+                    "  $timestamp$    — run start time (YYYYMMDD_HHMMSS)\n"
+                    "\n"
+                    "$frame_index$ is locked to 0000 here — one container "
+                    "per run — so it isn't useful in this sink. Use "
+                    "FileSink if you want frame-numbered stills."
                 ),
             },
         ))
