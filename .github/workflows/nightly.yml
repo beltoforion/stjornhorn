@@ -157,6 +157,27 @@ jobs:
           git tag -f nightly
           git push -f origin nightly
 
+      # Filenames embed the date+sha, so old assets would otherwise pile up
+      # on the rolling `nightly` release. Delete every existing asset before
+      # the upload step recreates the current ones.
+      - name: Purge existing nightly assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          if gh release view nightly --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            names=$(gh release view nightly --repo "$GITHUB_REPOSITORY" \
+              --json assets --jq '.assets[].name')
+            while IFS= read -r name; do
+              [ -z "$name" ] && continue
+              echo "Deleting old asset: $name"
+              gh release delete-asset nightly "$name" \
+                --repo "$GITHUB_REPOSITORY" --yes
+            done <<< "$names"
+          else
+            echo "No existing nightly release – nothing to purge."
+          fi
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: nightly
