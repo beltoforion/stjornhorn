@@ -134,16 +134,25 @@ High
       atomically on set), Notify (severity finished). Sources / sinks
       defer to PR-2e since they decide the on_change= hook design.
 
-    PR-2e (planned): migrate sources + sinks (constant_value,
-      directory_source, gradient_source, image_source, value_source,
-      video_source, file_sink, video_sink). image_source.file_path
-      drives the on_change= hook design — the setter triggers a
-      re-decode, which the descriptor needs to invoke per-instance
-      after the value lands.
+    PR-2e (in flight on branch claude/h2-pr2e-sources-sinks):
+      Migrated all 6 sources (constant_value, directory_source,
+      gradient_source, image_source, value_source, video_source),
+      both sinks (file_sink, video_sink), and the DebugParam test
+      fixture. After this PR every node in src/nodes/ uses class-
+      level descriptors; zero hand-rolled _add_input(InputPort(...))
+      + @property/@setter pairs remain for parameter ports.
+      The on_change= hook turned out unnecessary —
+      ImageSource.file_path's setter only normalises the path via
+      store_relative_to(INPUT_DIR), which FilePathParam._coerce
+      already does. Hook design parked in case a future side-effect
+      setter actually needs it.
 
     PR-2f (planned): retire the legacy _add_input(InputPort(...)) +
-      @property path from NodeBase once every node is descriptor-
-      based. Move H2, H4, M9 to Resolved.
+      @property path from NodeBase. The path-style branches in
+      NodeBase._apply_default_params and NodeBase._populate_port_
+      driven_attributes' silent hasattr-skip can both go away once
+      every InputPort is known to come from a descriptor. Move H2,
+      H4, M9 to Resolved.
 
 [WIP] H3. Param-widget subclasses duplicate >90% boilerplate.
   Duplication / OCP. src/ui/param_widgets.py:138-289 — every widget

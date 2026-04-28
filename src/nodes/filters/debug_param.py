@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 from enum import IntEnum
-from pathlib import Path
 
 from typing_extensions import override
 
 from constants import INPUT_DIR
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import (
+    BoolParam,
+    EnumParam,
+    FilePathParam,
+    FloatParam,
+    IntParam,
+    StringParam,
+)
 from core.port import InputPort, OutputPort
 
 
@@ -27,143 +34,31 @@ class DebugParam(NodeBase):
     the param-widget code paths during development.
     """
 
+    file_path = FilePathParam(
+        "",
+        filter="All files (*)",
+        base_dir=INPUT_DIR,
+        description="Demo FILE_PATH parameter — exercises the path widget.",
+    )
+    count = IntParam(0, description="Demo INT parameter — exercises the int spinbox widget.")
+    factor = FloatParam(1.0, description="Demo FLOAT parameter — exercises the float spinbox widget.")
+    label = StringParam(
+        "",
+        placeholder="text…",
+        description="Demo STRING parameter — exercises the line-edit widget.",
+    )
+    enabled = BoolParam(False, description="Demo BOOL parameter — exercises the checkbox widget.")
+    mode = EnumParam(
+        DebugMode,
+        DebugMode.ALPHA,
+        description="Demo ENUM parameter — exercises the combo-box widget.",
+    )
+
     def __init__(self) -> None:
         super().__init__("Debug Params", section="Debug")
-
-        self._file_path: Path = Path()
-        self._count:     int   = 0
-        self._factor:    float = 1.0
-        self._label:     str   = ""
-        self._enabled:   bool  = False
-        self._mode:      DebugMode = DebugMode.ALPHA
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "file_path",
-            {IoDataType.PATH},
-            optional=True,
-            default_value="",
-            metadata={
-                "default": "",
-                "mode": "open",
-                "filter": "All files (*)",
-                "base_dir": INPUT_DIR,
-                "param_type": NodeParamType.FILE_PATH,
-                "description": "Demo FILE_PATH parameter — exercises the path widget.",
-            },
-        ))
-        self._add_input(InputPort(
-            "count",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0,
-            metadata={
-                "default": 0,
-                "param_type": NodeParamType.INT,
-                "description": "Demo INT parameter — exercises the int spinbox widget.",
-            },
-        ))
-        self._add_input(InputPort(
-            "factor",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=1.0,
-            metadata={
-                "default": 1.0,
-                "param_type": NodeParamType.FLOAT,
-                "description": "Demo FLOAT parameter — exercises the float spinbox widget.",
-            },
-        ))
-        self._add_input(InputPort(
-            "label",
-            {IoDataType.STRING},
-            optional=True,
-            default_value="",
-            metadata={
-                "default": "",
-                "placeholder": "text…",
-                "param_type": NodeParamType.STRING,
-                "description": "Demo STRING parameter — exercises the line-edit widget.",
-            },
-        ))
-        self._add_input(InputPort(
-            "enabled",
-            {IoDataType.BOOL},
-            optional=True,
-            default_value=False,
-            metadata={
-                "default": False,
-                "param_type": NodeParamType.BOOL,
-                "description": "Demo BOOL parameter — exercises the checkbox widget.",
-            },
-        ))
-        self._add_input(InputPort(
-            "mode",
-            {IoDataType.ENUM},
-            optional=True,
-            default_value=DebugMode.ALPHA,
-            metadata={
-                "default": DebugMode.ALPHA,
-                "enum": DebugMode,
-                "param_type": NodeParamType.ENUM,
-                "description": "Demo ENUM parameter — exercises the combo-box widget.",
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def file_path(self) -> Path:
-        return self._file_path
-
-    @file_path.setter
-    def file_path(self, value: str | Path) -> None:
-        self._file_path = Path(value)
-
-    @property
-    def count(self) -> int:
-        return self._count
-
-    @count.setter
-    def count(self, value: int) -> None:
-        self._count = int(value)
-
-    @property
-    def factor(self) -> float:
-        return self._factor
-
-    @factor.setter
-    def factor(self, value: float) -> None:
-        self._factor = float(value)
-
-    @property
-    def label(self) -> str:
-        return self._label
-
-    @label.setter
-    def label(self, value: str) -> None:
-        self._label = str(value)
-
-    @property
-    def enabled(self) -> bool:
-        return self._enabled
-
-    @enabled.setter
-    def enabled(self, value: bool) -> None:
-        self._enabled = bool(value)
-
-    @property
-    def mode(self) -> DebugMode:
-        return self._mode
-
-    @mode.setter
-    def mode(self, value: int | DebugMode) -> None:
-        self._mode = DebugMode(value)
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

@@ -5,7 +5,8 @@ from collections.abc import Iterator
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeParam, NodeParamType, SourceNodeBase
+from core.node_base import SourceNodeBase
+from core.params import BoolParam, FloatParam, IntParam
 from core.port import OutputPort
 
 
@@ -39,73 +40,15 @@ class ValueSource(SourceNodeBase):
     #: walks away.
     _LOOP_CYCLES: int = 10
 
+    min_value = IntParam(0, constant=True)
+    max_value = IntParam(99, constant=True)
+    increment = FloatParam(1.0, min=0.0, min_exclusive=True, constant=True)
+    loop = BoolParam(False, constant=True)
+
     def __init__(self) -> None:
         super().__init__("Value Source", section="Sources")
-        self._min_value: int = 0
-        self._max_value: int = 99
-        self._increment: float = 1.0
-        self._loop: bool = False
-        self._add_param(NodeParam(
-            "min_value",
-            NodeParamType.INT,
-            default=0,
-        ))
-        self._add_param(NodeParam(
-            "max_value",
-            NodeParamType.INT,
-            default=99,
-        ))
-        self._add_param(NodeParam(
-            "increment",
-            NodeParamType.FLOAT,
-            default=1.0,
-        ))
-        self._add_param(NodeParam(
-            "loop",
-            NodeParamType.BOOL,
-            default=False,
-        ))
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def min_value(self) -> int:
-        return self._min_value
-
-    @min_value.setter
-    def min_value(self, value: int) -> None:
-        self._min_value = int(value)
-
-    @property
-    def max_value(self) -> int:
-        return self._max_value
-
-    @max_value.setter
-    def max_value(self, value: int) -> None:
-        self._max_value = int(value)
-
-    @property
-    def increment(self) -> float:
-        return self._increment
-
-    @increment.setter
-    def increment(self, value: float) -> None:
-        v = float(value)
-        if v <= 0.0:
-            raise ValueError(f"increment must be > 0 (got {v})")
-        self._increment = v
-
-    @property
-    def loop(self) -> bool:
-        return self._loop
-
-    @loop.setter
-    def loop(self, value: bool) -> None:
-        self._loop = bool(value)
-
-    # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @override
     def iter_frames(self) -> Iterator[None]:
