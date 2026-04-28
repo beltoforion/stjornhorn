@@ -39,14 +39,30 @@ class SubpixelMosaic(NodeBase):
             {IoDataType.BOOL},
             optional=True,
             default_value=False,
-            metadata={"default": False, "param_type": NodeParamType.BOOL},
+            metadata={
+                "default": False,
+                "param_type": NodeParamType.BOOL,
+                "description": (
+                    "When on, the mosaic canvas is resampled to 2w × 2h "
+                    "so the output matches the source aspect ratio. "
+                    "When off, the raw 1.5w × 2h mosaic is emitted "
+                    "(vertical stretch of 4/3)."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "output_grayscale",
             {IoDataType.BOOL},
             optional=True,
             default_value=False,
-            metadata={"default": False, "param_type": NodeParamType.BOOL},
+            metadata={
+                "default": False,
+                "param_type": NodeParamType.BOOL,
+                "description": (
+                    "When on, drops the colour and emits the per-pixel "
+                    "sample intensity as a single-channel image."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

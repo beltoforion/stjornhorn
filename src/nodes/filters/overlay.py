@@ -74,35 +74,75 @@ class Overlay(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=0.0,
-            metadata={"default": 0.0, "param_type": NodeParamType.FLOAT},
+            metadata={
+                "default": 0.0,
+                "param_type": NodeParamType.FLOAT,
+                "unit": "deg",
+                "description": (
+                    "Overlay rotation in degrees, counter-clockwise around "
+                    "its centre. The bounding box is expanded so no pixels "
+                    "are lost."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "scale",
             {IoDataType.SCALAR},
             optional=True,
             default_value=1.0,
-            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+            metadata={
+                "default": 1.0,
+                "param_type": NodeParamType.FLOAT,
+                "min": 0.0,
+                "description": "Overlay scale factor. 1.0 = unchanged.",
+            },
         ))
         self._add_input(InputPort(
             "xpos",
             {IoDataType.SCALAR},
             optional=True,
             default_value=0,
-            metadata={"default": 0, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 0,
+                "param_type": NodeParamType.INT,
+                "unit": "px",
+                "description": (
+                    "X-coordinate (in base-image pixels) of the overlay's "
+                    "centre — not its top-left corner."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "ypos",
             {IoDataType.SCALAR},
             optional=True,
             default_value=0,
-            metadata={"default": 0, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 0,
+                "param_type": NodeParamType.INT,
+                "unit": "px",
+                "description": (
+                    "Y-coordinate (in base-image pixels) of the overlay's "
+                    "centre — not its top-left corner."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "alpha",
             {IoDataType.SCALAR},
             optional=True,
             default_value=1.0,
-            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+            metadata={
+                "default": 1.0,
+                "param_type": NodeParamType.FLOAT,
+                "min": 0.0,
+                "max": 1.0,
+                "description": (
+                    "Global opacity multiplier in [0, 1]. For BGRA "
+                    "overlays this multiplies on top of the per-pixel "
+                    "alpha channel."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

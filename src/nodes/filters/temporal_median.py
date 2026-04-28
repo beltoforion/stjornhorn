@@ -34,7 +34,18 @@ class TemporalMedian(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=5,
-            metadata={"default": 5, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 5,
+                "param_type": NodeParamType.INT,
+                "min": 1,
+                "unit": "frames",
+                "description": (
+                    "Number of recent frames whose per-pixel median is "
+                    "emitted. Strong against transient outliers — single-"
+                    "frame spikes, salt-and-pepper noise — without the "
+                    "smearing a mean would produce."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

@@ -33,14 +33,28 @@ class Clamp(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=0.0,
-            metadata={"default": 0.0, "param_type": NodeParamType.FLOAT},
+            metadata={
+                "default": 0.0,
+                "param_type": NodeParamType.FLOAT,
+                "description": (
+                    "Lower bound. Values below this are clipped up to it."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "max_value",
             {IoDataType.SCALAR},
             optional=True,
             default_value=1.0,
-            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+            metadata={
+                "default": 1.0,
+                "param_type": NodeParamType.FLOAT,
+                "description": (
+                    "Upper bound. Values above this are clipped down to it. "
+                    "If the upper bound ends up below the lower bound the "
+                    "two are swapped so the range is always usable."
+                ),
+            },
         ))
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))
 

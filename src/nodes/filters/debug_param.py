@@ -49,6 +49,7 @@ class DebugParam(NodeBase):
                 "filter": "All files (*)",
                 "base_dir": INPUT_DIR,
                 "param_type": NodeParamType.FILE_PATH,
+                "description": "Demo FILE_PATH parameter — exercises the path widget.",
             },
         ))
         self._add_input(InputPort(
@@ -56,35 +57,57 @@ class DebugParam(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=0,
-            metadata={"default": 0, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 0,
+                "param_type": NodeParamType.INT,
+                "description": "Demo INT parameter — exercises the int spinbox widget.",
+            },
         ))
         self._add_input(InputPort(
             "factor",
             {IoDataType.SCALAR},
             optional=True,
             default_value=1.0,
-            metadata={"default": 1.0, "param_type": NodeParamType.FLOAT},
+            metadata={
+                "default": 1.0,
+                "param_type": NodeParamType.FLOAT,
+                "description": "Demo FLOAT parameter — exercises the float spinbox widget.",
+            },
         ))
         self._add_input(InputPort(
             "label",
             {IoDataType.STRING},
             optional=True,
             default_value="",
-            metadata={"default": "", "placeholder": "text…", "param_type": NodeParamType.STRING},
+            metadata={
+                "default": "",
+                "placeholder": "text…",
+                "param_type": NodeParamType.STRING,
+                "description": "Demo STRING parameter — exercises the line-edit widget.",
+            },
         ))
         self._add_input(InputPort(
             "enabled",
             {IoDataType.BOOL},
             optional=True,
             default_value=False,
-            metadata={"default": False, "param_type": NodeParamType.BOOL},
+            metadata={
+                "default": False,
+                "param_type": NodeParamType.BOOL,
+                "description": "Demo BOOL parameter — exercises the checkbox widget.",
+            },
         ))
         self._add_input(InputPort(
             "mode",
             {IoDataType.ENUM},
             optional=True,
             default_value=DebugMode.ALPHA,
-            metadata={"default": DebugMode.ALPHA, "enum": DebugMode, "param_type": NodeParamType.ENUM},
+            metadata={
+                "default": DebugMode.ALPHA,
+                "enum": DebugMode,
+                "param_type": NodeParamType.ENUM,
+                "description": "Demo ENUM parameter — exercises the combo-box widget.",
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

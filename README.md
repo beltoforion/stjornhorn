@@ -162,6 +162,19 @@ label the node carries in the **Node List**.
   MKV) and pushes them through the graph. Not reactive — triggered
   only by **Run** — and a `max_num_frames` parameter caps how many
   frames are decoded.
+- **Directory Source** — emits every image file in a directory as a
+  successive frame, sorted by filename. Useful for batch processing
+  or for feeding image sequences into the temporal nodes.
+- **Gradient Source** — procedurally generates a single-channel
+  greyscale gradient (linear, radial, …) at a chosen size. Handy as a
+  test pattern when you need a deterministic image without touching
+  the filesystem.
+- **Constant Value** — reactive source that emits a single SCALAR
+  value, latched downstream. Use it to drive a `Math` expression or
+  any other scalar-consuming parameter.
+- **Value Source** — emits a SCALAR counter that advances by one per
+  frame. Combine with `Math` to derive time- or frame-dependent
+  parameters.
 
 ### Sinks
 
@@ -189,20 +202,36 @@ label the node carries in the **Node List**.
 
 - **Grayscale** — converts a BGR colour image to a single-channel
   greyscale image (`cv2.cvtColor(..., COLOR_BGR2GRAY)`).
-- **RGB Split** — splits a BGR image into three single-channel
-  outputs named **B**, **G**, and **R**.
-- **RGB Join** — merges three single-channel inputs (**B**, **G**,
-  **R**) back into one BGR image.
+- **RGBA Split** — splits a BGR or BGRA image into its four
+  single-channel components (**B**, **G**, **R**, **A**). For BGR
+  inputs the alpha channel is emitted as fully opaque.
+- **RGBA Join** — merges three or four single-channel inputs back
+  into a BGR or BGRA image. Connecting the alpha input promotes the
+  output to BGRA.
+- **HSV Split** / **HSV Join** — round-trip between BGR and the HSV
+  components (**H**, **S**, **V**). Use the split/join pair to edit
+  hue or saturation on a single channel.
+- **HSL Split** / **HSL Join** — same idea as the HSV pair but for
+  the HLS / HSL colour space (OpenCV's `COLOR_BGR2HLS`).
+- **Apply Colormap** — colorises a greyscale image using one of
+  OpenCV's built-in colormaps (Jet, Hot, Viridis, …). Output is BGR.
 
 ### Transform
 
 - **Scale** — resizes an image by a percentage factor
   (`scale_percent`, 100 = no change). Interpolation is selectable
   (Nearest, Linear, Cubic, Area, Lanczos4).
+- **Resize** — resizes an image to an explicit `(width, height)` in
+  pixels using one of the same interpolation modes as **Scale**.
 - **Shift** — translates an image by integer pixel offsets
   (`offset_x`, `offset_y`). Output keeps the original canvas size;
   pixels that move off-frame are dropped and newly exposed areas are
   black.
+- **Flip** — mirrors an image horizontally, vertically, or both.
+- **Rotate** — rotates an image around its centre by `angle` degrees.
+  Optionally expands the canvas so no pixels are clipped.
+- **Crop** — crops an image to a rectangular ROI defined by
+  `(x, y, width, height)` in input-pixel coordinates.
 
 ### Processing
 
@@ -215,14 +244,17 @@ label the node carries in the **Node List**.
   using a selectable dithering algorithm: Bayer (2 / 4 / 8), random
   noise, Floyd–Steinberg, Stucki, Atkinson, Burkes, Sierra,
   Diffusion-X, or Diffusion-XY. The error-diffusion kernels are
-  JIT-compiled via numba for interactive speed. Colour inputs are
-  auto-converted to grey; output is always greyscale.
+  JIT-compiled via numba for interactive speed. Greyscale inputs
+  yield greyscale outputs; colour inputs are dithered per channel.
+- **Gaussian Blur** — smooths an image with an isotropic Gaussian
+  kernel (`cv2.GaussianBlur`). Configurable kernel size and sigma.
 - **Median** — square-kernel median blur
   (`cv2.medianBlur`). `size` must be odd and ≥ 1. Works on colour or
   greyscale input and keeps the input type.
 - **Normalize** — histogram equalisation
   (`cv2.equalizeHist`). Colour inputs are equalised per channel;
   greyscale inputs are equalised directly. Output type matches input.
+- **Invert** — per-channel image inversion (`255 - pixel`).
 - **NCC** — normalised cross-correlation template matching
   (`cv2.matchTemplate` with `TM_CCORR_NORMED`). Both the `image` and
   `template` inputs must be greyscale; the output is an 8-bit score
@@ -238,6 +270,57 @@ label the node carries in the **Node List**.
   quadrants are black; cell sizes are taken per row / per column so
   mismatched inputs don't distort; mixed colour / greyscale inputs
   are promoted to colour so nothing is lost.
+- **Overlay** — composites an overlay image onto a base image with
+  configurable position, scale, and blend opacity. Honours the
+  overlay's alpha channel when present.
+- **Masked Blend** — per-pixel blend of two images driven by a
+  greyscale mask: black picks the first input, white picks the
+  second, intermediate values blend proportionally.
+
+### Math
+
+- **Math** — evaluates a free-form arithmetic expression (e.g.
+  `a * 2 + sin(b)`) on up to four SCALAR inputs `a`, `b`, `c`, `d`
+  and emits a SCALAR result. Useful for deriving parameters from
+  frame counters or other scalars.
+- **Clamp** — clamps a SCALAR stream to `[min_value, max_value]`.
+
+### Temporal
+
+- **Frame Difference** — emits the per-pixel absolute difference
+  between the current and the previous frame. The first frame
+  produces a black image.
+- **Temporal Mean** — rolling per-pixel arithmetic mean over the
+  last `window` frames. Useful for reducing noise on static scenes.
+- **Temporal Median** — rolling per-pixel median over the last
+  `window` frames. More robust to outliers (e.g. moving objects)
+  than the mean variant.
+
+### Frequency
+
+- **FFT 2D** — computes the 2-D discrete Fourier transform of a
+  greyscale image. Outputs the complex spectrum and (optionally) a
+  log-magnitude visualisation suitable for display.
+- **Inverse FFT 2D** — inverse transform that reconstructs an image
+  from the complex spectrum produced by **FFT 2D**.
+
+### UI
+
+- **Delay** — paces a stream by sleeping for `delay_seconds` between
+  frames. Handy for slowing a flow down to watch what is happening.
+- **Notify** — surfaces a status message (info / warning / error) in
+  the editor's floating banner whenever it processes a frame.
+
+### Debug / Experimental
+
+- **Debug Params** — exposes one parameter of every supported type
+  (file path, int, float, string, bool, enum, …) so the parameter
+  widgets can be exercised without writing a node.
+- **Throw Exception** — raises a `RuntimeError` whenever it
+  processes, for testing the editor's error handling.
+- **Subpixel Mosaic** — renders a BGR image as a stylised RGB
+  sub-pixel mosaic (each pixel becomes a small RGB stripe triplet).
+  Marked experimental.
 
 ## License
 

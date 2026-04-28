@@ -30,14 +30,32 @@ class Shift(NodeBase):
             {IoDataType.SCALAR},
             optional=True,
             default_value=0,
-            metadata={"default": 0, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 0,
+                "param_type": NodeParamType.INT,
+                "unit": "px",
+                "description": (
+                    "Horizontal shift in pixels. Positive moves right; "
+                    "exposed areas at the left edge are filled with "
+                    "black."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "offset_y",
             {IoDataType.SCALAR},
             optional=True,
             default_value=0,
-            metadata={"default": 0, "param_type": NodeParamType.INT},
+            metadata={
+                "default": 0,
+                "param_type": NodeParamType.INT,
+                "unit": "px",
+                "description": (
+                    "Vertical shift in pixels. Positive moves down; "
+                    "exposed areas at the top edge are filled with "
+                    "black."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
 

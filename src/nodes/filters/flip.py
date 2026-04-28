@@ -41,6 +41,10 @@ class Flip(NodeBase):
                 "default": FlipMode.HORIZONTAL,
                 "enum": FlipMode,
                 "param_type": NodeParamType.ENUM,
+                "description": (
+                    "Flip direction. HORIZONTAL mirrors left/right, "
+                    "VERTICAL mirrors top/bottom, BOTH does a 180° rotation."
+                ),
             },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))

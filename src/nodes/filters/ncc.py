@@ -45,14 +45,35 @@ class Ncc(NodeBase):
             {IoDataType.PATH},
             optional=True,
             default_value="pad.jpg",
-            metadata={"default": "pad.jpg", "filter": "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)", "base_dir": INPUT_DIR, "param_type": NodeParamType.FILE_PATH},
+            metadata={
+                "default": "pad.jpg",
+                "filter": "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)",
+                "base_dir": INPUT_DIR,
+                "param_type": NodeParamType.FILE_PATH,
+                "description": (
+                    "Path to the template image to search for. Loaded "
+                    "once per run and converted to greyscale at load "
+                    "time, so the per-frame cost is the matchTemplate "
+                    "call only."
+                ),
+            },
         ))
         self._add_input(InputPort(
             "retain_size",
             {IoDataType.BOOL},
             optional=True,
             default_value=True,
-            metadata={"default": True, "param_type": NodeParamType.BOOL},
+            metadata={
+                "default": True,
+                "param_type": NodeParamType.BOOL,
+                "description": (
+                    "When on, the match map is pasted onto a canvas the "
+                    "same size as the input, with each response at the "
+                    "template-centre pixel. When off, the raw response "
+                    "is emitted (smaller than the input by template "
+                    "size minus one on each axis)."
+                ),
+            },
         ))
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
 

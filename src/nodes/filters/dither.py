@@ -125,6 +125,14 @@ class Dither(NodeBase):
                 "default": DitherMethod.STUCKI,
                 "enum": DitherMethod,
                 "param_type": NodeParamType.ENUM,
+                "description": (
+                    "Dithering algorithm. BAYER2 / 4 / 8 are ordered-dither "
+                    "matrices (cheap, regular pattern). NOISE is white-noise "
+                    "thresholding. FLOYD_STEINBERG, STUCKI, ATKINSON, BURKES, "
+                    "SIERRA distribute quantisation error to neighbouring "
+                    "pixels for finer detail. DIFFUSION_X / _XY are minimal "
+                    "1- or 2-cell diffusion variants."
+                ),
             },
         ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))

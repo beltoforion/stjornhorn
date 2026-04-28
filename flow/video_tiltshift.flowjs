@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.18",
+  "app_version": "0.2.23",
   "name": "video_tiltshift",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -1697.9622288212852,
-        -850.9442794678652
+        -1663.6862007952038,
+        -843.8034402957649
       ],
       "port_defaults": {
         "file_path": "video.mp4",
@@ -21,8 +21,8 @@
       "module": "nodes.filters.gaussian_blur",
       "class": "GaussianBlur",
       "position": [
-        -1307.0622741836935,
-        -507.0547842961979
+        -1272.7862461576121,
+        -499.9139451240976
       ],
       "port_defaults": {
         "ksize": 51,
@@ -38,8 +38,8 @@
       "module": "nodes.sources.gradient_source",
       "class": "GradientSource",
       "position": [
-        -1604.0323125847237,
-        -714.807453126518
+        -1569.7562845586424,
+        -707.6666139544177
       ],
       "port_defaults": {
         "width": 512,
@@ -55,8 +55,8 @@
       "module": "nodes.filters.masked_blend",
       "class": "MaskedBlend",
       "position": [
-        -1307.0622741836935,
-        -675.0547842961979
+        -1272.7862461576121,
+        -667.9139451240976
       ],
       "port_defaults": {},
       "size": [
@@ -83,14 +83,18 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -428.5266551332713,
-        -916.2024920777791
+        -591.337788257158,
+        -917.6306599121991
       ],
       "port_defaults": {
         "output_path": "out_tiltshift.mp4",
         "fps": 30.0,
         "codec": 0
-      }
+      },
+      "size": [
+        422.32697229598693,
+        148.0
+      ]
     },
     {
       "id": 6,
@@ -168,8 +172,8 @@
   "backdrops": [
     {
       "position": [
-        -1740.0,
-        -880.0
+        -1705.7239719739187,
+        -872.8591608278997
       ],
       "size": [
         720.0,
