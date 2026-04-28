@@ -24,9 +24,11 @@ from core.params import (
     BoolParam,
     ClampedFloatParam,
     EnumParam,
+    FilePathParam,
     FloatParam,
     IntParam,
     OddIntParam,
+    StringParam,
 )
 from core.port import InputPort, OutputPort
 
@@ -313,3 +315,86 @@ def test_float_min_exclusive_accepts_just_above_boundary() -> None:
     node = _ExtraParamsNode()
     node.factor = 0.001
     assert node.factor == 0.001
+
+
+# ── String / FilePath ────────────────────────────────────────────────────────
+
+class _PathishNode(NodeBase):
+    """Test node exercising StringParam / FilePathParam."""
+
+    label = StringParam("hi", placeholder="Type a label", max_length=64)
+    notes = StringParam("", description="Free-form notes")
+    target = FilePathParam("out.png", mode="save", filter="PNG (*.png)")
+
+    def __init__(self) -> None:
+        super().__init__("Pathish", section="Tests")
+        self._add_output(OutputPort("image", set(IMAGE_TYPES)))
+        self._apply_default_params()
+
+    def process_impl(self) -> None: pass
+
+
+def test_string_param_coerces_to_str() -> None:
+    node = _PathishNode()
+    node.label = 42
+    assert node.label == "42"
+    assert isinstance(node.label, str)
+
+
+def test_string_param_metadata_carries_placeholder_and_max_length() -> None:
+    node = _PathishNode()
+    port = next(p for p in node.inputs if p.name == "label")
+    assert port.metadata["placeholder"] == "Type a label"
+    assert port.metadata["max_length"] == 64
+
+
+def test_string_param_uses_string_io_type() -> None:
+    node = _PathishNode()
+    port = next(p for p in node.inputs if p.name == "label")
+    assert IoDataType.STRING in port.accepted_types
+
+
+def test_filepath_param_metadata_carries_mode_and_filter() -> None:
+    node = _PathishNode()
+    port = next(p for p in node.inputs if p.name == "target")
+    assert port.metadata["mode"] == "save"
+    assert port.metadata["filter"] == "PNG (*.png)"
+
+
+def test_filepath_param_uses_path_io_type() -> None:
+    node = _PathishNode()
+    port = next(p for p in node.inputs if p.name == "target")
+    assert IoDataType.PATH in port.accepted_types
+
+
+def test_filepath_param_default_open_mode_omits_metadata_key() -> None:
+    """Default mode (``"open"``) is not emitted into metadata to keep
+    saved-flow representations small."""
+
+    class _OpenNode(NodeBase):
+        path = FilePathParam("a.png")
+
+        def __init__(self) -> None:
+            super().__init__("Open", section="Tests")
+            self._add_output(OutputPort("image", set(IMAGE_TYPES)))
+            self._apply_default_params()
+
+        def process_impl(self) -> None: pass
+
+    node = _OpenNode()
+    port = next(p for p in node.inputs if p.name == "path")
+    assert "mode" not in port.metadata
+
+
+def test_filepath_param_invalid_mode_raises() -> None:
+    with pytest.raises(ValueError, match=r"FilePathParam mode"):
+        FilePathParam("x", mode="bogus")
+
+
+def test_filepath_param_coerce_returns_path() -> None:
+    """``_coerce`` produces a :class:`Path`, not a :class:`str`, so
+    ``cv2``-side filesystem helpers work without a separate cast."""
+    from pathlib import Path
+    node = _PathishNode()
+    node.target = "foo.png"
+    assert isinstance(node.target, Path)

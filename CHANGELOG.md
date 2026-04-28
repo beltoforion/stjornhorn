@@ -10,6 +10,32 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.30] — 2026-04-28
+
+### Added
+- **``StringParam`` and ``FilePathParam`` descriptors.** The last
+  two pieces of the H2 descriptor surface for port-style params:
+  - ``StringParam`` — line-edit-backed text param with optional
+    ``placeholder`` / ``max_length`` widget metadata.
+  - ``FilePathParam`` — path picker with ``mode`` (open / save /
+    directory), ``filter``, ``base_dir``, ``caption``. Storage
+    type is ``pathlib.Path``; ``_coerce`` runs incoming values
+    through ``store_relative_to(base_dir)`` so paths inside
+    ``base_dir`` end up in their portable relative form (matches
+    the legacy hand-rolled setter on every file-path-using
+    node).
+
+### Changed
+- **Param descriptor sweep — batch 3 (H2 PR-2c).** Migrated NCC
+  (full — ``template`` to ``FilePathParam`` and ``retain_size`` to
+  ``BoolParam``) and Notify (partial — ``message`` to
+  ``StringParam``; ``severity`` stays as a ``NodeParam`` until the
+  descriptor protocol gains a ``constant=True`` flag in PR-2d).
+  NCC's loaded-template-image slot was renamed
+  ``self._template`` → ``self._template_image`` so it doesn't
+  collide with the descriptor's ``Path`` storage on the same
+  attribute name.
+
 ## [0.2.29] — 2026-04-28
 
 ### Added

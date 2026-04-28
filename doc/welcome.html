@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.29</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.30</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.30</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — third batch (PR-2c of H2).</strong> Added <code>StringParam</code> and <code>FilePathParam</code> descriptors to <code>core.params</code>. <code>FilePathParam</code> stores <code>pathlib.Path</code> and applies <code>store_relative_to(base_dir)</code> in coerce so paths inside the base directory are stashed in their portable relative form (matching the saved-flow representation). Migrated <code>NCC</code> (full — both <code>template</code> and <code>retain_size</code>) and <code>Notify</code> (partial — <code>message</code> ports to <code>StringParam</code>; <code>severity</code> stays as a <code>NodeParam</code> until the descriptor protocol gains a <code>constant=True</code> flag in PR-2d). Backlog item H2.</li>
+      </ul>
     </section>
 
     <section>
