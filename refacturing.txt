@@ -27,7 +27,7 @@ High
   Direction: extract PortDispatcher, PortAttributeBridge, SkipStrategy;
   leave NodeBase as data shape + abstract process_impl.
 
-[OPEN] H2. Convention-driven port↔attribute coupling via name reflection.
+[WIP] H2. Convention-driven port↔attribute coupling via name reflection.
   Hidden coupling. src/core/node_base.py:407-447 does
   setattr(self, port.name, value) and snapshots
   getattr(self, f"_{port.name}"). Every concrete node (e.g.
@@ -79,18 +79,36 @@ High
   Simplifies: H6 (flow_io reflection) — serializer becomes
   "iterate descriptors, read via __get__" rather than getattr-by-name.
 
-  Open questions (unresolved):
+  Open questions (unresolved at PR-2):
     1. on_change= instance hook for side-effect setters
        (e.g. ImageSource.file_path triggers a re-decode)? Or do those
        nodes opt out of the descriptor path with a plain @property?
-    2. PR-1 strictness — hard-fail at construction time when a port has
-       a param_type but no matching descriptor, or keep silent-skip until
-       PR-2 finishes the sweep?
+       PR-1 deferred — GaussianBlur has no side-effect setters, so the
+       hook isn't needed yet. Decide when the first node that needs
+       it shows up in the PR-2 sweep.
+    2. PR-1 strictness — kept silent-skip in PR-2 deferred; legacy
+       _add_input(InputPort(...)) path still alive in NodeBase. PR-2
+       will hard-fail once every node is descriptor-driven.
     3. NodeParam (constants — file paths on sources, codecs on sinks):
        merge into descriptors with a constant=True flag, or keep separate?
-    4. .flowjs back-compat — descriptor-based ports should keep the
-       same port-name keys, so files load unchanged. Verify on first
-       PR-1 dry-run with existing flows in flow/.
+       Defer until PR-2 hits a NodeParam-using node.
+    4. .flowjs back-compat — verified in PR-1 via tests/test_flow_back_compat.py.
+       Every saved flow under flow/ instantiates and indexed
+       connection access still works.
+
+  Status (2026-04-28, PR-1 in flight on branch claude/h2-param-descriptor):
+    Landed core/params.py with _ParamBase + IntParam + OddIntParam +
+    FloatParam (Bool/String/Enum/FilePath descriptors deferred to PR-2
+    when a node that uses each kind shows up). NodeBase collects
+    descriptors via __init_subclass__; defaults written via
+    object.__setattr__ in __init__ before any subclass code runs;
+    descriptor-driven ports auto-created in _apply_default_params after
+    the explicit subclass ports so image-first ordering is preserved.
+    GaussianBlur migrated as proof: 95 → 57 lines (~40% smaller),
+    every existing test_new_filters.py GaussianBlur test still passes.
+    New tests/test_param_descriptors.py (17 tests) locks down descriptor
+    mechanics; new tests/test_flow_back_compat.py (15 tests) round-trips
+    every saved flow.
 
 [WIP] H3. Param-widget subclasses duplicate >90% boilerplate.
   Duplication / OCP. src/ui/param_widgets.py:138-289 — every widget

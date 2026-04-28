@@ -10,6 +10,38 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.27] — 2026-04-28
+
+### Changed
+- **Class-level node-parameter descriptors (PR-1 of 2).** Node
+  parameters used to require three coupled declarations — backing
+  attribute, hand-built ``InputPort``, ``@property``/``@setter`` —
+  all keyed by the same name and easy to drift. The new
+  ``core.params`` module ships ``IntParam``, ``OddIntParam`` and
+  ``FloatParam`` descriptors that own storage, coercion, validation,
+  metadata and port construction in one declaration. ``NodeBase``
+  collects them via ``__init_subclass__``, initialises every private
+  slot from the declared default before subclass ``__init__`` runs,
+  and auto-creates each descriptor's matching ``InputPort`` in
+  ``_apply_default_params`` *after* the explicit ports the subclass
+  added — preserving image-first / params-second visual ordering on
+  every node. ``OddIntParam`` demonstrates the OCP property: the
+  even→odd kernel-size rule is named once and inherited by any
+  filter that needs it, instead of being re-implemented inside each
+  setter. ``GaussianBlur`` migrated as the proof (95 → 57 lines). No
+  behaviour change; ``.flowjs`` save format unchanged. The remaining
+  ~40 nodes migrate in PR-2, after which the legacy
+  ``_add_input(InputPort(...))`` path retires. Backlog item H2 from
+  ``refacturing.txt``.
+
+### Fixed
+- **Drive-by typing fix in ``core/node_base.py``.** The module
+  imported ``override`` from ``typing``, which only became available
+  in Python 3.12 — the rest of the codebase uses
+  ``typing_extensions.override`` for 3.11 compatibility. Aligned this
+  one outlier so the file imports cleanly under 3.11 (matching
+  ``pyproject.toml``'s ``requires-python = ">=3.11"``).
+
 ## [0.2.26] — 2026-04-28
 
 ### Changed
