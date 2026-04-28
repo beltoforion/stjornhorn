@@ -168,13 +168,13 @@ class NodeBase(ABC):
         # Initialise every descriptor's backing slot to its declared
         # default before subclass ``__init__`` runs, so ``self._<name>``
         # exists from the first line after ``super().__init__()``. The
-        # default is written via ``object.__setattr__`` to bypass the
-        # descriptor's ``__set__`` — the descriptor author is trusted to
-        # have provided a valid default, and this runs before validation
-        # rules that depend on other (not-yet-set) descriptor values
-        # would have any chance to trigger.
+        # default goes through the descriptor's ``__set__`` — full
+        # coerce / validate / shape pipeline — so a misconfigured
+        # default (e.g. an even value on an :class:`OddIntParam`)
+        # fails loudly at construction time, and a valid one lands as
+        # its canonical shaped form.
         for desc in self._param_descriptors:
-            object.__setattr__(self, desc._private, desc.default)
+            setattr(self, desc.name, desc.default)
 
     # ── Port registration (called from subclass __init__) ──────────────────────
 
@@ -201,85 +201,47 @@ class NodeBase(ABC):
     # ── Param defaults ─────────────────────────────────────────────────────────
 
     def _apply_default_params(self) -> None:
-        """Push every editable input port's ``default_value`` and every
-        registered :class:`NodeParam`'s default onto the matching
-        instance attribute via the normal property setter.
+        """Auto-create the :class:`InputPort` (or :class:`NodeParam`
+        registration) every class-level descriptor advertises.
 
-        Call this at the end of a subclass ``__init__`` so the node's
-        attributes match the values it advertises from the moment it
-        is constructed — *before* any UI builder, save routine or
-        scheduler can read stale data. Three sources of editable values
-        are honoured:
+        Call this at the end of a subclass ``__init__`` *after* the
+        node has registered its hand-rolled ports (image inputs,
+        outputs, etc.). Descriptor-driven ports land at the tail of
+        ``self._inputs`` so the visual layout preserves the
+        image-first / params-second convention.
 
-        * Descriptor-style: a class-level :class:`~core.params._ParamBase`
-          subclass (e.g. :class:`~core.params.IntParam`,
-          :class:`~core.params.OddIntParam`). Their matching
-          :class:`InputPort` is auto-created here — placed *after* the
-          explicit ports the subclass added in its ``__init__`` so the
-          image-first / params-second visual ordering is preserved.
-        * Port-style legacy: an :class:`InputPort` constructed by hand
-          in the subclass and registered via ``_add_input``, with
-          ``"param_type"`` in its metadata. Co-exists with descriptor-
-          style during the H2 migration; will retire once every node
-          has moved over.
-        * Constant-style: a :class:`NodeParam` registered via
-          ``_add_param`` — always edited inline only, never connection-
-          driven (sources / sinks use these for config like file paths
-          or codec choice).
+        Each descriptor produces either:
 
-        Setter exceptions are logged and swallowed — a property setter
-        may legitimately reject some defaults (range setters clip, file
-        dialogs validate paths). The subclass ``__init__`` already wrote
-        a fallback value before this method runs, so a rejected default
-        leaves the node in a still-valid state.
+        * A port-style :class:`InputPort` (default) — drivable from
+          upstream, exposed inline as a port-row widget.
+        * A constant-style entry on :attr:`params` — for descriptors
+          declared with ``constant=True``. The descriptor object
+          itself satisfies the NodeParam read interface
+          (``name`` / ``metadata`` / ``default_value`` / ``upstream``
+          — see :class:`core.params._ParamBase`) so the UI's existing
+          ``node.params`` dispatch picks it up without a wrapper.
+
+        Default *values* are written by :meth:`__init__` (which calls
+        each descriptor's full ``__set__`` pipeline before the
+        subclass body runs); this method does not touch attribute
+        state.
+
+        The existing-name guards make the method idempotent — calling
+        it twice doesn't double-add a port — and tolerate hand-rolled
+        ports that happen to share a name with a descriptor (the
+        hand-rolled one wins).
         """
-        # Auto-create descriptor-driven ports / register constant
-        # descriptors. Skip names the subclass already registered
-        # explicitly so a partial migration (mixing descriptor and
-        # legacy declarations) stays consistent.
         existing_input_names = {p.name for p in self._inputs}
         existing_param_names = {p.name for p in self._params}
         for desc in self._param_descriptors:
             if desc.constant:
                 if desc.name in existing_param_names:
                     continue
-                # The descriptor itself satisfies the NodeParam read
-                # interface (.name / .metadata / .default_value /
-                # .upstream — see core.params._ParamBase) so the UI's
-                # existing node.params dispatch picks it up without a
-                # wrapper.
                 self._params.append(desc)
             else:
                 if desc.name in existing_input_names:
                     continue
                 self._add_input(desc.make_port())
-        for port in self._inputs:
-            if not port.has_default:
-                continue
-            if "param_type" not in port.metadata:
-                continue
-            try:
-                setattr(self, port.name, port.default_value)
-            except AttributeError:
-                # No setter / backing attribute for this port name —
-                # legitimate when the node only consumes the port via
-                # ``self.inputs[i].data``; skip silently.
-                pass
-            except Exception:
-                logger.exception(
-                    "Failed to apply port default for %s.%s = %r",
-                    type(self).__name__, port.name, port.default_value,
-                )
-        for param in self._params:
-            if param.default_value is None and "default" not in param.metadata:
-                continue
-            try:
-                setattr(self, param.name, param.default_value)
-            except Exception:
-                logger.exception(
-                    "Failed to apply param default for %s.%s = %r",
-                    type(self).__name__, param.name, param.default_value,
-                )
 
     # ── Public accessors ───────────────────────────────────────────────────────
 
@@ -465,31 +427,33 @@ class NodeBase(ABC):
     # ── Port-driven attribute population ────────────────────────────────────────
 
     def _populate_port_driven_attributes(self) -> dict[str, object]:
-        """Write the current upstream value of every connected input
-        port into ``self._<port_name>`` and return a snapshot of the
-        previous values for :meth:`_restore_port_driven_attributes`.
+        """Write the current upstream value of every connected
+        param-style input port into ``self._<port_name>`` and return
+        a snapshot of the previous values for
+        :meth:`_restore_port_driven_attributes`.
 
-        Skips ports without upstream data and ports whose backing
-        attribute does not exist on the node — image inputs read via
-        ``self.inputs[i].data`` rather than via a Python attribute, so
-        they have no field to populate. The mapping is by convention:
-        port ``angle`` → attribute ``_angle``; assignment goes through
-        the public name (``setattr(self, 'angle', value)``) so a node's
-        ``@angle.setter`` runs and applies its validation /
-        clamping / coercion as if the user had moved the slider.
+        Image / data-flow inputs are skipped — the gate is the
+        ``"param_type"`` metadata key, which only param-style ports
+        (the ones a descriptor auto-creates) carry. Image inputs read
+        via ``self.inputs[i].data`` rather than via a Python
+        attribute, so they have no field to populate.
 
-        On any error during populate (e.g. a setter rejecting a
-        streamed value), already-applied writes are rolled back via
-        the partial snapshot so the node's state stays consistent.
+        Assignment goes through the public name
+        (``setattr(self, 'angle', value)``) so the descriptor's
+        ``__set__`` runs and applies its validation / clamping /
+        shaping as if the user had moved the slider. On any error
+        during populate (e.g. a descriptor rejecting a streamed
+        value), already-applied writes are rolled back via the
+        partial snapshot so the node's state stays consistent.
         """
         snapshot: dict[str, object] = {}
         try:
             for port in self._inputs:
                 if not port.has_data:
                     continue
-                attr_name = f"_{port.name}"
-                if not hasattr(self, attr_name):
+                if "param_type" not in port.metadata:
                     continue
+                attr_name = f"_{port.name}"
                 snapshot[attr_name] = getattr(self, attr_name)
                 value = self._extract_driven_value(port.data)
                 setattr(self, port.name, value)
