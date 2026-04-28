@@ -10,6 +10,20 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.26] — 2026-04-28
+
+### Changed
+- **Param-widget plumbing centralised.** The six param-editor widgets
+  embedded in every node (Int, Float, Bool, String, Enum, FilePath)
+  used to each repeat the same zero-margin ``QHBoxLayout`` setup and
+  the same ``setMinimumWidth`` / ``setFixedHeight`` pair on their
+  value control. That ritual now lives in two helpers on
+  ``ParamWidgetBase`` — ``_make_row_layout()`` and
+  ``_size_value_control()`` — so the layout shape is named in one
+  place and any future param widget defaults to the right visual
+  contract. No behaviour change. Backlog item H3 from
+  ``refacturing.txt``.
+
 ## [0.2.25] — 2026-04-28
 
 ### Added

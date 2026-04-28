@@ -37,13 +37,21 @@ High
   Direction: a Param descriptor that owns storage, validation, default,
   metadata, port wiring as one declaration.
 
-[OPEN] H3. Param-widget subclasses duplicate >90% boilerplate.
+[WIP] H3. Param-widget subclasses duplicate >90% boilerplate.
   Duplication / OCP. src/ui/param_widgets.py:138-289 — every widget
   repeats QHBoxLayout(self), setContentsMargins(0,0,0,0), identical
   _on_value_changed → _write_to_node + emit, identical _initial_value,
   identical fixed-size calls.
   Direction: a _SingleControlParamWidget base taking control factory +
   value-coerce funcs; concrete widgets shrink to ~10 lines.
+  Status (2026-04-28): scope reduced after design-review pushback —
+  full template-method base would have been over-engineering. Landed
+  the minimal version on branch claude/refactor-param-widgets: two
+  helpers on ParamWidgetBase (_make_row_layout, _size_value_control)
+  that the six widgets call instead of inlining the layout dance.
+  _on_value_changed and the int()/float()/bool()/str() coercions stay
+  inline per subclass — they're already short and clearer there than
+  behind a hook. Move to Resolved on merge.
 
 [OPEN] H4. Identical port-construction boilerplate in ~35 filter files.
   Duplication / OCP. E.g. src/nodes/filters/rotate.py:28-57,
