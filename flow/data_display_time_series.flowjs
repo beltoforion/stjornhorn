@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.46",
+  "app_version": "0.2.47",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -79,27 +79,15 @@
     },
     {
       "id": 4,
-      "module": "nodes.filters.join_datasets",
-      "class": "JoinDatasets",
-      "position": [
-        -1600.0,
-        -100.0
-      ],
-      "port_defaults": {
-        "column_names": "N,E"
-      }
-    },
-    {
-      "id": 5,
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -1288.1999999999998,
-        -227.60000000000002
+        -1609.2012770503088,
+        -89.70508521078281
       ],
       "port_defaults": {
-        "x_column": "N",
-        "y_column": "E",
+        "x_label": "N",
+        "y_label": "E",
         "width": 800,
         "height": 800,
         "color_by_time": true,
@@ -109,32 +97,32 @@
       }
     },
     {
+      "id": 5,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
+      "position": [
+        -1376.2028555675033,
+        -608.6838869515992
+      ],
+      "port_defaults": {}
+    },
+    {
       "id": 6,
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1275.0,
-        -602.8000000000002
+        -1229.8730188961135,
+        -413.03315838098365
       ],
       "port_defaults": {}
     },
     {
       "id": 7,
-      "module": "nodes.filters.merge",
-      "class": "Merge",
-      "position": [
-        -949.7999999999998,
-        -556.5999999999999
-      ],
-      "port_defaults": {}
-    },
-    {
-      "id": 8,
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1376.8043478260863,
-        -1100.318695652174
+        -1268.8869256056792,
+        -195.46531082277914
       ],
       "port_defaults": {},
       "size": [
@@ -143,12 +131,12 @@
       ]
     },
     {
-      "id": 9,
+      "id": 8,
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -916.0,
-        -151.39999999999998
+        -507.52829217252565,
+        262.1295940042186
       ],
       "port_defaults": {
         "output_path": "out.png"
@@ -181,22 +169,28 @@
       "dst_input": 1
     },
     {
-      "src_node": 4,
+      "src_node": 2,
       "src_output": 0,
       "dst_node": 5,
       "dst_input": 0
     },
     {
-      "src_node": 2,
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 2
+    },
+    {
+      "src_node": 5,
       "src_output": 0,
       "dst_node": 6,
       "dst_input": 0
     },
     {
-      "src_node": 3,
+      "src_node": 4,
       "src_output": 0,
       "dst_node": 6,
-      "dst_input": 2
+      "dst_input": 1
     },
     {
       "src_node": 6,
@@ -205,21 +199,9 @@
       "dst_input": 0
     },
     {
-      "src_node": 5,
-      "src_output": 0,
-      "dst_node": 7,
-      "dst_input": 1
-    },
-    {
       "src_node": 7,
       "src_output": 0,
       "dst_node": 8,
-      "dst_input": 0
-    },
-    {
-      "src_node": 8,
-      "src_output": 0,
-      "dst_node": 9,
       "dst_input": 0
     }
   ],

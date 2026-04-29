@@ -10,6 +10,22 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.47] — 2026-04-29
+
+### Changed
+- **``Hodogram`` redesigned with two ``DATASET`` inputs.** Replaces the
+  single ``dataset`` input + ``x_column`` / ``y_column`` string params
+  with separate ``x`` and ``y`` ports. The first column of each input
+  is the signal, so two single-column producers (e.g. two
+  ``CsvSource`` nodes, one per axis) wire straight in — no
+  ``JoinDatasets`` step required. New optional ``x_label`` /
+  ``y_label`` override params keep axis labels readable when both
+  sources share a generic name like ``c0``; empty (default) falls
+  back to the column name. The bundled
+  ``data_display_time_series.flowjs`` demo flow drops the
+  ``JoinDatasets`` node and goes from 9 → 8 graph nodes.
+  Issue: #242.
+
 ## [0.2.46] — 2026-04-29
 
 ### Added

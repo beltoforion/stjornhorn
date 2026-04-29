@@ -21,6 +21,12 @@ from core.node_base import NodeBase
 from core.params import BoolParam, IntParam, StringParam
 from core.port import InputPort, OutputPort
 
+#: Names of the two DATASET input ports — also used as the default
+#: axis labels when the input dataset's first column is named with
+#: a generic placeholder (CsvSource emits ``c0``).
+_X_INPUT: str = "x"
+_Y_INPUT: str = "y"
+
 #: Render DPI used when sizing the matplotlib figure. Width / height in
 #: pixels are converted to inches via ``size_px / _RENDER_DPI``.
 _RENDER_DPI: int = 100
@@ -237,7 +243,7 @@ class HodogramRenderer:
 
 
 class Hodogram(NodeBase):
-    """Render two columns of a :data:`IoDataType.DATASET` as a hodogram.
+    """Render two single-column :data:`IoDataType.DATASET` inputs as a hodogram.
 
     A hodogram is a particle-motion plot — the trajectory of one signal
     against another instead of each one against time. The canonical use
@@ -245,6 +251,12 @@ class Hodogram(NodeBase):
     estimate back-azimuth from a P-wave's linear arrival), but the same
     view is generic enough for Lissajous figures, phase-space loops, or
     any pair of correlated signals.
+
+    Two ``DATASET`` inputs (``x`` and ``y``) carry the two channels.
+    The node uses the **first column** of each input as the signal,
+    so the natural pipeline is one ``CsvSource`` (or any single-column
+    producer) per axis, wired straight in. No ``JoinDatasets`` step
+    is needed.
 
     Three visual options on top of the basic trajectory:
 
@@ -259,32 +271,31 @@ class Hodogram(NodeBase):
       stays generic for non-seismic use.
 
     Parameters:
-      x_column          -- column name for X. Default ``"N"`` (the
-                           seismic convention); falls back to the
-                           first column when no ``"N"`` is present.
-      y_column          -- column name for Y. Default ``"E"``; falls
-                           back to the second column.
+      x_label / y_label -- override axis labels. Empty (default) uses
+                           the column name of the input's first column.
+                           Useful when both sources share a generic
+                           name like ``c0`` from ``CsvSource``.
       width / height    -- output image size in pixels (≥ 64).
       color_by_time     -- gradient-colour the trajectory.
       equal_aspect      -- force 1:1 axis scaling.
       show_polarization -- overlay the fitted PCA axis + readout.
+      title             -- optional plot title.
     """
 
-    x_column = StringParam(
-        "N",
-        placeholder="N",
+    x_label = StringParam(
+        "",
+        placeholder="(column name)",
         description=(
-            "Column name for the X axis. Default 'N' matches the "
-            "standard seismic Z/N/E ordering; falls back to the first "
-            "column when no 'N' is present."
+            "Override label for the X axis. Empty falls back to the "
+            "column name of the x input's first column."
         ),
     )
-    y_column = StringParam(
-        "E",
-        placeholder="E",
+    y_label = StringParam(
+        "",
+        placeholder="(column name)",
         description=(
-            "Column name for the Y axis. Default 'E'; falls back to "
-            "the second column when no 'E' is present."
+            "Override label for the Y axis. Empty falls back to the "
+            "column name of the y input's first column."
         ),
     )
     width = IntParam(
@@ -329,27 +340,36 @@ class Hodogram(NodeBase):
 
     def __init__(self) -> None:
         super().__init__("Hodogram", section="Visualization")
-        self._add_input(InputPort("dataset", {IoDataType.DATASET}))
+        # Explicit annotations so pyright sees the descriptor-backed attrs.
+        self._x_label: str
+        self._y_label: str
+        self._width: int
+        self._height: int
+        self._color_by_time: bool
+        self._equal_aspect: bool
+        self._show_polarization: bool
+        self._title: str
+        self._add_input(InputPort(_X_INPUT, {IoDataType.DATASET}, optional=False))
+        self._add_input(InputPort(_Y_INPUT, {IoDataType.DATASET}, optional=False))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
 
     @override
     def process_impl(self) -> None:
-        df: pd.DataFrame = self.inputs[0].data.payload
-        if len(df.columns) < 2:
-            raise KeyError(
-                f"Hodogram needs ≥ 2 columns; "
-                f"dataset has {len(df.columns)}: {list(df.columns)}"
-            )
-        x_col = self._resolve_column(df, self._x_column, default_index=0)
-        y_col = self._resolve_column(df, self._y_column, default_index=1)
+        x_df: pd.DataFrame = self.inputs[0].data.payload
+        y_df: pd.DataFrame = self.inputs[1].data.payload
+        if len(x_df.columns) == 0 or len(y_df.columns) == 0:
+            raise KeyError("Hodogram inputs must each have ≥ 1 column")
 
-        motion = ParticleMotion(df[x_col].to_numpy(), df[y_col].to_numpy())
+        x_col = str(x_df.columns[0])
+        y_col = str(y_df.columns[0])
+
+        motion = ParticleMotion(x_df[x_col].to_numpy(), y_df[y_col].to_numpy())
         renderer = HodogramRenderer()
         bgr = renderer.render(
             motion,
-            x_label=self._axis_label(df, x_col),
-            y_label=self._axis_label(df, y_col),
+            x_label=self._x_label or self._axis_label(x_df, x_col),
+            y_label=self._y_label or self._axis_label(y_df, y_col),
             width=self._width,
             height=self._height,
             color_by_time=self._color_by_time,
@@ -360,28 +380,6 @@ class Hodogram(NodeBase):
         self.outputs[0].send(IoData.from_image(bgr))
 
     # ── Pure helpers (testable without rendering) ────────────────────────────
-
-    @staticmethod
-    def _resolve_column(
-        df: pd.DataFrame, requested: str, *, default_index: int
-    ) -> str:
-        """Resolve a column name with a positional fallback.
-
-        Unlike :class:`PlotXY`, the empty-string case never arises here
-        (the descriptor seeds ``"N"``/``"E"`` defaults). When the
-        requested name *is* set but missing — typical for non-seismic
-        Datasets that don't use Z/N/E names — the positional fallback
-        kicks in instead of raising, so a default-configured Hodogram
-        on a generic 2-column Dataset still renders.
-        """
-        if requested and requested in df.columns:
-            return requested
-        if default_index >= len(df.columns):
-            raise KeyError(
-                f"Cannot resolve column {requested!r}: "
-                f"dataset has {len(df.columns)} column(s)"
-            )
-        return str(df.columns[default_index])
 
     @staticmethod
     def _axis_label(df: pd.DataFrame, column: str) -> str:

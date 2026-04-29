@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.46</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.47</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.47</h2>
+      <ul class="tips">
+        <li><strong><code>Hodogram</code> now takes two <code>DATASET</code> inputs.</strong> Replaces the single <code>dataset</code> input + <code>x_column</code> / <code>y_column</code> string params with separate <code>x</code> and <code>y</code> ports — each consumes the first column of its input. Wire two <code>CsvSource</code> nodes (or any single-column producers) straight into the hodogram, no <code>JoinDatasets</code> step required. New <code>x_label</code> / <code>y_label</code> override params (default empty → use column name) keep axis labels readable when both sources share a generic name like <code>c0</code>. The bundled seismic demo flow drops to 9 nodes. Issue #242.</li>
+      </ul>
     </section>
 
     <section>
