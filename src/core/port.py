@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING
+from typing import Callable
 
-from core.io_data import IoData
-
-if TYPE_CHECKING:
-    pass
+from core.io_data import IoData, IoDataType
 
 
 class InputPort:
