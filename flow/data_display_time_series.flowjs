@@ -109,7 +109,7 @@
         "color_by_time": true,
         "equal_aspect": true,
         "show_polarization": false,
-        "title": "Particle Motion"
+        "title": "Ground Motion"
       }
     },
     {
