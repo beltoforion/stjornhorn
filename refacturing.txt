@@ -13,7 +13,7 @@ Status markers:
   [DONE]      — landed on main; references PR/commit
   [WITHDRAWN] — reconsidered, no longer pursued (with reason)
 
-Last reviewed: 2026-04-28 (H2 design locked)
+Last reviewed: 2026-04-28 (H2/H3/H4/M9/L13 resolved via descriptor sweep)
 
 
 High
@@ -26,95 +26,6 @@ High
   skip pass-through, and run lifecycle.
   Direction: extract PortDispatcher, PortAttributeBridge, SkipStrategy;
   leave NodeBase as data shape + abstract process_impl.
-
-[OPEN] H2. Convention-driven port↔attribute coupling via name reflection.
-  Hidden coupling. src/core/node_base.py:407-447 does
-  setattr(self, port.name, value) and snapshots
-  getattr(self, f"_{port.name}"). Every concrete node (e.g.
-  src/nodes/filters/gaussian_blur.py:23-25,68-74) must declare
-  self._<name>, a setter, and a port named <name> — three-place
-  duplication, silent skip when the attribute is missing.
-  Direction: a Param descriptor that owns storage, validation, default,
-  metadata, port wiring as one declaration.
-
-  Design (locked, 2026-04-28, pending implementation):
-    • Pure Python descriptors in core/params.py: IntParam, FloatParam,
-      BoolParam, StringParam, EnumParam, FilePathParam. __set_name__ /
-      __get__ / __set__ pattern; no metaclass.
-    • __set__ split into _coerce(value) + _validate(value) hooks so
-      domain-specific subclasses (OddIntParam, ProbabilityParam,
-      AngleParam, PercentParam, ColorParam) are 3–5 line subclasses.
-      OCP property: extension by subclassing, no edits to NodeBase
-      or IntParam itself.
-    • NodeBase.__init_subclass__ collects descriptors; NodeBase.__init__
-      writes each default into self._<name> AND auto-creates the matching
-      InputPort (subsumes H4 — port-construction factories are no longer
-      needed because the descriptor *is* the factory).
-    • Widget binding: option 2 (descriptor-side class hint). Each
-      descriptor exposes WIDGET_CLASS so a domain subclass like
-      OddIntParam can ship its own _OddSpinBox-backed widget without
-      growing IntParamWidget with metadata flags. This subsumes M9 —
-      the param-widget registry collapses to "ask the descriptor".
-    • Domain subclasses can drive widget-side affordances end-to-end.
-      Worked example (OddIntParam): widget uses _OddSpinBox with
-      setSingleStep(2) so arrows step 5→7→9, fixup() bumps even text
-      input on commit, descriptor's _coerce is the backstop for
-      port-driven and programmatic writes — invariant holds at every
-      layer with a single source.
-    • _populate_port_driven_attributes walks the registered descriptors
-      directly; the silent hasattr-skip path goes away.
-    • _apply_default_params retires — defaults written by the
-      descriptor-driven __init__ pass.
-
-  Migration: two PRs.
-    PR-1: land core.params + descriptor-aware NodeBase + migrate one
-          filter (GaussianBlur) as proof. Keep the legacy
-          _add_input(InputPort(...)) path alive alongside descriptors so
-          the other ~40 nodes are untouched. Full test suite must pass.
-    PR-2: sweep the remaining ~35 filter files + sources/sinks. Drop
-          the legacy path from NodeBase once empty.
-
-  Subsumes: H4 (port-construction boilerplate) and M9 (widget-registry
-  duplication) — both will move to Resolved citing H2 once PR-2 lands.
-  Simplifies: H6 (flow_io reflection) — serializer becomes
-  "iterate descriptors, read via __get__" rather than getattr-by-name.
-
-  Open questions (unresolved):
-    1. on_change= instance hook for side-effect setters
-       (e.g. ImageSource.file_path triggers a re-decode)? Or do those
-       nodes opt out of the descriptor path with a plain @property?
-    2. PR-1 strictness — hard-fail at construction time when a port has
-       a param_type but no matching descriptor, or keep silent-skip until
-       PR-2 finishes the sweep?
-    3. NodeParam (constants — file paths on sources, codecs on sinks):
-       merge into descriptors with a constant=True flag, or keep separate?
-    4. .flowjs back-compat — descriptor-based ports should keep the
-       same port-name keys, so files load unchanged. Verify on first
-       PR-1 dry-run with existing flows in flow/.
-
-[WIP] H3. Param-widget subclasses duplicate >90% boilerplate.
-  Duplication / OCP. src/ui/param_widgets.py:138-289 — every widget
-  repeats QHBoxLayout(self), setContentsMargins(0,0,0,0), identical
-  _on_value_changed → _write_to_node + emit, identical _initial_value,
-  identical fixed-size calls.
-  Direction: a _SingleControlParamWidget base taking control factory +
-  value-coerce funcs; concrete widgets shrink to ~10 lines.
-  Status (2026-04-28): scope reduced after design-review pushback —
-  full template-method base would have been over-engineering. Landed
-  the minimal version on branch claude/refactor-param-widgets: two
-  helpers on ParamWidgetBase (_make_row_layout, _size_value_control)
-  that the six widgets call instead of inlining the layout dance.
-  _on_value_changed and the int()/float()/bool()/str() coercions stay
-  inline per subclass — they're already short and clearer there than
-  behind a hook. Move to Resolved on merge.
-
-[OPEN] H4. Identical port-construction boilerplate in ~35 filter files.
-  Duplication / OCP. E.g. src/nodes/filters/rotate.py:28-57,
-  src/nodes/filters/gaussian_blur.py:27-58. default_value and
-  metadata["default"] mirrored, descriptions freeform per node.
-  Direction: helper factories like
-  scalar_param("angle", default=0.0, unit="deg", desc=...) returning a
-  fully-formed InputPort; same factory keeps doc/metadata single-source.
 
 [OPEN] H5. NodeItem is a 1065-line god class.
   SRP. src/ui/node_item.py:336-1065 does layout, painting, geometry,
@@ -148,13 +59,6 @@ Medium
   outputs cannot override.
   Direction: strategy or overridable _skip_match(out) -> InputPort | None.
 
-[OPEN] M9. Two parallel widget dispatch tables.
-  Duplication. src/ui/param_widgets.py:546-553 (enum→class) vs
-  src/ui/preview_widgets.py:222-224 (type(node) dict); ENUM widget
-  re-hardcodes metadata["enum"] validation (304-312).
-  Direction: one WidgetRegistry, or push factory onto the Param
-  descriptor.
-
 [OPEN] M10. NodeEditorPage mixes page-shell with run orchestration & threading.
   SRP. src/ui/node_editor_page.py:580-720 assembles QThread, FlowRunner,
   signal chains, status messages, viewer auto-pick (_best_viewer_node).
@@ -178,10 +82,6 @@ Medium
 Low
 ---
 
-[OPEN] L13. _apply_default_params swallows every exception with debug log.
-  Robustness. src/core/node_base.py:208-222 — masks setter bugs at
-  construction time.
-
 [OPEN] L14. Magic numbers in NodeItem layout outside the constants block.
   src/ui/node_item.py:358-391 defines a clean block, but 100.0 (preview
   min height, line 947) and 2/4 paddings in boundingRect (line 501) are
@@ -197,4 +97,58 @@ Low
 Resolved
 --------
 
-(empty — fill as items land)
+[DONE] H2. Convention-driven port↔attribute coupling via name reflection.
+  Resolved 2026-04-28 across PRs #208, #209, #211, #212, #213, #214,
+  and PR-2f (this commit).
+    PR-1 (#208) — landed core.params with _ParamBase + IntParam +
+      OddIntParam + FloatParam; descriptor-aware NodeBase;
+      GaussianBlur as proof.
+    PR-2a (#209) — sweep batch 1 (8 numeric-only filters).
+    PR-2b (#211) — added BoolParam, EnumParam, ClampedFloatParam,
+      FloatParam(min/max_exclusive); migrated Overlay + 5 more.
+    PR-2c (#212) — added StringParam, FilePathParam (Path-typed
+      with base_dir-aware coerce); migrated NCC + Notify.message.
+    PR-2d (#213) — added constant=True flag; migrated Apply Colormap,
+      Resize, Math (with custom _ExpressionParam), Notify.severity.
+    PR-2e (#214) — migrated all 6 sources, both sinks, and
+      DebugParam. Zero hand-rolled NodeParam / param-style InputPort
+      remains in src/nodes/.
+    PR-2f (this PR) — retired the legacy setattr loops in
+      _apply_default_params and tightened
+      _populate_port_driven_attributes to gate on "param_type" in
+      port.metadata (replacing the silent hasattr-skip). Defaults
+      now flow exclusively through the descriptor's __set__
+      pipeline at NodeBase.__init__ time.
+  The on_change= hook flagged as an open question turned out
+  unnecessary in practice. Design notes parked in CHANGELOG /
+  PR-2e PR description in case a future side-effect setter actually
+  wants it.
+
+[DONE] H3. Param-widget subclasses duplicate >90% boilerplate.
+  Resolved 2026-04-28 in PR #205. Scope was reduced after design-
+  review pushback — a full template-method base would have been
+  over-engineering. Landed two small helpers on ParamWidgetBase
+  (_make_row_layout, _size_value_control) that every widget calls
+  instead of inlining the QHBoxLayout dance. _on_value_changed and
+  the int() / float() / bool() / str() coercions stay inline per
+  subclass.
+
+[DONE] H4. Identical port-construction boilerplate in ~35 filter files.
+  Resolved 2026-04-28 — subsumed by H2. The descriptor *is* the
+  port factory; class-level declarations replace the per-node
+  hand-rolled InputPort metadata blocks.
+
+[DONE] M9. Two parallel widget dispatch tables.
+  Resolved 2026-04-28 — subsumed by H2. The descriptor's optional
+  WIDGET_CLASS hint lets a domain subclass (OddIntParam,
+  ClampedFloatParam, …) ship its own widget without growing
+  IntParamWidget / the per-NodeParamType registry. Adding a new
+  widget for a new descriptor is now a self-contained change.
+
+[DONE] L13. _apply_default_params swallows every exception with debug log.
+  Resolved 2026-04-28 in PR-2f — the loop that ran setattr against
+  hand-rolled port defaults is gone, taking the broad
+  ``except Exception`` branch with it. Default writes go through
+  the descriptor's __set__ at __init__ time; a bad default fails
+  loudly at construction now rather than silently logging and
+  carrying on.

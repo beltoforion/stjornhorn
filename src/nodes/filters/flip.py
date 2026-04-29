@@ -5,8 +5,9 @@ from enum import IntEnum
 import cv2
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import EnumParam
 from core.port import InputPort, OutputPort
 
 
@@ -27,43 +28,20 @@ class FlipMode(IntEnum):
 class Flip(NodeBase):
     """Mirror an image horizontally, vertically, or both."""
 
+    mode = EnumParam(
+        FlipMode,
+        FlipMode.HORIZONTAL,
+        description=(
+            "Flip direction. HORIZONTAL mirrors left/right, "
+            "VERTICAL mirrors top/bottom, BOTH does a 180° rotation."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Flip", section="Transform")
-        self._mode: FlipMode = FlipMode.HORIZONTAL
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "mode",
-            {IoDataType.ENUM},
-            optional=True,
-            default_value=FlipMode.HORIZONTAL,
-            metadata={
-                "default": FlipMode.HORIZONTAL,
-                "enum": FlipMode,
-                "param_type": NodeParamType.ENUM,
-                "description": (
-                    "Flip direction. HORIZONTAL mirrors left/right, "
-                    "VERTICAL mirrors top/bottom, BOTH does a 180° rotation."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    @property
-    def mode(self) -> FlipMode:
-        return self._mode
-
-    @mode.setter
-    def mode(self, value: int | FlipMode) -> None:
-        try:
-            self._mode = FlipMode(value)
-        except ValueError as e:
-            raise ValueError(
-                f"mode must be one of {[m.value for m in FlipMode]} "
-                f"(got {value!r})"
-            ) from e
 
     @override
     def process_impl(self) -> None:

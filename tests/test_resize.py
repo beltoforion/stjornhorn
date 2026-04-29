@@ -68,7 +68,11 @@ def test_method_setter_accepts_int_and_enum() -> None:
 
 def test_method_setter_rejects_unknown_value() -> None:
     node = Resize()
-    with pytest.raises(ValueError, match="method must be one of"):
+    # EnumParam phrases this as "method: cannot map 99 to a
+    # ResizeMethod member"; the legacy hand-rolled setter said
+    # "method must be one of [...]". Either way an out-of-range int
+    # raises ValueError at assignment time.
+    with pytest.raises(ValueError, match="method"):
         node.method = 99
 
 

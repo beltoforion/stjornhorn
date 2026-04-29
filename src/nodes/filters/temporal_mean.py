@@ -3,8 +3,9 @@ from __future__ import annotations
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import IntParam
 from core.port import InputPort, OutputPort
 
 
@@ -22,43 +23,23 @@ class TemporalMean(NodeBase):
     just the new input.
     """
 
+    window = IntParam(
+        5,
+        min=1,
+        unit="frames",
+        description=(
+            "Number of recent frames averaged per output. "
+            "Larger values denoise more aggressively but blur "
+            "any motion in the scene."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Temporal Mean", section="Temporal")
-        self._window: int = 5
         self._buffer: list[np.ndarray] = []
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "window",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=5,
-            metadata={
-                "default": 5,
-                "param_type": NodeParamType.INT,
-                "min": 1,
-                "unit": "frames",
-                "description": (
-                    "Number of recent frames averaged per output. "
-                    "Larger values denoise more aggressively but blur "
-                    "any motion in the scene."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    @property
-    def window(self) -> int:
-        return self._window
-
-    @window.setter
-    def window(self, value: int) -> None:
-        v = int(value)
-        if v < 1:
-            raise ValueError(f"window must be >= 1 (got {v})")
-        self._window = v
 
     @override
     def _before_run_impl(self) -> None:

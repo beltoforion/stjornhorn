@@ -6,7 +6,8 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeParam, NodeParamType, SourceNodeBase
+from core.node_base import SourceNodeBase
+from core.params import BoolParam, ClampedFloatParam, EnumParam, IntParam
 from core.port import OutputPort
 
 
@@ -84,108 +85,20 @@ class GradientSource(SourceNodeBase):
     update the downstream preview live without pressing Run.
     """
 
+    width = IntParam(512, min=1, constant=True)
+    height = IntParam(512, min=1, constant=True)
+    direction = EnumParam(GradientDirection, GradientDirection.VERTICAL, constant=True)
+    mode = EnumParam(GradientMode, GradientMode.SYMMETRIC, constant=True)
+    # band_width clamps to [0, 0.999]: at 1.0 the ramp denominator is
+    # zero (all-zero image), so clip a hair below — and clamp instead
+    # of raising so a slider sweep past the extreme just saturates.
+    band_width = ClampedFloatParam(0.2, min=0.0, max=0.999, constant=True)
+    smooth = BoolParam(True, constant=True)
+
     def __init__(self) -> None:
         super().__init__("Gradient Source", section="Sources")
-        self._width:      int   = 512
-        self._height:     int   = 512
-        self._direction:  GradientDirection = GradientDirection.VERTICAL
-        self._mode:       GradientMode      = GradientMode.SYMMETRIC
-        self._band_width: float = 0.2
-        self._smooth:     bool  = True
-
-        self._add_param(NodeParam("width",  NodeParamType.INT,  default=512))
-        self._add_param(NodeParam("height", NodeParamType.INT,  default=512))
-        self._add_param(NodeParam(
-            "direction",
-            NodeParamType.ENUM,
-            default=GradientDirection.VERTICAL,
-            metadata={"enum": GradientDirection},
-        ))
-        self._add_param(NodeParam(
-            "mode",
-            NodeParamType.ENUM,
-            default=GradientMode.SYMMETRIC,
-            metadata={"enum": GradientMode},
-        ))
-        self._add_param(NodeParam("band_width", NodeParamType.FLOAT, default=0.2))
-        self._add_param(NodeParam("smooth",     NodeParamType.BOOL,  default=True))
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def width(self) -> int:
-        return self._width
-
-    @width.setter
-    def width(self, value: int) -> None:
-        v = int(value)
-        if v < 1:
-            raise ValueError(f"width must be >= 1 (got {v})")
-        self._width = v
-
-    @property
-    def height(self) -> int:
-        return self._height
-
-    @height.setter
-    def height(self, value: int) -> None:
-        v = int(value)
-        if v < 1:
-            raise ValueError(f"height must be >= 1 (got {v})")
-        self._height = v
-
-    @property
-    def direction(self) -> GradientDirection:
-        return self._direction
-
-    @direction.setter
-    def direction(self, value: int | GradientDirection) -> None:
-        try:
-            self._direction = GradientDirection(value)
-        except ValueError as e:
-            raise ValueError(
-                f"direction must be one of {[m.value for m in GradientDirection]} "
-                f"(got {value!r})"
-            ) from e
-
-    @property
-    def mode(self) -> GradientMode:
-        return self._mode
-
-    @mode.setter
-    def mode(self, value: int | GradientMode) -> None:
-        try:
-            self._mode = GradientMode(value)
-        except ValueError as e:
-            raise ValueError(
-                f"mode must be one of {[m.value for m in GradientMode]} "
-                f"(got {value!r})"
-            ) from e
-
-    @property
-    def band_width(self) -> float:
-        return self._band_width
-
-    @band_width.setter
-    def band_width(self, value: float) -> None:
-        v = float(value)
-        # Clamp to [0, 1) — at exactly 1.0 the ramp denominator is zero,
-        # which would just produce an all-zero image; clip a hair below
-        # so the node still emits a meaningful gradient at the extreme.
-        self._band_width = max(0.0, min(0.999, v))
-
-    @property
-    def smooth(self) -> bool:
-        return self._smooth
-
-    @smooth.setter
-    def smooth(self, value: bool) -> None:
-        self._smooth = bool(value)
-
-    # ── SourceNodeBase interface ────────────────────────────────────────────────
 
     @property
     @override

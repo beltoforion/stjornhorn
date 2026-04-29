@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.27</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.34</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -213,9 +213,58 @@
     </section>
 
     <section>
-      <h2>What's new in v0.2.27</h2>
+      <h2>What's new in v0.2.34</h2>
       <ul class="tips">
         <li><strong>Display node shows total frame count.</strong> The top-left debug overlay now has two lines: FPS (from tick 2 as before) and <em>N</em> — the running count of frames processed since the last run started. The count is visible from the very first frame so you can tell at a glance how far into a stream the node is. The new <code>frames_processed</code> property exposes the same counter to tests and the UI without scraping the overlay text. Issue #207.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.33</h2>
+      <ul class="tips">
+        <li><strong>H2 closed: descriptor migration complete.</strong> Final cleanup retires the legacy code paths in <code>NodeBase</code> now that every node uses class-level <code>core.params</code> descriptors. The setattr loops that walked <code>self._inputs</code> / <code>self._params</code> applying defaults are gone — defaults now flow exclusively through each descriptor's <code>__set__</code> pipeline at <code>NodeBase.__init__</code> time, so a misconfigured default fails loudly at construction rather than silently logging and carrying on. <code>_populate_port_driven_attributes</code> tightened to gate on <code>"param_type"</code> in port metadata (replacing the old silent <code>hasattr</code> skip). Backlog items <strong>H2</strong>, <strong>H3</strong>, <strong>H4</strong>, <strong>M9</strong>, and <strong>L13</strong> all moved to <em>Resolved</em> in <code>refacturing.txt</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.32</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — final batch (PR-2e of H2).</strong> Migrated all six sources (Constant Value, Directory Source, Gradient Source, Image Source, Value Source, Video Source) and both sinks (File Sink, Video Sink), plus the Debug Param test node. Every node in the codebase now uses class-level <code>core.params</code> descriptors for its parameters; zero hand-rolled <code>InputPort</code>+<code>@property</code>/<code>@setter</code> declarations remain. The <code>on_change=</code> hook flagged as an open question for <code>ImageSource.file_path</code> turned out unnecessary — the existing setter only normalises the path via <code>store_relative_to</code>, which <code>FilePathParam._coerce</code> already does for free. Backlog item H2 — PR-2f next will retire the legacy paths from <code>NodeBase</code> and move H2 / H4 / M9 to <em>Resolved</em>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.31</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — fourth batch (PR-2d of H2).</strong> Descriptor protocol gained a <code>constant=True</code> flag. Constant descriptors don't auto-create an <code>InputPort</code>; instead they sit on <code>node.params</code> and the UI's existing inline-no-socket render path picks them up. Migrated the four NodeParam-using filters: <code>ApplyColormap</code>, <code>Resize</code>, <code>Math</code> and <code>Notify</code>'s <code>severity</code>. Math gets a small custom <code>_ExpressionParam(StringParam)</code> descriptor that compiles the AST atomically on every set, replacing the hand-rolled <code>@expression.setter</code>. Sources / sinks (which also use <code>NodeParam</code> heavily) move in PR-2e together with the <code>on_change=</code> hook design (<code>ImageSource.file_path</code> triggers a re-decode). Backlog item H2.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.30</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — third batch (PR-2c of H2).</strong> Added <code>StringParam</code> and <code>FilePathParam</code> descriptors to <code>core.params</code>. <code>FilePathParam</code> stores <code>pathlib.Path</code> and applies <code>store_relative_to(base_dir)</code> in coerce so paths inside the base directory are stashed in their portable relative form (matching the saved-flow representation). Migrated <code>NCC</code> (full — both <code>template</code> and <code>retain_size</code>) and <code>Notify</code> (partial — <code>message</code> ports to <code>StringParam</code>; <code>severity</code> stays as a <code>NodeParam</code> until the descriptor protocol gains a <code>constant=True</code> flag in PR-2d). Backlog item H2.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.29</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — second batch (PR-2b of H2).</strong> Six more filters (Overlay, Subpixel Mosaic, Flip, Dither, Rotate, Scale) ported from hand-rolled <code>InputPort</code> + <code>@property</code>/<code>@setter</code> declarations to class-level descriptors. The descriptor module gained four new types: <code>BoolParam</code> for toggles, <code>EnumParam</code> for combo-box selections (auto-coerces ints, names, and members), <code>ClampedFloatParam</code> for soft-bounded sliders that saturate instead of raising (used by <code>Overlay.alpha</code> — out-of-range stays clamped to <code>[0, 1]</code>), and a <code>min_exclusive</code> / <code>max_exclusive</code> flag on <code>FloatParam</code> for strict bounds (used by <code>Overlay.scale</code> which requires <code>&gt; 0</code>). All pre-existing per-filter tests pass unchanged. Backlog item H2.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.28</h2>
+      <ul class="tips">
+        <li><strong>Param descriptor sweep — first batch (PR-2a of H2).</strong> Eight more filters (Median, Delay, Clamp, Shift, Temporal Mean, Temporal Median, Adaptive Gaussian Threshold, Crop) ported from the hand-rolled <code>InputPort</code> + <code>@property</code>/<code>@setter</code> triple-declaration to the new class-level descriptors. Each migrated file is 30–50% smaller and its parameters now live in one declaration with single-source-of-truth metadata, validation and port construction. Median picks up <code>OddIntParam</code> just like Gaussian Blur — same odd-only invariant, named once. The descriptor protocol gained a <code>_shape</code> hook that runs <em>after</em> validation, so a literal value below <code>min</code> raises rather than being shaped up into range; this matches the hand-rolled setters this descriptor replaces (e.g. <code>Median.size = 0</code> still raises, even though the odd-shape would otherwise round it to 1). The <code>Overlay</code> node and the remaining nodes that need new descriptor types (Bool/String/Enum/FilePath, plus a clamping float and an exclusive-bound float) follow in subsequent PRs.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.27</h2>
+      <ul class="tips">
+        <li><strong>Class-level node-parameter descriptors (PR-1 of 2).</strong> Node parameters used to require three separate declarations — a backing attribute, an <code>InputPort</code> built by hand, and a <code>@property</code>/<code>@setter</code> with validation — all keyed by the same name and easy to drift. The new <code>core.params</code> module ships <code>IntParam</code>, <code>OddIntParam</code>, and <code>FloatParam</code> descriptors that own all three concerns in one declaration. <code>NodeBase</code> walks them at <code>__init_subclass__</code>-time, initialises private slots from the declared default, and auto-creates the matching <code>InputPort</code> in <code>_apply_default_params</code> after any explicit ports the subclass added (image-first ordering preserved). <code>OddIntParam</code> demonstrates the OCP win: kernel-size-must-be-odd is named once and inherited by any filter that needs it. Migrated <code>GaussianBlur</code> as the proof; the other ~40 nodes will follow in PR-2. No behaviour change visible to users; the <code>.flowjs</code> save format is unchanged. Backlog item H2.</li>
       </ul>
     </section>
 

@@ -10,7 +10,7 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
-## [0.2.27] — 2026-04-28
+## [0.2.34] — 2026-04-29
 
 ### Added
 - **Display node shows total frame count.** The top-left debug overlay
@@ -22,6 +22,221 @@ once a first tagged release is cut.
   without scraping the overlay text. The helper method that paints the
   overlay is renamed `_draw_overlay` (was `_draw_fps_overlay`) to
   reflect that it now carries more than FPS. Closes #207.
+
+
+## [0.2.33] — 2026-04-28
+
+### Removed
+- **Legacy hand-rolled-port code paths in ``NodeBase``** (H2 PR-2f).
+  The two ``setattr`` loops at the end of
+  ``_apply_default_params`` (one walking ``self._inputs`` for ports
+  with ``"param_type"`` metadata, the other walking
+  ``self._params``) are gone. Every node in the codebase uses
+  class-level descriptors after PR-2e, and descriptors write their
+  defaults through the full ``__set__`` pipeline (coerce / validate
+  / shape) at ``NodeBase.__init__`` time. The loops were dead code
+  in production after PR-2e; this PR removes them and tightens the
+  contract.
+
+### Changed
+- **Default writes go through the descriptor pipeline at
+  construction time.** ``NodeBase.__init__`` previously used
+  ``object.__setattr__`` to skip validation when initialising each
+  descriptor's backing slot — the defaults were re-applied through
+  ``setattr`` later in ``_apply_default_params``. With the legacy
+  loop gone, ``__init__`` now uses ``setattr`` directly so the full
+  pipeline runs once, atomically. A misconfigured default (e.g. an
+  even value on an ``OddIntParam``) now fails loudly at
+  construction rather than landing silently.
+- **``_populate_port_driven_attributes`` gates on ``"param_type"``
+  metadata** instead of the silent ``hasattr`` skip that had been
+  papering over hand-rolled ports without backing attributes. The
+  intent is now explicit: only param-style ports (the ones a
+  descriptor auto-creates) participate in the per-frame
+  populate / restore dance; image / data-flow inputs are skipped
+  because the gate filters them out.
+
+### Resolved (refacturing backlog)
+- **H2** — convention-driven port↔attribute coupling — done across
+  PRs #208 / #209 / #211 / #212 / #213 / #214 and this PR.
+- **H3** — param-widget boilerplate — done in PR #205.
+- **H4** — port-construction boilerplate — subsumed by H2.
+- **M9** — parallel widget dispatch tables — subsumed by H2.
+- **L13** — ``_apply_default_params`` swallowing exceptions — the
+  exception-swallowing loop is gone with the rest of the legacy
+  path.
+
+## [0.2.32] — 2026-04-28
+
+### Changed
+- **Param descriptor sweep — batch 5, final node migration
+  (H2 PR-2e).** Migrated the remaining nine nodes:
+  - Sources: ``ConstantValue``, ``DirectorySource``,
+    ``GradientSource``, ``ImageSource``, ``ValueSource``,
+    ``VideoSource``.
+  - Sinks: ``FileSink``, ``VideoSink``.
+  - Test fixture: ``DebugParam`` (one parameter of every type, used
+    to exercise the param-widget code paths during development).
+  After this PR every node in the codebase uses class-level
+  ``core.params`` descriptors for its parameters; zero hand-rolled
+  ``_add_input(InputPort(...))`` + ``@property``/``@setter`` pairs
+  for parameter ports remain anywhere under ``src/nodes/``.
+
+### Notes
+- The ``on_change=`` hook flagged in ``refacturing.txt`` H2 as an
+  open question for ``ImageSource.file_path`` turned out
+  unnecessary — the existing setter only normalises the path via
+  ``store_relative_to(INPUT_DIR)``, and ``FilePathParam._coerce``
+  already does that. The hook stays parked in the design notes in
+  case a future side-effect setter actually needs it.
+
+## [0.2.31] — 2026-04-28
+
+### Added
+- **``constant=True`` flag on the descriptor protocol.** When set,
+  the descriptor doesn't auto-create an :class:`InputPort`; instead
+  ``NodeBase`` appends it to ``self._params`` so the UI's existing
+  inline-no-socket dispatch picks it up. The descriptor itself
+  satisfies the :class:`NodeParam` read interface (``name``,
+  ``metadata``, ``default_value``, ``upstream``) so no wrapper is
+  needed. Threads through every concrete descriptor's
+  ``__init__``.
+- **``_ExpressionParam(StringParam)`` in ``Math``.** A small custom
+  subclass that compiles + validates the expression atomically on
+  every ``__set__``. Replaces the hand-rolled
+  ``@expression.setter`` and the static-method
+  ``_compile_expression`` / ``_validate_ast`` pair, both of which
+  moved to module scope so the descriptor can call them. Per-frame
+  evaluation still skips the parse step — the compiled bytecode
+  lives on a side-slot ``_compiled`` written by the descriptor's
+  ``__set__`` alongside the canonical text.
+
+### Changed
+- **Param descriptor sweep — batch 4 (H2 PR-2d).** Migrated the
+  four NodeParam-using filters: ``ApplyColormap``, ``Resize``,
+  ``Math`` and ``Notify``'s ``severity``. Each loses its
+  hand-rolled ``_add_param(NodeParam(...))`` declaration plus
+  associated ``@property``/``@setter`` pair in favour of one
+  descriptor declaration with ``constant=True``. The error message
+  on out-of-range enum sets shifted from the legacy
+  ``"X must be one of [...]"`` to ``EnumParam``'s
+  ``"X: cannot map ... to a Y member"`` — the two corresponding
+  tests (``test_apply_colormap``, ``test_resize``) updated to
+  match.
+
+## [0.2.30] — 2026-04-28
+
+### Added
+- **``StringParam`` and ``FilePathParam`` descriptors.** The last
+  two pieces of the H2 descriptor surface for port-style params:
+  - ``StringParam`` — line-edit-backed text param with optional
+    ``placeholder`` / ``max_length`` widget metadata.
+  - ``FilePathParam`` — path picker with ``mode`` (open / save /
+    directory), ``filter``, ``base_dir``, ``caption``. Storage
+    type is ``pathlib.Path``; ``_coerce`` runs incoming values
+    through ``store_relative_to(base_dir)`` so paths inside
+    ``base_dir`` end up in their portable relative form (matches
+    the legacy hand-rolled setter on every file-path-using
+    node).
+
+### Changed
+- **Param descriptor sweep — batch 3 (H2 PR-2c).** Migrated NCC
+  (full — ``template`` to ``FilePathParam`` and ``retain_size`` to
+  ``BoolParam``) and Notify (partial — ``message`` to
+  ``StringParam``; ``severity`` stays as a ``NodeParam`` until the
+  descriptor protocol gains a ``constant=True`` flag in PR-2d).
+  NCC's loaded-template-image slot was renamed
+  ``self._template`` → ``self._template_image`` so it doesn't
+  collide with the descriptor's ``Path`` storage on the same
+  attribute name.
+
+## [0.2.29] — 2026-04-28
+
+### Added
+- **``BoolParam``, ``EnumParam``, ``ClampedFloatParam`` descriptors;
+  ``min_exclusive`` / ``max_exclusive`` flag on ``FloatParam``.**
+  Four new pieces in ``core.params`` covering the descriptor types
+  the next batch of filters needed:
+  - ``BoolParam`` — toggle backed by ``IoDataType.BOOL``.
+  - ``EnumParam`` — combo-box backed by ``IoDataType.ENUM``; coerce
+    accepts the enum member, its ``.value``, or its ``.name``.
+  - ``ClampedFloatParam`` — float whose ``min`` / ``max`` clamp via
+    ``_shape`` rather than raise via ``_validate``. Used when
+    out-of-range input is a UX choice (``Overlay.alpha`` —
+    ``2.5`` becomes ``1.0``, no exception).
+  - ``FloatParam(min_exclusive=True)`` / ``max_exclusive=True`` —
+    strict bounds (``> min`` rather than ``>= min``). Used by
+    ``Overlay.scale`` which must be strictly positive.
+
+### Changed
+- **Param descriptor sweep — batch 2 (H2 PR-2b).** Migrated six more
+  filters: Overlay, Subpixel Mosaic, Flip, Dither, Rotate, Scale.
+  Each loses its ``self._<name>`` init lines, hand-rolled
+  ``_add_input(InputPort(...))`` constructions, and per-param
+  ``@property``/``@setter`` pairs in favour of single descriptor
+  declarations. ``Overlay`` is the headline migration since it
+  exercises all five descriptor types in one node — including the
+  new clamping float and exclusive-bound float.
+
+## [0.2.28] — 2026-04-28
+
+### Changed
+- **Param descriptor sweep — batch 1 (H2 PR-2a).** Migrated eight
+  more filters to the class-level descriptor pattern landed in
+  PR-1: Median, Delay, Clamp, Shift, Temporal Mean, Temporal Median,
+  Adaptive Gaussian Threshold and Crop. Each loses the
+  ``self._<name>`` init line, the hand-rolled
+  ``_add_input(InputPort(...))``, and the ``@property``/``@setter``
+  pair in favour of a single descriptor declaration. Files are
+  30–50% smaller; metadata, validation and port construction now
+  live in one place per parameter.
+- **Descriptor protocol: validation runs before shaping.**
+  ``_ParamBase.__set__`` is now ``coerce → validate → shape`` rather
+  than ``coerce → validate``. Domain subclasses override the new
+  ``_shape`` hook (e.g. ``OddIntParam``'s even→odd rounding) so a
+  literal value below ``min`` raises rather than being silently
+  shaped up into range. Preserves the semantics of the hand-rolled
+  setters this descriptor replaces — e.g. ``Median.size = 0`` still
+  raises ``ValueError``.
+
+### Deferred
+- ``Overlay`` and the remaining nodes that need new descriptor
+  types (Bool/String/Enum/FilePath, plus a clamping float for
+  ``Overlay.alpha`` and an exclusive-bound float for
+  ``Overlay.scale``) move in subsequent PRs.
+
+## [0.2.27] — 2026-04-28
+
+### Changed
+- **Class-level node-parameter descriptors (PR-1 of 2).** Node
+  parameters used to require three coupled declarations — backing
+  attribute, hand-built ``InputPort``, ``@property``/``@setter`` —
+  all keyed by the same name and easy to drift. The new
+  ``core.params`` module ships ``IntParam``, ``OddIntParam`` and
+  ``FloatParam`` descriptors that own storage, coercion, validation,
+  metadata and port construction in one declaration. ``NodeBase``
+  collects them via ``__init_subclass__``, initialises every private
+  slot from the declared default before subclass ``__init__`` runs,
+  and auto-creates each descriptor's matching ``InputPort`` in
+  ``_apply_default_params`` *after* the explicit ports the subclass
+  added — preserving image-first / params-second visual ordering on
+  every node. ``OddIntParam`` demonstrates the OCP property: the
+  even→odd kernel-size rule is named once and inherited by any
+  filter that needs it, instead of being re-implemented inside each
+  setter. ``GaussianBlur`` migrated as the proof (95 → 57 lines). No
+  behaviour change; ``.flowjs`` save format unchanged. The remaining
+  ~40 nodes migrate in PR-2, after which the legacy
+  ``_add_input(InputPort(...))`` path retires. Backlog item H2 from
+  ``refacturing.txt``.
+
+### Fixed
+- **Drive-by typing fix in ``core/node_base.py``.** The module
+  imported ``override`` from ``typing``, which only became available
+  in Python 3.12 — the rest of the codebase uses
+  ``typing_extensions.override`` for 3.11 compatibility. Aligned this
+  one outlier so the file imports cleanly under 3.11 (matching
+  ``pyproject.toml``'s ``requires-python = ">=3.11"``).
+
 
 ## [0.2.26] — 2026-04-28
 

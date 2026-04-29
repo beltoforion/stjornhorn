@@ -4,8 +4,9 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import IntParam
 from core.port import InputPort, OutputPort
 
 
@@ -15,71 +16,31 @@ class Shift(NodeBase):
     Uses ``cv2.warpAffine`` with a pure translation matrix so that the
     output canvas keeps the input's width and height — pixels shifted
     outside the frame are dropped and exposed areas are filled with
-    black (OpenCV's default border). Ported from the original OCVL
-    ``ShiftProcessor``.
+    black (OpenCV's default border).
     """
+
+    offset_x = IntParam(
+        0,
+        unit="px",
+        description=(
+            "Horizontal shift in pixels. Positive moves right; "
+            "exposed areas at the left edge are filled with black."
+        ),
+    )
+    offset_y = IntParam(
+        0,
+        unit="px",
+        description=(
+            "Vertical shift in pixels. Positive moves down; "
+            "exposed areas at the top edge are filled with black."
+        ),
+    )
 
     def __init__(self) -> None:
         super().__init__("Shift", section="Transform")
-        self._offset_x: int = 0
-        self._offset_y: int = 0
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "offset_x",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0,
-            metadata={
-                "default": 0,
-                "param_type": NodeParamType.INT,
-                "unit": "px",
-                "description": (
-                    "Horizontal shift in pixels. Positive moves right; "
-                    "exposed areas at the left edge are filled with "
-                    "black."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "offset_y",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0,
-            metadata={
-                "default": 0,
-                "param_type": NodeParamType.INT,
-                "unit": "px",
-                "description": (
-                    "Vertical shift in pixels. Positive moves down; "
-                    "exposed areas at the top edge are filled with "
-                    "black."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def offset_x(self) -> int:
-        return self._offset_x
-
-    @offset_x.setter
-    def offset_x(self, value: int) -> None:
-        self._offset_x = int(value)
-
-    @property
-    def offset_y(self) -> int:
-        return self._offset_y
-
-    @offset_y.setter
-    def offset_y(self, value: int) -> None:
-        self._offset_y = int(value)
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

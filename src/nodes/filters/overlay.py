@@ -5,7 +5,8 @@ import numpy as np
 from typing_extensions import override
 
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.node_base import NodeBase
+from core.params import ClampedFloatParam, FloatParam, IntParam
 from core.port import InputPort, OutputPort
 
 
@@ -36,166 +37,61 @@ class Overlay(NodeBase):
       image is always reduced to BGR before compositing — any alpha
       channel on the base is dropped.
 
-    Port-driven params:
-      Every numeric parameter (``scale``, ``angle``, ``xpos``,
-      ``ypos``, ``alpha``) has a matching optional SCALAR input port,
-      auto-created from the param declaration by
-      :meth:`NodeBase._apply_default_params`. When the port is
-      connected — typically to a
-      :class:`~nodes.sources.value_source.ValueSource` — each
-      streamed value overrides the literal param for that frame,
-      restored to the user-set fallback after the frame. So wiring
-      a 0..359 ramp into ``angle`` produces a full rotation per Run,
-      a 0.5..2.0 ramp into ``scale`` an animated zoom, etc. The
-      ``angle`` port is declared explicitly here at index 2 so saved
-      flows that connected to it pre-auto-port keep loading
-      unchanged; the rest of the param ports come after it via
-      auto-creation.
+    Param ordering note:
+      ``angle`` is declared first so the auto-created ports land in
+      the order ``angle, scale, xpos, ypos, alpha`` — index 2..6 on
+      ``self.inputs``, matching the layout saved flows reference.
     """
+
+    angle = FloatParam(
+        0.0,
+        unit="deg",
+        description=(
+            "Overlay rotation in degrees, counter-clockwise around "
+            "its centre. The bounding box is expanded so no pixels "
+            "are lost."
+        ),
+    )
+    scale = FloatParam(
+        1.0,
+        min=0.0,
+        min_exclusive=True,
+        description="Overlay scale factor. 1.0 = unchanged.",
+    )
+    xpos = IntParam(
+        0,
+        unit="px",
+        description=(
+            "X-coordinate (in base-image pixels) of the overlay's "
+            "centre — not its top-left corner."
+        ),
+    )
+    ypos = IntParam(
+        0,
+        unit="px",
+        description=(
+            "Y-coordinate (in base-image pixels) of the overlay's "
+            "centre — not its top-left corner."
+        ),
+    )
+    alpha = ClampedFloatParam(
+        1.0,
+        min=0.0,
+        max=1.0,
+        description=(
+            "Global opacity multiplier in [0, 1]. Out-of-range values "
+            "clamp rather than raise so a sweep into negative or >1 "
+            "territory just saturates. For BGRA overlays this "
+            "multiplies on top of the per-pixel alpha channel."
+        ),
+    )
 
     def __init__(self) -> None:
         super().__init__("Overlay", section="Composit")
-
-        self._scale: float = 1.0
-        self._angle: float = 0.0
-        self._xpos:  int   = 0
-        self._ypos:  int   = 0
-        self._alpha: float = 1.0
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._add_input(InputPort("overlay", set(IMAGE_TYPES)))
-        # Param-style inputs declared inline. ``angle`` lands at index 2
-        # for backwards compat with saved flows that referenced this
-        # port before the auto-port mechanism existed; scale / xpos /
-        # ypos / alpha follow at indices 3..6 in the same order the
-        # old auto-port pass produced them.
-        self._add_input(InputPort(
-            "angle",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0.0,
-            metadata={
-                "default": 0.0,
-                "param_type": NodeParamType.FLOAT,
-                "unit": "deg",
-                "description": (
-                    "Overlay rotation in degrees, counter-clockwise around "
-                    "its centre. The bounding box is expanded so no pixels "
-                    "are lost."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "scale",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=1.0,
-            metadata={
-                "default": 1.0,
-                "param_type": NodeParamType.FLOAT,
-                "min": 0.0,
-                "description": "Overlay scale factor. 1.0 = unchanged.",
-            },
-        ))
-        self._add_input(InputPort(
-            "xpos",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0,
-            metadata={
-                "default": 0,
-                "param_type": NodeParamType.INT,
-                "unit": "px",
-                "description": (
-                    "X-coordinate (in base-image pixels) of the overlay's "
-                    "centre — not its top-left corner."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "ypos",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0,
-            metadata={
-                "default": 0,
-                "param_type": NodeParamType.INT,
-                "unit": "px",
-                "description": (
-                    "Y-coordinate (in base-image pixels) of the overlay's "
-                    "centre — not its top-left corner."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "alpha",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=1.0,
-            metadata={
-                "default": 1.0,
-                "param_type": NodeParamType.FLOAT,
-                "min": 0.0,
-                "max": 1.0,
-                "description": (
-                    "Global opacity multiplier in [0, 1]. For BGRA "
-                    "overlays this multiplies on top of the per-pixel "
-                    "alpha channel."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def scale(self) -> float:
-        return self._scale
-
-    @scale.setter
-    def scale(self, value: float) -> None:
-        v = float(value)
-        if v <= 0.0:
-            raise ValueError(f"scale must be > 0 (got {v})")
-        self._scale = v
-
-    @property
-    def angle(self) -> float:
-        return self._angle
-
-    @angle.setter
-    def angle(self, value: float) -> None:
-        self._angle = float(value)
-
-    @property
-    def xpos(self) -> int:
-        return self._xpos
-
-    @xpos.setter
-    def xpos(self, value: int) -> None:
-        self._xpos = int(value)
-
-    @property
-    def ypos(self) -> int:
-        return self._ypos
-
-    @ypos.setter
-    def ypos(self, value: int) -> None:
-        self._ypos = int(value)
-
-    @property
-    def alpha(self) -> float:
-        return self._alpha
-
-    @alpha.setter
-    def alpha(self, value: float) -> None:
-        v = float(value)
-        # Clamp to [0, 1] so cv2.addWeighted stays well-defined.
-        self._alpha = max(0.0, min(1.0, v))
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

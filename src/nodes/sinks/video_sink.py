@@ -9,8 +9,9 @@ from typing_extensions import override
 
 from constants import OUTPUT_DIR
 from core.io_data import IMAGE_TYPES
-from core.node_base import NodeParam, NodeParamType, SinkNodeBase
-from core.path_utils import resolve_against, store_relative_to
+from core.node_base import SinkNodeBase
+from core.params import EnumParam, FilePathParam, FloatParam
+from core.path_utils import resolve_against
 from core.port import InputPort
 
 
@@ -48,71 +49,22 @@ class VideoSink(SinkNodeBase):
     ``imageio`` isn't a pipeline dependency.
     """
 
+    output_path = FilePathParam(
+        "out.mp4",
+        constant=True,
+        mode="save",
+        filter="Video (*.mp4)",
+        base_dir=OUTPUT_DIR,
+    )
+    fps = FloatParam(30.0, min=0.0, min_exclusive=True, constant=True)
+    codec = EnumParam(VideoCodec, VideoCodec.MP4V, constant=True)
+
     def __init__(self) -> None:
         super().__init__("Video Sink", section="Sinks")
-
-        self._output_path: Path = Path("out.mp4")
-        self._fps: float = 30.0
-        self._codec: VideoCodec = VideoCodec.MP4V
-
         self._writer: cv2.VideoWriter | None = None
         self._frame_shape: tuple[int, ...] | None = None
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_param(NodeParam(
-            "output_path",
-            NodeParamType.FILE_PATH,
-            default="out.mp4",
-            metadata={"mode": "save", "filter": "Video (*.mp4)", "base_dir": OUTPUT_DIR},
-        ))
-        self._add_param(NodeParam(
-            "fps",
-            NodeParamType.FLOAT,
-            default=30.0,
-        ))
-        self._add_param(NodeParam(
-            "codec",
-            NodeParamType.ENUM,
-            default=VideoCodec.MP4V,
-            metadata={"enum": VideoCodec},
-        ))
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def output_path(self) -> Path:
-        return self._output_path
-
-    @output_path.setter
-    def output_path(self, output_path: str | Path) -> None:
-        self._output_path = store_relative_to(output_path, OUTPUT_DIR)
-
-    @property
-    def fps(self) -> float:
-        return self._fps
-
-    @fps.setter
-    def fps(self, value: float) -> None:
-        v = float(value)
-        if v <= 0:
-            raise ValueError(f"fps must be > 0 (got {v})")
-        self._fps = v
-
-    @property
-    def codec(self) -> VideoCodec:
-        return self._codec
-
-    @codec.setter
-    def codec(self, value: int | VideoCodec) -> None:
-        try:
-            self._codec = VideoCodec(value)
-        except ValueError as e:
-            raise ValueError(
-                f"codec must be one of {[c.value for c in VideoCodec]} (got {value!r})"
-            ) from e
-
-    # ── SinkNodeBase interface ──────────────────────────────────────────────────
 
     @override
     def _before_run_impl(self) -> None:

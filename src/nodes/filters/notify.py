@@ -5,8 +5,9 @@ from enum import IntEnum
 from typing_extensions import override
 
 from core import notifications
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParam, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import EnumParam, StringParam
 from core.port import InputPort, OutputPort
 
 
@@ -47,71 +48,35 @@ class Notify(NodeBase):
                   are forwarded verbatim.
     """
 
+    message = StringParam(
+        "",
+        placeholder="message shown in the banner",
+        description=(
+            "Text shown in the floating banner (or carried by "
+            "the raised RuntimeError when severity is ERROR). "
+            "Wire any STRING source in to drive the message "
+            "per frame."
+        ),
+    )
+    # ``constant=True``: the severity is a once-per-node UX choice,
+    # not a per-frame value worth driving from upstream — render
+    # inline with no socket dot.
+    severity = EnumParam(
+        NotifySeverity,
+        NotifySeverity.INFO,
+        constant=True,
+        description=(
+            "INFO (blue) and WARNING (amber) keep the run going; "
+            "ERROR (red) raises a RuntimeError that aborts at "
+            "this node."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Notify", section="UI")
-        self._severity: NotifySeverity = NotifySeverity.INFO
-        self._message:  str = ""
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "message",
-            {IoDataType.STRING},
-            optional=True,
-            default_value="",
-            metadata={
-                "default":     "",
-                "placeholder": "message shown in the banner",
-                "param_type":  NodeParamType.STRING,
-                "description": (
-                    "Text shown in the floating banner (or carried by "
-                    "the raised RuntimeError when severity is ERROR). "
-                    "Wire any STRING source in to drive the message "
-                    "per frame."
-                ),
-            },
-        ))
-        self._add_param(NodeParam(
-            "severity",
-            NodeParamType.ENUM,
-            default=NotifySeverity.INFO,
-            metadata={
-                "enum": NotifySeverity,
-                "description": (
-                    "INFO (blue) and WARNING (amber) keep the run going; "
-                    "ERROR (red) raises a RuntimeError that aborts at "
-                    "this node."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    # ── Properties ─────────────────────────────────────────────────────────────
-
-    @property
-    def severity(self) -> NotifySeverity:
-        return self._severity
-
-    @severity.setter
-    def severity(self, value: int | NotifySeverity) -> None:
-        try:
-            self._severity = NotifySeverity(value)
-        except ValueError as exc:
-            raise ValueError(
-                f"severity must be one of {[s.value for s in NotifySeverity]} "
-                f"(got {value!r})"
-            ) from exc
-
-    @property
-    def message(self) -> str:
-        return self._message
-
-    @message.setter
-    def message(self, value: str) -> None:
-        self._message = str(value)
-
-    # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:

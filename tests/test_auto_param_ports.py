@@ -119,32 +119,23 @@ def test_port_metadata_carries_widget_hints() -> None:
     assert md.get("step") == 1
 
 
-def test_apply_default_params_writes_default_to_attribute() -> None:
-    """``_apply_default_params`` reads each editable port's
-    ``default_value`` and writes it onto the matching instance
-    attribute via the property setter."""
+def test_descriptor_default_lands_on_attribute_at_construction() -> None:
+    """Each descriptor's declared default flows through its full
+    ``__set__`` pipeline (coerce / validate / shape) at
+    :meth:`NodeBase.__init__` time, so the public attribute matches
+    the descriptor's declared default the moment the node is
+    constructed — before any UI builder, save routine or scheduler
+    can read stale data.
+    """
+    from core.params import FloatParam
 
     class _ScaledEcho(NodeBase):
+        factor = FloatParam(2.5)
+
         def __init__(self) -> None:
             super().__init__("scaled-echo", section="Filters")
-            self._factor: float = 0.0
-            self._add_input(InputPort(
-                "factor",
-                {IoDataType.SCALAR},
-                optional=True,
-                default_value=2.5,
-                metadata={"default": 2.5, "param_type": NodeParamType.FLOAT},
-            ))
             self._add_output(OutputPort("out", {IoDataType.SCALAR}))
             self._apply_default_params()
-
-        @property
-        def factor(self) -> float:
-            return self._factor
-
-        @factor.setter
-        def factor(self, value: float) -> None:
-            self._factor = float(value)
 
         @override
         def process_impl(self) -> None:  # pragma: no cover

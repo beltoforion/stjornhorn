@@ -4,8 +4,9 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.io_data import IMAGE_TYPES
+from core.node_base import NodeBase
+from core.params import BoolParam, FloatParam
 from core.port import InputPort, OutputPort
 
 
@@ -19,61 +20,28 @@ class Rotate(NodeBase):
     keeps the input dimensions and corners may fall outside.
     """
 
+    angle = FloatParam(
+        0.0,
+        unit="deg",
+        description=(
+            "Rotation angle in degrees, counter-clockwise around "
+            "the image centre."
+        ),
+    )
+    expand = BoolParam(
+        True,
+        description=(
+            "When on, the output canvas grows so no pixel is "
+            "clipped. When off, the output keeps the input "
+            "dimensions and corners may fall outside."
+        ),
+    )
+
     def __init__(self) -> None:
         super().__init__("Rotate", section="Transform")
-        self._angle:  float = 0.0
-        self._expand: bool  = True
-
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
-        self._add_input(InputPort(
-            "angle",
-            {IoDataType.SCALAR},
-            optional=True,
-            default_value=0.0,
-            metadata={
-                "default": 0.0,
-                "param_type": NodeParamType.FLOAT,
-                "unit": "deg",
-                "description": (
-                    "Rotation angle in degrees, counter-clockwise around "
-                    "the image centre."
-                ),
-            },
-        ))
-        self._add_input(InputPort(
-            "expand",
-            {IoDataType.BOOL},
-            optional=True,
-            default_value=True,
-            metadata={
-                "default": True,
-                "param_type": NodeParamType.BOOL,
-                "description": (
-                    "When on, the output canvas grows so no pixel is "
-                    "clipped. When off, the output keeps the input "
-                    "dimensions and corners may fall outside."
-                ),
-            },
-        ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
-
         self._apply_default_params()
-
-    @property
-    def angle(self) -> float:
-        return self._angle
-
-    @angle.setter
-    def angle(self, value: float) -> None:
-        self._angle = float(value)
-
-    @property
-    def expand(self) -> bool:
-        return self._expand
-
-    @expand.setter
-    def expand(self, value: bool) -> None:
-        self._expand = bool(value)
 
     @override
     def process_impl(self) -> None:
