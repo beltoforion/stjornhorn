@@ -108,7 +108,8 @@
         "height": 360,
         "color_by_time": true,
         "equal_aspect": true,
-        "show_polarization": false
+        "show_polarization": false,
+        "title": "Particle Motion"
       }
     },
     {

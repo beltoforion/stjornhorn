@@ -165,6 +165,7 @@ class HodogramRenderer:
         color_by_time: bool,
         equal_aspect: bool,
         show_polarization: bool,
+        title: str = "",
     ) -> np.ndarray:
         fig = plt.figure(
             figsize=(width / _RENDER_DPI, height / _RENDER_DPI),
@@ -193,6 +194,8 @@ class HodogramRenderer:
 
             ax.set_xlabel(x_label)
             ax.set_ylabel(y_label)
+            if title:
+                ax.set_title(title)
             if equal_aspect:
                 ax.set_aspect("equal", adjustable="datalim")
             ax.grid(True, alpha=0.3)
@@ -318,6 +321,11 @@ class Hodogram(NodeBase):
             "from +X and the linearity ratio."
         ),
     )
+    title = StringParam(
+        "",
+        placeholder="(no title)",
+        description="Optional plot title rendered above the axes.",
+    )
 
     def __init__(self) -> None:
         super().__init__("Hodogram", section="Visualization")
@@ -347,6 +355,7 @@ class Hodogram(NodeBase):
             color_by_time=self._color_by_time,
             equal_aspect=self._equal_aspect,
             show_polarization=self._show_polarization,
+            title=self._title,
         )
         self.outputs[0].send(IoData.from_image(bgr))
 
