@@ -124,6 +124,30 @@
         "equal_aspect": true,
         "show_polarization": false
       }
+    },
+    {
+      "id": 7,
+      "module": "nodes.sources.constant_value",
+      "class": "ConstantValue",
+      "position": [
+        -1803.5411561839978,
+        -192.47277160856885
+      ],
+      "port_defaults": {
+        "value": 800.0
+      }
+    },
+    {
+      "id": 8,
+      "module": "nodes.sources.constant_value",
+      "class": "ConstantValue",
+      "position": [
+        -1803.5411561839978,
+        -80.47277160856885
+      ],
+      "port_defaults": {
+        "value": 0.0
+      }
     }
   ],
   "connections": [
@@ -156,6 +180,30 @@
       "src_output": 0,
       "dst_node": 4,
       "dst_input": 2
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 3
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 3
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 4
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 4
     }
   ],
   "backdrops": []
