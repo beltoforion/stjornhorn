@@ -202,7 +202,7 @@ class PlotXY(NodeBase):
                 ax.set_title(title)
             if grid:
                 ax.grid(True, alpha=0.3)
-            fig.tight_layout()
+            fig.tight_layout(pad=0.4)
             fig.canvas.draw()
             rgba = np.asarray(fig.canvas.buffer_rgba())
             return cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGR)
