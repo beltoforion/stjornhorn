@@ -14,7 +14,7 @@
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.001",
         "delimiter": ",",
-        "has_header": true,
+        "has_header": false,
         "decimal": "."
       },
       "size": [
