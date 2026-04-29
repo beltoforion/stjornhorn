@@ -31,7 +31,7 @@ def _wire_capture(node: DirectorySource) -> list[IoData]:
     """Attach a capturing sink to *node* and return its receive log."""
     captured: list[IoData] = []
     sink = InputPort("sink", {IoDataType.IMAGE})
-    sink.set_on_state_changed(
+    sink.add_listener(
         lambda: captured.append(sink.data) if sink.has_data else None,
     )
     node.outputs[0].connect(sink)

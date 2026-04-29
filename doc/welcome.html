@@ -220,6 +220,13 @@
     </section>
 
     <section>
+      <h2>What's new in v0.2.35</h2>
+      <ul class="tips">
+        <li><strong>Ports support multiple listeners (M11).</strong> The legacy <code>InputPort.set_on_state_changed</code> single-callback slot was a footgun: <code>NodeBase</code> wired its dispatcher there during port registration, but anyone else calling the same setter (debug hooks, UI indicators, tests) silently overwrote the dispatcher and broke the node's per-frame execution. Replaced with <code>add_listener</code> / <code>remove_listener</code> — multiple observers can coexist without clobbering each other. Listener invocation iterates a snapshot so a listener that registers another mid-fire doesn't corrupt the iteration. Backlog item M11.</li>
+      </ul>
+    </section>
+
+    <section>
       <h2>What's new in v0.2.34</h2>
       <ul class="tips">
         <li><strong>Display node shows total frame count.</strong> The top-left debug overlay now has two lines: FPS (from tick 2 as before) and <em>N</em> — the running count of frames processed since the last run started. The count is visible from the very first frame so you can tell at a glance how far into a stream the node is. The new <code>frames_processed</code> property exposes the same counter to tests and the UI without scraping the overlay text. Issue #207.</li>

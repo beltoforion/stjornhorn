@@ -111,5 +111,5 @@ def _capture_into(bucket: list[IoData]):
     from core.port import InputPort
 
     port = InputPort("sink", set(IMAGE_TYPES))
-    port.set_on_state_changed(lambda: bucket.append(port.data))
+    port.add_listener(lambda: bucket.append(port.data))
     return port
