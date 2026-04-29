@@ -34,10 +34,11 @@ import inspect
 import re
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
+    QScrollArea,
     QSizePolicy,
     QTextBrowser,
     QToolButton,
@@ -367,6 +368,25 @@ def has_details(desc: dict) -> bool:
     return False
 
 
+#: Default size the panel reports to its container. Constant — does **not**
+#: depend on the rendered docstring length — so a node with a long docstring
+#: never grows the dock and squashes its siblings (e.g. the Node List). When
+#: content overflows, the inner ``QScrollArea`` produces a scroll bar instead.
+#: Issue: #233.
+_PANEL_DEFAULT_HINT: QSize = QSize(280, 360)
+
+#: Smallest size the panel will accept. Stays well below the default hint
+#: so the user can shrink the dock without the panel shouldering it back up.
+_PANEL_MIN_HINT: QSize = QSize(180, 80)
+
+#: Floor height for the collapsible details ``QTextBrowser``. The browser
+#: scrolls internally when its content is taller than this; together with
+#: a ``QSizePolicy.Ignored`` vertical policy, it keeps the body from
+#: pushing the outer scroll bar around when long Parameters tables are
+#: open. Also #233.
+_DETAILS_MIN_HEIGHT: int = 120
+
+
 class NodeDocPanel(QWidget):
     """Dockable panel that renders the docs of the currently selected node.
 
@@ -392,9 +412,37 @@ class NodeDocPanel(QWidget):
         # never ``show()``-n.
         self._has_details: bool = False
 
-        layout = QVBoxLayout(self)
+        # Outer layout holds a ``QScrollArea`` that owns the actual body
+        # widget. Wrapping the body in a scroll area decouples the
+        # panel's reported size from its rendered docstring length —
+        # without this, a long docstring grew ``minimumSizeHint`` and
+        # pushed the dock taller, squashing the sibling Node List dock.
+        # Issue: #233.
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        self._scroll = QScrollArea(self)
+        self._scroll.setWidgetResizable(True)
+        # Wrap text rather than scrolling horizontally — narrow docks
+        # are common and a horizontal bar inside a vertical dock reads
+        # like a sizing bug.
+        self._scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        # The QScrollArea's default frame draws a 1-px border that
+        # collides with the dock's own border; drop it.
+        self._scroll.setFrameShape(QFrame.Shape.NoFrame)
+        outer.addWidget(self._scroll)
+
+        body = QWidget()
+        layout = QVBoxLayout(body)
         layout.setContentsMargins(8, 6, 8, 6)
         layout.setSpacing(4)
+        self._scroll.setWidget(body)
 
         # ── Summary head: rich-text QLabel sized to its content ───
         # Using QLabel rather than a second QTextBrowser keeps the
@@ -448,6 +496,12 @@ class NodeDocPanel(QWidget):
         layout.addWidget(self._rule)
 
         # ── Details body: full-height QTextBrowser ───────────────
+        # ``Ignored`` vertical policy + a small ``setMinimumHeight``
+        # together prevent the browser's own (potentially huge) content
+        # height from leaking into the body's ``sizeHint`` and forcing
+        # the outer scroll bar to appear. The browser scrolls internally
+        # whenever its content overflows the height the layout gives it.
+        # Issue: #233.
         self._details = QTextBrowser()
         self._details.setOpenExternalLinks(True)
         self._details.setVisible(False)
@@ -455,9 +509,33 @@ class NodeDocPanel(QWidget):
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
+        self._details.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored,
+        )
+        self._details.setMinimumHeight(_DETAILS_MIN_HEIGHT)
         layout.addWidget(self._details, 1)
 
         self.clear()
+
+    # ── Size negotiation ──────────────────────────────────────────────────────
+
+    def sizeHint(self) -> QSize:  # noqa: D401 — overrides Qt method
+        """Return a constant default size, decoupled from content length.
+
+        Without this, ``QWidget.sizeHint`` is derived from the layout
+        and grows with the rendered docstring; the enclosing
+        ``QDockWidget`` then resizes itself on every selection change
+        and squashes neighbouring docks. Returning a fixed value
+        keeps the dock at the user's chosen height; overflow is
+        handled by the inner ``QScrollArea``. Issue: #233.
+        """
+        return _PANEL_DEFAULT_HINT
+
+    def minimumSizeHint(self) -> QSize:  # noqa: D401 — overrides Qt method
+        """Floor for the panel's size — small so the user can shrink
+        the dock without the panel pushing back. The ``QScrollArea``
+        kicks in well before this floor matters in practice. #233."""
+        return _PANEL_MIN_HINT
 
     # ── Public slots ───────────────────────────────────────────────────────────
 
