@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.45</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.46</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,14 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.46</h2>
+      <ul class="tips">
+        <li><strong>Datenkrake: <code>PlotSeries</code> node.</strong> Combines <code>AddIndexColumn</code> + <code>PlotXY</code> into one node for the common case of plotting a raw single-column trace. Set <code>step = 1 / sample_rate</code> (e.g. <code>0.125</code> for 8 Hz) and connect directly from <code>CsvSource</code>. Internally reuses both nodes — no duplicated logic. Issue #240.</li>
+        <li><strong>Seismic demo flow simplified.</strong> <code>data_display_time_series.flowjs</code> drops from 15 to 9 nodes — the <code>AddIndexColumn</code>, <code>ConstantValue</code>, and <code>Math</code> helper nodes are gone.</li>
+      </ul>
     </section>
 
     <section>

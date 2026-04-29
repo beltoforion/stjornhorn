@@ -29,14 +29,11 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from core.io_data import IoDataType
 from core.node_base import NodeParamType
 from core.port import InputPort
-
-if TYPE_CHECKING:
-    pass
 
 
 class _ParamBase:
@@ -55,6 +52,11 @@ class _ParamBase:
 
     _NODE_PARAM_TYPE: NodeParamType
     _PORT_TYPE: IoDataType
+    #: Python type stored in the backing ``_<name>`` slot.  Subclasses
+    #: override this so :meth:`__set_name__` can annotate the owner class
+    #: and give static type-checkers (Pylance / pyright) visibility of
+    #: the otherwise-dynamic attribute.
+    _BACKING_TYPE: type = object
     #: Optional widget override consulted by the param-widget builder.
     #: ``None`` (the default) means "use the registry's per-NodeParamType
     #: default widget".
@@ -93,6 +95,14 @@ class _ParamBase:
     def __set_name__(self, owner: type, name: str) -> None:
         self.name = name
         self._private = f"_{name}"
+        # Annotate the backing attribute on the owner class so that static
+        # type-checkers (Pylance / pyright) recognise ``self._<name>`` as a
+        # known attribute with the correct type.  We write directly into
+        # owner.__dict__["__annotations__"] (via the class-level assignment
+        # below) to avoid touching parent-class annotation dicts.
+        ann = vars(owner).get("__annotations__", {})
+        ann[self._private] = self._BACKING_TYPE
+        owner.__annotations__ = ann
 
     def __get__(self, instance: object, owner: type | None = None) -> Any:
         if instance is None:
@@ -224,6 +234,7 @@ class IntParam(_ParamBase):
 
     _NODE_PARAM_TYPE = NodeParamType.INT
     _PORT_TYPE = IoDataType.SCALAR
+    _BACKING_TYPE = int
 
     def __init__(
         self,
@@ -302,6 +313,7 @@ class FloatParam(_ParamBase):
 
     _NODE_PARAM_TYPE = NodeParamType.FLOAT
     _PORT_TYPE = IoDataType.SCALAR
+    _BACKING_TYPE = float
 
     def __init__(
         self,
@@ -403,6 +415,7 @@ class BoolParam(_ParamBase):
 
     _NODE_PARAM_TYPE = NodeParamType.BOOL
     _PORT_TYPE = IoDataType.BOOL
+    _BACKING_TYPE = bool
 
     def __init__(
         self,
@@ -439,6 +452,7 @@ class EnumParam(_ParamBase):
 
     _NODE_PARAM_TYPE = NodeParamType.ENUM
     _PORT_TYPE = IoDataType.ENUM
+    _BACKING_TYPE = Enum
 
     def __init__(
         self,
@@ -464,6 +478,10 @@ class EnumParam(_ParamBase):
             constant=constant,
         )
         self.enum_cls: type[Enum] = enum_cls
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        self._BACKING_TYPE = self.enum_cls
+        super().__set_name__(owner, name)
 
     def _coerce(self, value: object) -> Enum:
         if isinstance(value, self.enum_cls):
@@ -499,6 +517,7 @@ class StringParam(_ParamBase):
 
     _NODE_PARAM_TYPE = NodeParamType.STRING
     _PORT_TYPE = IoDataType.STRING
+    _BACKING_TYPE = str
 
     def __init__(
         self,
@@ -559,6 +578,7 @@ class FilePathParam(_ParamBase):
 
     _NODE_PARAM_TYPE = NodeParamType.FILE_PATH
     _PORT_TYPE = IoDataType.PATH
+    _BACKING_TYPE = str
 
     _VALID_MODES = ("open", "save", "directory")
 

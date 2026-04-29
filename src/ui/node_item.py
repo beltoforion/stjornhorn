@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
-
 from typing_extensions import override
 
 from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, QTimer, Signal
@@ -37,9 +35,6 @@ from ui.theme import (
     SINK_HEADER_COLOR,
     SOURCE_HEADER_COLOR,
 )
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -110,10 +105,10 @@ class _SelectOnParamFocusFilter(QObject):
 class _ResizeGripItem(QGraphicsItem):
     """Bottom-right drag handle that resizes the owning node.
 
-    Width is always user-adjustable; dragging past :data:`NodeItem.MIN_WIDTH`
-    or :data:`NodeItem.MAX_USER_WIDTH` clamps. Vertical drag only changes
-    the node's height when the node has a preview widget (otherwise
-    content dictates height).
+    Width is user-adjustable without upper bound; dragging narrower than
+    :data:`NodeItem.MIN_WIDTH` clamps to the content-driven natural width.
+    Vertical drag only changes the node's height when the node has a preview
+    widget (otherwise content dictates height).
     """
 
     SIZE: float = 12.0
@@ -361,8 +356,6 @@ class NodeItem(QGraphicsItem):
     #: line-edit + Browse + View ≈ 160 px) next to a port label
     #: without overlapping.
     MAX_WIDTH: float = 320.0
-    #: Cap when the user drags the resize grip wider.
-    MAX_USER_WIDTH: float = 800.0
     MAX_USER_HEIGHT: float = 1000.0
 
     # ── Vertical metrics ───────────────────────────────────────────────────────
@@ -923,7 +916,7 @@ class NodeItem(QGraphicsItem):
         # ``MAX_USER_WIDTH``.
         natural_w = self._compute_width()
         if self._user_width is not None:
-            self._width = max(natural_w, min(self.MAX_USER_WIDTH, self._user_width))
+            self._width = max(natural_w, self._user_width)
         else:
             self._width = natural_w
 

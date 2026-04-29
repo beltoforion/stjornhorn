@@ -20,9 +20,6 @@ from ui.theme import STATUS_FAIL_COLOR, STATUS_MUTED_COLOR
 
 logger = logging.getLogger(__name__)
 
-# Images larger than this on either dimension are downsampled before
-# being converted to a QPixmap. Keeps memory sane for 4K inputs.
-_MAX_DIM: int = 1024
 
 
 class ViewerPanel(QWidget):
@@ -159,15 +156,6 @@ class ViewerPanel(QWidget):
     def _render_image(self, port_name: str, image: np.ndarray) -> None:
         rgba = self._to_rgba(image)
         h, w = rgba.shape[:2]
-
-        # Downsample oversized images before uploading to a QPixmap.
-        max_dim = max(h, w)
-        if max_dim > _MAX_DIM:
-            scale = _MAX_DIM / max_dim
-            new_w = max(1, int(w * scale))
-            new_h = max(1, int(h * scale))
-            rgba = cv2.resize(rgba, (new_w, new_h), interpolation=cv2.INTER_AREA)
-            h, w = rgba.shape[:2]
 
         rgba = np.ascontiguousarray(rgba)
         qimg = QImage(rgba.data, w, h, rgba.strides[0], QImage.Format.Format_RGBA8888).copy()

@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.46] — 2026-04-29
+
+### Added
+- **Datenkrake: ``PlotSeries`` node.** Convenience node that combines
+  ``AddIndexColumn`` + ``PlotXY`` into a single step for the common
+  case of plotting a raw single-column ``DATASET`` (e.g. directly
+  from ``CsvSource``). Internally instantiates and drives both nodes
+  so no logic is duplicated. Parameters: ``step`` (time step, e.g.
+  ``0.125`` for 8 Hz), ``start``, ``y_column``, ``width``,
+  ``height``, ``title``, ``grid``. Issue: #240.
+
+### Changed
+- **``data_display_time_series.flowjs`` simplified from 15 → 9 nodes.**
+  The two ``AddIndexColumn`` nodes, two ``ConstantValue`` nodes, and
+  the ``Math`` node are removed; both waveform branches now use
+  ``PlotSeries`` directly. The hodogram size is set via
+  ``port_defaults`` rather than a computed port connection.
+
 ## [0.2.45] — 2026-04-29
 
 ### Changed
