@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.44",
+  "app_version": "0.2.45",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -120,7 +120,7 @@
         -192.47277160856885
       ],
       "port_defaults": {
-        "value": 800.0
+        "value": 1600.0
       }
     },
     {
@@ -132,7 +132,7 @@
         -80.47277160856885
       ],
       "port_defaults": {
-        "value": 200.0
+        "value": 400.0
       }
     },
     {
@@ -213,6 +213,18 @@
         "c": 0.0,
         "d": 0.0,
         "expression": "a*2"
+      }
+    },
+    {
+      "id": 14,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -386.21375580374706,
+        -232.80523540678618
+      ],
+      "port_defaults": {
+        "output_path": "out.png"
       }
     }
   ],
@@ -330,6 +342,12 @@
       "src_output": 0,
       "dst_node": 5,
       "dst_input": 3
+    },
+    {
+      "src_node": 11,
+      "src_output": 0,
+      "dst_node": 14,
+      "dst_input": 0
     }
   ],
   "backdrops": [
