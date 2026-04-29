@@ -27,17 +27,21 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1308.2446372306495,
-        -898.619587382679
+        -1327.1358950963647,
+        -899.6138641124535
       ],
       "port_defaults": {
         "x_column": "",
         "y_column": "",
         "width": 640,
         "height": 360,
-        "title": "",
+        "title": "Earthquake Data",
         "grid": true
-      }
+      },
+      "size": [
+        225.66959513759662,
+        260.0
+      ]
     },
     {
       "id": 2,
