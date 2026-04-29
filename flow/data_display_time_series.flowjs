@@ -27,8 +27,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1359.5541519340327,
-        -629.4143382459176
+        -1438.6154156195048,
+        -647.2031225751488
       ],
       "port_defaults": {
         "x_column": "t",
@@ -67,8 +67,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1381.913799908658,
-        -251.0646096344395
+        -1460.97506359413,
+        -268.8533939636708
       ],
       "port_defaults": {
         "x_column": "t",
@@ -88,32 +88,18 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1024.0832775012009,
-        -540.8323519763024
+        -1103.1445411866732,
+        -558.6211363055337
       ],
       "port_defaults": {}
     },
     {
       "id": 5,
-      "module": "nodes.filters.display",
-      "class": "Display",
-      "position": [
-        -835.9507066377673,
-        -754.050051245123
-      ],
-      "port_defaults": {},
-      "size": [
-        800.0,
-        503.6963614614425
-      ]
-    },
-    {
-      "id": 6,
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -726.2078425953284,
-        -110.77925598117542
+        -805.2691062808007,
+        -128.56804031040667
       ],
       "port_defaults": {
         "x_column": "N",
@@ -126,7 +112,7 @@
       }
     },
     {
-      "id": 7,
+      "id": 6,
       "module": "nodes.sources.constant_value",
       "class": "ConstantValue",
       "position": [
@@ -138,7 +124,7 @@
       }
     },
     {
-      "id": 8,
+      "id": 7,
       "module": "nodes.sources.constant_value",
       "class": "ConstantValue",
       "position": [
@@ -150,7 +136,7 @@
       }
     },
     {
-      "id": 9,
+      "id": 8,
       "module": "nodes.filters.add_index_column",
       "class": "AddIndexColumn",
       "position": [
@@ -164,7 +150,7 @@
       }
     },
     {
-      "id": 10,
+      "id": 9,
       "module": "nodes.filters.add_index_column",
       "class": "AddIndexColumn",
       "position": [
@@ -178,15 +164,55 @@
       }
     },
     {
-      "id": 11,
+      "id": 10,
       "module": "nodes.filters.join_datasets",
       "class": "JoinDatasets",
       "position": [
-        -1200.0,
-        -200.0
+        -1106.7230794451348,
+        -217.1843924311907
       ],
       "port_defaults": {
         "column_names": "N,E"
+      }
+    },
+    {
+      "id": 11,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -649.1643724240095,
+        -689.2677788298641
+      ],
+      "port_defaults": {},
+      "size": [
+        800.0,
+        393.900462376949
+      ]
+    },
+    {
+      "id": 12,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
+      "position": [
+        -846.9887803562241,
+        -524.8993551965526
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 13,
+      "module": "nodes.filters.math",
+      "class": "Math",
+      "position": [
+        -1380.176905300757,
+        19.494024086168867
+      ],
+      "port_defaults": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "expression": "a*2"
       }
     }
   ],
@@ -194,11 +220,11 @@
     {
       "src_node": 0,
       "src_output": 0,
-      "dst_node": 9,
+      "dst_node": 8,
       "dst_input": 0
     },
     {
-      "src_node": 9,
+      "src_node": 8,
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 0
@@ -206,19 +232,13 @@
     {
       "src_node": 2,
       "src_output": 0,
-      "dst_node": 10,
+      "dst_node": 9,
       "dst_input": 0
     },
     {
-      "src_node": 10,
+      "src_node": 9,
       "src_output": 0,
       "dst_node": 3,
-      "dst_input": 0
-    },
-    {
-      "src_node": 4,
-      "src_output": 0,
-      "dst_node": 5,
       "dst_input": 0
     },
     {
@@ -234,25 +254,25 @@
       "dst_input": 2
     },
     {
-      "src_node": 7,
+      "src_node": 6,
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 3
     },
     {
-      "src_node": 7,
+      "src_node": 6,
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 3
     },
     {
-      "src_node": 8,
+      "src_node": 7,
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 4
     },
     {
-      "src_node": 8,
+      "src_node": 7,
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 4
@@ -260,26 +280,56 @@
     {
       "src_node": 0,
       "src_output": 0,
-      "dst_node": 11,
+      "dst_node": 10,
       "dst_input": 0
     },
     {
       "src_node": 2,
       "src_output": 0,
-      "dst_node": 11,
+      "dst_node": 10,
       "dst_input": 1
     },
     {
-      "src_node": 11,
+      "src_node": 10,
       "src_output": 0,
-      "dst_node": 6,
+      "dst_node": 5,
       "dst_input": 0
     },
     {
-      "src_node": 6,
+      "src_node": 5,
       "src_output": 0,
-      "dst_node": 4,
+      "dst_node": 12,
       "dst_input": 1
+    },
+    {
+      "src_node": 12,
+      "src_output": 0,
+      "dst_node": 11,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 12,
+      "dst_input": 0
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 13,
+      "dst_input": 0
+    },
+    {
+      "src_node": 13,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 4
+    },
+    {
+      "src_node": 13,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 3
     }
   ],
   "backdrops": [
