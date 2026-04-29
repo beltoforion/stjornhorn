@@ -175,6 +175,12 @@ label the node carries in the **Node List**.
 - **Value Source** — emits a SCALAR counter that advances by one per
   frame. Combine with `Math` to derive time- or frame-dependent
   parameters.
+- **CSV Source** — loads a CSV file as a `DATASET` (pandas DataFrame).
+  First-class producer for the data-flow side of Stjörnhorn: any
+  numeric CSV (seismic export, instrument log, simulation output, …)
+  is consumed straight into the visualization and data-processing
+  nodes. The source path is recorded in `df.attrs["source_path"]` for
+  downstream introspection.
 
 ### Sinks
 
@@ -265,17 +271,52 @@ label the node carries in the **Node List**.
 
 ### Composit
 
-- **Merge** — pastes up to four images into a 2×2 grid with inputs
-  `top_left`, `top_right`, `bottom_left`, `bottom_right`. Unconnected
-  quadrants are black; cell sizes are taken per row / per column so
-  mismatched inputs don't distort; mixed colour / greyscale inputs
-  are promoted to colour so nothing is lost.
+- **Mosaic** — generic image-domain layout primitive. Six optional
+  IMAGE inputs (`A`–`F`) are arranged according to a small layout
+  descriptor string: `"AB"` for a horizontal pair, `"A / B"` for a
+  vertical stack, `"AB / CD"` for a 2×2 grid, `"AC / BC"` for an
+  L-shape (A and B on the left, C spanning two rows on the right),
+  `"AB / .B"` with `.` denoting an explicitly empty cell. A letter
+  occupying multiple adjacent cells declares a spanning input; cells
+  must form an axis-aligned rectangle. Cell sizes are taken per row
+  / per column so mismatched inputs don't distort; mixed colour /
+  greyscale inputs are promoted to colour so nothing is lost.
 - **Overlay** — composites an overlay image onto a base image with
   configurable position, scale, and blend opacity. Honours the
   overlay's alpha channel when present.
 - **Masked Blend** — per-pixel blend of two images driven by a
   greyscale mask: black picks the first input, white picks the
   second, intermediate values blend proportionally.
+
+### Data
+
+- **Add Index Column** — prepends a synthetic numeric column (e.g. a
+  sample index or time axis) to a `DATASET`. Set `step = 1 /
+  sample_rate` for a time axis in seconds. The new column lands at
+  position 0 so it becomes the natural X for downstream plotters.
+- **Join Datasets** — merges up to four `DATASET` inputs into a
+  single multi-column DataFrame. The optional `column_names`
+  parameter (comma-separated) renames the first column of each input
+  before joining, so a stack of CSV traces (all with the generic name
+  `c0` from `CsvSource`) can be assembled into a labelled multi-channel
+  dataset in one step.
+
+### Visualization
+
+- **Plot XY** — renders two columns of a `DATASET` as an XY line
+  plot. Generic enough for waveforms (time vs amplitude), CV curves,
+  I-V characteristics, spectra, or any "Y vs X" view from a single
+  dataset.
+- **Plot Series** — convenience node combining `Add Index Column` +
+  `Plot XY` into one step for the common case of plotting a raw
+  single-column trace (e.g. straight from `CSV Source`). Set `step =
+  1 / sample_rate` to produce a time axis in seconds.
+- **Hodogram** — particle-motion plot. Two `DATASET` inputs (`x`,
+  `y`) carry the two channels; the first column of each is the
+  signal. Optional time-coloured trajectory (viridis colormap),
+  forced 1:1 axis aspect, and an overlaid PCA principal-axis fit
+  with a linearity readout — the canonical seismic N-vs-E
+  polarisation analysis falls out of the defaults.
 
 ### Math
 
