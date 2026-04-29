@@ -10,6 +10,21 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.42] — 2026-04-29
+
+### Fixed
+- **Node Documentation dock no longer auto-resizes to its content.**
+  Selecting a node with a long docstring or many parameters (e.g.
+  the new ``Hodogram``) was pushing the dock taller and squashing
+  the sibling Node List dock. Root cause: the summary ``QLabel``'s
+  word-wrap-driven minimum height bled through ``sizeHint`` /
+  ``minimumSizeHint`` to the enclosing ``QDockWidget``. Fix: wrap
+  the panel body in a ``QScrollArea`` and override the panel's
+  size-hint methods to fixed defaults (``280×360`` /
+  ``180×80``). Long content now produces a vertical scroll bar
+  inside the panel; the dock retains the user's chosen size.
+  Issue: #233.
+
 ## [0.2.41] — 2026-04-29
 
 ### Added
