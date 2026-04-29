@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.41",
+  "app_version": "0.2.42",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -1593.4955141080093,
-        -677.5768324584059
+        -1704.702004370738,
+        -671.8739355218556
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.001",
@@ -27,8 +27,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1380.1957296217763,
-        -986.7120830503933
+        -1491.402219884505,
+        -981.0091861138433
       ],
       "port_defaults": {
         "x_column": "",
@@ -48,8 +48,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -1587.7905199491074,
-        -477.5385107287036
+        -1698.9970102118364,
+        -471.8356137921535
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.002",
@@ -67,8 +67,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1377.9437382456463,
-        -255.0095323316501
+        -1489.1502285083752,
+        -249.30663539509987
       ],
       "port_defaults": {
         "x_column": "",
@@ -88,8 +88,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1005.0003593728941,
-        -655.151281560477
+        -1116.2068496356228,
+        -649.4483846239268
       ],
       "port_defaults": {}
     },
@@ -98,8 +98,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -827.4826813685788,
-        -810.7773341985512
+        -938.6891716313074,
+        -805.0744372620011
       ],
       "port_defaults": {},
       "size": [
@@ -112,8 +112,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -805.3563292632964,
-        -86.28817813535318
+        -1163.2131120318204,
+        -109.09976588155396
       ],
       "port_defaults": {
         "x_column": "N",
