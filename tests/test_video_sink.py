@@ -12,7 +12,7 @@ from core.flow import Flow
 from core.io_data import IoData, IoDataType
 from core.node_base import SourceNodeBase
 from core.port import OutputPort
-from nodes.filters.merge import Merge
+from nodes.filters.mosaic import Mosaic
 from nodes.sinks.video_sink import VideoSink
 
 
@@ -163,8 +163,8 @@ def test_flow_latches_reactive_source_across_streaming_frames(tmp_path: Path) ->
     filter must stay available while a streaming source drives the other
     input — otherwise only one paired frame would reach the sink.
 
-    Drives ``Merge`` with a streaming greyscale source on ``top_left`` and
-    a reactive one-shot source on ``top_right``; every frame of the
+    Drives ``Mosaic`` with a streaming greyscale source on input ``A``
+    and a reactive one-shot source on input ``B``; every frame of the
     streaming source must produce a merged output, not just the last one."""
     fixed = np.full((16, 16), 255, dtype=np.uint8)
     frames: list[np.ndarray] = []
@@ -178,7 +178,8 @@ def test_flow_latches_reactive_source_across_streaming_frames(tmp_path: Path) ->
 
     streaming_src = _GreyFrameListSource(frames)
     reactive_src = _ReactiveImageSource(fixed)
-    merge = Merge()
+    merge = Mosaic()
+    merge.layout = "AB"
     sink = VideoSink()
     sink.output_path = tmp_path / "latched.mp4"
     sink.fps = 30.0

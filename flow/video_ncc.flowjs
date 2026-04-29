@@ -73,13 +73,15 @@
     },
     {
       "id": 5,
-      "module": "nodes.filters.merge",
-      "class": "Merge",
+      "module": "nodes.filters.mosaic",
+      "class": "Mosaic",
       "position": [
         -1837.6681304427102,
         -1248.3816514463538
       ],
-      "port_defaults": {}
+      "port_defaults": {
+        "layout": "AB"
+      }
     }
   ],
   "connections": [
