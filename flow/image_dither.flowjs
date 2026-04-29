@@ -98,13 +98,15 @@
     },
     {
       "id": 8,
-      "module": "nodes.filters.merge",
-      "class": "Merge",
+      "module": "nodes.filters.mosaic",
+      "class": "Mosaic",
       "position": [
         -1122.817116989209,
         -1150.2888901568426
       ],
-      "port_defaults": {}
+      "port_defaults": {
+        "layout": "AB / CD"
+      }
     },
     {
       "id": 9,

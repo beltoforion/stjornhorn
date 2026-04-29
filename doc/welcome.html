@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.47</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.48</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.48</h2>
+      <ul class="tips">
+        <li><strong><code>Mosaic</code> node replaces <code>Merge</code>.</strong> Single layout-driven image composer that subsumes the fixed 2x2 <code>Merge</code> and the proposed <code>StackVertical</code> / <code>StackHorizontal</code> primitives. The layout is described by a small string: <code>"AB"</code> for a horizontal pair, <code>"A / B"</code> for a vertical stack, <code>"AB / CD"</code> for the classic 2x2, and <code>"AC / BC"</code> for an L-shape where input C spans two rows on the right. Six optional <code>IMAGE</code> inputs (A-F); <code>.</code> declares an explicitly empty cell. The bundled seismic flow collapses two <code>Merge</code> nodes into one <code>Mosaic("AC / BC")</code>. Issue #223.</li>
+      </ul>
     </section>
 
     <section>

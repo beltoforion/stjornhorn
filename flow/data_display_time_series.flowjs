@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.47",
+  "app_version": "0.2.48",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -98,26 +98,18 @@
     },
     {
       "id": 5,
-      "module": "nodes.filters.merge",
-      "class": "Merge",
+      "module": "nodes.filters.mosaic",
+      "class": "Mosaic",
       "position": [
-        -1376.2028555675033,
-        -608.6838869515992
+        -1300.0,
+        -500.0
       ],
-      "port_defaults": {}
+      "port_defaults": {
+        "layout": "AC / BC"
+      }
     },
     {
       "id": 6,
-      "module": "nodes.filters.merge",
-      "class": "Merge",
-      "position": [
-        -1229.8730188961135,
-        -413.03315838098365
-      ],
-      "port_defaults": {}
-    },
-    {
-      "id": 7,
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
@@ -131,7 +123,7 @@
       ]
     },
     {
-      "id": 8,
+      "id": 7,
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
@@ -178,6 +170,12 @@
       "src_node": 3,
       "src_output": 0,
       "dst_node": 5,
+      "dst_input": 1
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 5,
       "dst_input": 2
     },
     {
@@ -187,21 +185,9 @@
       "dst_input": 0
     },
     {
-      "src_node": 4,
-      "src_output": 0,
-      "dst_node": 6,
-      "dst_input": 1
-    },
-    {
       "src_node": 6,
       "src_output": 0,
       "dst_node": 7,
-      "dst_input": 0
-    },
-    {
-      "src_node": 7,
-      "src_output": 0,
-      "dst_node": 8,
       "dst_input": 0
     }
   ],

@@ -10,6 +10,29 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.48] — 2026-04-29
+
+### Added
+- **``Mosaic`` node — generic image-domain layout primitive.**
+  Single node that subsumes the fixed 2x2 ``Merge`` and the proposed
+  ``StackVertical`` / ``StackHorizontal`` primitives. Layout is
+  declared by a small descriptor string: rows separated by ``/``,
+  each character is one cell (uppercase letter A–F or ``.`` for an
+  empty cell), and a letter occupying multiple adjacent cells
+  declares a spanning input. Examples: ``"AB"`` (horizontal pair),
+  ``"A / B"`` (vertical stack), ``"AB / CD"`` (2x2 grid),
+  ``"AC / BC"`` (A and B left, C spans two rows right).
+  Six optional ``IMAGE`` inputs labelled A–F. Same colour-promotion
+  and per-axis max-size rules as the old ``Merge``. Issue: #223.
+
+### Changed
+- **``Merge`` removed**, ``Mosaic`` takes over. The bundled
+  ``data_display_time_series.flowjs`` flow collapses its two
+  ``Merge`` nodes into one ``Mosaic("AC / BC")``. The other six
+  bundled flows that used ``Merge`` were rewired to ``Mosaic`` with
+  equivalent layouts (``"AB"`` for two-input pairings, ``"AB / CD"``
+  for 2x2 quadrants).
+
 ## [0.2.47] — 2026-04-29
 
 ### Changed
