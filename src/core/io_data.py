@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pandas as pd
 
 
 class IoDataType(Enum):
@@ -12,6 +13,7 @@ class IoDataType(Enum):
     IMAGE_GREY = "ImageGrey"
     SCALAR = "Scalar"
     MATRIX = "Matrix"
+    DATASET = "Dataset"
     BOOL = "Bool"
     STRING = "String"
     ENUM = "Enum"
@@ -39,6 +41,12 @@ class IoData:
         as a Python scalar.
       - :data:`IoDataType.MATRIX` — a 2-D numpy array of arbitrary dtype
         and shape; treats a single value as a 1×1 matrix.
+      - :data:`IoDataType.DATASET` — a :class:`pandas.DataFrame` carrying
+        labeled tabular data (seismic traces, CV curves, diode I-V,
+        spectra, …). Column names identify channels; ``df.attrs`` carries
+        free-form metadata (sample rate, units, station, sweep direction,
+        …). One generic payload kind serves every domain so the same
+        nodes (``Trim``, ``Resample``, ``PlotXY``, …) compose across them.
       - :data:`IoDataType.BOOL` / :data:`IoDataType.STRING` /
         :data:`IoDataType.ENUM` / :data:`IoDataType.PATH` — non-numeric
         payloads stored as raw Python objects (``bool``, ``str``,
@@ -104,6 +112,27 @@ class IoData:
                 f"Matrix payload must be 2-d (ndim==2), got shape {arr.shape}"
             )
         return cls(IoDataType.MATRIX, payload=arr)
+
+    @classmethod
+    def from_dataset(cls, df: pd.DataFrame) -> IoData:
+        """Wrap a :class:`pandas.DataFrame` as :data:`IoDataType.DATASET`.
+
+        The DataFrame is stored verbatim — its columns identify channels
+        and ``df.attrs`` carries domain metadata (``sample_rate``,
+        ``units``, ``station``, ``sweep_dir``, …) that downstream nodes
+        consume. Stored by reference, so a producer that mutates the
+        DataFrame after sending will be visible to consumers; producers
+        that need isolation should ``df.copy()`` before wrapping.
+
+        Rejects non-DataFrame inputs to keep the contract explicit; a
+        consumer's ``data.payload`` is always a DataFrame.
+        """
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError(
+                f"Dataset payload must be a pandas.DataFrame, "
+                f"got {type(df).__name__}"
+            )
+        return cls(IoDataType.DATASET, payload=df)
 
     @classmethod
     def from_bool(cls, value: object) -> IoData:

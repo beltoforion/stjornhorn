@@ -11,6 +11,7 @@
 - When a pull request changes source code, increment the version number as part of the PR. Skip the bump for PRs that only touch docs, config, CI, or similar non-source changes.
 - Whenever `APP_VERSION` in `src/constants.py` is bumped, also update the version references in `doc/welcome.html` (the `<span class="version">` in the hero header and the "What's new in …" heading) in the same PR. These are the user-facing "About / Welcome" surface and go stale silently otherwise.
 - Keep the PR description and the `CHANGELOG.md` entry in sync with what's actually on the branch. Whenever you add, remove, or rescope commits on a PR branch, update the PR title/body and the CHANGELOG so they reflect the branch's current state — not the PR's original proposal.
+- Claude may open pull requests autonomously when the change directly addresses an existing GitHub issue (Claude-filed or user-filed-and-explicitly-handed-off). Always reference the issue with `Fixes #N` / `Closes #N` in the PR body so it auto-closes on merge. For changes that don't tie to an existing issue, still wait for explicit permission before opening a PR.
 
 ## Branch Hygiene
 - Keep working branches regularly updated from the main branch (fetch + merge/rebase from `main`) while work is in progress.

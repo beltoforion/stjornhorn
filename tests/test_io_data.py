@@ -112,6 +112,53 @@ def test_from_matrix_rejects_scalar() -> None:
         IoData.from_matrix(np.array(7))
 
 
+# ── Dataset payload ───────────────────────────────────────────────────────────
+
+import pandas as pd
+
+
+def test_from_dataset_round_trips_dataframe() -> None:
+    df = pd.DataFrame({"V": [0.0, 0.5, 1.0], "I": [0.0, 1e-3, 5e-3]})
+    data = IoData.from_dataset(df)
+    assert data.type is IoDataType.DATASET
+    assert data.payload is df
+    assert data.is_image() is False
+
+
+def test_from_dataset_preserves_attrs() -> None:
+    """``df.attrs`` is the metadata channel for sample_rate, units,
+    station, etc. Filters rely on it surviving the wrapping."""
+    df = pd.DataFrame({"Z": [1.0, 2.0]})
+    df.attrs["sample_rate"] = 100.0
+    df.attrs["units"] = {"Z": "m/s"}
+    data = IoData.from_dataset(df)
+    assert data.payload.attrs["sample_rate"] == 100.0
+    assert data.payload.attrs["units"] == {"Z": "m/s"}
+
+
+def test_from_dataset_rejects_non_dataframe() -> None:
+    with pytest.raises(TypeError, match="pandas.DataFrame"):
+        IoData.from_dataset(np.array([[1, 2], [3, 4]]))
+
+
+def test_from_dataset_rejects_dict() -> None:
+    """A dict is a common 'almost-a-DataFrame' miss; the factory rejects
+    rather than silently coercing so the producer's contract is explicit."""
+    with pytest.raises(TypeError, match="pandas.DataFrame"):
+        IoData.from_dataset({"V": [0.0, 1.0]})  # type: ignore[arg-type]
+
+
+def test_repr_includes_shape_for_dataset() -> None:
+    df = pd.DataFrame({"V": [0.0, 1.0, 2.0], "I": [0.0, 1.0, 2.0]})
+    r = repr(IoData.from_dataset(df))
+    assert "DATASET" in r
+    assert "(3, 2)" in r
+
+
+def test_dataset_not_in_image_types() -> None:
+    assert IoDataType.DATASET not in IMAGE_TYPES
+
+
 # ── repr / metadata ───────────────────────────────────────────────────────────
 
 def test_repr_includes_type_and_shape_for_scalar() -> None:

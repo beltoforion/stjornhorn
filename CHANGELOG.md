@@ -10,6 +10,21 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.37] — 2026-04-29
+
+### Added
+- **Datenkrake foundation: ``IoDataType.DATASET`` payload.** New
+  payload kind on the ``IoData`` envelope that carries a
+  ``pandas.DataFrame``. Columns identify channels (``"time"``,
+  ``"Z"``, ``"N"``, ``"E"`` for seismic; ``"V"``, ``"I"`` for diode
+  I-V; etc.) and ``df.attrs`` carries free-form metadata
+  (``sample_rate``, ``units``, ``station``, …). One generic payload
+  kind serves every tabular domain so the same downstream nodes
+  compose across them. ``IoData.from_dataset(df)`` factory rejects
+  non-DataFrame input to keep the contract explicit. ``pandas`` added
+  to ``requirements.txt``. Issue: #219 (parent epic #218 — project
+  Datenkrake).
+
 ## [0.2.36] — 2026-04-29
 
 ### Fixed
