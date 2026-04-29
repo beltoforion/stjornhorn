@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.37",
+  "app_version": "0.2.39",
   "name": "data",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -1366.0,
-        -604.0
+        -1543.4390664425266,
+        -622.514740026375
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.001",
@@ -21,8 +21,75 @@
         455.0625,
         176.0
       ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.plot_xy",
+      "class": "PlotXY",
+      "position": [
+        -1327.1358950963647,
+        -899.6138641124535
+      ],
+      "port_defaults": {
+        "x_column": "",
+        "y_column": "",
+        "width": 640,
+        "height": 360,
+        "title": "Earthquake Data",
+        "grid": true
+      },
+      "size": [
+        225.66959513759662,
+        260.0
+      ]
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1036.8914204823855,
+        -901.5474486610598
+      ],
+      "port_defaults": {},
+      "size": [
+        746.3242490586122,
+        646.7737243305298
+      ]
+    },
+    {
+      "id": 3,
+      "module": "nodes.sources.csv_source",
+      "class": "CsvSource",
+      "position": [
+        -1537.1518242313464,
+        -431.51610072212446
+      ],
+      "port_defaults": {
+        "file_path": "quakedata/quake_eib_20000908_1139.002",
+        "delimiter": ",",
+        "has_header": true,
+        "decimal": "."
+      },
+      "size": [
+        446.9063994144451,
+        176.0
+      ]
     }
   ],
-  "connections": [],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    }
+  ],
   "backdrops": []
 }
