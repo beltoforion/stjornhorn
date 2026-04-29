@@ -27,8 +27,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1438.6154156195048,
-        -647.2031225751488
+        -1440.0623399127073,
+        -809.2586434138242
       ],
       "port_defaults": {
         "x_column": "t",
@@ -67,8 +67,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1460.97506359413,
-        -268.8533939636708
+        -1429.142729143676,
+        -281.8757126024929
       ],
       "port_defaults": {
         "x_column": "t",
@@ -98,8 +98,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -805.2691062808007,
-        -128.56804031040667
+        -738.028936090618,
+        -121.84402329138842
       ],
       "port_defaults": {
         "x_column": "N",
@@ -117,8 +117,8 @@
       "module": "nodes.sources.constant_value",
       "class": "ConstantValue",
       "position": [
-        -1803.5411561839978,
-        -192.47277160856885
+        -1780.3903674927585,
+        -120.12655694844585
       ],
       "port_defaults": {
         "value": 1600.0
@@ -129,8 +129,8 @@
       "module": "nodes.sources.constant_value",
       "class": "ConstantValue",
       "position": [
-        -1803.5411561839978,
-        -80.47277160856885
+        -1780.3903674927585,
+        -8.126556948445852
       ],
       "port_defaults": {
         "value": 400.0
@@ -141,8 +141,8 @@
       "module": "nodes.filters.add_index_column",
       "class": "AddIndexColumn",
       "position": [
-        -1748.4861803211988,
-        -757.1955810616265
+        -1741.7621633021809,
+        -935.3820320656101
       ],
       "port_defaults": {
         "name": "t",
@@ -155,8 +155,8 @@
       "module": "nodes.filters.add_index_column",
       "class": "AddIndexColumn",
       "position": [
-        -1753.0355623608866,
-        -545.5261771821298
+        -1747.9925495966227,
+        -449.70893466111977
       ],
       "port_defaults": {
         "name": "t",
@@ -169,8 +169,8 @@
       "module": "nodes.filters.join_datasets",
       "class": "JoinDatasets",
       "position": [
-        -1106.7230794451348,
-        -217.1843924311907
+        -1037.8019050001976,
+        -297.8725966594096
       ],
       "port_defaults": {
         "column_names": "N,E"
@@ -355,11 +355,11 @@
     {
       "position": [
         -2249.548680321199,
-        -805.1955810616265
+        -968.403631916702
       ],
       "size": [
         689.671875,
-        461.6694038794967
+        720.3744580859345
       ],
       "title": "Input",
       "color": [
@@ -371,8 +371,8 @@
     },
     {
       "position": [
-        -1829.5411561839978,
-        -240.47277160856885
+        -1806.3903674927585,
+        -168.12655694844585
       ],
       "size": [
         197.984375,
