@@ -112,8 +112,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -1163.2131120318204,
-        -109.09976588155396
+        -1193.8289902596696,
+        -182.85619979410012
       ],
       "port_defaults": {
         "x_column": "N",
@@ -146,7 +146,7 @@
         -80.47277160856885
       ],
       "port_defaults": {
-        "value": 0.0
+        "value": 200.0
       }
     }
   ],
