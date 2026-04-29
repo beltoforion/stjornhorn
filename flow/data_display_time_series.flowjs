@@ -51,6 +51,7 @@
       ],
       "port_defaults": {
         "step": 0.125,
+        "start": 0.0,
         "y_column": "c0",
         "width": 1600,
         "height": 400,
@@ -68,6 +69,7 @@
       ],
       "port_defaults": {
         "step": 0.125,
+        "start": 0.0,
         "y_column": "c0",
         "width": 1600,
         "height": 400,
@@ -92,8 +94,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -1000.0,
-        -100.0
+        -1288.1999999999998,
+        -227.60000000000002
       ],
       "port_defaults": {
         "x_column": "N",
@@ -111,8 +113,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1000.0,
-        -550.0
+        -1275.0,
+        -602.8000000000002
       ],
       "port_defaults": {}
     },
@@ -121,8 +123,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -600.0,
-        -550.0
+        -949.7999999999998,
+        -556.5999999999999
       ],
       "port_defaults": {}
     },
@@ -131,13 +133,13 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -300.0,
-        -700.0
+        -1391.1999999999996,
+        -1096.0
       ],
       "port_defaults": {},
       "size": [
         800.0,
-        400.0
+        386.20000000000005
       ]
     },
     {
@@ -145,8 +147,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -300.0,
-        -400.0
+        -916.0,
+        -151.39999999999998
       ],
       "port_defaults": {
         "output_path": "out.png"
