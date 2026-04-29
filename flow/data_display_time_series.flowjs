@@ -8,8 +8,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -2201.4395652173916,
-        -737.428695652174
+        -2194.241739130435,
+        -534.4499999999999
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.001",
@@ -27,8 +27,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -2198.5604347826093,
-        -522.3630434782609
+        -2191.3626086956524,
+        -319.3843478260868
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.002",
@@ -226,8 +226,8 @@
   "backdrops": [
     {
       "position": [
-        -2251.3626086956524,
-        -785.7582608695652
+        -2244.1647826086955,
+        -582.7795652173911
       ],
       "size": [
         560.0,
