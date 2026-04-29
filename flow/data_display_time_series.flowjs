@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.45",
+  "app_version": "0.2.46",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -2223.548680321199,
-        -757.1955810616265
+        -2200.0,
+        -700.0
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.001",
@@ -24,32 +24,11 @@
     },
     {
       "id": 1,
-      "module": "nodes.filters.plot_xy",
-      "class": "PlotXY",
-      "position": [
-        -1440.0623399127073,
-        -809.2586434138242
-      ],
-      "port_defaults": {
-        "x_column": "t",
-        "y_column": "c0",
-        "width": 800,
-        "height": 300,
-        "title": "N-Component",
-        "grid": true
-      },
-      "size": [
-        225.66959513759662,
-        260.0
-      ]
-    },
-    {
-      "id": 2,
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -2221.3261109294363,
-        -545.5261771821298
+        -2200.0,
+        -400.0
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.002",
@@ -58,54 +37,69 @@
         "decimal": "."
       },
       "size": [
-        448.29054856854964,
+        455.0625,
         176.0
       ]
     },
     {
-      "id": 3,
-      "module": "nodes.filters.plot_xy",
-      "class": "PlotXY",
+      "id": 2,
+      "module": "nodes.filters.plot_series",
+      "class": "PlotSeries",
       "position": [
-        -1429.142729143676,
-        -281.8757126024929
+        -1600.0,
+        -700.0
       ],
       "port_defaults": {
-        "x_column": "t",
+        "step": 0.125,
         "y_column": "c0",
-        "width": 800,
-        "height": 300,
+        "width": 1600,
+        "height": 400,
+        "title": "N-Component",
+        "grid": true
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.plot_series",
+      "class": "PlotSeries",
+      "position": [
+        -1600.0,
+        -400.0
+      ],
+      "port_defaults": {
+        "step": 0.125,
+        "y_column": "c0",
+        "width": 1600,
+        "height": 400,
         "title": "E-Component",
         "grid": true
-      },
-      "size": [
-        247.03884939318573,
-        260.0
-      ]
+      }
     },
     {
       "id": 4,
-      "module": "nodes.filters.merge",
-      "class": "Merge",
+      "module": "nodes.filters.join_datasets",
+      "class": "JoinDatasets",
       "position": [
-        -1103.1445411866732,
-        -558.6211363055337
+        -1600.0,
+        -100.0
       ],
-      "port_defaults": {}
+      "port_defaults": {
+        "column_names": "N,E"
+      }
     },
     {
       "id": 5,
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -738.028936090618,
-        -121.84402329138842
+        -1000.0,
+        -100.0
       ],
       "port_defaults": {
         "x_column": "N",
         "y_column": "E",
-        "width": 360,
-        "height": 360,
+        "width": 800,
+        "height": 800,
         "color_by_time": true,
         "equal_aspect": true,
         "show_polarization": false,
@@ -114,115 +108,45 @@
     },
     {
       "id": 6,
-      "module": "nodes.sources.constant_value",
-      "class": "ConstantValue",
-      "position": [
-        -1780.3903674927585,
-        -120.12655694844585
-      ],
-      "port_defaults": {
-        "value": 1600.0
-      }
-    },
-    {
-      "id": 7,
-      "module": "nodes.sources.constant_value",
-      "class": "ConstantValue",
-      "position": [
-        -1780.3903674927585,
-        -8.126556948445852
-      ],
-      "port_defaults": {
-        "value": 400.0
-      }
-    },
-    {
-      "id": 8,
-      "module": "nodes.filters.add_index_column",
-      "class": "AddIndexColumn",
-      "position": [
-        -1741.7621633021809,
-        -935.3820320656101
-      ],
-      "port_defaults": {
-        "name": "t",
-        "start": 0.0,
-        "step": 0.125
-      }
-    },
-    {
-      "id": 9,
-      "module": "nodes.filters.add_index_column",
-      "class": "AddIndexColumn",
-      "position": [
-        -1747.9925495966227,
-        -449.70893466111977
-      ],
-      "port_defaults": {
-        "name": "t",
-        "start": 0.0,
-        "step": 0.125
-      }
-    },
-    {
-      "id": 10,
-      "module": "nodes.filters.join_datasets",
-      "class": "JoinDatasets",
-      "position": [
-        -1037.8019050001976,
-        -297.8725966594096
-      ],
-      "port_defaults": {
-        "column_names": "N,E"
-      }
-    },
-    {
-      "id": 11,
-      "module": "nodes.filters.display",
-      "class": "Display",
-      "position": [
-        -649.1643724240095,
-        -689.2677788298641
-      ],
-      "port_defaults": {},
-      "size": [
-        800.0,
-        393.900462376949
-      ]
-    },
-    {
-      "id": 12,
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -846.9887803562241,
-        -524.8993551965526
+        -1000.0,
+        -550.0
       ],
       "port_defaults": {}
     },
     {
-      "id": 13,
-      "module": "nodes.filters.math",
-      "class": "Math",
+      "id": 7,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
       "position": [
-        -1380.176905300757,
-        19.494024086168867
+        -600.0,
+        -550.0
       ],
-      "port_defaults": {
-        "a": 0.0,
-        "b": 0.0,
-        "c": 0.0,
-        "d": 0.0,
-        "expression": "a*2"
-      }
+      "port_defaults": {}
     },
     {
-      "id": 14,
+      "id": 8,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -300.0,
+        -700.0
+      ],
+      "port_defaults": {},
+      "size": [
+        800.0,
+        400.0
+      ]
+    },
+    {
+      "id": 9,
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -386.21375580374706,
-        -232.80523540678618
+        -300.0,
+        -400.0
       ],
       "port_defaults": {
         "output_path": "out.png"
@@ -233,156 +157,85 @@
     {
       "src_node": 0,
       "src_output": 0,
-      "dst_node": 8,
+      "dst_node": 2,
       "dst_input": 0
     },
     {
-      "src_node": 8,
-      "src_output": 0,
-      "dst_node": 1,
-      "dst_input": 0
-    },
-    {
-      "src_node": 2,
-      "src_output": 0,
-      "dst_node": 9,
-      "dst_input": 0
-    },
-    {
-      "src_node": 9,
+      "src_node": 1,
       "src_output": 0,
       "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
       "dst_input": 0
     },
     {
       "src_node": 1,
       "src_output": 0,
       "dst_node": 4,
-      "dst_input": 0
+      "dst_input": 1
     },
     {
-      "src_node": 3,
+      "src_node": 4,
       "src_output": 0,
-      "dst_node": 4,
-      "dst_input": 2
-    },
-    {
-      "src_node": 6,
-      "src_output": 0,
-      "dst_node": 1,
-      "dst_input": 3
-    },
-    {
-      "src_node": 6,
-      "src_output": 0,
-      "dst_node": 3,
-      "dst_input": 3
-    },
-    {
-      "src_node": 7,
-      "src_output": 0,
-      "dst_node": 1,
-      "dst_input": 4
-    },
-    {
-      "src_node": 7,
-      "src_output": 0,
-      "dst_node": 3,
-      "dst_input": 4
-    },
-    {
-      "src_node": 0,
-      "src_output": 0,
-      "dst_node": 10,
+      "dst_node": 5,
       "dst_input": 0
     },
     {
       "src_node": 2,
       "src_output": 0,
-      "dst_node": 10,
-      "dst_input": 1
+      "dst_node": 6,
+      "dst_input": 0
     },
     {
-      "src_node": 10,
+      "src_node": 3,
       "src_output": 0,
-      "dst_node": 5,
+      "dst_node": 6,
+      "dst_input": 2
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 7,
       "dst_input": 0
     },
     {
       "src_node": 5,
       "src_output": 0,
-      "dst_node": 12,
+      "dst_node": 7,
       "dst_input": 1
-    },
-    {
-      "src_node": 12,
-      "src_output": 0,
-      "dst_node": 11,
-      "dst_input": 0
-    },
-    {
-      "src_node": 4,
-      "src_output": 0,
-      "dst_node": 12,
-      "dst_input": 0
     },
     {
       "src_node": 7,
       "src_output": 0,
-      "dst_node": 13,
+      "dst_node": 8,
       "dst_input": 0
     },
     {
-      "src_node": 13,
+      "src_node": 8,
       "src_output": 0,
-      "dst_node": 5,
-      "dst_input": 4
-    },
-    {
-      "src_node": 13,
-      "src_output": 0,
-      "dst_node": 5,
-      "dst_input": 3
-    },
-    {
-      "src_node": 11,
-      "src_output": 0,
-      "dst_node": 14,
+      "dst_node": 9,
       "dst_input": 0
     }
   ],
   "backdrops": [
     {
       "position": [
-        -2249.548680321199,
-        -968.403631916702
+        -2260.0,
+        -780.0
       ],
       "size": [
-        689.671875,
-        720.3744580859345
+        560.0,
+        560.0
       ],
       "title": "Input",
       "color": [
         70,
         60,
         40,
-        140
-      ]
-    },
-    {
-      "position": [
-        -1806.3903674927585,
-        -168.12655694844585
-      ],
-      "size": [
-        197.984375,
-        278.0
-      ],
-      "title": "Config",
-      "color": [
-        40,
-        60,
-        80,
         140
       ]
     }
