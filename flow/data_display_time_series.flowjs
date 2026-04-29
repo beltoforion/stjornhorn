@@ -1,7 +1,7 @@
 {
   "version": 1,
   "app_version": "0.2.40",
-  "name": "data",
+  "name": "data_display_time_series",
   "nodes": [
     {
       "id": 0,
