@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.43</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.44</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.44</h2>
+      <ul class="tips">
+        <li><strong>Datenkrake: <code>JoinDatasets</code> node.</strong> Merges up to four <code>DATASET</code> inputs into a single multi-column <code>DATASET</code>. The <code>column_names</code> parameter (comma-separated) renames the first column of each input before joining — essential when all inputs share a generic name like <code>c0</code> from <code>CsvSource</code>. The bundled seismic demo flow now wires two <code>CsvSource</code> traces through <code>JoinDatasets(column_names="N,E")</code> into the <code>Hodogram</code>, completing the N/E particle-motion view. Issue #237.</li>
+      </ul>
     </section>
 
     <section>

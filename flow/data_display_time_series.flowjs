@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.43",
+  "app_version": "0.2.44",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -35,7 +35,7 @@
         "y_column": "c0",
         "width": 800,
         "height": 300,
-        "title": "X-Component",
+        "title": "N-Component",
         "grid": true
       },
       "size": [
@@ -75,7 +75,7 @@
         "y_column": "c0",
         "width": 800,
         "height": 300,
-        "title": "Y-Component",
+        "title": "E-Component",
         "grid": true
       },
       "size": [
@@ -176,6 +176,18 @@
         "start": 0.0,
         "step": 0.125
       }
+    },
+    {
+      "id": 11,
+      "module": "nodes.filters.join_datasets",
+      "class": "JoinDatasets",
+      "position": [
+        -1200.0,
+        -200.0
+      ],
+      "port_defaults": {
+        "column_names": "N,E"
+      }
     }
   ],
   "connections": [
@@ -244,6 +256,30 @@
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 4
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 11,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 11,
+      "dst_input": 1
+    },
+    {
+      "src_node": 11,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 1
     }
   ],
   "backdrops": [

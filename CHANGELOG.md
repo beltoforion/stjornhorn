@@ -10,6 +10,22 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.44] — 2026-04-29
+
+### Added
+- **Datenkrake: ``JoinDatasets`` node.** Merges up to four
+  ``DATASET`` inputs into a single multi-column ``DATASET``. The
+  optional ``column_names`` parameter (comma-separated) renames the
+  first column of each connected input before joining — the primary
+  use-case being ``CsvSource`` traces whose only column is always
+  named ``c0``. Collision detection raises a clear error when column
+  names would clash without a rename. ``df.attrs`` from the first
+  input is forwarded to the output. Bundled
+  ``flow/data_display_time_series.flowjs`` wires the two seismic CSV
+  sources through ``JoinDatasets(column_names="N,E")`` into the
+  ``Hodogram``, completing the N/E particle-motion display.
+  Issue: #237.
+
 ## [0.2.43] — 2026-04-29
 
 ### Added
