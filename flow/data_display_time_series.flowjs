@@ -82,8 +82,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -1288.1999999999998,
-        -227.60000000000002
+        -1609.2012770503088,
+        -89.70508521078281
       ],
       "port_defaults": {
         "x_label": "N",
@@ -101,8 +101,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1275.0,
-        -602.8000000000002
+        -1376.2028555675033,
+        -608.6838869515992
       ],
       "port_defaults": {}
     },
@@ -111,8 +111,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -949.7999999999998,
-        -556.5999999999999
+        -1229.8730188961135,
+        -413.03315838098365
       ],
       "port_defaults": {}
     },
@@ -121,8 +121,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1376.8043478260863,
-        -1100.318695652174
+        -1268.8869256056792,
+        -195.46531082277914
       ],
       "port_defaults": {},
       "size": [
@@ -135,8 +135,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -916.0,
-        -151.39999999999998
+        -507.52829217252565,
+        262.1295940042186
       ],
       "port_defaults": {
         "output_path": "out.png"
