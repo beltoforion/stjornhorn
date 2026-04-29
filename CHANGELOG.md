@@ -10,6 +10,30 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.41] — 2026-04-29
+
+### Added
+- **Datenkrake: ``Hodogram`` renderer.** New filter that turns two
+  columns of a ``DATASET`` into a particle-motion (hodogram) plot —
+  the canonical seismology view for analysing P-wave / S-wave
+  polarisation and back-azimuth. Generic enough for Lissajous
+  figures, phase-space loops, or any pair of correlated signals.
+  Architecture splits the geometry (``ParticleMotion`` — pure
+  numpy / numpy.linalg, no matplotlib) from rendering
+  (``HodogramRenderer`` — matplotlib Agg, Strategy pattern), so the
+  PCA fit is testable in isolation and a future 3-D / animated
+  variant slots in without touching the node. Parameters:
+  ``x_column`` (default ``"N"`` — falls back to first column when
+  not present), ``y_column`` (default ``"E"`` — falls back to
+  second), ``width`` / ``height`` (default 360×360),
+  ``color_by_time`` (gradient-colours each segment by its time
+  index via viridis; default on), ``equal_aspect`` (force 1:1
+  axis scaling so geometry reads correctly; default on),
+  ``show_polarization`` (overlay the fitted PCA axis with an
+  angle + linearity readout; default off so the node stays
+  generic for non-seismic use). Issue: #222 (parent epic #218 —
+  project Datenkrake).
+
 ## [0.2.40] — 2026-04-29
 
 ### Added

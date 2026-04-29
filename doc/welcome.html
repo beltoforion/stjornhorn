@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.40</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.41</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.41</h2>
+      <ul class="tips">
+        <li><strong>Datenkrake: <code>Hodogram</code> renderer.</strong> New filter that turns two columns of a <code>DATASET</code> into a particle-motion (hodogram) plot — the canonical seismology view for analysing P-wave / S-wave polarisation and back-azimuth, but generic enough for Lissajous figures or any pair of correlated signals. Architecture splits the geometry (<code>ParticleMotion</code> — pure numpy, no matplotlib) from rendering (<code>HodogramRenderer</code> — Strategy, Agg backend) so the PCA fit is testable in isolation. Parameters: <code>x_column</code> (default <code>"N"</code>), <code>y_column</code> (default <code>"E"</code>), <code>width</code> / <code>height</code>, <code>color_by_time</code> (gradient-colours each segment via viridis), <code>equal_aspect</code> (force 1:1 axis scaling), <code>show_polarization</code> (overlay the fitted PCA axis with an angle + linearity readout). Issue #222 / epic #218.</li>
+      </ul>
     </section>
 
     <section>
