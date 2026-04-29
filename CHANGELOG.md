@@ -10,6 +10,26 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.36] — 2026-04-29
+
+### Fixed
+- **Type-checker hygiene in ``core.port``.** ``IoDataType`` is now
+  imported alongside ``IoData``. The annotations across ``InputPort``
+  / ``OutputPort`` referenced it without an import; this worked at
+  runtime because ``from __future__ import annotations`` keeps
+  annotations as strings, but Pylance flagged it as unresolved.
+
+### Removed
+- **Empty ``if TYPE_CHECKING: pass`` block in ``core.port``** and the
+  now-unused ``TYPE_CHECKING`` import. Leftover from an earlier
+  import shape; carried no symbols.
+
+### Repository Rules
+- New CLAUDE.md guideline: opportunistic dead-code cleanup
+  (empty ``TYPE_CHECKING`` blocks, unused imports, commented-out
+  code, stale TODOs, leftover debug prints) is folded into whatever
+  change is in flight rather than waiting to be asked.
+
 ## [0.2.34] — 2026-04-29
 
 ### Added
