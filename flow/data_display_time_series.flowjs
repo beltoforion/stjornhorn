@@ -8,8 +8,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -1704.702004370738,
-        -671.8739355218556
+        -2223.548680321199,
+        -757.1955810616265
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.001",
@@ -27,8 +27,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1491.402219884505,
-        -981.0091861138433
+        -1359.5541519340327,
+        -629.4143382459176
       ],
       "port_defaults": {
         "x_column": "t",
@@ -48,8 +48,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -1698.9970102118364,
-        -471.8356137921535
+        -2221.3261109294363,
+        -545.5261771821298
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.002",
@@ -67,8 +67,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1489.1502285083752,
-        -249.30663539509987
+        -1381.913799908658,
+        -251.0646096344395
       ],
       "port_defaults": {
         "x_column": "t",
@@ -88,8 +88,8 @@
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
-        -1116.2068496356228,
-        -649.4483846239268
+        -1024.0832775012009,
+        -540.8323519763024
       ],
       "port_defaults": {}
     },
@@ -98,8 +98,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -938.6891716313074,
-        -805.0744372620011
+        -835.9507066377673,
+        -754.050051245123
       ],
       "port_defaults": {},
       "size": [
@@ -112,8 +112,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -1193.8289902596696,
-        -182.85619979410012
+        -726.2078425953284,
+        -110.77925598117542
       ],
       "port_defaults": {
         "x_column": "N",
@@ -154,8 +154,8 @@
       "module": "nodes.filters.add_index_column",
       "class": "AddIndexColumn",
       "position": [
-        -1610.0,
-        -870.0
+        -1748.4861803211988,
+        -757.1955810616265
       ],
       "port_defaults": {
         "name": "t",
@@ -168,8 +168,8 @@
       "module": "nodes.filters.add_index_column",
       "class": "AddIndexColumn",
       "position": [
-        -1610.0,
-        -360.0
+        -1753.0355623608866,
+        -545.5261771821298
       ],
       "port_defaults": {
         "name": "t",
@@ -246,5 +246,23 @@
       "dst_input": 4
     }
   ],
-  "backdrops": []
+  "backdrops": [
+    {
+      "position": [
+        -2249.548680321199,
+        -805.1955810616265
+      ],
+      "size": [
+        689.671875,
+        461.6694038794967
+      ],
+      "title": "Input",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    }
+  ]
 }
