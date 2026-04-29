@@ -104,7 +104,7 @@
         "height": 800,
         "color_by_time": true,
         "equal_aspect": true,
-        "show_polarization": false,
+        "show_polarization": true,
         "title": "Ground Motion"
       }
     },
