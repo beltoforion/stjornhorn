@@ -10,6 +10,18 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.40] — 2026-04-29
+
+### Added
+- **``PlotXY``: single-column Datasets plot against the row index.**
+  A one-column ``DATASET`` (e.g. a seismic ASCII trace loaded by
+  ``CsvSource`` with ``has_header=False``) now renders out of the box
+  with the default settings — X axis is the sample number, Y axis is
+  the only column. Multi-column behaviour is unchanged. New
+  ``x_column = "_index"`` sentinel forces row-index X regardless of
+  column count, useful for picking one column out of a wide Dataset
+  and viewing it against position. Issue: #231.
+
 ## [0.2.39] — 2026-04-29
 
 ### Added

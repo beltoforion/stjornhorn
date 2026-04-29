@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.39</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.40</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.40</h2>
+      <ul class="tips">
+        <li><strong><code>PlotXY</code>: single-column Datasets plot against the row index.</strong> A one-column <code>DATASET</code> (e.g. a seismic ASCII trace loaded with <code>has_header=False</code>) now renders out of the box — X axis is the sample number, Y axis is the only column. Multi-column behaviour is unchanged. New <code>x_column = "_index"</code> sentinel forces row-index X regardless of column count, useful for picking one column out of a wide Dataset and viewing it against position. Issue #231.</li>
+      </ul>
     </section>
 
     <section>

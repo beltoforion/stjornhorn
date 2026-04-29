@@ -73,12 +73,62 @@ def test_missing_column_raises_keyerror() -> None:
         _run(node, df)
 
 
-def test_too_few_columns_for_default_indices_raises() -> None:
-    df = pd.DataFrame({"only_one": [1, 2, 3]})
-    node = PlotXY()  # defaults need at least 2 columns
-
-    with pytest.raises(KeyError, match="need at least 2"):
+def test_empty_dataset_raises() -> None:
+    df = pd.DataFrame()
+    node = PlotXY()
+    with pytest.raises(KeyError, match="no columns"):
         _run(node, df)
+
+
+# ── Single-column Datasets (issue #231) ──────────────────────────────────────
+
+def test_single_column_default_plots_against_row_index() -> None:
+    """A one-column DataFrame (e.g. a seismic ASCII trace loaded by
+    CsvSource with has_header=False) plots out of the box: row index
+    on X, the column on Y. Default x_column / y_column are empty."""
+    df = pd.DataFrame({"velocity": np.linspace(0.0, 1.0, 8)})
+    node = PlotXY()  # all defaults
+    img = _run(node, df)
+    assert img.size > 0
+
+
+def test_single_column_uses_sample_label_for_x() -> None:
+    df = pd.DataFrame({"v": [0.0, 1.0, 2.0]})
+    x_arr, x_label, y_arr, y_label = PlotXY._resolve_xy(df, "", "")
+    assert x_label == "sample"
+    assert y_label == "v"
+    np.testing.assert_array_equal(x_arr, np.array([0, 1, 2]))
+    np.testing.assert_array_equal(y_arr, np.array([0.0, 1.0, 2.0]))
+
+
+def test_index_sentinel_forces_row_index_on_multi_column_data() -> None:
+    """An explicit x_column='_index' plots Y against position even
+    when the Dataset has multiple columns — useful for picking a
+    single column out of a wide DF and viewing it against position."""
+    df = pd.DataFrame({"V": [0.0, 1.0, 2.0], "I": [10.0, 20.0, 30.0]})
+    x_arr, x_label, y_arr, y_label = PlotXY._resolve_xy(df, "_index", "I")
+    assert x_label == "sample"
+    assert y_label == "I"
+    np.testing.assert_array_equal(x_arr, np.array([0, 1, 2]))
+    np.testing.assert_array_equal(y_arr, np.array([10.0, 20.0, 30.0]))
+
+
+def test_index_sentinel_with_empty_y_picks_first_column() -> None:
+    df = pd.DataFrame({"a": [1.0, 2.0], "b": [3.0, 4.0]})
+    _, _, y_arr, y_label = PlotXY._resolve_xy(df, "_index", "")
+    assert y_label == "a"
+    np.testing.assert_array_equal(y_arr, np.array([1.0, 2.0]))
+
+
+def test_multi_column_default_unchanged() -> None:
+    """The original "first vs second" default still applies for any
+    Dataset with ≥ 2 columns, so existing CV / I-V flows are unaffected."""
+    df = pd.DataFrame({"V": [0.0, 1.0], "I": [0.0, 1e-3], "T": [300.0, 300.0]})
+    x_arr, x_label, y_arr, y_label = PlotXY._resolve_xy(df, "", "")
+    assert x_label == "V"
+    assert y_label == "I"
+    np.testing.assert_array_equal(x_arr, np.array([0.0, 1.0]))
+    np.testing.assert_array_equal(y_arr, np.array([0.0, 1e-3]))
 
 
 # ── Pure helpers ──────────────────────────────────────────────────────────────
