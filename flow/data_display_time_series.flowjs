@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.46",
+  "app_version": "0.2.47",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -79,18 +79,6 @@
     },
     {
       "id": 4,
-      "module": "nodes.filters.join_datasets",
-      "class": "JoinDatasets",
-      "position": [
-        -1600.0,
-        -100.0
-      ],
-      "port_defaults": {
-        "column_names": "N,E"
-      }
-    },
-    {
-      "id": 5,
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
@@ -98,8 +86,8 @@
         -227.60000000000002
       ],
       "port_defaults": {
-        "x_column": "N",
-        "y_column": "E",
+        "x_label": "N",
+        "y_label": "E",
         "width": 800,
         "height": 800,
         "color_by_time": true,
@@ -109,7 +97,7 @@
       }
     },
     {
-      "id": 6,
+      "id": 5,
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
@@ -119,7 +107,7 @@
       "port_defaults": {}
     },
     {
-      "id": 7,
+      "id": 6,
       "module": "nodes.filters.merge",
       "class": "Merge",
       "position": [
@@ -129,7 +117,7 @@
       "port_defaults": {}
     },
     {
-      "id": 8,
+      "id": 7,
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
@@ -143,7 +131,7 @@
       ]
     },
     {
-      "id": 9,
+      "id": 8,
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
@@ -181,22 +169,28 @@
       "dst_input": 1
     },
     {
-      "src_node": 4,
+      "src_node": 2,
       "src_output": 0,
       "dst_node": 5,
       "dst_input": 0
     },
     {
-      "src_node": 2,
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 2
+    },
+    {
+      "src_node": 5,
       "src_output": 0,
       "dst_node": 6,
       "dst_input": 0
     },
     {
-      "src_node": 3,
+      "src_node": 4,
       "src_output": 0,
       "dst_node": 6,
-      "dst_input": 2
+      "dst_input": 1
     },
     {
       "src_node": 6,
@@ -205,21 +199,9 @@
       "dst_input": 0
     },
     {
-      "src_node": 5,
-      "src_output": 0,
-      "dst_node": 7,
-      "dst_input": 1
-    },
-    {
       "src_node": 7,
       "src_output": 0,
       "dst_node": 8,
-      "dst_input": 0
-    },
-    {
-      "src_node": 8,
-      "src_output": 0,
-      "dst_node": 9,
       "dst_input": 0
     }
   ],

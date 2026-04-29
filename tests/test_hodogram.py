@@ -92,20 +92,17 @@ def test_principal_axis_negative_slope_normalised() -> None:
 # ── Hodogram node — render output ────────────────────────────────────────────
 
 
-def _zne_df(n: int = 64) -> pd.DataFrame:
-    """A small Z/N/E DataFrame: linear N-vs-E motion at 30°."""
+def _ne_dfs(n: int = 64) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Two single-column DataFrames: linear N-vs-E motion at 30°."""
     t = np.linspace(0.0, 1.0, n)
-    return pd.DataFrame(
-        {
-            "Z": np.zeros(n),
-            "N": np.cos(np.deg2rad(30.0)) * t,
-            "E": np.sin(np.deg2rad(30.0)) * t,
-        }
-    )
+    n_df = pd.DataFrame({"N": np.cos(np.deg2rad(30.0)) * t})
+    e_df = pd.DataFrame({"E": np.sin(np.deg2rad(30.0)) * t})
+    return n_df, e_df
 
 
-def _run(node: Hodogram, df: pd.DataFrame) -> np.ndarray:
-    node.inputs[0].receive(IoData.from_dataset(df))
+def _run(node: Hodogram, x_df: pd.DataFrame, y_df: pd.DataFrame) -> np.ndarray:
+    node.inputs[0].receive(IoData.from_dataset(x_df))
+    node.inputs[1].receive(IoData.from_dataset(y_df))
     out = node.outputs[0].last_emitted
     assert out is not None, "Hodogram did not emit"
     assert out.type is IoDataType.IMAGE
@@ -116,34 +113,42 @@ def test_hodogram_emits_image_of_requested_shape() -> None:
     node = Hodogram()
     node.width = 200
     node.height = 200
-    img = _run(node, _zne_df())
+    x_df, y_df = _ne_dfs()
+    img = _run(node, x_df, y_df)
     assert img.dtype == np.uint8
     assert img.shape == (200, 200, 3)
 
 
-def test_hodogram_default_columns_pick_n_and_e() -> None:
-    """A Z/N/E dataset is the seismic happy path — defaults should
-    just work without the user typing column names."""
-    node = Hodogram()  # x="N", y="E"
-    img = _run(node, _zne_df())
+def test_hodogram_uses_first_column_of_each_input() -> None:
+    """The node always picks column 0 of each input — extra columns
+    are ignored. Mirrors the spec: one channel per input."""
+    n = 32
+    t = np.linspace(0.0, 1.0, n)
+    x_df = pd.DataFrame({"N": t, "extra": np.full(n, 999.0)})
+    y_df = pd.DataFrame({"E": 2 * t})
+    img = _run(Hodogram(), x_df, y_df)
     assert img.size > 0
 
 
-def test_hodogram_falls_back_to_positional_for_non_seismic_columns() -> None:
-    """When the Dataset doesn't use Z/N/E names, the seismic defaults
-    can't match — the positional fallback (first / second columns)
-    kicks in so a generic 2-column Dataset still renders."""
-    df = pd.DataFrame({"alpha": np.linspace(0, 1, 16), "beta": np.linspace(0, 0.5, 16)})
-    node = Hodogram()  # defaults still "N"/"E"
-    img = _run(node, df)
+def test_hodogram_renders_generic_column_names() -> None:
+    """Two ``c0`` inputs (the CsvSource default) render fine — column
+    names are not part of the hodogram pipeline any more."""
+    n = 16
+    x_df = pd.DataFrame({"c0": np.linspace(0, 1, n)})
+    y_df = pd.DataFrame({"c0": np.linspace(0, 0.5, n)})
+    img = _run(Hodogram(), x_df, y_df)
     assert img.size > 0
 
 
-def test_hodogram_raises_on_too_few_columns() -> None:
-    df = pd.DataFrame({"only": [1.0, 2.0, 3.0]})
-    node = Hodogram()
-    with pytest.raises(KeyError, match=r"≥ 2 columns"):
-        _run(node, df)
+def test_hodogram_raises_on_empty_input() -> None:
+    """A 0-column DataFrame on either input must raise — there's no
+    signal to plot."""
+    empty = pd.DataFrame()
+    full = pd.DataFrame({"c0": [1.0, 2.0]})
+    with pytest.raises(KeyError, match=r"≥ 1 column"):
+        _run(Hodogram(), empty, full)
+    with pytest.raises(KeyError, match=r"≥ 1 column"):
+        _run(Hodogram(), full, empty)
 
 
 def test_hodogram_color_by_time_off_uses_solid_line() -> None:
@@ -154,7 +159,8 @@ def test_hodogram_color_by_time_off_uses_solid_line() -> None:
     tracked via the unit test against a reference image, deferred."""
     node = Hodogram()
     node.color_by_time = False
-    img = _run(node, _zne_df())
+    x_df, y_df = _ne_dfs()
+    img = _run(node, x_df, y_df)
     assert img.dtype == np.uint8
     assert img.ndim == 3
 
@@ -165,7 +171,20 @@ def test_hodogram_show_polarization_smoke() -> None:
     doesn't crash on real data."""
     node = Hodogram()
     node.show_polarization = True
-    img = _run(node, _zne_df())
+    x_df, y_df = _ne_dfs()
+    img = _run(node, x_df, y_df)
+    assert img.size > 0
+
+
+def test_hodogram_label_overrides_take_precedence() -> None:
+    """``x_label`` / ``y_label`` overrides bypass the column-name
+    fallback. Useful when both inputs share a generic ``c0``."""
+    node = Hodogram()
+    node.x_label = "North"
+    node.y_label = "East"
+    x_df = pd.DataFrame({"c0": np.linspace(0, 1, 8)})
+    y_df = pd.DataFrame({"c0": np.linspace(0, 1, 8)})
+    img = _run(node, x_df, y_df)
     assert img.size > 0
 
 
