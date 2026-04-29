@@ -83,6 +83,14 @@ class PlotSeries(NodeBase):
 
     def __init__(self) -> None:
         super().__init__("Plot Series", section="Visualization")
+        # Explicit annotations so pyright sees the descriptor-backed attrs.
+        self._step: float
+        self._start: float
+        self._y_column: str
+        self._width: int
+        self._height: int
+        self._title: str
+        self._grid: bool
         self._add_input(InputPort("dataset", {IoDataType.DATASET}))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
