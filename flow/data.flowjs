@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "app_version": "0.2.37",
+  "name": "data",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.csv_source",
+      "class": "CsvSource",
+      "position": [
+        -1366.0,
+        -604.0
+      ],
+      "port_defaults": {
+        "file_path": "quakedata/quake_eib_20000908_1139.001",
+        "delimiter": ",",
+        "has_header": true,
+        "decimal": "."
+      },
+      "size": [
+        455.0625,
+        176.0
+      ]
+    }
+  ],
+  "connections": [],
+  "backdrops": []
+}
