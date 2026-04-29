@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.37",
+  "app_version": "0.2.39",
   "name": "data",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -1366.0,
-        -604.0
+        -1552.733392394766,
+        -586.6775483314601
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.001",
@@ -21,8 +21,52 @@
         455.0625,
         176.0
       ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.plot_xy",
+      "class": "PlotXY",
+      "position": [
+        -1308.2446372306495,
+        -898.619587382679
+      ],
+      "port_defaults": {
+        "x_column": "",
+        "y_column": "",
+        "width": 640,
+        "height": 360,
+        "title": "",
+        "grid": true
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1036.8914204823855,
+        -901.5474486610598
+      ],
+      "port_defaults": {},
+      "size": [
+        746.3242490586122,
+        646.7737243305298
+      ]
     }
   ],
-  "connections": [],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    }
+  ],
   "backdrops": []
 }
