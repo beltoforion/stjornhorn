@@ -25,18 +25,6 @@ from core.port import InputPort, OutputPort
 #: text-readable plots at typical pixel sizes.
 _RENDER_DPI: int = 100
 
-#: Sentinel value for ``x_column`` that forces the X axis to be the
-#: row index regardless of the input Dataset's column count. Useful
-#: when a multi-column Dataset should be plotted against position
-#: (e.g. a single recording where the time axis isn't a stored
-#: column). The ``"sample"`` label below is the matching display name.
-_INDEX_SENTINEL: str = "_index"
-
-#: Axis label used whenever the X axis is the row index rather than a
-#: stored column. ``"sample"`` reads correctly for time-series
-#: (sample number) and stays domain-agnostic for non-temporal data.
-_INDEX_LABEL: str = "sample"
-
 
 class PlotXY(NodeBase):
     """Render two columns of a :data:`IoDataType.DATASET` as an XY line plot.
@@ -52,6 +40,12 @@ class PlotXY(NodeBase):
     off-screen ``Agg`` backend is used for rendering; no GUI thread
     is touched.
 
+    The node always plots two named columns. A one-column input is
+    rejected with a clear error; insert
+    :class:`~nodes.filters.add_index_column.AddIndexColumn` upstream
+    to add an explicit X axis (sample number, or time in seconds via
+    ``step = 1 / sample_rate``).
+
     Axis labels come from the column names. If ``df.attrs["units"]``
     is set (a ``{column: unit_string}`` dict, populated by upstream
     nodes like ``SetUnits`` or by a domain-aware source), the unit is
@@ -59,14 +53,9 @@ class PlotXY(NodeBase):
 
     Parameters:
       x_column -- column name for the X axis. Empty (default) picks the
-                  first column when the Dataset has ≥ 2 columns; with a
-                  single-column Dataset it falls back to the row index
-                  so a one-channel trace plots out of the box. Set to
-                  ``"_index"`` to force row-index X regardless of the
-                  Dataset's column count.
-      y_column -- column name for Y. Empty (default) → second column on
-                  multi-column Datasets, first (only) column on
-                  single-column Datasets.
+                  first column of the input dataset.
+      y_column -- column name for Y. Empty (default) picks the second
+                  column.
       width    -- output image width in pixels (≥ 64).
       height   -- output image height in pixels (≥ 64).
       title    -- overlay title; empty (default) shows none.
@@ -75,20 +64,18 @@ class PlotXY(NodeBase):
 
     x_column = StringParam(
         "",
-        placeholder="(first column / index for 1-col)",
+        placeholder="(first column)",
         description=(
-            "Column name for the X axis. Leave empty to auto-pick: "
-            "first column for multi-column Datasets, row index for "
-            "single-column. Set to '_index' to force row-index X."
+            "Column name for the X axis. Leave empty to use the first "
+            "column of the input dataset."
         ),
     )
     y_column = StringParam(
         "",
-        placeholder="(second column / first for 1-col)",
+        placeholder="(second column)",
         description=(
-            "Column name for the Y axis. Leave empty to auto-pick: "
-            "second column for multi-column Datasets, the only column "
-            "for single-column."
+            "Column name for the Y axis. Leave empty to use the second "
+            "column of the input dataset."
         ),
     )
     width = IntParam(
@@ -122,15 +109,14 @@ class PlotXY(NodeBase):
     @override
     def process_impl(self) -> None:
         df: pd.DataFrame = self.inputs[0].data.payload
-        x, x_label, y, y_label = self._resolve_xy(
-            df, self._x_column, self._y_column
-        )
+        x_col = self._resolve_column(df, self._x_column, default_index=0)
+        y_col = self._resolve_column(df, self._y_column, default_index=1)
 
         bgr = self._render(
-            x,
-            y,
-            x_label=x_label,
-            y_label=y_label,
+            df[x_col].to_numpy(),
+            df[y_col].to_numpy(),
+            x_label=self._axis_label(df, x_col),
+            y_label=self._axis_label(df, y_col),
             width=self._width,
             height=self._height,
             title=self._title,
@@ -139,53 +125,6 @@ class PlotXY(NodeBase):
         self.outputs[0].send(IoData.from_image(bgr))
 
     # ── Pure helpers (testable without rendering) ─────────────────────────────
-
-    @classmethod
-    def _resolve_xy(
-        cls,
-        df: pd.DataFrame,
-        x_column: str,
-        y_column: str,
-    ) -> tuple[np.ndarray, str, np.ndarray, str]:
-        """Pick the X / Y arrays and their axis labels.
-
-        Three paths share this helper:
-
-        1. ``x_column == "_index"`` — X is the row index regardless of
-           how many columns the Dataset has. Y resolves normally
-           (defaulting to the first column).
-
-        2. Single-column Dataset with empty ``x_column`` — same
-           row-index treatment, so a one-column trace (a seismic
-           recording, a one-channel sensor log) plots out of the box
-           without the user having to type a column name. Issue: #231.
-
-        3. Multi-column Dataset — empty ``x_column`` picks the first
-           column for X, empty ``y_column`` picks the second.
-
-        Raises :class:`KeyError` on a non-empty miss or when there
-        aren't enough columns for the chosen defaults.
-        """
-        n_cols = len(df.columns)
-        if n_cols == 0:
-            raise KeyError("Dataset has no columns to plot")
-
-        use_index = x_column == _INDEX_SENTINEL or (not x_column and n_cols == 1)
-
-        if use_index:
-            y_default = 0
-            y_col = cls._resolve_column(df, y_column, default_index=y_default)
-            x_arr = np.arange(len(df))
-            x_label = _INDEX_LABEL
-        else:
-            x_col = cls._resolve_column(df, x_column, default_index=0)
-            y_col = cls._resolve_column(df, y_column, default_index=1)
-            x_arr = df[x_col].to_numpy()
-            x_label = cls._axis_label(df, x_col)
-
-        y_arr = df[y_col].to_numpy()
-        y_label = cls._axis_label(df, y_col)
-        return x_arr, x_label, y_arr, y_label
 
     @staticmethod
     def _resolve_column(
@@ -196,7 +135,10 @@ class PlotXY(NodeBase):
         An empty ``requested`` falls back to the column at
         ``default_index`` so a freshly-dropped node renders without
         the user having to type column names. A non-empty miss raises
-        :class:`KeyError` with the available columns listed.
+        :class:`KeyError` with the available columns listed; an empty
+        request with too few columns points the user at
+        :class:`~nodes.filters.add_index_column.AddIndexColumn`, which
+        is the supported way to add a synthetic X axis.
         """
         if requested:
             if requested not in df.columns:
@@ -208,7 +150,8 @@ class PlotXY(NodeBase):
         if default_index >= len(df.columns):
             raise KeyError(
                 f"Dataset has only {len(df.columns)} column(s); "
-                f"need at least {default_index + 1} to plot"
+                f"need at least {default_index + 1} to plot. "
+                f"Insert an AddIndexColumn node upstream to add an X axis."
             )
         return str(df.columns[default_index])
 

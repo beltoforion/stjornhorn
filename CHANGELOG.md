@@ -10,6 +10,35 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.43] — 2026-04-29
+
+### Added
+- **Datenkrake: ``AddIndexColumn`` node.** Prepends a synthetic
+  numeric column to a ``DATASET`` so a one-column trace gets an
+  explicit X axis instead of relying on a renderer-side row-index
+  fallback. Parameters: ``name`` (default ``"index"``), ``start``
+  (default ``0.0``), ``step`` (default ``1.0``, strictly positive).
+  Setting ``step = 1 / sample_rate`` produces a time axis in
+  seconds. Inserts the new column at position 0 so it becomes the
+  default X for ``PlotXY``. Preserves ``df.attrs``. Issue: #235.
+
+### Changed
+- **``PlotXY`` no longer falls back to the row index for
+  single-column inputs** (revert of #231). The renderer now always
+  plots two named columns; a 1-column input raises a ``KeyError``
+  pointing the user at ``AddIndexColumn``. The split is cleaner
+  SRP-wise: ``AddIndexColumn`` synthesises the X axis, ``PlotXY``
+  renders. The ``x_column = "_index"`` sentinel and the
+  ``"sample"`` axis label are gone with it. Saved flows that
+  relied on the implicit fallback need an ``AddIndexColumn``
+  inserted upstream — per the new ``CLAUDE.md`` rule, no migration
+  shim is provided. Bundled
+  ``flow/data_display_time_series.flowjs`` updated to insert
+  ``AddIndexColumn`` and use ``step = 0.125`` (1/8 s for the 8 Hz
+  quake sample). Also corrects the second ``CsvSource``'s
+  ``has_header`` from ``true`` to ``false`` so both branches load
+  the full 5652-sample trace. Issue: #235.
+
 ## [0.2.42] — 2026-04-29
 
 ### Fixed
