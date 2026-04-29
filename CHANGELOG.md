@@ -10,6 +10,37 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.40] — 2026-04-29
+
+### Added
+- **``PlotXY``: single-column Datasets plot against the row index.**
+  A one-column ``DATASET`` (e.g. a seismic ASCII trace loaded by
+  ``CsvSource`` with ``has_header=False``) now renders out of the box
+  with the default settings — X axis is the sample number, Y axis is
+  the only column. Multi-column behaviour is unchanged. New
+  ``x_column = "_index"`` sentinel forces row-index X regardless of
+  column count, useful for picking one column out of a wide Dataset
+  and viewing it against position. Issue: #231.
+
+## [0.2.39] — 2026-04-29
+
+### Added
+- **Datenkrake: ``PlotXY`` renderer.** New filter node that turns two
+  columns of a ``DATASET`` into a labeled XY line plot (3-channel BGR
+  image), so any ``Dataset`` flow can produce a viewer-ready picture
+  without leaving the graph. Single piece of code covers waveforms,
+  CV curves, diode I-V, spectra and any other "Y vs X" view —
+  Datenkrake's payoff for keeping the payload generic. Parameters:
+  ``x_column`` / ``y_column`` (empty → first / second columns of the
+  input), ``width`` / ``height`` in pixels (≥ 64), optional ``title``,
+  ``grid`` toggle. Axis labels include the column unit when the
+  upstream stamps a ``df.attrs["units"]`` dict (``"V [V]"`` etc.).
+  Renders off-screen via matplotlib's ``Agg`` backend and always
+  closes the figure on exit, including error paths, so a
+  long-running flow doesn't leak figures across frames. Adds
+  ``matplotlib`` to ``requirements.txt``. Issue: #221 (parent
+  epic #218 — project Datenkrake).
+
 ## [0.2.38] — 2026-04-29
 
 ### Added

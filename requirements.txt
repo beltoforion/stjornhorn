@@ -1,6 +1,7 @@
 rawpy
 numpy
 pandas
+matplotlib
 opencv-python
 PySide6
 typing_extensions
