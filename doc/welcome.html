@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.41</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.42</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.42</h2>
+      <ul class="tips">
+        <li><strong>Node Documentation dock no longer auto-resizes to its content.</strong> Selecting a node with a long docstring or many parameters (the new <code>Hodogram</code>, for instance) was pushing the documentation dock taller and squashing the sibling Node List dock. Root cause was the summary <code>QLabel</code>'s word-wrap-driven minimum height bleeding through <code>sizeHint</code> / <code>minimumSizeHint</code> to the enclosing <code>QDockWidget</code>. Fix: wrap the panel body in a <code>QScrollArea</code> and override the panel's size-hint methods to fixed defaults. Long content now produces a vertical scroll bar inside the panel; the dock retains the user's chosen size. Issue #233.</li>
+      </ul>
     </section>
 
     <section>

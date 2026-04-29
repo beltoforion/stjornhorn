@@ -192,3 +192,53 @@ def _find_leaf(node_list: NodeList, class_name: str) -> QTreeWidgetItem:
             if json.loads(payload).get("class_name") == class_name:
                 return child
     pytest.fail(f"leaf {class_name!r} not found in palette")
+
+
+# ── Size negotiation (issue #233) ────────────────────────────────────────────
+#
+# Regression guard: a long docstring must not push the panel taller than its
+# default hint. Without the QScrollArea + sizeHint override added in #233,
+# the QLabel summary's wordwrap-driven height bled through to
+# ``minimumSizeHint``, and the enclosing QDockWidget grew on every selection
+# change — squashing the sibling Node List dock.
+
+from core.node_base import NodeBase
+
+
+class _LongDocNode(NodeBase):
+    __doc__ = "Short summary line.\n\n" + "\n\n".join(
+        f"Paragraph {i}: " + ("filler text " * 40) for i in range(1, 11)
+    )
+
+    def __init__(self) -> None:
+        super().__init__("Long Doc Test", section="Test")
+
+    def process_impl(self) -> None:  # pragma: no cover - never executed
+        pass
+
+
+def test_size_hint_constant_across_show_class(qapp: QApplication) -> None:
+    """Selecting different classes must not change the panel's reported
+    size — that's what kept the dock from auto-resizing in #233."""
+    panel = NodeDocPanel()
+    initial = panel.sizeHint()
+    initial_min = panel.minimumSizeHint()
+
+    # Render docs for a real built-in node (short docstring).
+    panel.show_class(GaussianBlur)
+    assert panel.sizeHint() == initial
+    assert panel.minimumSizeHint() == initial_min
+
+    # Then a NodeBase subclass with a much longer docstring — the case
+    # that originally pushed the dock taller.
+    panel.show_class(_LongDocNode)
+    assert panel.sizeHint() == initial
+    assert panel.minimumSizeHint() == initial_min
+
+
+def test_minimum_size_hint_below_default(qapp: QApplication) -> None:
+    """The minimum size must be smaller than the default hint so the
+    user can shrink the dock without the panel pushing back."""
+    panel = NodeDocPanel()
+    assert panel.minimumSizeHint().height() < panel.sizeHint().height()
+    assert panel.minimumSizeHint().width() < panel.sizeHint().width()
