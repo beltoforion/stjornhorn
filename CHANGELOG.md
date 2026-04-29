@@ -10,6 +10,14 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.45] — 2026-04-29
+
+### Changed
+- **Tighter plot margins in ``PlotXY`` and ``Hodogram``.** Reduced
+  ``tight_layout`` padding from the matplotlib default (1.08 em) to
+  0.4 em. Cuts the whitespace border around each rendered plot
+  noticeably, making better use of the allocated pixel budget.
+
 ## [0.2.44] — 2026-04-29
 
 ### Added

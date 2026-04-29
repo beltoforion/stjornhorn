@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.44",
+  "app_version": "0.2.45",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -27,8 +27,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1438.6154156195048,
-        -647.2031225751488
+        -1440.0623399127073,
+        -809.2586434138242
       ],
       "port_defaults": {
         "x_column": "t",
@@ -67,8 +67,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -1460.97506359413,
-        -268.8533939636708
+        -1429.142729143676,
+        -281.8757126024929
       ],
       "port_defaults": {
         "x_column": "t",
@@ -98,8 +98,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -805.2691062808007,
-        -128.56804031040667
+        -738.028936090618,
+        -121.84402329138842
       ],
       "port_defaults": {
         "x_column": "N",
@@ -108,7 +108,8 @@
         "height": 360,
         "color_by_time": true,
         "equal_aspect": true,
-        "show_polarization": false
+        "show_polarization": false,
+        "title": "Ground Motion"
       }
     },
     {
@@ -116,11 +117,11 @@
       "module": "nodes.sources.constant_value",
       "class": "ConstantValue",
       "position": [
-        -1803.5411561839978,
-        -192.47277160856885
+        -1780.3903674927585,
+        -120.12655694844585
       ],
       "port_defaults": {
-        "value": 800.0
+        "value": 1600.0
       }
     },
     {
@@ -128,11 +129,11 @@
       "module": "nodes.sources.constant_value",
       "class": "ConstantValue",
       "position": [
-        -1803.5411561839978,
-        -80.47277160856885
+        -1780.3903674927585,
+        -8.126556948445852
       ],
       "port_defaults": {
-        "value": 200.0
+        "value": 400.0
       }
     },
     {
@@ -140,8 +141,8 @@
       "module": "nodes.filters.add_index_column",
       "class": "AddIndexColumn",
       "position": [
-        -1748.4861803211988,
-        -757.1955810616265
+        -1741.7621633021809,
+        -935.3820320656101
       ],
       "port_defaults": {
         "name": "t",
@@ -154,8 +155,8 @@
       "module": "nodes.filters.add_index_column",
       "class": "AddIndexColumn",
       "position": [
-        -1753.0355623608866,
-        -545.5261771821298
+        -1747.9925495966227,
+        -449.70893466111977
       ],
       "port_defaults": {
         "name": "t",
@@ -168,8 +169,8 @@
       "module": "nodes.filters.join_datasets",
       "class": "JoinDatasets",
       "position": [
-        -1106.7230794451348,
-        -217.1843924311907
+        -1037.8019050001976,
+        -297.8725966594096
       ],
       "port_defaults": {
         "column_names": "N,E"
@@ -213,6 +214,18 @@
         "c": 0.0,
         "d": 0.0,
         "expression": "a*2"
+      }
+    },
+    {
+      "id": 14,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -386.21375580374706,
+        -232.80523540678618
+      ],
+      "port_defaults": {
+        "output_path": "out.png"
       }
     }
   ],
@@ -330,23 +343,46 @@
       "src_output": 0,
       "dst_node": 5,
       "dst_input": 3
+    },
+    {
+      "src_node": 11,
+      "src_output": 0,
+      "dst_node": 14,
+      "dst_input": 0
     }
   ],
   "backdrops": [
     {
       "position": [
         -2249.548680321199,
-        -805.1955810616265
+        -968.403631916702
       ],
       "size": [
         689.671875,
-        461.6694038794967
+        720.3744580859345
       ],
       "title": "Input",
       "color": [
         70,
         60,
         40,
+        140
+      ]
+    },
+    {
+      "position": [
+        -1806.3903674927585,
+        -168.12655694844585
+      ],
+      "size": [
+        197.984375,
+        278.0
+      ],
+      "title": "Config",
+      "color": [
+        40,
+        60,
+        80,
         140
       ]
     }
