@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "app_version": "0.2.40",
+  "name": "data_display_time_series",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.csv_source",
+      "class": "CsvSource",
+      "position": [
+        -1593.4955141080093,
+        -677.5768324584059
+      ],
+      "port_defaults": {
+        "file_path": "quakedata/quake_eib_20000908_1139.001",
+        "delimiter": ",",
+        "has_header": false,
+        "decimal": "."
+      },
+      "size": [
+        455.0625,
+        176.0
+      ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.plot_xy",
+      "class": "PlotXY",
+      "position": [
+        -1380.1957296217763,
+        -986.7120830503933
+      ],
+      "port_defaults": {
+        "x_column": "",
+        "y_column": "",
+        "width": 800,
+        "height": 300,
+        "title": "Earthquake Data",
+        "grid": true
+      },
+      "size": [
+        225.66959513759662,
+        260.0
+      ]
+    },
+    {
+      "id": 2,
+      "module": "nodes.sources.csv_source",
+      "class": "CsvSource",
+      "position": [
+        -1587.7905199491074,
+        -477.5385107287036
+      ],
+      "port_defaults": {
+        "file_path": "quakedata/quake_eib_20000908_1139.002",
+        "delimiter": ",",
+        "has_header": true,
+        "decimal": "."
+      },
+      "size": [
+        448.29054856854964,
+        176.0
+      ]
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.plot_xy",
+      "class": "PlotXY",
+      "position": [
+        -1377.9437382456463,
+        -255.0095323316501
+      ],
+      "port_defaults": {
+        "x_column": "",
+        "y_column": "",
+        "width": 800,
+        "height": 300,
+        "title": "",
+        "grid": true
+      },
+      "size": [
+        247.03884939318573,
+        260.0
+      ]
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.merge",
+      "class": "Merge",
+      "position": [
+        -1005.0003593728941,
+        -655.151281560477
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -827.4826813685788,
+        -810.7773341985512
+      ],
+      "port_defaults": {},
+      "size": [
+        800.0,
+        686.0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 2
+    }
+  ],
+  "backdrops": []
+}
