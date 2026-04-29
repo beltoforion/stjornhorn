@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.37</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.38</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.38</h2>
+      <ul class="tips">
+        <li><strong>Datenkrake: <code>CsvSource</code> node.</strong> First end-to-end producer of the new <code>DATASET</code> payload. Reads any CSV (seismic export, instrument log, simulation output, …) into a <code>pandas.DataFrame</code>, stamps the resolved path into <code>df.attrs["source_path"]</code>, and emits it on a <code>dataset</code> output. Parameters: <code>file_path</code>, <code>delimiter</code> (default <code>","</code>; type <code>\t</code> for tab; <code>;</code> for European-style CSVs), <code>has_header</code> (off → synthetic <code>c0</code>, <code>c1</code>, … names), <code>decimal</code> (set to <code>","</code> for European decimals). Reactive: editing any parameter re-runs the flow, matching <code>ImageSource</code>'s UX. Issue #220 / epic #218.</li>
+      </ul>
     </section>
 
     <section>

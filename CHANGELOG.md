@@ -10,6 +10,22 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+## [0.2.38] — 2026-04-29
+
+### Added
+- **Datenkrake: ``CsvSource`` node.** First end-to-end producer of
+  the new ``DATASET`` payload. Reads any CSV (seismic export,
+  instrument log, simulation output, …) into a ``pandas.DataFrame``
+  and stamps the resolved file path into ``df.attrs["source_path"]``
+  for downstream UI / error messages. Reactive — editing any
+  parameter re-runs the flow, matching ``ImageSource``'s UX.
+  Parameters: ``file_path`` (FilePathParam, INPUT_DIR-relative),
+  ``delimiter`` (default ``","``; type ``\\t`` for tab),
+  ``has_header`` (default True; off → synthetic ``c0``, ``c1``, …
+  column names), ``decimal`` (default ``"."``; set to ``","`` for
+  European decimals). Issue: #220 (parent epic #218 — project
+  Datenkrake).
+
 ## [0.2.37] — 2026-04-29
 
 ### Added
