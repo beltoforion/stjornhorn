@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.42</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.43</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,14 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.43</h2>
+      <ul class="tips">
+        <li><strong>Datenkrake: <code>AddIndexColumn</code> node.</strong> Prepends a synthetic numeric column to a <code>DATASET</code> so a one-column trace gets an explicit X axis instead of relying on a renderer-side fallback. Parameters: <code>name</code>, <code>start</code>, <code>step</code>; set <code>step = 1 / sample_rate</code> for a time axis in seconds. Preserves <code>df.attrs</code>. Issue #235.</li>
+        <li><strong><code>PlotXY</code> no longer auto-falls-back to the row index for single-column inputs</strong> (revert of #231). Always plots two named columns; a 1-column input now raises with a hint to insert <code>AddIndexColumn</code> upstream. Cleaner separation of concerns — the index node synthesises the axis, the plot node renders. Saved flows that relied on the fallback need an <code>AddIndexColumn</code> in front of <code>PlotXY</code>. The bundled <code>data_display_time_series.flowjs</code> demo flow has been updated. Issue #235.</li>
+      </ul>
     </section>
 
     <section>
