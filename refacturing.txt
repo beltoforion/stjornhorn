@@ -13,7 +13,7 @@ Status markers:
   [DONE]      — landed on main; references PR/commit
   [WITHDRAWN] — reconsidered, no longer pursued (with reason)
 
-Last reviewed: 2026-04-28 (H2/H3/H4/M9/L13 resolved via descriptor sweep)
+Last reviewed: 2026-04-28 (H2/H3/H4/M9/M11/L13 resolved)
 
 
 High
@@ -65,12 +65,6 @@ Medium
   Direction: a FlowRunController QObject owning thread/runner lifecycle
   and exposing started/finished/failed signals; page becomes a thin
   observer.
-
-[OPEN] M11. Port.set_on_state_changed is a single-callback slot.
-  ISP / leaky API. src/core/port.py:148-154 — overwriting it silently
-  breaks NodeBase._add_input's dispatcher hookup.
-  Direction: add_listener (multi-subscriber) with the internal
-  dispatcher hookup non-replaceable.
 
 [OPEN] M12. FlowScene.connect_ports mixes raise-on-error with return-None.
   ISP / leaky. src/ui/flow_scene.py:205-232 raises TypeError on
@@ -152,3 +146,19 @@ Resolved
   the descriptor's __set__ at __init__ time; a bad default fails
   loudly at construction now rather than silently logging and
   carrying on.
+
+[DONE] M11. Port.set_on_state_changed is a single-callback slot.
+  Resolved 2026-04-28 — replaced the single-slot setter with
+  ``add_listener`` / ``remove_listener``. NodeBase._add_input
+  switched to add_listener; tests bulk-renamed
+  set_on_state_changed → add_listener (call-site semantics are
+  identical for a single-listener port). New
+  tests/test_port_listeners.py locks down the multi-listener
+  contract: registration order, the "external observer doesn't
+  clobber the dispatcher" footgun fix, remove_listener idempotence,
+  and snapshot-iteration so a listener that registers another
+  listener mid-fire doesn't corrupt the loop. Listener ordering
+  (dispatcher-first means observers see post-clear state) is left
+  for a follow-up if a real use case shows up; nothing in the
+  codebase depends on observers reading data between receive and
+  the dispatcher's clear.

@@ -181,8 +181,11 @@ class NodeBase(ABC):
     def _add_input(self, port: InputPort) -> None:
         self._inputs.append(port)
         # Wire the port so that any state change (data arrival or finish)
-        # drives this node's dispatcher.
-        port.set_on_state_changed(self._signal_input_ready)
+        # drives this node's dispatcher. ``add_listener`` instead of the
+        # legacy ``set_on_state_changed`` so external observers (debug
+        # hooks, UI indicators, tests) can attach their own listeners
+        # later without clobbering the dispatcher hookup. Issue: M11.
+        port.add_listener(self._signal_input_ready)
 
     def _add_output(self, port: OutputPort) -> None:
         self._outputs.append(port)

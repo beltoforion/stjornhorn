@@ -19,7 +19,7 @@ def _wire(node: Display) -> tuple[OutputPort, list[IoData]]:
 
     captured: list[IoData] = []
     sink = InputPort("sink", {IoDataType.IMAGE})
-    sink.set_on_state_changed(
+    sink.add_listener(
         lambda: captured.append(sink.data) if sink.has_data else None
     )
     node.outputs[0].connect(sink)
@@ -95,7 +95,7 @@ def test_display_passes_through_greyscale() -> None:
     up.connect(node.inputs[0])
     captured: list[IoData] = []
     sink = InputPort("sink", {IoDataType.IMAGE_GREY})
-    sink.set_on_state_changed(
+    sink.add_listener(
         lambda: captured.append(sink.data) if sink.has_data else None
     )
     node.outputs[0].connect(sink)
@@ -219,7 +219,7 @@ def test_display_passes_through_scalar() -> None:
     up.connect(node.inputs[0])
     captured: list[IoData] = []
     sink = InputPort("sink", {IoDataType.SCALAR})
-    sink.set_on_state_changed(
+    sink.add_listener(
         lambda: captured.append(sink.data) if sink.has_data else None
     )
     node.outputs[0].connect(sink)
@@ -258,7 +258,7 @@ def test_display_passes_through_matrix() -> None:
     up.connect(node.inputs[0])
     captured: list[IoData] = []
     sink = InputPort("sink", {IoDataType.MATRIX})
-    sink.set_on_state_changed(
+    sink.add_listener(
         lambda: captured.append(sink.data) if sink.has_data else None
     )
     node.outputs[0].connect(sink)
