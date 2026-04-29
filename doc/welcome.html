@@ -180,7 +180,7 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.2.36</span></h1>
+      <h1>Welcome to Stjörnhorn <span class="version">v0.2.37</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
     </header>
 
@@ -210,6 +210,13 @@
           <p>Write frames to image files or encode video (MP4V, XVID) with live preview via the Display node.</p>
         </div>
       </div>
+    </section>
+
+    <section>
+      <h2>What's new in v0.2.37</h2>
+      <ul class="tips">
+        <li><strong>Datenkrake foundation: <code>IoDataType.DATASET</code> payload.</strong> A new payload kind on the <code>IoData</code> envelope that carries a <code>pandas.DataFrame</code>. Columns identify channels (e.g. <code>"time"</code>, <code>"Z"</code>, <code>"N"</code>, <code>"E"</code> for seismic; <code>"V"</code>, <code>"I"</code> for diode I-V) and <code>df.attrs</code> carries free-form metadata (sample rate, units, station, …). One generic payload kind serves every tabular domain so the same downstream nodes will compose across seismic, CV, and I-V flows. <code>IoData.from_dataset(df)</code> factory rejects non-DataFrame input. Foundation for project Datenkrake — see issues #218 / #219. <code>pandas</code> added to <code>requirements.txt</code>.</li>
+      </ul>
     </section>
 
     <section>
