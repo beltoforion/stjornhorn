@@ -35,7 +35,7 @@
         "y_column": "",
         "width": 800,
         "height": 300,
-        "title": "Earthquake Data",
+        "title": "X-Component",
         "grid": true
       },
       "size": [
@@ -75,7 +75,7 @@
         "y_column": "",
         "width": 800,
         "height": 300,
-        "title": "",
+        "title": "Y-Component",
         "grid": true
       },
       "size": [
@@ -104,7 +104,7 @@
       "port_defaults": {},
       "size": [
         800.0,
-        686.0
+        503.6963614614425
       ]
     },
     {
