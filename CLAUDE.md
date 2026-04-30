@@ -4,7 +4,8 @@
 - Follow the SOLID principles — Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion. Call out violations when you see them and prefer designs that respect these principles over expedient shortcuts.
 - Don't use magic numbers or magic strings
 - Always have code maintainability in mind. Avoid code duplication and code smells in general. If you find issues whilst working on the code bring them up and suggest improvements.
-- Maintain `refacturing.txt` at the repo root as the living architectural / SOLID / code-quality backlog. When you spot a new finding while working, append it (with file:line refs and a one-line direction) under the right severity bucket. When a refactor lands, move the entry to the *Resolved* section with the date and PR/commit, don't delete it. Update the "Last reviewed" stamp when you do a sweep. This file may be edited and pushed directly without asking.
+- Maintain `doc/internal/refactoring.md` as the living architectural / SOLID / code-quality backlog. When you spot a new finding while working, append it (with file:line refs and a one-line direction) under the right severity bucket. When a refactor lands, move the entry to the *Resolved* section with the date and PR/commit, don't delete it. Update the "Last reviewed" stamp when you do a sweep. This file may be edited and pushed directly without asking.
+- Maintain `doc/internal/dataflow.md` as the framework reference. Update it in the same PR whenever the public surface of the dataflow framework changes (a new lifecycle hook, a new port flag, a new IoData factory, a new payload kind). Strain points discovered in passing go to `refactoring.md` rather than `dataflow.md`. Also push-without-asking.
 - Whenever you touch a file, opportunistically clean up dead code in it without being asked: empty `if TYPE_CHECKING: pass` blocks, unused imports, unreferenced variables, commented-out code, stale `# TODO` markers that no longer match the surrounding code, leftover debug prints. Don't make this a separate PR — fold it into whatever change you're already making. If a cleanup would balloon the diff or change behaviour, surface it instead of doing it silently.
 
 ## Pull Requests
@@ -47,3 +48,4 @@
 - Änderungen an `CLAUDE.md` darf Claude direkt committen und pushen, ohne vorher Rückfrage zu stellen.
 - Änderungen an `doc/welcome.html` darf Claude ebenfalls direkt committen und pushen (Offline-Welcome-Seite, keine Sourcecode-Auswirkung).
 - Änderungen an `README.md` darf Claude ebenfalls direkt committen und pushen (Repo-Dokumentation, keine Sourcecode-Auswirkung).
+- Änderungen unter `doc/internal/` (Architektur-Doku, Refactoring-Backlog, Diagramme) darf Claude ebenfalls direkt committen und pushen.
