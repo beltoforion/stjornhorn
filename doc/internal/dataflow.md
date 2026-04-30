@@ -195,7 +195,7 @@ Width syntax `$tok:N$` zero-pads numeric values.
 SCALAR-port values reach the template via the upstream auto-stamp
 (see "Core types → IoMeta"): an upstream filter with a `tick`
 SCALAR port emits `meta["tick"] = <value>`, the sink reads it as
-`$tick$`. So `RangeSource → Pulse → FileSink` with template
+`$tick$`. So `RangeSource → Repeat → FileSink` with template
 `out_$tick:2$.png` writes `out_01.png`, `out_02.png`, … without
 the sink needing a clock port of its own. Sinks themselves are
 single-input (one frame in, one file out) — cardinality control

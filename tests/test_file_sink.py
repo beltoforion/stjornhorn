@@ -3,8 +3,8 @@
 Engine-level tests live in ``test_filename_template.py``. This file
 exercises the wiring: FileSink reads ``IoMeta`` off its image input
 and expands the ``output_path`` template per write. Multi-write
-flows (``RangeSource → Pulse → FileSink``) are covered by
-``test_pulse.py`` — FileSink itself only writes whatever arrives,
+flows (``RangeSource → Repeat → FileSink``) are covered by
+``test_repeat.py`` — FileSink itself only writes whatever arrives,
 one frame in / one file out.
 """
 from __future__ import annotations
@@ -81,7 +81,7 @@ def test_auto_stamped_scalar_token_resolves(tmp_path: Path) -> None:
 
     Simulated here with a manually-stamped ``tick`` key in the
     IoMeta; the end-to-end test that exercises the auto-stamp
-    machinery itself lives in ``test_pulse.py``."""
+    machinery itself lives in ``test_repeat.py``."""
     sink = FileSink()
     sink.output_path = tmp_path / "out_$tick:2$.png"
 
@@ -101,7 +101,7 @@ def test_auto_stamped_scalar_token_resolves(tmp_path: Path) -> None:
 def test_sink_has_no_tick_port(tmp_path: Path) -> None:
     """Regression guard: M13 dropped the explicit tick port. The
     sink takes one input only — the image. Cardinality control
-    moves upstream (Pulse, or any filter with a SCALAR port)."""
+    moves upstream (Repeat, or any filter with a SCALAR port)."""
     sink = FileSink()
     assert len(sink.inputs) == 1
     assert sink.inputs[0].name == "image"

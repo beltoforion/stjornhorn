@@ -14,7 +14,7 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-04-30 (M13 in flight — auto-stamp + Pulse
+**Last reviewed:** 2026-04-30 (M13 in flight — auto-stamp + Repeat
 landed on a branch, sink-port migration follows).
 
 ## High
@@ -121,7 +121,7 @@ inputs into outgoing meta so sink filename templates
 3. Drop the `tick` input port on `FileSink` (and any future
    sink that grows one). Sink cardinality = upstream image
    stream cardinality.
-4. New `Pulse` / `TickTagger` node — `(image, clock) →
+4. New `Repeat` node — `(image, clock) →
    image_with_meta_stamp` — for the "fire the same image N
    times" case where there's no upstream filter to clock.
    Replaces every sink-side tick port across the codebase.

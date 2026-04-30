@@ -7,11 +7,11 @@ from core.node_base import NodeBase
 from core.port import InputPort, OutputPort
 
 
-#: Every payload kind passes through; pulse is type-agnostic.
+#: Every payload kind passes through; repeat is type-agnostic.
 _ALL_TYPES: frozenset[IoDataType] = frozenset(IoDataType)
 
 
-class Pulse(NodeBase):
+class Repeat(NodeBase):
     """Re-emit a held payload once per ``tick``.
 
     Pairs a one-shot upstream (an :class:`ImageSource`, a
@@ -33,7 +33,7 @@ class Pulse(NodeBase):
     """
 
     def __init__(self) -> None:
-        super().__init__("Pulse", section="Streaming")
+        super().__init__("Repeat", section="Streaming")
         # ``data`` is held so one-shot sources don't go stale on
         # subsequent ticks. ``tick`` is the lifecycle driver — every
         # tick fires the node.

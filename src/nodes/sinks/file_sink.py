@@ -30,7 +30,7 @@ class FileSink(SinkNodeBase):
     write time, with width syntax ``$tok:N$`` for zero-padding.
 
     The sink writes one file per arriving frame. To produce N files
-    from a single source use :class:`~nodes.filters.pulse.Pulse` with
+    from a single source use :class:`~nodes.filters.repeat.Repeat` with
     a clock; any SCALAR-port value the upstream pipeline reads ends
     up as a ``$<port_name>$`` token in the template (refactor M13).
     """
@@ -45,7 +45,7 @@ class FileSink(SinkNodeBase):
             "Where to write each frame. May contain $token$ placeholders: "
             "$frame_index$, $source_stem$, $source_name$, $source_ext$, "
             "$flow_name$, plus any SCALAR port value an upstream filter "
-            "stamped (e.g. $tick$ from a Pulse). Width syntax $tok:N$ "
+            "stamped (e.g. $tick$ from a Repeat). Width syntax $tok:N$ "
             "zero-pads, e.g. out_$frame_index:4$.png. With no placeholders "
             "the file is overwritten on every frame."
         ),

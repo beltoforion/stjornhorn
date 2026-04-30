@@ -1,9 +1,9 @@
-"""Tests for :class:`~nodes.filters.pulse.Pulse` and the SCALAR-port
+"""Tests for :class:`~nodes.filters.repeat.Repeat` and the SCALAR-port
 auto-stamp convention it relies on.
 
 The auto-stamp machinery lives in :meth:`OutputPort.send` — every
 SCALAR input on the owning node lands in outgoing :class:`IoMeta`
-under the port name. ``Pulse`` exists to make that convention
+under the port name. ``Repeat`` exists to make that convention
 useful for the "fire one held image per clock tick" flow shape:
 the held image rides the tick lifecycle, and the tick value lands
 in meta as ``meta["tick"]`` so a downstream sink template can
@@ -18,7 +18,7 @@ import numpy as np
 from core.io_data import IoData, IoDataType, IoMeta
 from core.node_base import NodeBase
 from core.port import InputPort, OutputPort
-from nodes.filters.pulse import Pulse
+from nodes.filters.repeat import Repeat
 from nodes.sinks.file_sink import FileSink
 
 
@@ -26,24 +26,24 @@ def _make_image() -> np.ndarray:
     return np.full((4, 4, 3), 128, dtype=np.uint8)
 
 
-# ── Pulse node mechanics ─────────────────────────────────────────────────────
+# ── Repeat node mechanics ────────────────────────────────────────────────────
 
 
-def test_pulse_emits_held_data_once_per_tick() -> None:
+def test_repeat_emits_held_data_once_per_tick() -> None:
     """One image in, one tick clock, N ticks → N emissions, all
     carrying the held image's payload."""
-    pulse = Pulse()
+    repeat = Repeat()
     image_feeder = OutputPort("img", {IoDataType.IMAGE})
     tick_feeder  = OutputPort("tick", {IoDataType.SCALAR})
-    image_feeder.connect(pulse.inputs[0])
-    tick_feeder.connect(pulse.inputs[1])
+    image_feeder.connect(repeat.inputs[0])
+    tick_feeder.connect(repeat.inputs[1])
 
     received: list[IoData] = []
     sink_in = InputPort("sink", {IoDataType.IMAGE})
     sink_in.add_listener(lambda: received.append(sink_in.data))
-    pulse.outputs[0].connect(sink_in)
+    repeat.outputs[0].connect(sink_in)
 
-    pulse.before_run()
+    repeat.before_run()
     image_feeder.send(IoData.from_image(_make_image()))
     image_feeder.finish()
     for i in range(1, 6):
@@ -52,21 +52,21 @@ def test_pulse_emits_held_data_once_per_tick() -> None:
     assert len(received) == 5
 
 
-def test_pulse_stamps_tick_value_into_outgoing_meta() -> None:
+def test_repeat_stamps_tick_value_into_outgoing_meta() -> None:
     """The auto-stamp convention writes the SCALAR ``tick`` port's
     current value into outgoing meta under the port name."""
-    pulse = Pulse()
+    repeat = Repeat()
     image_feeder = OutputPort("img", {IoDataType.IMAGE})
     tick_feeder  = OutputPort("tick", {IoDataType.SCALAR})
-    image_feeder.connect(pulse.inputs[0])
-    tick_feeder.connect(pulse.inputs[1])
+    image_feeder.connect(repeat.inputs[0])
+    tick_feeder.connect(repeat.inputs[1])
 
     received: list[IoData] = []
     sink_in = InputPort("sink", {IoDataType.IMAGE})
     sink_in.add_listener(lambda: received.append(sink_in.data))
-    pulse.outputs[0].connect(sink_in)
+    repeat.outputs[0].connect(sink_in)
 
-    pulse.before_run()
+    repeat.before_run()
     image_feeder.send(IoData.from_image(_make_image()))
     image_feeder.finish()
     for i in (3, 7, 11):
@@ -75,24 +75,24 @@ def test_pulse_stamps_tick_value_into_outgoing_meta() -> None:
     assert [d.meta["tick"] for d in received] == [3, 7, 11]
 
 
-# ── End-to-end: Pulse → FileSink with $tick$ template ────────────────────────
+# ── End-to-end: Repeat → FileSink with $tick$ template ───────────────────────
 
 
-def test_pulse_drives_filesink_via_tick_template(tmp_path: Path) -> None:
+def test_repeat_drives_filesink_via_tick_template(tmp_path: Path) -> None:
     """The canonical demo: ImageSource emits once, RangeSource
-    ticks N times, Pulse rides the clock and stamps ``meta["tick"]``,
+    ticks N times, Repeat rides the clock and stamps ``meta["tick"]``,
     FileSink writes one numbered file per tick."""
-    pulse = Pulse()
+    repeat = Repeat()
     sink = FileSink()
     sink.output_path = tmp_path / "out_$tick:2$.png"
 
     image_feeder = OutputPort("img", {IoDataType.IMAGE})
     tick_feeder  = OutputPort("tick", {IoDataType.SCALAR})
-    image_feeder.connect(pulse.inputs[0])
-    tick_feeder.connect(pulse.inputs[1])
-    pulse.outputs[0].connect(sink.inputs[0])
+    image_feeder.connect(repeat.inputs[0])
+    tick_feeder.connect(repeat.inputs[1])
+    repeat.outputs[0].connect(sink.inputs[0])
 
-    pulse.before_run()
+    repeat.before_run()
     sink.before_run()
     image_feeder.send(IoData.from_image(_make_image()))
     image_feeder.finish()
