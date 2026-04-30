@@ -25,4 +25,4 @@ class Invert(NodeBase):
     def process_impl(self) -> None:
         in_data = self.inputs[0].data
         inverted = cv2.bitwise_not(in_data.image)
-        self.outputs[0].send(in_data.with_image(inverted))
+        self.outputs[0].send(in_data.clone(payload=inverted))

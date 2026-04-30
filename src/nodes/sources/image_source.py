@@ -8,7 +8,7 @@ import rawpy
 from typing_extensions import override
 
 from constants import INPUT_DIR
-from core.io_data import IoData, IoDataType
+from core.io_data import IoData, IoDataType, IoMeta
 from core.node_base import SourceNodeBase
 from core.params import FilePathParam
 from core.path_utils import resolve_against
@@ -87,7 +87,9 @@ class ImageSource(SourceNodeBase):
             if image.ndim == 2:
                 image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
-        self.outputs[0].send(IoData.from_image(image))
+        self.outputs[0].send(
+            IoData.from_image(image, meta=IoMeta(source_path=resolved))
+        )
 
     def _resolved_path(self) -> Path:
         """Return an absolute path; relative values are joined with INPUT_DIR."""

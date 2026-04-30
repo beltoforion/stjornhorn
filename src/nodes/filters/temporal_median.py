@@ -64,4 +64,4 @@ class TemporalMedian(NodeBase):
         # dtype so downstream nodes get the type they expect.
         stack = np.stack(self._buffer, axis=0)
         median = np.median(stack, axis=0).astype(image.dtype)
-        self.outputs[0].send(in_data.with_image(median))
+        self.outputs[0].send(in_data.clone(payload=median))
