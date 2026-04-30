@@ -172,9 +172,9 @@ label the node carries in the **Node List**.
 - **Constant Value** — reactive source that emits a single SCALAR
   value, latched downstream. Use it to drive a `Math` expression or
   any other scalar-consuming parameter.
-- **Value Source** — emits a SCALAR counter that advances by one per
-  frame. Combine with `Math` to derive time- or frame-dependent
-  parameters.
+- **Range Source** — emits a SCALAR range, one value per frame
+  (start / stop / step). Combine with `Math` to derive time- or
+  frame-dependent parameters.
 - **CSV Source** — loads a CSV file as a `DATASET` (pandas DataFrame).
   First-class producer for the data-flow side of Stjörnhorn: any
   numeric CSV (seismic export, instrument log, simulation output, …)

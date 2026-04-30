@@ -1,14 +1,14 @@
-"""Unit tests for the ValueSource counter node."""
+"""Unit tests for the RangeSource counter node."""
 from __future__ import annotations
 
 import pytest
 
 from core.io_data import IoData, IoDataType
 from core.port import InputPort
-from nodes.sources.value_source import ValueSource
+from nodes.sources.range_source import RangeSource
 
 
-def _wire_capture(node: ValueSource) -> list[IoData]:
+def _wire_capture(node: RangeSource) -> list[IoData]:
     captured: list[IoData] = []
     sink = InputPort("sink", {IoDataType.SCALAR})
     sink.add_listener(
@@ -19,7 +19,7 @@ def _wire_capture(node: ValueSource) -> list[IoData]:
 
 
 def test_emits_scalar_iodata_per_frame() -> None:
-    node = ValueSource()
+    node = RangeSource()
     node.min_value = 0
     node.max_value = 4
     captured = _wire_capture(node)
@@ -33,7 +33,7 @@ def test_emits_scalar_iodata_per_frame() -> None:
 
 
 def test_default_range_is_zero_to_ninetynine() -> None:
-    node = ValueSource()
+    node = RangeSource()
     captured = _wire_capture(node)
 
     node.before_run()
@@ -47,12 +47,12 @@ def test_default_range_is_zero_to_ninetynine() -> None:
 def test_default_increment_is_one() -> None:
     """A brand-new node steps by 1, matching the pre-multiplier ``+1``
     counter behaviour."""
-    node = ValueSource()
+    node = RangeSource()
     assert node.increment == 1.0
 
 
 def test_integer_increment_skips_values() -> None:
-    node = ValueSource()
+    node = RangeSource()
     node.min_value = 0
     node.max_value = 10
     node.increment = 2
@@ -67,7 +67,7 @@ def test_integer_increment_skips_values() -> None:
 def test_integer_increment_emits_int() -> None:
     """A whole-number increment keeps the payload integer-valued so a
     Display label reads '42' rather than '42.0'."""
-    node = ValueSource()
+    node = RangeSource()
     node.min_value = 1
     node.max_value = 3
     node.increment = 1
@@ -82,7 +82,7 @@ def test_integer_increment_emits_int() -> None:
 
 
 def test_fractional_increment_emits_float() -> None:
-    node = ValueSource()
+    node = RangeSource()
     node.min_value = 0
     node.max_value = 2
     node.increment = 0.5
@@ -100,7 +100,7 @@ def test_fractional_increment_handles_float_drift() -> None:
     """Floating-point drift (10 * 0.1 == 1.0000000000000002) must not
     truncate the last value — the iterator carries a small tolerance
     on the upper-bound check."""
-    node = ValueSource()
+    node = RangeSource()
     node.min_value = 0
     node.max_value = 1
     node.increment = 0.1
@@ -116,7 +116,7 @@ def test_fractional_increment_handles_float_drift() -> None:
 
 
 def test_increment_setter_rejects_zero_and_negative() -> None:
-    node = ValueSource()
+    node = RangeSource()
     with pytest.raises(ValueError, match="increment must be > 0"):
         node.increment = 0
     with pytest.raises(ValueError, match="increment must be > 0"):
@@ -126,7 +126,7 @@ def test_increment_setter_rejects_zero_and_negative() -> None:
 def test_loop_repeats_range_bounded_cycles() -> None:
     """loop=True cycles the range a bounded number of times so a
     forgotten ``loop=True`` still terminates the run."""
-    node = ValueSource()
+    node = RangeSource()
     node.min_value = 0
     node.max_value = 2
     node.loop = True
@@ -136,7 +136,7 @@ def test_loop_repeats_range_bounded_cycles() -> None:
     node.process_impl()
 
     expected_per_cycle = [0, 1, 2]
-    assert len(captured) == len(expected_per_cycle) * ValueSource._LOOP_CYCLES
+    assert len(captured) == len(expected_per_cycle) * RangeSource._LOOP_CYCLES
     head = [int(d.payload.item()) for d in captured[:3]]
     tail = [int(d.payload.item()) for d in captured[-3:]]
     assert head == expected_per_cycle
@@ -145,7 +145,7 @@ def test_loop_repeats_range_bounded_cycles() -> None:
 
 def test_inverted_range_emits_nothing() -> None:
     """max_value < min_value is treated as an empty range — no values, no error."""
-    node = ValueSource()
+    node = RangeSource()
     node.min_value = 10
     node.max_value = 5
     captured = _wire_capture(node)
@@ -159,7 +159,7 @@ def test_inverted_range_emits_nothing() -> None:
 def test_params_round_trip_through_setattr() -> None:
     """The setattr/getattr path used by widgets and flow-load must
     still work — verifies the property setters coerce types."""
-    node = ValueSource()
+    node = RangeSource()
     setattr(node, "min_value", "5")        # widget hands strings sometimes
     setattr(node, "max_value", 12.0)
     setattr(node, "increment", 2)

@@ -29,8 +29,8 @@
     },
     {
       "id": 2,
-      "module": "nodes.sources.value_source",
-      "class": "ValueSource",
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
       "position": [
         -2091.514204847656,
         -1238.133158669781
@@ -74,8 +74,8 @@
     },
     {
       "id": 5,
-      "module": "nodes.sources.value_source",
-      "class": "ValueSource",
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
       "position": [
         -2091.514204847656,
         -1041.2409950147098
@@ -188,7 +188,7 @@
         228.8125,
         446.0
       ],
-      "title": "Value Sources",
+      "title": "Range Sources",
       "color": [
         70,
         60,

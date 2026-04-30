@@ -175,7 +175,7 @@ class Flow:
           :meth:`SourceNodeBase.iter_frames` generators: each iteration
           of the outer loop steps every active source once, so two
           streaming sources driving two param ports on the same node
-          (e.g. two ``ValueSource``s feeding ``Overlay.angle`` and
+          (e.g. two ``RangeSource``s feeding ``Overlay.angle`` and
           ``Overlay.xpos``) advance together and both animate. When a
           source's iterator is exhausted, its outputs are finished —
           :meth:`InputPort.clear`'s "retain after upstream finish"
@@ -252,7 +252,7 @@ class Flow:
 
             # Belt-and-braces: cover any source whose ``iter_frames``
             # returned without yielding (zero-frame streaming source —
-            # e.g. an inverted ValueSource range). ``finish`` is
+            # e.g. an inverted RangeSource range). ``finish`` is
             # idempotent.
             for source in self.sources:
                 for out in source.outputs:

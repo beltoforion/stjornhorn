@@ -10,8 +10,8 @@ from core.params import BoolParam, FloatParam, IntParam
 from core.port import OutputPort
 
 
-class ValueSource(SourceNodeBase):
-    """Source node that emits a SCALAR counter, one value per frame.
+class RangeSource(SourceNodeBase):
+    """Source node that emits a SCALAR range, one value per frame.
 
     Drives downstream nodes with a numeric stream — animate a
     Math expression's ``a``, an Overlay's rotation angle, etc.
@@ -46,7 +46,7 @@ class ValueSource(SourceNodeBase):
     loop = BoolParam(False, constant=True)
 
     def __init__(self) -> None:
-        super().__init__("Value Source", section="Sources")
+        super().__init__("Range Source", section="Sources")
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))
         self._apply_default_params()
 
@@ -56,7 +56,7 @@ class ValueSource(SourceNodeBase):
 
         Letting :class:`core.flow.Flow.run` round-robin streaming
         sources requires this — without per-frame yielding two
-        ``ValueSource``s feeding two param ports on the same node
+        ``RangeSource``s feeding two param ports on the same node
         produce only one composite frame total (the first source
         drains entirely before the second sends anything; see
         :meth:`SourceNodeBase.iter_frames`).

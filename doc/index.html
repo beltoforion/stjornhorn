@@ -832,19 +832,19 @@
           <div class="params">directory · include_subdirectories</div>
         </div>
         <div class="node-card source">
-          <h4>Value Source</h4>
-          <p>Numeric counter source emitting one
+          <h4>Range Source</h4>
+          <p>Numeric range source emitting one
             <span class="pill scalar">SCALAR</span> per frame.
-            Wire into a Display to watch the counter live, or into a
+            Wire into a Display to watch the value live, or into a
             param port to ramp it across a stream.</p>
-          <div class="params">min_value · max_value · multiplier · loop</div>
+          <div class="params">min_value · max_value · increment · loop</div>
         </div>
         <div class="node-card source">
           <h4>Constant Value</h4>
           <p>Emits a single <span class="pill scalar">SCALAR</span>
             (latched on streaming consumers). Use as a fixed factor
             or offset feeding into <em>Math</em> without spinning up
-            a second Value Source.</p>
+            a second Range Source.</p>
           <div class="params">value</div>
         </div>
       </div>
@@ -1051,7 +1051,7 @@
       <p>
         The math nodes operate on
         <span class="pill scalar">SCALAR</span> streams. Combine them
-        with Value Source / Constant Value to drive any numeric param
+        with Range Source / Constant Value to drive any numeric param
         on any node from a computed value.
       </p>
       <div class="node-grid">
