@@ -25,8 +25,8 @@
       "module": "nodes.filters.resize",
       "class": "Resize",
       "position": [
-        -1544.87237594356,
-        -1593.0789678234596
+        -1707.0030453004008,
+        -1735.2065026492617
       ],
       "port_defaults": {
         "width": 256,
@@ -47,7 +47,7 @@
         -1302.5132418231526
       ],
       "port_defaults": {
-        "output_path": "$source_stem$.xxx..png"
+        "output_path": "$source_stem$.$frame_index$..png"
       },
       "size": [
         583.7970282400536,
