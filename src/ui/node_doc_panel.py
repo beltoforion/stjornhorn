@@ -1,17 +1,8 @@
 """Documentation panel that mirrors the currently selected node.
 
 A dockable widget that consumes :func:`core.node_doc.describe_node` and
-renders the result in two parts: a small always-visible *summary*
-(node name, section, brief description — the docstring's first
-paragraph) and a collapsible *details* section that holds the rest of
-the docstring plus the full input / output / parameter tables.
-
-The split keeps the panel compact at rest — most of the time the
-user just needs the name and the one-line summary — while still
-making the full docs reachable in two clicks: select the node, hit
-*Details*. The toggle's open/closed state survives selection
-changes within a session, so a user reading docs can tab between
-nodes without re-opening the disclosure each time.
+renders the result in a single rich-text body: name + section, the
+docstring, then the Inputs / Outputs / Parameters tables.
 
 The panel updates from two selection sources:
 
@@ -23,7 +14,7 @@ The panel updates from two selection sources:
 Lives in its own dock so the user can hide / float / re-arrange it
 through the existing dock-layout machinery
 (:mod:`ui.dock_layout`). Empty state shows a one-line hint instead
-of a blank panel — a missing tooltip equivalent. Issue: #187
+of a blank panel — a missing-tooltip equivalent. Issues: #187, #233
 """
 from __future__ import annotations
 
@@ -37,11 +28,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
     QFrame,
-    QLabel,
-    QScrollArea,
-    QSizePolicy,
     QTextBrowser,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -60,15 +47,15 @@ _EMPTY_STATE_HTML: str = (
     "</span>"
 )
 
-#: CSS shared by the summary label and the details browser. Tuned for
-#: a narrow dock (≈ 220 px is the realistic minimum a user wants to
-#: give it): small fonts, no fixed-width meta blocks,
-#: ``word-break: break-all`` on every potentially-long ``<code>``
-#: span so a dotted module path or a long file-dialog filter wraps
-#: instead of forcing a horizontal scrollbar. ``<dl>`` instead of
-#: bullets so the param name + body lines vertically align with no
-#: list-marker gutter. Colour palette mirrors the rest of the editor
-#: (panel ``#2f2f33`` / muted text ``#9a9a9f`` / accent ``#f0c83c``).
+#: CSS for the rendered body. Tuned for a narrow dock (≈ 220 px is
+#: the realistic minimum a user wants to give it): small fonts, no
+#: fixed-width meta blocks, ``word-break: break-all`` on every
+#: potentially-long ``<code>`` span so a dotted module path or a long
+#: file-dialog filter wraps instead of forcing a horizontal scrollbar.
+#: ``<dl>`` instead of bullets so the param name + body lines vertically
+#: align with no list-marker gutter. Colour palette mirrors the rest of
+#: the editor (panel ``#2f2f33`` / muted text ``#9a9a9f`` / accent
+#: ``#f0c83c``).
 _PANEL_CSS: str = """
 <style>
   body { font-family: 'Segoe UI', sans-serif; font-size: 11px;
@@ -98,10 +85,6 @@ _PANEL_CSS: str = """
 #: Sphinx cross-reference role pattern. Captures the back-ticked
 #: target so the role prefix can be stripped without losing the
 #: identifier itself. ``:class:`Resize``` becomes ``Resize``.
-#:
-#: All seven role names that actually appear in the codebase today
-#: are handled with one pattern; new roles only need to be added if
-#: they contain characters outside ``[a-z]``.
 _SPHINX_ROLE_RE: re.Pattern[str] = re.compile(
     r":(?:class|func|meth|attr|data|mod|obj):`([^`]+)`"
 )
@@ -113,7 +96,7 @@ def _strip_sphinx_roles(text: str) -> str:
     Source docstrings and metadata descriptions use Sphinx
     cross-reference roles for IDE / autodoc tooling, but the panel
     is for end users — the role prefix is noise. The captured target
-    sometimes contains a tilde-prefix
+    sometimes carries a tilde-prefix
     (``:class:`~ui.flow_scene.FlowScene```) which we shorten to the
     last dotted component the same way Sphinx renders it.
     """
@@ -125,29 +108,18 @@ def _strip_sphinx_roles(text: str) -> str:
     return _SPHINX_ROLE_RE.sub(_replace, text)
 
 
-#: RST inline-code (``` ``foo`` ```) — Sphinx renders this in
-#: monospace; the panel mirrors that with ``<code>`` tags so the
-#: backtick noise doesn't leak into prose. Single-backtick RST is
-#: deliberately ignored because it conflicts with default-value
-#: syntax in metadata.
+#: RST inline-code (``` ``foo`` ```) → ``<code>foo</code>``. Single-
+#: backtick RST is deliberately ignored because it conflicts with
+#: default-value syntax in metadata.
 _RST_INLINE_CODE_RE: re.Pattern[str] = re.compile(r"``([^`]+)``")
 
 
 def _render_prose(text: str) -> str:
     """Turn a docstring / metadata description into HTML body text.
 
-    Steps, in order:
-      1. Strip Sphinx role prefixes (``:class:`x``` → ``x``).
-      2. PEP-257 cleandoc — class docstrings carry their indentation,
-         which would survive in HTML as awkward leading spaces in the
-         middle of paragraphs. Plain ``textwrap.dedent`` is a no-op
-         here because the common prefix is empty (first line has zero
-         indentation, body has class-level indent); ``cleandoc``
-         understands that convention.
-      3. HTML-escape so user content can't smuggle markup.
-      4. Re-introduce the two pieces of light formatting that survive
-         escaping: RST inline code (``` ``foo`` ```) becomes
-         ``<code>foo</code>``.
+    Strips Sphinx role prefixes, runs PEP-257 ``cleandoc`` to drop
+    class-level indentation, HTML-escapes for safety, then re-wraps
+    RST inline code in ``<code>`` tags.
     """
     text = _strip_sphinx_roles(text)
     text = inspect.cleandoc(text)
@@ -157,11 +129,10 @@ def _render_prose(text: str) -> str:
 
 
 def _docstring_paragraphs(docstring: str) -> list[str]:
-    """Split a class docstring into paragraphs, each already prose-rendered.
+    """Split a class docstring into prose-rendered paragraphs.
 
-    The first paragraph is the convention-defined "summary" line per
-    PEP 257, so the panel uses it as the always-visible brief. The
-    rest live inside the collapsible details section.
+    The first paragraph is the PEP 257 summary line (rendered with
+    ``.brief`` styling); the rest are body paragraphs.
     """
     if not docstring.strip():
         return []
@@ -173,21 +144,14 @@ def _docstring_paragraphs(docstring: str) -> list[str]:
 
 
 def _format_types(types: list[str]) -> str:
-    """Render a list of :class:`IoDataType` names as HTML ``<code>``
-    elements joined by a thin separator."""
     if not types:
         return '<span style="color: #9a9a9f;">(none)</span>'
     return " | ".join(f"<code>{html.escape(t)}</code>" for t in types)
 
 
 def _format_default(value: object) -> str:
-    """Format a default value for inline display in the extras line.
-
-    Python ``Enum`` members repr as ``<MyEnum.NAME: 0>`` — that string
-    leaks the class name and angle brackets into the panel. Render
-    just the member name instead, matching the form the param widget
-    shows. Numeric and string scalars use the obvious representation.
-    """
+    """Format a default value for inline display. Enum members render
+    as just the member name; other values use ``repr``."""
     if isinstance(value, enum.Enum):
         return html.escape(value.name)
     if isinstance(value, str):
@@ -196,16 +160,11 @@ def _format_default(value: object) -> str:
 
 
 def _format_enum_mapping(mapping: dict) -> str:
-    """``{0: 'SCALE', 1: 'CROP_OR_FILL'}`` →
-    ``0=SCALE, 1=CROP_OR_FILL`` (HTML-escaped)."""
     pairs = (f"{k}={html.escape(str(v))}" for k, v in sorted(mapping.items()))
     return ", ".join(pairs)
 
 
 def _format_extras(p: dict) -> str:
-    """Render the small grab-bag of non-description metadata as one
-    centred-dot-separated line. Returns ``""`` when nothing useful is
-    present so the caller can drop the line entirely."""
     parts: list[str] = []
     if "default" in p:
         parts.append(f"default <code>{_format_default(p['default'])}</code>")
@@ -225,7 +184,6 @@ def _format_extras(p: dict) -> str:
 
 
 def _render_input(port: dict) -> str:
-    """Render one input port as a ``<dt>`` + optional ``<dd>``."""
     name = html.escape(port["name"])
     types = _format_types(port["accepted_types"])
     bits = [f'<span class="type">{types}</span>']
@@ -249,8 +207,6 @@ def _render_input(port: dict) -> str:
 
 
 def _render_param(param: dict) -> str:
-    """Render one constant ``NodeParam`` as a ``<dt>`` + optional
-    ``<dd>``."""
     name = html.escape(param["name"])
     pt = param.get("param_type", "")
     type_html = f'<span class="type">{html.escape(pt)}</span>' if pt else ""
@@ -273,15 +229,14 @@ def _render_output(port: dict) -> str:
     )
 
 
-def render_node_summary(desc: dict) -> str:
-    """HTML for the *always-visible* portion of the panel.
+def render_node_html(desc: dict) -> str:
+    """Render the full node documentation as a single HTML body.
 
-    Carries the node name, section, the docstring's first
-    paragraph (PEP 257 summary line), and the *Inputs* and
-    *Outputs* tables — the structural information a user needs to
-    decide how to wire the node, which would be unhelpful behind
-    a disclosure. Parameters and the rest of the docstring move
-    into the collapsible :func:`render_node_details` body.
+    Order, top to bottom: display name + section, the docstring (PEP
+    257 summary line styled as ``.brief``, then the rest of the
+    paragraphs), Inputs, Outputs, Parameters. Empty sections are
+    omitted entirely so a node with no params doesn't show a stray
+    Parameters heading.
 
     Pure function — no Qt — so it's testable without a
     ``QApplication``.
@@ -289,10 +244,7 @@ def render_node_summary(desc: dict) -> str:
     parts: list[str] = [_PANEL_CSS]
 
     # H1 carries an HTML ``title`` attribute with the dotted module
-    # path so a curious user can hover to see where the class lives,
-    # without that long string forcing the dock open. Most QTextBrowser
-    # builds honour ``title`` as a tooltip; on those that don't the
-    # information is still accessible from the source.
+    # path so a curious user can hover to see where the class lives.
     display_name = html.escape(desc["display_name"])
     module = desc.get("module") or ""
     class_name = desc.get("class_name") or ""
@@ -306,6 +258,8 @@ def render_node_summary(desc: dict) -> str:
     paragraphs = _docstring_paragraphs(desc.get("docstring", ""))
     if paragraphs:
         parts.append(f'<p class="brief">{paragraphs[0]}</p>')
+        for p in paragraphs[1:]:
+            parts.append(f'<p class="doc">{p}</p>')
 
     if inputs := desc.get("inputs", []):
         parts.append("<h2>Inputs</h2><dl>")
@@ -317,30 +271,6 @@ def render_node_summary(desc: dict) -> str:
         parts.extend(_render_output(p) for p in outputs)
         parts.append("</dl>")
 
-    return "".join(parts)
-
-
-def render_node_details(desc: dict) -> str:
-    """HTML for the *collapsible* portion of the panel.
-
-    Contains the rest of the docstring (paragraphs after the PEP 257
-    summary line) followed by the Parameters table. Inputs and
-    Outputs live in the always-visible :func:`render_node_summary`
-    head — they describe how to wire the node, which is needed
-    upfront. Empty sections are *omitted* entirely (a node with no
-    params simply doesn't show a Parameters heading) so the body
-    stays compact when the user opens the disclosure.
-    """
-    parts: list[str] = [_PANEL_CSS]
-
-    # Skip the summary line; everything else from the docstring goes
-    # into the details body. The summary already lives in the
-    # always-visible head, so duplicating it here would just push
-    # the useful content further down.
-    paragraphs = _docstring_paragraphs(desc.get("docstring", ""))
-    for p in paragraphs[1:]:
-        parts.append(f'<p class="doc">{p}</p>')
-
     if params := desc.get("params", []):
         parts.append("<h2>Parameters</h2><dl>")
         parts.extend(_render_param(p) for p in params)
@@ -349,29 +279,10 @@ def render_node_details(desc: dict) -> str:
     return "".join(parts)
 
 
-def has_details(desc: dict) -> bool:
-    """``True`` when ``render_node_details`` would produce content
-    beyond just the stylesheet — i.e. there *is* something for the
-    user to expand. Lets the widget hide the *Details* toggle on
-    nodes that have nothing more to show, instead of dangling an
-    empty disclosure.
-
-    Inputs and Outputs are *not* counted: they live in the
-    always-visible summary head and are never behind the
-    disclosure, so their presence shouldn't make the toggle
-    appear when there's nothing else to expand into.
-    """
-    if any(p.strip() for p in _docstring_paragraphs(desc.get("docstring", ""))[1:]):
-        return True
-    if desc.get("params"):
-        return True
-    return False
-
-
 #: Default size the panel reports to its container. Constant — does **not**
 #: depend on the rendered docstring length — so a node with a long docstring
 #: never grows the dock and squashes its siblings (e.g. the Node List). When
-#: content overflows, the inner ``QScrollArea`` produces a scroll bar instead.
+#: content overflows, the inner ``QTextBrowser`` produces a scroll bar instead.
 #: Issue: #233.
 _PANEL_DEFAULT_HINT: QSize = QSize(280, 360)
 
@@ -379,196 +290,78 @@ _PANEL_DEFAULT_HINT: QSize = QSize(280, 360)
 #: so the user can shrink the dock without the panel shouldering it back up.
 _PANEL_MIN_HINT: QSize = QSize(180, 80)
 
-#: Floor height for the collapsible details ``QTextBrowser``. The browser
-#: scrolls internally when its content is taller than this; together with
-#: a ``QSizePolicy.Ignored`` vertical policy, it keeps the body from
-#: pushing the outer scroll bar around when long Parameters tables are
-#: open. Also #233.
-_DETAILS_MIN_HEIGHT: int = 120
-
 
 class NodeDocPanel(QWidget):
     """Dockable panel that renders the docs of the currently selected node.
 
-    Layout (top to bottom):
-      1. Always-visible summary (``QLabel`` with rich text) —
-         display name, section, brief description.
-      2. Toggle button (``QToolButton``) — disclosure triangle that
-         collapses / expands the details body.
-      3. Collapsible details body (``QTextBrowser``) — the rest of
-         the docstring plus Inputs / Outputs / Parameters.
-
-    The toggle's expanded state is preserved across selection
-    changes within the session, so a user reading docs can switch
-    between nodes without re-clicking the disclosure each time.
+    Hosts a single :class:`QTextBrowser` whose body is built by
+    :func:`render_node_html`. The browser scrolls internally when
+    content overflows, so the panel's reported size stays constant
+    across selection changes (issue #233).
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        # ``True`` while the currently-shown class has something in its
-        # details body. Tracked separately from ``QWidget.isVisible``
-        # because the latter depends on the parent's realised visibility
-        # and gives misleading answers in unit tests where the panel is
-        # never ``show()``-n.
-        self._has_details: bool = False
 
-        # Outer layout holds a ``QScrollArea`` that owns the actual body
-        # widget. Wrapping the body in a scroll area decouples the
-        # panel's reported size from its rendered docstring length —
-        # without this, a long docstring grew ``minimumSizeHint`` and
-        # pushed the dock taller, squashing the sibling Node List dock.
-        # Issue: #233.
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        self._scroll = QScrollArea(self)
-        self._scroll.setWidgetResizable(True)
-        # Wrap text rather than scrolling horizontally — narrow docks
-        # are common and a horizontal bar inside a vertical dock reads
-        # like a sizing bug.
-        self._scroll.setHorizontalScrollBarPolicy(
+        self._body = QTextBrowser(self)
+        self._body.setOpenExternalLinks(True)
+        self._body.setFrameShape(QFrame.Shape.NoFrame)
+        self._body.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self._scroll.setVerticalScrollBarPolicy(
+        self._body.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
-        # The QScrollArea's default frame draws a 1-px border that
-        # collides with the dock's own border; drop it.
-        self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-        outer.addWidget(self._scroll)
-
-        body = QWidget()
-        layout = QVBoxLayout(body)
-        layout.setContentsMargins(8, 6, 8, 6)
-        layout.setSpacing(4)
-        self._scroll.setWidget(body)
-
-        # ── Summary head: rich-text QLabel sized to its content ───
-        # Using QLabel rather than a second QTextBrowser keeps the
-        # head compact (no scrollbars, no fixed default height) and
-        # auto-shrinks to the prose it carries. ``setWordWrap`` is
-        # essential for narrow docks; ``OpenExternalLinks`` is on
-        # in case future descriptions embed an HTTP link.
-        self._summary = QLabel()
-        self._summary.setTextFormat(Qt.TextFormat.RichText)
-        self._summary.setWordWrap(True)
-        self._summary.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-            | Qt.TextInteractionFlag.LinksAccessibleByMouse
-        )
-        self._summary.setOpenExternalLinks(True)
-        self._summary.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed,
-        )
-        layout.addWidget(self._summary)
-
-        # ── Toggle: flat button with disclosure arrow ────────────
-        # Hidden when the current node has nothing in its details
-        # body (e.g. an undocumented filter with no params); the
-        # summary already says everything there is to say.
-        self._toggle = QToolButton()
-        self._toggle.setCheckable(True)
-        self._toggle.setChecked(False)
-        self._toggle.setText("Details")
-        self._toggle.setArrowType(Qt.ArrowType.RightArrow)
-        self._toggle.setToolButtonStyle(
-            Qt.ToolButtonStyle.ToolButtonTextBesideIcon,
-        )
-        self._toggle.setAutoRaise(True)
-        self._toggle.setSizePolicy(
-            QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed,
-        )
-        self._toggle.setStyleSheet(
-            "QToolButton { color: #9a9a9f; font-size: 10px; "
-            "text-transform: uppercase; letter-spacing: 0.6px; "
-            "padding: 2px 0; border: none; }"
-        )
-        self._toggle.toggled.connect(self._on_toggle)
-        layout.addWidget(self._toggle, alignment=Qt.AlignmentFlag.AlignLeft)
-
-        # Thin separator sits between the toggle and the body so the
-        # disclosure has a visible "lid" even when the body is hidden.
-        # Borrowed colour from the rest of the editor's panel borders.
-        self._rule = QFrame()
-        self._rule.setFrameShape(QFrame.Shape.HLine)
-        self._rule.setStyleSheet("color: #1a1a1d;")
-        layout.addWidget(self._rule)
-
-        # ── Details body: full-height QTextBrowser ───────────────
-        # ``Ignored`` vertical policy + a small ``setMinimumHeight``
-        # together prevent the browser's own (potentially huge) content
-        # height from leaking into the body's ``sizeHint`` and forcing
-        # the outer scroll bar to appear. The browser scrolls internally
-        # whenever its content overflows the height the layout gives it.
-        # Issue: #233.
-        self._details = QTextBrowser()
-        self._details.setOpenExternalLinks(True)
-        self._details.setVisible(False)
-        self._details.setTextInteractionFlags(
+        self._body.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
+            | Qt.TextInteractionFlag.LinksAccessibleByMouse
         )
-        self._details.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored,
-        )
-        self._details.setMinimumHeight(_DETAILS_MIN_HEIGHT)
-        layout.addWidget(self._details, 1)
+        outer.addWidget(self._body)
 
         self.clear()
 
     # ── Size negotiation ──────────────────────────────────────────────────────
 
     def sizeHint(self) -> QSize:  # noqa: D401 — overrides Qt method
-        """Return a constant default size, decoupled from content length.
+        """Constant default size, decoupled from content length.
 
         Without this, ``QWidget.sizeHint`` is derived from the layout
         and grows with the rendered docstring; the enclosing
         ``QDockWidget`` then resizes itself on every selection change
-        and squashes neighbouring docks. Returning a fixed value
-        keeps the dock at the user's chosen height; overflow is
-        handled by the inner ``QScrollArea``. Issue: #233.
+        and squashes neighbouring docks. Returning a fixed value keeps
+        the dock at the user's chosen height; overflow is handled by
+        the inner ``QTextBrowser``. Issue: #233.
         """
         return _PANEL_DEFAULT_HINT
 
     def minimumSizeHint(self) -> QSize:  # noqa: D401 — overrides Qt method
-        """Floor for the panel's size — small so the user can shrink
-        the dock without the panel pushing back. The ``QScrollArea``
-        kicks in well before this floor matters in practice. #233."""
         return _PANEL_MIN_HINT
 
     # ── Public slots ───────────────────────────────────────────────────────────
 
     def show_class(self, cls: type[NodeBase]) -> None:
-        """Render documentation for a node *class*.
-
-        The class is instantiated via :func:`describe_node` to read
-        its actual port and param shape. Failures fall back to a
-        small explanatory message rather than propagating — the
-        panel is supposed to be informative, not a crash surface.
-        """
+        """Render documentation for a node *class*."""
         try:
             desc = describe_node(cls)
-        except Exception as exc:  # noqa: BLE001 — we're a UI fallback path
+        except Exception as exc:  # noqa: BLE001 — UI fallback path
             self._show_error(
                 f"Could not introspect <code>{html.escape(cls.__name__)}</code>: "
                 f"{html.escape(str(exc))}"
             )
             return
-        self._show_desc(desc)
+        self._body.setHtml(render_node_html(desc))
 
     def show_entry(self, entry: NodeEntry) -> None:
-        """Render documentation for a palette :class:`NodeEntry`.
-
-        Imports ``entry.module`` lazily (first selection only —
-        Python caches the module thereafter) and resolves the class
-        via :func:`getattr`. Same fallback behaviour as
-        :meth:`show_class` for failures.
-        """
+        """Render documentation for a palette :class:`NodeEntry`."""
         try:
             module = importlib.import_module(entry.module)
             cls = getattr(module, entry.class_name)
-        except Exception as exc:  # noqa: BLE001 — we're a UI fallback path
+        except Exception as exc:  # noqa: BLE001 — UI fallback path
             full = f"{entry.module}.{entry.class_name}"
             self._show_error(
                 f"Could not load <code>{html.escape(full)}</code>: "
@@ -578,49 +371,13 @@ class NodeDocPanel(QWidget):
         self.show_class(cls)
 
     def clear(self) -> None:
-        """Show the empty-state hint and hide the disclosure."""
-        self._summary.setText(_EMPTY_STATE_HTML)
-        self._details.setHtml("")
-        self._has_details = False
-        self._toggle.setVisible(False)
-        self._rule.setVisible(False)
-        self._details.setVisible(False)
+        """Show the empty-state hint."""
+        self._body.setHtml(_PANEL_CSS + _EMPTY_STATE_HTML)
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
-    def _show_desc(self, desc: dict) -> None:
-        self._summary.setText(render_node_summary(desc))
-        self._details.setHtml(render_node_details(desc))
-        # Hide the disclosure entirely when there's nothing to
-        # disclose, instead of dangling an empty toggle that opens
-        # to a blank panel and confuses the user.
-        self._has_details = has_details(desc)
-        self._toggle.setVisible(self._has_details)
-        self._rule.setVisible(self._has_details)
-        # Body visibility follows the user's last toggle state, but
-        # if there's nothing to show the body must also stay hidden.
-        self._details.setVisible(self._has_details and self._toggle.isChecked())
-
     def _show_error(self, message_html: str) -> None:
-        """Display a fallback message in the summary head and hide
-        the disclosure, mirroring the empty-state shape."""
-        self._summary.setText(
-            f'<span style="color: #e8a86b;">{message_html}</span>'
+        self._body.setHtml(
+            _PANEL_CSS
+            + f'<span style="color: #e8a86b;">{message_html}</span>'
         )
-        self._details.setHtml("")
-        self._has_details = False
-        self._toggle.setVisible(False)
-        self._rule.setVisible(False)
-        self._details.setVisible(False)
-
-    def _on_toggle(self, checked: bool) -> None:
-        """React to the user toggling the disclosure: flip the arrow
-        direction and show / hide the details body."""
-        self._toggle.setArrowType(
-            Qt.ArrowType.DownArrow if checked else Qt.ArrowType.RightArrow,
-        )
-        # Only show the body when there's actually content for it.
-        # ``_has_details`` mirrors ``has_details(desc)`` from the most
-        # recent ``_show_desc`` call and stays meaningful regardless of
-        # the panel's realised visibility (matters for headless tests).
-        self._details.setVisible(checked and self._has_details)
