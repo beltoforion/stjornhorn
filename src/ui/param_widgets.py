@@ -194,12 +194,32 @@ class ParamWidgetBase(QWidget):
 # ── Concrete widgets ───────────────────────────────────────────────────────────
 
 class IntParamWidget(ParamWidgetBase):
-    """Spin-box editor for :attr:`NodeParamType.INT` parameters."""
+    """Spin-box editor for :attr:`NodeParamType.INT` parameters.
+
+    Reads optional ``min`` / ``max`` from the port's metadata and
+    forwards them to :meth:`QSpinBox.setRange`, so the spin box itself
+    refuses values the descriptor would later reject. Without this the
+    widget would happily accept ``-5`` for a ``min=1`` kernel size and
+    only blow up at assignment time. Falls back to a wide default
+    range when a bound is unspecified so plain :class:`IntParam`s
+    still round-trip arbitrary integers.
+    """
+
+    #: Wide fallback range used when the descriptor does not declare
+    #: a ``min`` / ``max``. Picked to comfortably contain pixel
+    #: coordinates, frame counts, and the like without imposing a
+    #: meaningful policy of its own.
+    _DEFAULT_MIN: int = -10_000_000
+    _DEFAULT_MAX: int =  10_000_000
 
     def __init__(self, node: NodeBase, port: InputPort) -> None:
         super().__init__(node, port)
         self._spin = self._build_spin_box(port)
-        self._spin.setRange(-10_000_000, 10_000_000)
+        meta = port.metadata
+        self._spin.setRange(
+            int(meta.get("min", self._DEFAULT_MIN)),
+            int(meta.get("max", self._DEFAULT_MAX)),
+        )
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._size_value_control(self._spin)
         self._spin.valueChanged.connect(self._on_value_changed)

@@ -25,12 +25,13 @@ class TemporalMean(NodeBase):
 
     window = IntParam(
         5,
-        min=1,
+        min=2,
         unit="frames",
         description=(
-            "Number of recent frames averaged per output. "
-            "Larger values denoise more aggressively but blur "
-            "any motion in the scene."
+            "Number of recent frames averaged per output. Must be "
+            ">= 2 — a window of 1 is the no-op identity. Larger "
+            "values denoise more aggressively but blur any motion "
+            "in the scene."
         ),
     )
 

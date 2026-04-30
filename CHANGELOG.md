@@ -28,6 +28,18 @@ once a first tagged release is cut.
   `build_param_widget` before the per-`NodeParamType` dispatch, so
   shape-specific descriptors can opt into custom widgets without
   breaking the layering.
+- `IntParamWidget` now forwards the descriptor's declared `min` /
+  `max` to the spin box's `setRange`, so out-of-range values can no
+  longer be typed in (the historic wide fallback is kept when no
+  bound is declared). `FloatParamWidget` already did this — the
+  parity gap was the same root cause that allowed e.g. negative
+  kernel sizes and window=1 to hit the descriptor's validator
+  instead of being refused at the widget level.
+- `GaussianBlur.ksize` and `Median.size` now require `min=3` (a 1-px
+  kernel is the no-op identity); `TemporalMedian.window` and
+  `TemporalMean.window` now require `min=2` (a window of 1 is
+  pass-through). Bundled demo flows are unaffected (none use the
+  old lower bound).
 
 ### Added (TickTack Step 3, #159)
 

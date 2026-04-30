@@ -13,21 +13,23 @@ from core.port import InputPort, OutputPort
 class Median(NodeBase):
     """Apply a median blur with a square kernel.
 
-    Wraps ``cv2.medianBlur``; the kernel ``size`` must be odd and ≥ 1
+    Wraps ``cv2.medianBlur``; the kernel ``size`` must be odd and ≥ 3
     — :class:`~core.params.OddIntParam` enforces both invariants so the
     UI spin-box can step in odd numbers and accept (then bump) even
-    typed input. Accepts both colour (``IMAGE``) and greyscale
-    (``IMAGE_GREY``) inputs and emits the same type on the output.
+    typed input. A 1-px kernel is the no-op identity and is rejected.
+    Accepts both colour (``IMAGE``) and greyscale (``IMAGE_GREY``)
+    inputs and emits the same type on the output.
     """
 
     size = OddIntParam(
         3,
-        min=1,
+        min=3,
         unit="px",
         description=(
-            "Kernel side length in pixels. Must be odd; even values "
-            "are bumped up to the next odd integer. Larger kernels "
-            "remove more noise at the cost of fine detail."
+            "Kernel side length in pixels. Must be odd and >= 3; "
+            "even values are bumped up to the next odd integer. "
+            "Larger kernels remove more noise at the cost of fine "
+            "detail."
         ),
     )
 
