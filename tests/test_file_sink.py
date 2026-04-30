@@ -1,11 +1,11 @@
 """Integration tests for FileSink filename templating.
 
 Engine-level tests live in ``test_filename_template.py``. This file
-exercises the wiring: FileSink reads ``IoMeta`` off its connected
-inputs, merges them, and expands the ``output_path`` template per
-write. Also covers the ``hold_last`` / ``tick`` clock interaction
-that lets a one-shot image source drive multiple writes against a
-streaming counter.
+exercises the wiring: FileSink reads ``IoMeta`` off its image input
+and expands the ``output_path`` template per write. Multi-write
+flows (``RangeSource → Pulse → FileSink``) are covered by
+``test_pulse.py`` — FileSink itself only writes whatever arrives,
+one frame in / one file out.
 """
 from __future__ import annotations
 
@@ -22,11 +22,11 @@ def _make_image() -> np.ndarray:
     return np.full((4, 4, 3), 128, dtype=np.uint8)
 
 
-# ── Legacy single-write path ──────────────────────────────────────────────────
+# ── Single-write path ────────────────────────────────────────────────────────
 
 
 def test_static_template_writes_one_file(tmp_path: Path) -> None:
-    """No tokens → one file. Same behaviour as before this PR."""
+    """No tokens → one file."""
     sink = FileSink()
     sink.output_path = tmp_path / "out.png"
 
@@ -39,117 +39,69 @@ def test_static_template_writes_one_file(tmp_path: Path) -> None:
     assert (tmp_path / "out.png").exists()
 
 
-# ── Templated path with tick clock ────────────────────────────────────────────
+def test_frame_index_token_uses_per_port_emit_counter(tmp_path: Path) -> None:
+    """``$frame_index$`` resolves to the per-port emit counter the
+    framework stamps on every ``send`` (refactor M13 left this
+    contract intact)."""
+    sink = FileSink()
+    sink.output_path = tmp_path / "f_$frame_index$.png"
 
-
-def _wire_image_and_tick(sink: FileSink) -> tuple[OutputPort, OutputPort]:
     image_feeder = OutputPort("img", {IoDataType.IMAGE})
-    tick_feeder = OutputPort("tick", {IoDataType.SCALAR})
     image_feeder.connect(sink.inputs[0])
-    tick_feeder.connect(sink.inputs[1])
-    return image_feeder, tick_feeder
-
-
-def test_tick_drives_multiple_writes_with_held_image(tmp_path: Path) -> None:
-    """Demo target: ImageSource emits ONCE, RangeSource ticks 10
-    times, FileSink writes 10 numbered files. The image input is
-    ``hold_last`` so it survives across ticks."""
-    sink = FileSink()
-    sink.output_path = tmp_path / "out_$frame_index:2$.png"
-
-    image_feeder, tick_feeder = _wire_image_and_tick(sink)
     sink.before_run()
 
-    # ImageSource-style: single emit, then finish (one-shot).
-    image_feeder.send(IoData.from_image(_make_image()))
-    image_feeder.finish()
-
-    # RangeSource-style: ten ticks. The OutputPort.send stamps
-    # frame_index 0..9 on each.
-    for i in range(10):
-        tick_feeder.send(IoData.from_scalar(i))
+    for _ in range(3):
+        image_feeder.send(IoData.from_image(_make_image()))
 
     written = sorted(p.name for p in tmp_path.iterdir())
-    assert written == [f"out_{i:02d}.png" for i in range(10)]
+    assert written == ["f_0.png", "f_1.png", "f_2.png"]
 
 
-def test_scalar_input_value_is_available_as_port_name_token(
-    tmp_path: Path,
-) -> None:
-    """``$tick$`` resolves to the actual SCALAR value on the tick
-    port, not the per-port emit counter — lets a
-    ``RangeSource(1..10)`` template directly to ``out_01..out_10``."""
+def test_source_path_token_resolves_from_image_meta(tmp_path: Path) -> None:
+    """``$source_stem$`` is derived from ``meta["source_path"]`` —
+    the source node stamps the path; the sink reads it off the
+    incoming image's meta."""
     sink = FileSink()
-    sink.output_path = tmp_path / "out_$tick:2$.png"
+    sink.output_path = tmp_path / "$source_stem$.png"
 
-    image_feeder, tick_feeder = _wire_image_and_tick(sink)
-    sink.before_run()
-
-    image_feeder.send(IoData.from_image(_make_image()))
-    image_feeder.finish()
-
-    for i in range(1, 11):
-        tick_feeder.send(IoData.from_scalar(i))
-
-    written = sorted(p.name for p in tmp_path.iterdir())
-    assert written == [f"out_{i:02d}.png" for i in range(1, 11)]
-
-
-def test_source_path_token_resolves_from_held_image(tmp_path: Path) -> None:
-    """``$source_stem$`` flows through the held image's meta even
-    while ``$frame_index$`` flows from the clock — the merge picks
-    up source_path from image and frame_index from tick."""
-    sink = FileSink()
-    sink.output_path = tmp_path / "$source_stem$_$frame_index:1$.png"
-
-    image_feeder, tick_feeder = _wire_image_and_tick(sink)
+    image_feeder = OutputPort("img", {IoDataType.IMAGE})
+    image_feeder.connect(sink.inputs[0])
     sink.before_run()
 
     image_feeder.send(IoData.from_image(
         _make_image(), meta=IoMeta(source_path=Path("ship.jpg")),
     ))
-    image_feeder.finish()
 
-    tick_feeder.send(IoData.from_scalar(0))
-    tick_feeder.send(IoData.from_scalar(1))
-
-    written = sorted(p.name for p in tmp_path.iterdir())
-    assert written == ["ship_0.png", "ship_1.png"]
+    assert (tmp_path / "ship.png").exists()
 
 
-def test_image_finish_alone_does_not_finish_sink_with_pending_clock(
-    tmp_path: Path,
-) -> None:
-    """Lifecycle: held image's finish() is excluded from the dispatcher's
-    "all inputs finished" decision (per Step 2). The sink keeps writing
-    as the clock keeps ticking."""
+def test_auto_stamped_scalar_token_resolves(tmp_path: Path) -> None:
+    """A SCALAR-port value an upstream filter stamps into meta lands
+    in the template as ``$<port_name>$`` — the M13 convention.
+
+    Simulated here with a manually-stamped ``tick`` key in the
+    IoMeta; the end-to-end test that exercises the auto-stamp
+    machinery itself lives in ``test_pulse.py``."""
     sink = FileSink()
-    sink.output_path = tmp_path / "p_$frame_index$.png"
-
-    image_feeder, tick_feeder = _wire_image_and_tick(sink)
-    sink.before_run()
-
-    image_feeder.send(IoData.from_image(_make_image()))
-    image_feeder.finish()  # one-shot done
-    tick_feeder.send(IoData.from_scalar(0))
-    tick_feeder.send(IoData.from_scalar(1))
-
-    assert {p.name for p in tmp_path.iterdir()} == {"p_0.png", "p_1.png"}
-
-
-# ── Backwards compatibility ───────────────────────────────────────────────────
-
-
-def test_legacy_flow_with_dangling_tick_still_works(tmp_path: Path) -> None:
-    """Existing flows wire only the image input; the tick port is
-    optional and dangling. The sink behaves exactly as before."""
-    sink = FileSink()
-    sink.output_path = tmp_path / "legacy.png"
+    sink.output_path = tmp_path / "out_$tick:2$.png"
 
     image_feeder = OutputPort("img", {IoDataType.IMAGE})
     image_feeder.connect(sink.inputs[0])
-
     sink.before_run()
-    image_feeder.send(IoData.from_image(_make_image()))
 
-    assert (tmp_path / "legacy.png").exists()
+    for i in range(1, 4):
+        image_feeder.send(IoData.from_image(
+            _make_image(), meta=IoMeta(tick=i),
+        ))
+
+    written = sorted(p.name for p in tmp_path.iterdir())
+    assert written == ["out_01.png", "out_02.png", "out_03.png"]
+
+
+def test_sink_has_no_tick_port(tmp_path: Path) -> None:
+    """Regression guard: M13 dropped the explicit tick port. The
+    sink takes one input only — the image. Cardinality control
+    moves upstream (Pulse, or any filter with a SCALAR port)."""
+    sink = FileSink()
+    assert len(sink.inputs) == 1
+    assert sink.inputs[0].name == "image"

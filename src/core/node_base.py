@@ -178,7 +178,23 @@ class NodeBase(ABC):
 
     # ── Port registration (called from subclass __init__) ──────────────────────
 
+    #: Meta keys the framework owns. An input port may not declare any
+    #: of these as its name — :meth:`OutputPort.send` auto-stamps SCALAR
+    #: input values into outgoing :class:`IoMeta` under the port name
+    #: (refactor M13), so a port called ``frame_index`` would silently
+    #: clobber the framework's per-port emit counter. Caught at port-
+    #: declaration time so the conflict is impossible by construction.
+    _RESERVED_META_KEYS: frozenset[str] = frozenset({
+        "frame_index", "source_path", "timestamp",
+    })
+
     def _add_input(self, port: InputPort) -> None:
+        if port.name in self._RESERVED_META_KEYS:
+            raise ValueError(
+                f"Input port name {port.name!r} collides with a "
+                f"framework-stamped IoMeta key. Reserved: "
+                f"{sorted(self._RESERVED_META_KEYS)}"
+            )
         self._inputs.append(port)
         # Wire the port so that any state change (data arrival or finish)
         # drives this node's dispatcher. ``add_listener`` instead of the
@@ -189,6 +205,10 @@ class NodeBase(ABC):
 
     def _add_output(self, port: OutputPort) -> None:
         self._outputs.append(port)
+        # Back-reference so OutputPort.send() can walk the node's
+        # SCALAR input ports and stamp their values into outgoing
+        # meta. Refactor M13.
+        port._owner_node = self
 
     def _add_param(self, param: NodeParam) -> None:
         """Register a constant parameter (not driveable from upstream).

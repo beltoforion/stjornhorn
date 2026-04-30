@@ -283,6 +283,12 @@ class OutputPort:
         # debug inspectors) can read a per-stream frame index without
         # the producer having to thread it manually. Reset by reset().
         self._emit_count: int = 0
+        # Back-reference to the owning :class:`NodeBase`, set by
+        # :meth:`NodeBase._add_output`. ``send()`` reads this to walk
+        # the node's SCALAR input ports and stamp their current values
+        # into the outgoing :class:`IoMeta` (refactor M13). ``None``
+        # for ports built outside a node (only test fixtures today).
+        self._owner_node: object | None = None
 
     # ── Connection management ──────────────────────────────────────────────────
 
@@ -347,19 +353,61 @@ class OutputPort:
             raise RuntimeError(
                 f"Output '{self.name}' send() called after finish()"
             )
-        # Stamp the per-port frame index onto the outgoing IoData so
-        # downstream nodes (sinks, debug inspectors) read a stable
-        # counter without the producer threading it manually. Filters
-        # that forward via ``with_image`` / ``with_payload`` preserve
-        # the source's other metadata (source_path, timestamp); the
-        # index is overwritten here per outbound hop, which matches
-        # the "current stream's frame number" semantics most consumers
-        # want.
-        data = data.clone(frame_index=self._emit_count)
+        # Build the meta-stamp dict in one step so the IoData is
+        # cloned exactly once. ``frame_index`` is the per-port emit
+        # counter — stamped on every hop so downstream consumers
+        # (filename templating, debug inspectors) read a stable
+        # current-stream frame number without the producer threading
+        # it manually. The SCALAR-port stamps come from the owning
+        # node's SCALAR input ports (refactor M13): each filter's
+        # SCALAR inputs become tokens on outgoing meta under their
+        # port names, so a ``$tick$`` template downstream resolves
+        # against whatever the node read this frame, no sink-side
+        # tick port needed.
+        stamps: dict[str, object] = {"frame_index": self._emit_count}
+        stamps.update(self._scalar_input_stamps())
+        data = data.clone(**stamps)
         self._emit_count += 1
         self._last_emitted = data
         for port in self._connections:
             port.receive(data)
+
+    def _scalar_input_stamps(self) -> dict[str, object]:
+        """Return ``{port_name: current_value}`` for every SCALAR input
+        port on the owning node.
+
+        Reads the per-frame value the framework saw — port data when
+        an upstream is connected and currently driving, otherwise the
+        port's inline ``default_value``. ``None`` defaults are
+        skipped so a never-set port doesn't pollute meta.
+
+        Returns an empty dict when the port has no owning node (test
+        fixtures), the owner has no inputs, or none of the inputs
+        accept SCALAR.
+        """
+        owner = self._owner_node
+        if owner is None:
+            return {}
+        result: dict[str, object] = {}
+        for port in getattr(owner, "_inputs", ()):
+            if IoDataType.SCALAR not in port.accepted_types:
+                continue
+            if port.has_data:
+                value = port.data.payload
+                # SCALAR payloads are 0-d numpy arrays; unwrap to a
+                # Python scalar so the templating engine's int / str
+                # formatting paths see a clean value.
+                if hasattr(value, "item"):
+                    try:
+                        value = value.item()
+                    except (ValueError, AttributeError):
+                        pass
+            else:
+                value = port.default_value
+                if value is None:
+                    continue
+            result[port.name] = value
+        return result
 
     def finish(self) -> None:
         """Signal that no more data will be sent on this output.

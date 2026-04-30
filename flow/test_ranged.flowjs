@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.11",
+  "app_version": "0.3.0.12",
   "name": "test_ranged",
   "nodes": [
     {
@@ -24,12 +24,8 @@
         -484.5052221406503
       ],
       "port_defaults": {
-        "output_path": "out_$tick:2$.png"
-      },
-      "size": [
-        338.27380653266334,
-        120.0
-      ]
+        "output_path": "out_$offset_x:3$.png"
+      }
     },
     {
       "id": 2,
@@ -85,12 +81,6 @@
       "src_node": 2,
       "src_output": 0,
       "dst_node": 3,
-      "dst_input": 1
-    },
-    {
-      "src_node": 2,
-      "src_output": 0,
-      "dst_node": 1,
       "dst_input": 1
     },
     {

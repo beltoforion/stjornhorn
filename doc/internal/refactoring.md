@@ -14,8 +14,8 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-04-30 (M13 added — sink-side tick ports
-violate SRP; design proposal under TickTack umbrella #249).
+**Last reviewed:** 2026-04-30 (M13 in flight — auto-stamp + Pulse
+landed on a branch, sink-port migration follows).
 
 ## High
 
@@ -91,7 +91,7 @@ callers must both `try`/`except` *and* check `None`.
 
 **Direction:** a `Result` / dedicated error enum, or always raise.
 
-### OPEN — M13. Sinks combine write-to-disk with clock-cardinality
+### WIP — M13. Sinks combine write-to-disk with clock-cardinality
 
 SRP. `src/nodes/sinks/file_sink.py:24` declares a second `tick`
 SCALAR input alongside `image`; the sink uses it to decide *how
