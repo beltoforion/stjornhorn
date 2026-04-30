@@ -17,7 +17,7 @@ class ConstantValue(SourceNodeBase):
     :meth:`core.port.InputPort.clear` for the latching mechanism).
     Useful as the fixed input to a :class:`~nodes.filters.math.Math`
     node — e.g. multiplying every value of a streaming
-    :class:`~nodes.sources.value_source.ValueSource` by a constant.
+    :class:`~nodes.sources.range_source.RangeSource` by a constant.
 
     Reactive: editing ``value`` re-runs the flow automatically so the
     update is visible immediately, the same way ImageSource refreshes

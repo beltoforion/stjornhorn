@@ -18,6 +18,13 @@ once a first tagged release is cut.
   `"Image-Inquest"`). Affects the Qt application name and the startup
   log line; user-visible captions are unchanged because they already
   use `APP_DISPLAY_NAME`, which read `"Stjörnhorn"` before.
+- Renamed `ValueSource` → `RangeSource` (display name "Range Source",
+  module `nodes.sources.range_source`). The node generates a bounded
+  range, not a single value — the new name reflects what it does.
+  Bundled flows (`flow/test_numeric.flowjs`,
+  `flow/video_overlay_rot.flowjs`) updated. Existing user-saved
+  `.flowjs` files referencing `ValueSource` will need to be rebuilt
+  (no migration shim per repo policy).
 
 ### Versioning reset
 

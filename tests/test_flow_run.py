@@ -17,7 +17,7 @@ class _ScalarListSource(SourceNodeBase):
     """Streaming source that emits a fixed list of scalars, one per yield.
 
     Test fixture for round-robin scheduling — much simpler than spinning
-    up a real ValueSource with min/max/increment semantics.
+    up a real RangeSource with min/max/increment semantics.
     """
 
     def __init__(self, name: str, values: list[int]) -> None:

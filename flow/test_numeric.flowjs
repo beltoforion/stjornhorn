@@ -5,8 +5,8 @@
   "nodes": [
     {
       "id": 0,
-      "module": "nodes.sources.value_source",
-      "class": "ValueSource",
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
       "position": [
         -1622.9180289865512,
         -1581.7170140091837
