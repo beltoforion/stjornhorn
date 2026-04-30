@@ -39,6 +39,10 @@ class VideoSource(SourceNodeBase):
         self._apply_default_params()
 
     @override
+    def tick_count(self) -> int | None:
+        return self._max_num_frames if self._max_num_frames >= 0 else None
+
+    @override
     def iter_frames(self) -> Iterator[None]:
         """Per-frame generator: one ``yield`` per decoded video frame.
 

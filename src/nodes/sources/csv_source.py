@@ -88,6 +88,10 @@ class CsvSource(SourceNodeBase):
         return True
 
     @override
+    def tick_count(self) -> int | None:
+        return 1
+
+    @override
     def process_impl(self) -> None:
         resolved = self._resolved_path()
         if not resolved.exists():

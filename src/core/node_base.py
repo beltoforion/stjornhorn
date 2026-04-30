@@ -657,6 +657,16 @@ class SourceNodeBase(NodeBase, ABC):
         self.process()
         yield
 
+    def tick_count(self) -> int | None:
+        """Number of frames this source will emit, or ``None`` if unknown.
+
+        Used by the node header to display a frame count badge. Reactive
+        (one-shot) sources return ``1``; streaming sources that know their
+        count return it; sources whose count depends on runtime state
+        (file size, directory contents) return ``None``.
+        """
+        return None
+
     @final
     def start(self) -> None:
         """Drive the source by draining :meth:`iter_frames`.

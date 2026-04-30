@@ -12,6 +12,22 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Added (source node header badges)
+
+- **Source nodes now show a play-triangle icon (►) in their header**
+  so they are visually distinct from filters and sinks at a glance,
+  independent of the existing header colour.
+- **Tick-count badge in the source node header.** Nodes whose frame
+  count is deterministic at configuration time show it right-aligned
+  before the close button (e.g. `100×` for a `RangeSource` with 100
+  steps). The badge updates live as constant params are edited.
+  Supported: `RangeSource` (computed from min/max/increment/loop),
+  `ImageSource`, `GradientSource`, `CsvSource`, `ConstantValue` (all
+  show `1×`), `VideoSource` (shows `max_num_frames` when set).
+  `DirectorySource` shows no badge (count is not known until run time).
+- `SourceNodeBase` gains a `tick_count() -> int | None` method;
+  subclasses override it to report their frame count.
+
 ### Changed (M13: SCALAR-port auto-stamp; sinks lose tick port)
 
 - **`OutputPort.send` auto-stamps every SCALAR input on the owning
