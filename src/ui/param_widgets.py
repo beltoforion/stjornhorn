@@ -433,7 +433,26 @@ class FilePathParamWidget(ParamWidgetBase):
         layout.addWidget(self._view, 0)
 
     def _on_value_changed(self, value: str) -> None:
-        self._write_to_node(self._path)
+        # Mirror the typed value into ``self._path`` so the
+        # ``_update_view_enabled`` slot (which also fires on
+        # textChanged) sees the same path the user just typed —
+        # otherwise it'd read a stale value seeded by the last
+        # ``set_value`` call. ``set_value`` is *not* called here
+        # because it would call ``setText`` and recurse through
+        # textChanged.
+        if not value:
+            self._path = Path()
+        else:
+            raw = Path(value)
+            self._path = raw if raw.is_absolute() else self._base_dir / raw
+        # Write the raw typed text to the node — the FilePathParam
+        # descriptor's ``_coerce`` runs ``store_relative_to`` so the
+        # path is stored portably (relative to base_dir when
+        # applicable), and templates like ``$frame_index$.png`` —
+        # which aren't real filesystem paths — pass through
+        # unchanged because ``store_relative_to`` skips relative
+        # values.
+        self._write_to_node(value)
         self.value_changed.emit(value)
 
     @override
