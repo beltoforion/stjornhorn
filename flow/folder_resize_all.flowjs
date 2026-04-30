@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "app_version": "0.3.0.6",
+  "name": "folder_resize_all",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.directory_source",
+      "class": "DirectorySource",
+      "position": [
+        -2123.0698244684622,
+        -1431.7869140799671
+      ],
+      "port_defaults": {
+        "directory": "Temperaturkarten/de",
+        "include_subdirectories": true
+      },
+      "size": [
+        512.9783835789108,
+        120.0
+      ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.resize",
+      "class": "Resize",
+      "position": [
+        -1520.3848820253284,
+        -1687.7365992554542
+      ],
+      "port_defaults": {
+        "width": 256,
+        "height": 256,
+        "method": 2
+      },
+      "size": [
+        330.63307137692505,
+        176.0
+      ]
+    },
+    {
+      "id": 2,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -1386.9410290705873,
+        -1246.9343636754493
+      ],
+      "port_defaults": {
+        "output_path": "out.png"
+      },
+      "size": [
+        583.7970282400536,
+        120.0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": []
+}
