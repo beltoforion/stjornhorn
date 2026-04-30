@@ -109,7 +109,7 @@ class Resize(NodeBase):
         else:  # BEST_FIT
             out = self._best_fit(image, target_w, target_h)
 
-        self.outputs[0].send(in_data.with_image(out))
+        self.outputs[0].send(in_data.clone(payload=out))
 
     # ── Layout strategies ─────────────────────────────────────────────────────
 

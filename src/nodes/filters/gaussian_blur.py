@@ -53,4 +53,4 @@ class GaussianBlur(NodeBase):
             (self._ksize, self._ksize),
             self._sigma,
         )
-        self.outputs[0].send(in_data.with_image(blurred))
+        self.outputs[0].send(in_data.clone(payload=blurred))
