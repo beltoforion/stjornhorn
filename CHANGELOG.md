@@ -38,6 +38,17 @@ once a first tagged release is cut.
   `$frame_index$` which is the per-port emit counter.
 - New `core.filename_template.expand` helper — pure-function
   expander, fully unit-tested.
+- **Template field UX** in the editor: `FilePathParamWidget` (the
+  line edit on every `output_path` / `file_path` field) gained
+  (a) a hover tooltip listing every available `$token$` with a
+  short example, and (b) a live preview label beneath the field
+  that renders the typed template against a synthetic example
+  context (`source_path=example/photo.jpg`, `frame_index=0`, plus
+  `1` for any connected SCALAR input). Hidden when the field
+  contains no `$` so literal-path users see no extra noise; the
+  moment a token appears, the rendered example shows underneath
+  so typos like `$source_stm$` surface immediately as a
+  literal-text leftover.
 - Bundled demo: `flow/test_ranged.flowjs` is rewired as
   `ImageSource → FileSink` with a `RangeSource(1..10) → tick` clock
   and `output_path = out_$tick:2$.png`. Running it produces ten

@@ -14,13 +14,17 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QSpinBox,
+    QVBoxLayout,
     QWidget,
 )
 
 from constants import INPUT_DIR, OUTPUT_DIR
+from core.filename_template import expand as expand_template
+from core.io_data import IoDataType
 from core.node_base import NodeBase, NodeParamType
 from core.port import InputPort
 from ui.controls.scene_aware_combobox import SceneAwareComboBox
@@ -57,6 +61,33 @@ PARAM_BUTTON_WIDTH: int = 36
 #: their natural height. 22 px fits a 14-px font + 4 px of vertical
 #: padding (matches the QSS ``padding: 3px 6px``) + 2 px of border.
 PARAM_VALUE_HEIGHT: int = 24
+
+
+#: Tooltip shown on hover over a :class:`FilePathParamWidget`'s line
+#: edit. Lists the ``$token$`` placeholders the
+#: :mod:`core.filename_template` engine resolves, with a one-line
+#: example, so the user has a just-in-time cheat sheet without having
+#: to leave the editor.
+_PATH_TEMPLATE_TOOLTIP: str = (
+    "Path or filename template.\n"
+    "\n"
+    "Available $token$ placeholders:\n"
+    "  $frame_index$   per-port emit counter (0, 1, 2, …)\n"
+    "  $source_stem$   input filename, no extension  (e.g. 'photo')\n"
+    "  $source_name$   input filename, with extension ('photo.jpg')\n"
+    "  $source_ext$    input extension, no dot       ('jpg')\n"
+    "  $flow_name$     name of the loaded flow\n"
+    "  $<port_name>$   value of a connected SCALAR input\n"
+    "                   (e.g. '$tick$' for a wired tick port)\n"
+    "\n"
+    "Width syntax: $token:N$ zero-pads numerics to N digits.\n"
+    "\n"
+    'Example: "$frame_index:4$_$source_stem$.$source_ext$"\n'
+    "       → 0042_photo.jpg\n"
+    "\n"
+    "A literal path with no placeholders is overwritten on every\n"
+    "frame — same as the legacy single-write behaviour."
+)
 
 
 class ParamWidgetBase(QWidget):
@@ -405,6 +436,11 @@ class FilePathParamWidget(ParamWidgetBase):
         # and visually overlaps the button.
         self._line.setMinimumWidth(PATH_LINE_EDIT_MIN_WIDTH)
         self._line.setFixedHeight(PARAM_VALUE_HEIGHT)
+        # Reference card on hover. The param's own ``description`` is
+        # also shown by the doc panel; this tooltip is the just-in-time
+        # cheat sheet for the ``$token$`` syntax so users don't have to
+        # leave the editor.
+        self._line.setToolTip(_PATH_TEMPLATE_TOOLTIP)
 
         browse = QPushButton("...")
         browse.setFixedWidth(PARAM_BUTTON_WIDTH)
@@ -418,19 +454,45 @@ class FilePathParamWidget(ParamWidgetBase):
         self._view.setToolTip("Open in system image viewer")
         self._view.clicked.connect(self._open_in_viewer)
 
+        # Live preview of the rendered template. Hidden when the field
+        # contains no ``$tokens$`` so ordinary literal-path users don't
+        # see redundant noise.
+        self._preview = QLabel()
+        self._preview.setStyleSheet(
+            "QLabel { color: #9a9a9f; font-size: 11px;"
+            "         font-family: 'Consolas','Menlo',monospace;"
+            "         padding: 2px 4px; }"
+        )
+        self._preview.setVisible(False)
+
         # Connect textChanged and seed the initial value only once
-        # self._view exists, since _update_view_enabled touches it.
+        # self._view + self._preview exist, since both update slots
+        # touch them.
         self._line.textChanged.connect(self._on_value_changed)
         self._line.textChanged.connect(self._update_view_enabled)
+        self._line.textChanged.connect(self._update_preview)
 
         # initialize self._path and the line edit's text to the node's current value (or the
         self.set_value(str(self._initial_value("")))
         self._update_view_enabled()
+        self._update_preview(self._line.text())
 
-        layout = self._make_row_layout(spacing=4)
-        layout.addWidget(self._line, 1)
-        layout.addWidget(browse, 0)
-        layout.addWidget(self._view, 0)
+        # Two-row layout: the existing horizontal control row on top,
+        # the preview label below it. Override _make_row_layout's
+        # default of installing a QHBoxLayout *as* the widget layout
+        # because we need the QVBoxLayout outer.
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(2)
+
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(4)
+        row.addWidget(self._line, 1)
+        row.addWidget(browse, 0)
+        row.addWidget(self._view, 0)
+        outer.addLayout(row)
+        outer.addWidget(self._preview)
 
     def _on_value_changed(self, value: str) -> None:
         # Mirror the typed value into ``self._path`` so the
@@ -548,6 +610,38 @@ class FilePathParamWidget(ParamWidgetBase):
         # otherwise it opens the file in a viewer, so we want is_file().
         ok = self._path.is_dir() if self._is_directory else self._path.is_file()
         self._view.setEnabled(ok)
+
+    def _update_preview(self, text: str) -> None:
+        """Render *text* against a synthetic meta + scalar-port context
+        and show the result below the line edit.
+
+        Hidden when the field contains no ``$`` so a literal-path user
+        doesn't see redundant repetition. Visible the moment the user
+        types a token, with the rendered example so a typo
+        (``$source_stm$``) shows up immediately as a left-over literal
+        placeholder.
+        """
+        if "$" not in text:
+            self._preview.setVisible(False)
+            return
+
+        meta: dict[str, object] = {
+            "source_path": Path("example/photo.jpg"),
+            "frame_index": 0,
+            "timestamp": 1700000000.0,
+        }
+        # Each connected (or declared) SCALAR input contributes its
+        # port name as a context token with a sample value 1, so a
+        # ``tick`` port wired to a ``RangeSource`` previews
+        # ``$tick$`` → 1 even before the flow runs.
+        context: dict[str, object] = {"flow_name": "demo"}
+        for port in self._node.inputs:
+            if IoDataType.SCALAR in port.accepted_types:
+                context.setdefault(port.name, 1)
+
+        rendered = expand_template(text, meta, context)
+        self._preview.setText(f"→ {rendered}")
+        self._preview.setVisible(True)
 
     @override
     def refresh(self) -> None:
