@@ -28,7 +28,7 @@ def test_send_stamps_zero_based_frame_index_on_each_emit() -> None:
     for i in range(4):
         out.send(IoData.from_scalar(i))
 
-    assert [d.meta.frame_index for d in captured] == [0, 1, 2, 3]
+    assert [d.meta["frame_index"] for d in captured] == [0, 1, 2, 3]
 
 
 def test_send_overrides_caller_supplied_frame_index() -> None:
@@ -40,24 +40,25 @@ def test_send_overrides_caller_supplied_frame_index() -> None:
 
     out.send(IoData.from_scalar(99, meta=IoMeta(frame_index=999)))
 
-    assert captured[0].meta.frame_index == 0
+    assert captured[0].meta["frame_index"] == 0
 
 
-def test_send_preserves_other_meta_fields() -> None:
-    """source_path / timestamp / extras must survive the frame_index
-    stamp untouched so provenance reaches the sink."""
+def test_send_preserves_other_meta_keys() -> None:
+    """Stamping frame_index must leave the other keys in the bag
+    untouched so provenance reaches the sink."""
     from pathlib import Path
 
     from core.io_data import IoMeta
 
     out, captured = _wire_capture()
-    meta = IoMeta(source_path=Path("ship.jpg"), timestamp=1700000000.0)
+    meta = IoMeta(source_path=Path("ship.jpg"), timestamp=1700000000.0, custom_tag="abc")
     out.send(IoData.from_scalar(0, meta=meta))
 
     received = captured[0]
-    assert received.meta.source_path == Path("ship.jpg")
-    assert received.meta.timestamp == 1700000000.0
-    assert received.meta.frame_index == 0
+    assert received.meta["source_path"] == Path("ship.jpg")
+    assert received.meta["timestamp"] == 1700000000.0
+    assert received.meta["custom_tag"] == "abc"
+    assert received.meta["frame_index"] == 0
 
 
 def test_reset_rewinds_frame_counter() -> None:
@@ -71,4 +72,4 @@ def test_reset_rewinds_frame_counter() -> None:
     out.reset()
     out.send(IoData.from_scalar(2))
 
-    assert [d.meta.frame_index for d in captured] == [0, 1, 0]
+    assert [d.meta["frame_index"] for d in captured] == [0, 1, 0]

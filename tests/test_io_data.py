@@ -259,22 +259,39 @@ def test_image_types_set_unaffected_by_new_kinds() -> None:
 # ── IoMeta + IoData.meta ──────────────────────────────────────────────────────
 
 
-def test_iodata_default_meta_is_empty() -> None:
+def test_iodata_default_meta_is_empty_bag() -> None:
     from core.io_data import IoMeta
     data = IoData.from_scalar(0)
     assert isinstance(data.meta, IoMeta)
-    assert data.meta.source_path is None
-    assert data.meta.frame_index == 0
-    assert data.meta.timestamp is None
-    assert data.meta.extras == {}
+    assert len(data.meta) == 0
+    # Open-ended bag: missing keys are simply absent, not None-typed.
+    assert "source_path" not in data.meta
+    assert data.meta.get("frame_index") is None
 
 
 def test_iodata_factory_accepts_meta_kwarg() -> None:
     from core.io_data import IoMeta
     meta = IoMeta(source_path=Path("ship.jpg"), frame_index=7)
     data = IoData.from_image(np.zeros((2, 2, 3), dtype=np.uint8), meta=meta)
-    assert data.meta.source_path == Path("ship.jpg")
-    assert data.meta.frame_index == 7
+    assert data.meta["source_path"] == Path("ship.jpg")
+    assert data.meta["frame_index"] == 7
+
+
+def test_iometa_accepts_initial_mapping() -> None:
+    """The first positional argument is a dict-like seed, kwargs override."""
+    from core.io_data import IoMeta
+    meta = IoMeta({"source_path": Path("a"), "custom": "x"}, frame_index=2)
+    assert meta["source_path"] == Path("a")
+    assert meta["custom"] == "x"
+    assert meta["frame_index"] == 2
+
+
+def test_iometa_supports_arbitrary_keys() -> None:
+    """No schema — node authors can stamp any string key/value."""
+    from core.io_data import IoMeta
+    meta = IoMeta(window_index=4, station="ALH02")
+    assert meta["window_index"] == 4
+    assert meta["station"] == "ALH02"
 
 
 def test_with_image_preserves_meta() -> None:
@@ -295,18 +312,25 @@ def test_with_meta_returns_new_iodata_with_overrides() -> None:
     out = src.with_meta(frame_index=5, source_path=Path("data.csv"))
     assert out is not src
     assert out.payload is src.payload
-    assert out.meta.frame_index == 5
-    assert out.meta.source_path == Path("data.csv")
+    assert out.meta["frame_index"] == 5
+    assert out.meta["source_path"] == Path("data.csv")
     # Original untouched.
-    assert src.meta.frame_index == 0
-    assert src.meta.source_path is None
+    assert "frame_index" not in src.meta
+    assert "source_path" not in src.meta
 
 
-def test_iometa_replace_is_immutable_for_extras() -> None:
-    """``replace`` must shallow-copy ``extras`` so the caller's writes
-    don't leak back into the original meta object."""
+def test_iometa_replace_does_not_mutate_original() -> None:
+    """``replace`` must produce a new bag; the original stays empty."""
     from core.io_data import IoMeta
-    original = IoMeta(extras={"foo": 1})
-    updated = original.replace(frame_index=2)
-    updated.extras["bar"] = 99
-    assert "bar" not in original.extras
+    original = IoMeta(foo=1)
+    updated = original.replace(bar=2)
+    assert dict(original) == {"foo": 1}
+    assert dict(updated) == {"foo": 1, "bar": 2}
+
+
+def test_iometa_is_read_only_view() -> None:
+    """No __setitem__ — callers must use .replace() to grow the bag."""
+    from core.io_data import IoMeta
+    meta = IoMeta(foo=1)
+    with pytest.raises(TypeError):
+        meta["bar"] = 2  # type: ignore[index]

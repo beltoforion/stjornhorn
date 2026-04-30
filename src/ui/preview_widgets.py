@@ -275,23 +275,28 @@ class MetaInspectorPreview(_PreviewWidgetBase):
 
 def _format_meta(data: IoData) -> str:
     """Render an :class:`IoData` envelope's meta + payload summary as
-    readable text for the inspector preview."""
-    meta = data.meta
+    readable text for the inspector preview.
+
+    The meta bag is open-ended; we render every key in sorted order
+    so the inspector reflects whatever the upstream nodes stamped,
+    without hard-coding which keys exist.
+    """
     shape = getattr(data.payload, "shape", None)
     payload_line = (
         f"payload: {data.type.name} shape={shape}"
         if shape is not None
         else f"payload: {data.type.name} value={data.payload!r}"
     )
-    lines = [
-        f"frame_index: {meta.frame_index}",
-        f"source_path: {meta.source_path}",
-        f"timestamp:   {meta.timestamp}",
+    if not data.meta:
+        return f"meta: (empty)\n{payload_line}"
+
+    # Right-pad keys to a common width so values line up vertically.
+    key_width = max(len(k) for k in data.meta)
+    meta_lines = [
+        f"{key.ljust(key_width)}  {data.meta[key]}"
+        for key in sorted(data.meta)
     ]
-    if meta.extras:
-        lines.append(f"extras:      {meta.extras}")
-    lines.append(payload_line)
-    return "\n".join(lines)
+    return "\n".join(meta_lines + [payload_line])
 
 
 # ── PlayGate preview ──────────────────────────────────────────────────────────

@@ -48,10 +48,10 @@ def test_callback_receives_each_frame_with_meta() -> None:
 
     assert len(seen) == 2
     # source_path survives the per-port frame_index stamp.
-    assert seen[0].meta.source_path == Path("ship.jpg")
+    assert seen[0].meta["source_path"] == Path("ship.jpg")
     # frame_index reflects the upstream feeder's counter, not the
     # inspector's own outbound counter.
-    assert [d.meta.frame_index for d in seen] == [0, 1]
+    assert [d.meta["frame_index"] for d in seen] == [0, 1]
 
 
 def test_callback_is_optional() -> None:

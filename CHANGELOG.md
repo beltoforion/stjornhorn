@@ -14,12 +14,13 @@ once a first tagged release is cut.
 
 ### Added (TickTack Step 1, #250)
 
-- Per-frame metadata on `IoData`: new `IoMeta` dataclass with
-  `source_path`, `frame_index`, `timestamp`, `extras`. Travels
+- Per-frame metadata on `IoData`: new `IoMeta` open-ended `str → Any`
+  bag (no fixed schema — any node may stamp any key). Travels
   alongside the payload and survives pass-through filters via
   `IoData.with_image` / new `IoData.with_payload` / new
-  `IoData.with_meta`. Foundation for filename templating (#159) and
-  the animated hodogram pipeline (#246, #251).
+  `IoData.with_meta`. Conventional keys: `frame_index`, `source_path`,
+  `timestamp`. Foundation for filename templating (#159) and the
+  animated hodogram pipeline (#246, #251).
 - `OutputPort.send` auto-stamps `meta.frame_index` from a per-port
   emit counter; `OutputPort.reset` rewinds the counter at the start
   of every flow run. Producers no longer thread frame indices

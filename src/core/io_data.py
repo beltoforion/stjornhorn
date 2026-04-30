@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections.abc import Mapping
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import numpy as np
 import pandas as pd
@@ -27,51 +27,74 @@ class IoDataType(Enum):
 IMAGE_TYPES: frozenset[IoDataType] = frozenset({IoDataType.IMAGE, IoDataType.IMAGE_GREY})
 
 
-@dataclass
-class IoMeta:
-    """Per-frame metadata travelling alongside an :class:`IoData` payload.
+class IoMeta(Mapping[str, Any]):
+    """Open-ended per-frame metadata bag travelling with an :class:`IoData`.
 
-    Carries provenance and timing information that downstream nodes —
-    notably sinks doing filename templating — can read without
-    reaching back through the graph. Fields are independent: a value
-    in one does not constrain another.
+    A free-form ``str → Any`` mapping with **no fixed schema** — any node
+    may stamp any key. The framework follows a few conventions so
+    different nodes recognise each other's stamps:
 
-    Fields:
-      source_path -- absolute path of the originating file when the
-                     IoData began life as a source-loaded artefact
-                     (ImageSource, CsvSource). ``None`` for synthetic
-                     payloads (RangeSource, ConstantValue).
-      frame_index -- per-output-port emit counter, stamped automatically
-                     on :meth:`core.port.OutputPort.send`. Starts at 0
-                     for the first emit of a run; resets on
-                     :meth:`core.port.OutputPort.reset`.
-      timestamp   -- run start time as ``time.time()`` (Unix epoch
-                     seconds) when set by the runner. ``None`` outside
-                     a Flow.run context.
-      extras      -- escape hatch for ad-hoc tagging; node authors can
-                     stash arbitrary keys here without growing the
-                     IoMeta surface.
+    ============  ====================================================
+    Key           Stamped by
+    ============  ====================================================
+    frame_index   :meth:`core.port.OutputPort.send` (per-port counter)
+    source_path   source nodes that read from disk (ImageSource,
+                  CsvSource), set to the resolved absolute path
+    timestamp     run start time, when populated by the runner
+    ============  ====================================================
+
+    Custom nodes are free to add domain-specific keys (e.g. a
+    ``station`` tag, a ``window_index``); downstream consumers
+    decide whether to read them.
+
+    Instances are read-only views over a backing dict — write a new
+    copy via :meth:`replace`. Keys are accessed with subscript:
+
+    >>> meta = IoMeta(source_path=Path("a.jpg"), frame_index=3)
+    >>> meta["source_path"]
+    PosixPath('a.jpg')
+    >>> meta.get("missing")  # None — no schema enforces presence
     """
 
-    source_path: Path | None = None
-    frame_index: int = 0
-    timestamp: float | None = None
-    extras: dict[str, Any] = field(default_factory=dict)
+    __slots__ = ("_data",)
+
+    def __init__(
+        self,
+        _initial: Mapping[str, Any] | None = None,
+        /,
+        **kwargs: Any,
+    ) -> None:
+        merged: dict[str, Any] = dict(_initial) if _initial is not None else {}
+        merged.update(kwargs)
+        # Stored as a plain dict — Mapping API is read-only by absence of
+        # __setitem__ on this class. .replace() returns a new IoMeta so
+        # callers never mutate shared state.
+        object.__setattr__(self, "_data", merged)
+
+    def __getitem__(self, key: str) -> Any:
+        return self._data[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._data
 
     def replace(self, **changes: Any) -> "IoMeta":
-        """Return a new :class:`IoMeta` with selected fields overridden.
+        """Return a new :class:`IoMeta` with selected keys overridden / added.
 
-        Mirrors :func:`dataclasses.replace` semantics. ``extras`` is
-        shallow-copied so the caller's writes don't leak back into the
-        original meta object.
+        The original is left untouched; the new bag is the union of
+        ``self`` and ``changes``, with ``changes`` winning on conflicts.
         """
-        new_extras = dict(changes.pop("extras", self.extras))
-        return IoMeta(
-            source_path=changes.pop("source_path", self.source_path),
-            frame_index=changes.pop("frame_index", self.frame_index),
-            timestamp=changes.pop("timestamp", self.timestamp),
-            extras=new_extras,
-        )
+        merged = dict(self._data)
+        merged.update(changes)
+        return IoMeta(merged)
+
+    def __repr__(self) -> str:
+        return f"IoMeta({self._data!r})"
 
 
 class IoData:
