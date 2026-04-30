@@ -12,6 +12,13 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed
+
+- `APP_NAME` aligned with the brand: now `"Stjörnhorn"` (was the legacy
+  `"Image-Inquest"`). Affects the Qt application name and the startup
+  log line; user-visible captions are unchanged because they already
+  use `APP_DISPLAY_NAME`, which read `"Stjörnhorn"` before.
+
 ### Versioning reset
 
 The 0.2.x line — 98 micro-bumps tracking individual PRs — has been
