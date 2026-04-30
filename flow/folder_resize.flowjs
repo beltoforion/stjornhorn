@@ -8,8 +8,8 @@
       "module": "nodes.sources.directory_source",
       "class": "DirectorySource",
       "position": [
-        -1901.147826086956,
-        -823.4173913043478
+        -1921.5810775902778,
+        -822.2154353335643
       ],
       "port_defaults": {
         "directory": ".",
@@ -39,8 +39,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1448.5391304347827,
-        -833.6
+        -1523.0604006233668,
+        -852.8312955325378
       ],
       "port_defaults": {},
       "size": [
@@ -53,23 +53,27 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -648.5217391304348,
-        -631.8173913043478
+        -754.2938645593929,
+        -623.4036995088625
       ],
       "port_defaults": {
         "output_path": "$source_stem$.resized.png"
-      }
+      },
+      "size": [
+        358.1471254289582,
+        120.0
+      ]
     },
     {
       "id": 4,
       "module": "nodes.filters.delay",
       "class": "Delay",
       "position": [
-        -1885.3602824500156,
-        -247.38672346080602
+        -1862.5231190051268,
+        -214.93391224964836
       ],
       "port_defaults": {
-        "delay_seconds": 1.0
+        "delay_seconds": 0.1
       }
     },
     {
