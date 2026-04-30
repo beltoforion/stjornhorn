@@ -14,13 +14,19 @@ once a first tagged release is cut.
 
 ### Changed
 
-- **Play Gate** (TickTack Step 1) now buffers frames in a bounded FIFO
-  instead of the original latest-wins single slot. Each click on the
-  Play button steps through the buffered frames in arrival order, so
-  a `RangeSource(0..99) → PlayGate → …` flow can be walked frame by
-  frame instead of collapsing to one click. Capacity defaults to
-  1000 (oldest frames evicted on overflow) and can be set via the
-  constructor for callers that need a tighter cap.
+- **Play Gate** (TickTack Step 1) now buffers frames in an **unbounded
+  FIFO** instead of the original latest-wins single slot. Each click
+  on the Play button steps through the buffered frames in arrival
+  order, so a `RangeSource(0..99) → PlayGate → …` flow can be walked
+  frame by frame instead of collapsing to one click. No silent drops
+  — the user is responsible for keeping the feeding stream
+  reasonable (a debug aid: piping a long video straight in costs
+  real memory).
+- **Play Gate** preview widget: the click handler no longer
+  pre-disables the Play button. With the FIFO queue, the gate's
+  state callback fires only on the empty ↔ non-empty transition;
+  pre-disabling stranded the user with a still-non-empty queue and
+  a permanently dim button after a single click.
 - **Meta Inspector**: the body widget now word-wraps long values
   (notably `source_path`), uses an updated placeholder
   ("(run the flow to see meta)") and forces an explicit

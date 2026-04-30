@@ -14,12 +14,6 @@ from core.port import InputPort, OutputPort
 #: Every payload kind passes through; the gate is type-agnostic.
 _ALL_TYPES: frozenset[IoDataType] = frozenset(IoDataType)
 
-#: Default upper bound on queued frames. Frames beyond this drop the
-#: oldest in the queue — protects against unbounded growth on fast
-#: streams (e.g. a video source) while leaving plenty of headroom for
-#: typical debug ranges (RangeSource(0..99) etc.).
-_DEFAULT_CAPACITY: int = 1000
-
 
 class PlayGate(NodeBase):
     """Pass-through node that buffers input frames until the user
@@ -32,11 +26,10 @@ class PlayGate(NodeBase):
       - Each click releases **one** frame downstream — the oldest one
         in the queue, so the user steps through the stream in arrival
         order.
-      - The queue is bounded by :attr:`capacity` (default
-        :data:`_DEFAULT_CAPACITY`). When full, the oldest frame is
-        dropped to make room for the newest one. Set capacity high
-        enough to cover the streams you care about; the cap exists to
-        prevent runaway memory on accidentally fast feeders.
+      - The queue is **unbounded**: a debug aid trades off memory for
+        honesty (no silent drops). The user is expected to keep their
+        feeder ranges reasonable; piping a long video stream straight
+        into a Play Gate will cost real memory.
 
     The node is Qt-free; the preview widget owns the button and
     forwards clicks via :meth:`request_emit`. State changes (queue
@@ -45,11 +38,8 @@ class PlayGate(NodeBase):
     state on the UI thread via a queued signal.
     """
 
-    def __init__(self, capacity: int = _DEFAULT_CAPACITY) -> None:
+    def __init__(self) -> None:
         super().__init__("Play Gate", section="Debug")
-        if capacity < 1:
-            raise ValueError(f"PlayGate capacity must be >= 1, got {capacity}")
-        self.capacity: int = capacity
         self._add_input(InputPort("data", set(_ALL_TYPES)))
         self._add_output(OutputPort("data", set(_ALL_TYPES)))
 
@@ -57,7 +47,7 @@ class PlayGate(NodeBase):
         # worker thread (process_impl) and the UI thread
         # (request_emit), so a lock prevents lost-update races.
         self._lock = threading.Lock()
-        self._queue: deque[IoData] = deque(maxlen=capacity)
+        self._queue: deque[IoData] = deque()
         # When the upstream finishes while frames are still queued,
         # the default _on_finish would close our outputs before the
         # user gets a chance to click through them — afterward,
@@ -137,9 +127,6 @@ class PlayGate(NodeBase):
     def process_impl(self) -> None:
         in_data = self.inputs[0].data
         with self._lock:
-            # ``deque(maxlen=capacity).append`` evicts the oldest
-            # element when the queue is at capacity — the cheapest
-            # backpressure policy and good enough for a debug aid.
             self._queue.append(in_data)
             queue_just_filled = len(self._queue) == 1
         if queue_just_filled:

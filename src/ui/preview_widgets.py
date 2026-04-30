@@ -365,10 +365,13 @@ class PlayGatePreview(_PreviewWidgetBase):
 
     @Slot()
     def _on_clicked(self) -> None:
-        # Disable immediately so a fast double-click doesn't fire the
-        # gate twice (the worker side will also call back to disable
-        # via _state_changed, but that hop has latency).
-        self._button.setEnabled(False)
+        # Don't pre-disable: with the FIFO queue, a click only drains
+        # one frame, and the gate fires its state callback only on
+        # the empty <-> non-empty transition. Defensively disabling
+        # here would strand the user with a still-non-empty queue
+        # and a permanently dim button. A fast double-click is fine
+        # — each click pops one frame, that's the desired step
+        # behaviour.
         node = self._node
         assert isinstance(node, PlayGate)
         node.request_emit()

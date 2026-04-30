@@ -89,29 +89,24 @@ def test_inputs_queue_in_fifo_order() -> None:
     assert node.queue_depth == 0
 
 
-def test_capacity_bound_drops_oldest_on_overflow() -> None:
-    """When the queue is full, the oldest frame is evicted to make
-    room for the newest — bounded memory on a runaway feeder."""
-    node = PlayGate(capacity=3)
+def test_queue_grows_unbounded() -> None:
+    """No maxlen: every input frame is preserved so the user can
+    step through the entire stream without silent drops."""
+    node = PlayGate()
     feeder, captured = _wire(node)
     node.before_run()
 
-    for i in range(5):
+    for i in range(2500):
         feeder.send(IoData.from_scalar(i))
 
-    assert node.queue_depth == 3
+    assert node.queue_depth == 2500
 
     while node.has_queued:
         node.request_emit()
 
-    # The first two (0, 1) were evicted; we step through 2, 3, 4.
-    assert [int(d.payload) for d in captured] == [2, 3, 4]
-
-
-def test_capacity_must_be_positive() -> None:
-    import pytest
-    with pytest.raises(ValueError):
-        PlayGate(capacity=0)
+    assert len(captured) == 2500
+    assert int(captured[0].payload) == 0
+    assert int(captured[-1].payload) == 2499
 
 
 def test_state_callback_fires_on_queue_transitions() -> None:
