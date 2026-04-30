@@ -47,6 +47,14 @@ class PlayGate(NodeBase):
         # lock prevents lost-update races on the single-slot cache.
         self._lock = threading.Lock()
         self._queued: IoData | None = None
+        # When the upstream finishes while we still have a queued
+        # frame, the default _on_finish would close our outputs
+        # before the user gets a chance to click Play — afterward,
+        # send() raises "called after finish()" and the click silently
+        # does nothing. Defer the output-side finish until the queue
+        # drains; ``request_emit`` flushes the deferred finish after
+        # releasing the last frame.
+        self._pending_finish: bool = False
         self._state_callback: Callable[[bool], None] | None = None
 
     # ── UI integration ─────────────────────────────────────────────────────────
@@ -73,6 +81,8 @@ class PlayGate(NodeBase):
         with self._lock:
             data = self._queued
             self._queued = None
+            pending_finish = self._pending_finish
+            self._pending_finish = False
         if data is None:
             return
         self._notify_state(False)
@@ -80,6 +90,9 @@ class PlayGate(NodeBase):
         # that takes its own locks (or re-enters the gate via a fan-out
         # path) can't deadlock against us.
         self.outputs[0].send(data)
+        if pending_finish:
+            for port in self._outputs:
+                port.finish()
 
     @property
     def has_queued(self) -> bool:
@@ -94,6 +107,7 @@ class PlayGate(NodeBase):
         super()._before_run_impl()
         with self._lock:
             self._queued = None
+            self._pending_finish = False
         self._notify_state(False)
 
     @override
@@ -102,6 +116,22 @@ class PlayGate(NodeBase):
         with self._lock:
             self._queued = in_data
         self._notify_state(True)
+
+    @override
+    def _on_finish(self) -> None:
+        """Defer output finish if a frame is still queued.
+
+        The default implementation would close the output ports as
+        soon as upstream finishes — but that races with a slow user
+        who hasn't clicked Play yet. Deferring lets ``request_emit``
+        emit the last frame before propagating the lifecycle signal.
+        """
+        with self._lock:
+            still_queued = self._queued is not None
+            if still_queued:
+                self._pending_finish = True
+        if not still_queued:
+            super()._on_finish()
 
     # ── Internal ───────────────────────────────────────────────────────────────
 

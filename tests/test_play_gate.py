@@ -12,9 +12,17 @@ def _wire(node: PlayGate) -> tuple[OutputPort, list[IoData]]:
 
     sink = InputPort("sink", {IoDataType.SCALAR})
     captured: list[IoData] = []
-    sink.add_listener(
-        lambda: captured.append(sink.data) if sink.has_data else None
-    )
+
+    # Fake-dispatcher: a real consumer node would clear() after
+    # processing each fresh frame, so the next listener fire (e.g.
+    # the one ``finish()`` triggers) doesn't double-count. The test
+    # sink has no owning node, so clear here.
+    def _on_change() -> None:
+        if sink.is_fresh and sink.has_data:
+            captured.append(sink.data)
+            sink.clear()
+
+    sink.add_listener(_on_change)
     node.outputs[0].connect(sink)
     return feeder, captured
 
@@ -108,3 +116,41 @@ def test_before_run_clears_a_stale_queue() -> None:
     assert node.has_queued is False
     node.request_emit()  # nothing to release
     assert captured == []
+
+
+def test_upstream_finish_with_queue_defers_output_finish() -> None:
+    """Regression: the upstream finishing while a frame is queued must
+    not close our output port — ``request_emit`` would otherwise raise
+    "send() called after finish()" and the click would silently do
+    nothing."""
+    node = PlayGate()
+    feeder, captured = _wire(node)
+    node.before_run()
+
+    feeder.send(IoData.from_scalar(7))
+    feeder.finish()  # upstream done, we still have a queued frame
+
+    assert node.outputs[0].finished is False, (
+        "output must NOT finish while a frame is still queued"
+    )
+
+    node.request_emit()
+
+    assert len(captured) == 1
+    assert int(captured[0].payload) == 7
+    # Now that the queue has drained AND upstream is done, the
+    # deferred finish flushes — no further frames will arrive.
+    assert node.outputs[0].finished is True
+
+
+def test_upstream_finish_with_empty_queue_propagates_immediately() -> None:
+    """Symmetric to the deferred case: when nothing is queued, finish
+    propagates the moment upstream signals end-of-stream so downstream
+    sinks can wrap up promptly."""
+    node = PlayGate()
+    feeder, _ = _wire(node)
+    node.before_run()
+
+    feeder.finish()
+
+    assert node.outputs[0].finished is True
