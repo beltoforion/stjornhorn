@@ -254,3 +254,59 @@ def test_image_types_set_unaffected_by_new_kinds() -> None:
     declare image-only ports."""
     new_kinds = {IoDataType.BOOL, IoDataType.STRING, IoDataType.ENUM, IoDataType.PATH}
     assert IMAGE_TYPES.isdisjoint(new_kinds)
+
+
+# ── IoMeta + IoData.meta ──────────────────────────────────────────────────────
+
+
+def test_iodata_default_meta_is_empty() -> None:
+    from core.io_data import IoMeta
+    data = IoData.from_scalar(0)
+    assert isinstance(data.meta, IoMeta)
+    assert data.meta.source_path is None
+    assert data.meta.frame_index == 0
+    assert data.meta.timestamp is None
+    assert data.meta.extras == {}
+
+
+def test_iodata_factory_accepts_meta_kwarg() -> None:
+    from core.io_data import IoMeta
+    meta = IoMeta(source_path=Path("ship.jpg"), frame_index=7)
+    data = IoData.from_image(np.zeros((2, 2, 3), dtype=np.uint8), meta=meta)
+    assert data.meta.source_path == Path("ship.jpg")
+    assert data.meta.frame_index == 7
+
+
+def test_with_image_preserves_meta() -> None:
+    """Filters that pass through via ``with_image`` must carry meta forward."""
+    from core.io_data import IoMeta
+    src = IoData.from_image(
+        np.zeros((2, 2, 3), dtype=np.uint8),
+        meta=IoMeta(source_path=Path("ship.jpg"), frame_index=3),
+    )
+    new_payload = np.ones((2, 2, 3), dtype=np.uint8)
+    out = src.with_image(new_payload)
+    assert out.payload is new_payload
+    assert out.meta is src.meta  # forwarded by reference
+
+
+def test_with_meta_returns_new_iodata_with_overrides() -> None:
+    src = IoData.from_scalar(42)
+    out = src.with_meta(frame_index=5, source_path=Path("data.csv"))
+    assert out is not src
+    assert out.payload is src.payload
+    assert out.meta.frame_index == 5
+    assert out.meta.source_path == Path("data.csv")
+    # Original untouched.
+    assert src.meta.frame_index == 0
+    assert src.meta.source_path is None
+
+
+def test_iometa_replace_is_immutable_for_extras() -> None:
+    """``replace`` must shallow-copy ``extras`` so the caller's writes
+    don't leak back into the original meta object."""
+    from core.io_data import IoMeta
+    original = IoMeta(extras={"foo": 1})
+    updated = original.replace(frame_index=2)
+    updated.extras["bar"] = 99
+    assert "bar" not in original.extras

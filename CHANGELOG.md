@@ -12,6 +12,28 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Added (TickTack Step 1, #250)
+
+- Per-frame metadata on `IoData`: new `IoMeta` dataclass with
+  `source_path`, `frame_index`, `timestamp`, `extras`. Travels
+  alongside the payload and survives pass-through filters via
+  `IoData.with_image` / new `IoData.with_payload` / new
+  `IoData.with_meta`. Foundation for filename templating (#159) and
+  the animated hodogram pipeline (#246, #251).
+- `OutputPort.send` auto-stamps `meta.frame_index` from a per-port
+  emit counter; `OutputPort.reset` rewinds the counter at the start
+  of every flow run. Producers no longer thread frame indices
+  manually.
+- `ImageSource` and `CsvSource` now stamp `meta.source_path` with the
+  resolved absolute path on every emit.
+- New **Meta Inspector** node under the **Debug** section: pass-through
+  probe that surfaces every frame's `IoMeta` (plus payload kind /
+  shape) in its node body. Type-agnostic, can sit anywhere in a flow.
+- New **Play Gate** node under the **Debug** section: pass-through
+  with a Play button in its node body. Holds the most recent input
+  frame, releases it downstream on click. Useful for stepping through
+  a stream while iterating on flow design.
+
 ### Changed
 
 - `APP_NAME` aligned with the brand: now `"Stjörnhorn"` (was the legacy

@@ -8,11 +8,13 @@ from typing_extensions import override
 
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 from core import notifications
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeBase
+from nodes.debug.meta_inspector import MetaInspector
+from nodes.debug.play_gate import PlayGate
 from nodes.filters.display import Display
 
 logger = logging.getLogger(__name__)
@@ -217,10 +219,149 @@ def _numpy_to_qimage(frame: np.ndarray) -> QImage:
     return qimg.copy()
 
 
+# ── MetaInspector preview ─────────────────────────────────────────────────────
+
+
+class MetaInspectorPreview(_PreviewWidgetBase):
+    """Inline preview for :class:`~nodes.debug.meta_inspector.MetaInspector`.
+
+    Shows the :class:`~core.io_data.IoMeta` of every frame that passes
+    through the inspector, plus the payload kind and shape. The text
+    arrives on the worker thread via the node's frame_callback; a
+    queued :class:`Signal` hops it to the UI thread before the label
+    is updated.
+    """
+
+    _text_ready = Signal(str)
+
+    _PREVIEW_MIN_W: int = 220
+    _PREVIEW_MIN_H: int = 90
+
+    def __init__(self, node: MetaInspector) -> None:
+        super().__init__(node)
+        self._label = QLabel()
+        self._label.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        )
+        self._label.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
+        self._label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        self._label.setStyleSheet(
+            "QLabel { background: #111; border: 1px solid #333;"
+            "         color: #d6d6d6; padding: 4px;"
+            "         font-family: 'Consolas','Menlo',monospace;"
+            "         font-size: 11px; }"
+        )
+        self._label.setText("(no frame yet)")
+
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._label)
+
+        self._text_ready.connect(self._on_text_ready)
+        node.set_frame_callback(self._emit_from_worker)
+
+    def _emit_from_worker(self, data: IoData) -> None:
+        self._text_ready.emit(_format_meta(data))
+
+    @Slot(str)
+    def _on_text_ready(self, text: str) -> None:
+        self._label.setText(text)
+
+
+def _format_meta(data: IoData) -> str:
+    """Render an :class:`IoData` envelope's meta + payload summary as
+    readable text for the inspector preview."""
+    meta = data.meta
+    shape = getattr(data.payload, "shape", None)
+    payload_line = (
+        f"payload: {data.type.name} shape={shape}"
+        if shape is not None
+        else f"payload: {data.type.name} value={data.payload!r}"
+    )
+    lines = [
+        f"frame_index: {meta.frame_index}",
+        f"source_path: {meta.source_path}",
+        f"timestamp:   {meta.timestamp}",
+    ]
+    if meta.extras:
+        lines.append(f"extras:      {meta.extras}")
+    lines.append(payload_line)
+    return "\n".join(lines)
+
+
+# ── PlayGate preview ──────────────────────────────────────────────────────────
+
+
+class PlayGatePreview(_PreviewWidgetBase):
+    """Inline preview for :class:`~nodes.debug.play_gate.PlayGate`.
+
+    Hosts a Play button inside the node body. The button is enabled
+    when the gate has a queued frame and disabled otherwise; clicking
+    it asks the gate to release the queued frame downstream. The
+    queue-state hop crosses threads via a queued :class:`Signal`.
+    """
+
+    _state_changed = Signal(bool)
+
+    _PREVIEW_MIN_W: int = 140
+    _PREVIEW_MIN_H: int = 56
+
+    def __init__(self, node: PlayGate) -> None:
+        super().__init__(node)
+        self._button = QPushButton("▶  Play")
+        self._button.setEnabled(False)
+        self._button.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
+        self._button.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        self._button.setStyleSheet(
+            "QPushButton { background: #2b6cb0; color: white;"
+            "              border: 1px solid #1a4577;"
+            "              padding: 6px 10px; font-weight: bold; }"
+            "QPushButton:disabled { background: #333; color: #777; }"
+            "QPushButton:hover:enabled { background: #3478c2; }"
+        )
+        self._button.clicked.connect(self._on_clicked)
+
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._button)
+
+        self._state_changed.connect(self._on_state_changed)
+        node.set_state_callback(self._emit_from_worker)
+
+    def _emit_from_worker(self, queued: bool) -> None:
+        self._state_changed.emit(queued)
+
+    @Slot(bool)
+    def _on_state_changed(self, queued: bool) -> None:
+        self._button.setEnabled(queued)
+
+    @Slot()
+    def _on_clicked(self) -> None:
+        # Disable immediately so a fast double-click doesn't fire the
+        # gate twice (the worker side will also call back to disable
+        # via _state_changed, but that hop has latency).
+        self._button.setEnabled(False)
+        node = self._node
+        assert isinstance(node, PlayGate)
+        node.request_emit()
+
+
 # ── Registry ───────────────────────────────────────────────────────────────────
 
 _PREVIEW_WIDGET_CLASSES: dict[type[NodeBase], type[_PreviewWidgetBase]] = {
     Display: DisplayPreview,
+    MetaInspector: MetaInspectorPreview,
+    PlayGate: PlayGatePreview,
 }
 
 

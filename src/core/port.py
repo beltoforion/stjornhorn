@@ -267,6 +267,11 @@ class OutputPort:
         # node without needing the flow to re-run on every selection.
         self._last_emitted: IoData | None = None
         self._finished: bool = False
+        # Per-port emit counter — stamped onto IoData.meta.frame_index
+        # at send() time so downstream consumers (filename templating,
+        # debug inspectors) can read a per-stream frame index without
+        # the producer having to thread it manually. Reset by reset().
+        self._emit_count: int = 0
 
     # ── Connection management ──────────────────────────────────────────────────
 
@@ -331,6 +336,16 @@ class OutputPort:
             raise RuntimeError(
                 f"Output '{self.name}' send() called after finish()"
             )
+        # Stamp the per-port frame index onto the outgoing IoData so
+        # downstream nodes (sinks, debug inspectors) read a stable
+        # counter without the producer threading it manually. Filters
+        # that forward via ``with_image`` / ``with_payload`` preserve
+        # the source's other metadata (source_path, timestamp); the
+        # index is overwritten here per outbound hop, which matches
+        # the "current stream's frame number" semantics most consumers
+        # want.
+        data = data.with_meta(frame_index=self._emit_count)
+        self._emit_count += 1
         self._last_emitted = data
         for port in self._connections:
             port.receive(data)
@@ -356,3 +371,4 @@ class OutputPort:
         produces something fresh.
         """
         self._finished = False
+        self._emit_count = 0

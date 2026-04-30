@@ -6,7 +6,7 @@ import pandas as pd
 from typing_extensions import override
 
 from constants import INPUT_DIR
-from core.io_data import IoData, IoDataType
+from core.io_data import IoData, IoDataType, IoMeta
 from core.node_base import SourceNodeBase
 from core.params import BoolParam, FilePathParam, StringParam
 from core.path_utils import resolve_against
@@ -141,7 +141,9 @@ class CsvSource(SourceNodeBase):
             df.columns = [f"c{i}" for i in range(len(df.columns))]
 
         df.attrs["source_path"] = str(resolved)
-        self.outputs[0].send(IoData.from_dataset(df))
+        self.outputs[0].send(
+            IoData.from_dataset(df, meta=IoMeta(source_path=resolved))
+        )
 
     def _resolved_path(self) -> Path:
         """Return an absolute path; relative values are joined with INPUT_DIR."""

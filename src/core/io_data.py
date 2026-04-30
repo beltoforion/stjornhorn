@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,53 @@ class IoDataType(Enum):
 #: declaring input/output ports that accept colour or greyscale images
 #: interchangeably, e.g. filters like Median and Scale that work on either.
 IMAGE_TYPES: frozenset[IoDataType] = frozenset({IoDataType.IMAGE, IoDataType.IMAGE_GREY})
+
+
+@dataclass
+class IoMeta:
+    """Per-frame metadata travelling alongside an :class:`IoData` payload.
+
+    Carries provenance and timing information that downstream nodes —
+    notably sinks doing filename templating — can read without
+    reaching back through the graph. Fields are independent: a value
+    in one does not constrain another.
+
+    Fields:
+      source_path -- absolute path of the originating file when the
+                     IoData began life as a source-loaded artefact
+                     (ImageSource, CsvSource). ``None`` for synthetic
+                     payloads (RangeSource, ConstantValue).
+      frame_index -- per-output-port emit counter, stamped automatically
+                     on :meth:`core.port.OutputPort.send`. Starts at 0
+                     for the first emit of a run; resets on
+                     :meth:`core.port.OutputPort.reset`.
+      timestamp   -- run start time as ``time.time()`` (Unix epoch
+                     seconds) when set by the runner. ``None`` outside
+                     a Flow.run context.
+      extras      -- escape hatch for ad-hoc tagging; node authors can
+                     stash arbitrary keys here without growing the
+                     IoMeta surface.
+    """
+
+    source_path: Path | None = None
+    frame_index: int = 0
+    timestamp: float | None = None
+    extras: dict[str, Any] = field(default_factory=dict)
+
+    def replace(self, **changes: Any) -> "IoMeta":
+        """Return a new :class:`IoMeta` with selected fields overridden.
+
+        Mirrors :func:`dataclasses.replace` semantics. ``extras`` is
+        shallow-copied so the caller's writes don't leak back into the
+        original meta object.
+        """
+        new_extras = dict(changes.pop("extras", self.extras))
+        return IoMeta(
+            source_path=changes.pop("source_path", self.source_path),
+            frame_index=changes.pop("frame_index", self.frame_index),
+            timestamp=changes.pop("timestamp", self.timestamp),
+            extras=new_extras,
+        )
 
 
 class IoData:
@@ -61,28 +109,34 @@ class IoData:
     payload value on this channel.
     """
 
-    def __init__(self, type: IoDataType, payload: Any) -> None:
+    def __init__(
+        self,
+        type: IoDataType,
+        payload: Any,
+        meta: IoMeta | None = None,
+    ) -> None:
         self._type = type
         self._payload = payload
+        self._meta: IoMeta = meta if meta is not None else IoMeta()
 
     # ── Factory methods ────────────────────────────────────────────────────────
 
     @classmethod
-    def from_image(cls, image: np.ndarray) -> IoData:
+    def from_image(cls, image: np.ndarray, *, meta: IoMeta | None = None) -> IoData:
         """Wrap a (potentially multi-channel) image as :data:`IoDataType.IMAGE`."""
-        return cls(IoDataType.IMAGE, payload=image)
+        return cls(IoDataType.IMAGE, payload=image, meta=meta)
 
     @classmethod
-    def from_greyscale(cls, image: np.ndarray) -> IoData:
+    def from_greyscale(cls, image: np.ndarray, *, meta: IoMeta | None = None) -> IoData:
         """Wrap a single-channel image as :data:`IoDataType.IMAGE_GREY`.
 
         The image is expected to be a 2-D ``uint8`` array. No shape check is
         enforced — callers are responsible for producing the right shape.
         """
-        return cls(IoDataType.IMAGE_GREY, payload=image)
+        return cls(IoDataType.IMAGE_GREY, payload=image, meta=meta)
 
     @classmethod
-    def from_scalar(cls, value: object) -> IoData:
+    def from_scalar(cls, value: object, *, meta: IoMeta | None = None) -> IoData:
         """Wrap a numeric scalar as :data:`IoDataType.SCALAR`.
 
         Accepts a Python ``int``/``float``, a numpy scalar, or any 0-d
@@ -95,10 +149,10 @@ class IoData:
             raise ValueError(
                 f"Scalar payload must be 0-d (ndim==0), got shape {arr.shape}"
             )
-        return cls(IoDataType.SCALAR, payload=arr)
+        return cls(IoDataType.SCALAR, payload=arr, meta=meta)
 
     @classmethod
-    def from_matrix(cls, matrix: np.ndarray) -> IoData:
+    def from_matrix(cls, matrix: np.ndarray, *, meta: IoMeta | None = None) -> IoData:
         """Wrap a 2-D numpy array as :data:`IoDataType.MATRIX`.
 
         Accepts any array-like (incl. nested lists); the result is
@@ -111,10 +165,10 @@ class IoData:
             raise ValueError(
                 f"Matrix payload must be 2-d (ndim==2), got shape {arr.shape}"
             )
-        return cls(IoDataType.MATRIX, payload=arr)
+        return cls(IoDataType.MATRIX, payload=arr, meta=meta)
 
     @classmethod
-    def from_dataset(cls, df: pd.DataFrame) -> IoData:
+    def from_dataset(cls, df: pd.DataFrame, *, meta: IoMeta | None = None) -> IoData:
         """Wrap a :class:`pandas.DataFrame` as :data:`IoDataType.DATASET`.
 
         The DataFrame is stored verbatim — its columns identify channels
@@ -132,10 +186,10 @@ class IoData:
                 f"Dataset payload must be a pandas.DataFrame, "
                 f"got {type(df).__name__}"
             )
-        return cls(IoDataType.DATASET, payload=df)
+        return cls(IoDataType.DATASET, payload=df, meta=meta)
 
     @classmethod
-    def from_bool(cls, value: object) -> IoData:
+    def from_bool(cls, value: object, *, meta: IoMeta | None = None) -> IoData:
         """Wrap a boolean as :data:`IoDataType.BOOL`.
 
         Coerces with ``bool(value)`` so widget-side strings like
@@ -143,15 +197,15 @@ class IoData:
         ``bool("false")`` is ``True`` — callers handing in strings
         should normalise first).
         """
-        return cls(IoDataType.BOOL, payload=bool(value))
+        return cls(IoDataType.BOOL, payload=bool(value), meta=meta)
 
     @classmethod
-    def from_string(cls, value: object) -> IoData:
+    def from_string(cls, value: object, *, meta: IoMeta | None = None) -> IoData:
         """Wrap a string as :data:`IoDataType.STRING`."""
-        return cls(IoDataType.STRING, payload=str(value))
+        return cls(IoDataType.STRING, payload=str(value), meta=meta)
 
     @classmethod
-    def from_enum(cls, value: object) -> IoData:
+    def from_enum(cls, value: object, *, meta: IoMeta | None = None) -> IoData:
         """Wrap an enum member (or its int value) as :data:`IoDataType.ENUM`.
 
         The payload is stored verbatim — receivers that expect a
@@ -159,17 +213,17 @@ class IoData:
         (``MyEnum(data.payload)``) so an ``int`` from a saved flow file
         round-trips through the same path as a typed enum member.
         """
-        return cls(IoDataType.ENUM, payload=value)
+        return cls(IoDataType.ENUM, payload=value, meta=meta)
 
     @classmethod
-    def from_path(cls, value: object) -> IoData:
+    def from_path(cls, value: object, *, meta: IoMeta | None = None) -> IoData:
         """Wrap a filesystem path as :data:`IoDataType.PATH`.
 
         Coerces to :class:`pathlib.Path` so consumers can rely on the
         ``Path`` API regardless of whether the caller supplied a
         ``str``, an existing ``Path``, or a path-like object.
         """
-        return cls(IoDataType.PATH, payload=Path(value))
+        return cls(IoDataType.PATH, payload=Path(value), meta=meta)
 
     # ── Properties ─────────────────────────────────────────────────────────────
 
@@ -198,18 +252,39 @@ class IoData:
         """
         return self._payload
 
+    @property
+    def meta(self) -> IoMeta:
+        """Per-frame metadata travelling with the payload."""
+        return self._meta
+
     def is_image(self) -> bool:
         """Return True if this carries an image payload (colour or greyscale)."""
         return self._type in IMAGE_TYPES
 
     def with_image(self, image: np.ndarray) -> IoData:
-        """Return a new :class:`IoData` with the same type and a new payload.
+        """Return a new :class:`IoData` with the same type, payload replaced.
 
         Use this in pass-through filters so the output type (IMAGE vs
         IMAGE_GREY) matches the input without the filter having to branch on
-        it explicitly.
+        it explicitly. The :class:`IoMeta` is forwarded by reference so
+        provenance survives the filter chain.
         """
-        return IoData(self._type, payload=image)
+        return IoData(self._type, payload=image, meta=self._meta)
+
+    def with_payload(self, payload: Any) -> IoData:
+        """Return a new :class:`IoData` with the same type/meta, payload
+        replaced. Generalisation of :meth:`with_image` for non-image
+        payload kinds."""
+        return IoData(self._type, payload=payload, meta=self._meta)
+
+    def with_meta(self, **changes: Any) -> IoData:
+        """Return a new :class:`IoData` with selected meta fields overridden.
+
+        Same payload and type; the IoMeta is the result of
+        ``self.meta.replace(**changes)``. Use to stamp a frame_index,
+        record a source path, etc., without rebuilding the payload.
+        """
+        return IoData(self._type, payload=self._payload, meta=self._meta.replace(**changes))
 
     def __repr__(self) -> str:
         # Image / SCALAR / MATRIX payloads expose a numpy ``shape``; the
