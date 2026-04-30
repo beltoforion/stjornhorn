@@ -25,10 +25,9 @@ class FileSink(SinkNodeBase):
     """Sink node that writes the incoming frame to disk.
 
     Paths inside :data:`OUTPUT_DIR` are stored relative to that folder
-    so saved flows port cleanly. ``output_path`` is a :ref:`filename
-    template <core.filename_template>` — ``$frame_index$``,
-    ``$source_stem$`` etc. expand at write time, with width syntax
-    ``$tok:N$`` for zero-padding.
+    so saved flows port cleanly. ``output_path`` is a filename
+    template — ``$frame_index$``, ``$source_stem$`` etc. expand at
+    write time, with width syntax ``$tok:N$`` for zero-padding.
 
     The optional ``tick`` SCALAR input drives one write per tick when
     connected; otherwise the sink fires on every image frame. The

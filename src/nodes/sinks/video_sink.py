@@ -43,10 +43,10 @@ class VideoSink(SinkNodeBase):
     so saved flows port cleanly across machines; anything outside is
     kept absolute.
 
-    The ``output_path`` is a :ref:`filename template
-    <core.filename_template>` resolved once when the encoder opens:
-    ``$source_stem$``, ``$flow_name$`` and other meta-derived
-    placeholders expand from the first frame's meta. Per-frame tokens
+    The ``output_path`` is a filename template resolved once when
+    the encoder opens: ``$source_stem$``, ``$flow_name$`` and other
+    meta-derived placeholders expand from the first frame's meta.
+    Per-frame tokens
     like ``$frame_index$`` are not useful here — for per-frame paths
     use :class:`FileSink` instead.
     """
