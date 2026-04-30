@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.5",
+  "app_version": "0.3.0.11",
   "name": "test_ranged",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1334.0,
-        -828.0
+        -1340.3753983488075,
+        -873.6903548331198
       ],
       "port_defaults": {
         "file_path": "ship.jpg"
@@ -20,32 +20,61 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -760.0,
-        -480.0
+        -814.8550628979158,
+        -571.7051396023502
       ],
       "port_defaults": {
         "output_path": "out_$tick:2$.png"
-      }
+      },
+      "size": [
+        338.27380653266334,
+        120.0
+      ]
     },
     {
       "id": 2,
       "module": "nodes.sources.range_source",
       "class": "RangeSource",
       "position": [
-        -1334.0,
-        -480.0
+        -1306.9856645015968,
+        -566.3812210105034
       ],
       "port_defaults": {
         "min_value": 1,
-        "max_value": 10,
-        "increment": 1.0,
+        "max_value": 1000,
+        "increment": 10.0,
         "loop": false
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.shift",
+      "class": "Shift",
+      "position": [
+        -1032.0971105527638,
+        -748.8277638190954
+      ],
+      "port_defaults": {
+        "offset_x": 0,
+        "offset_y": 0
       }
     }
   ],
   "connections": [
     {
       "src_node": 0,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 1
+    },
+    {
+      "src_node": 3,
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 0
