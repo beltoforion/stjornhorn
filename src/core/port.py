@@ -57,10 +57,19 @@ class InputPort:
         optional: bool = False,
         default_value: object | None = None,
         metadata: dict | None = None,
+        hold_last: bool = False,
     ) -> None:
         self.name = name
         self.accepted_types: frozenset[IoDataType] = frozenset(accepted_types)
         self.optional: bool = optional
+        # When True, this port keeps its last received value across
+        # :meth:`clear` and across the upstream's :meth:`finish`. The
+        # owning node's dispatcher also excludes held ports from the
+        # "all required inputs finished" check, so a held input alone
+        # never drives lifecycle shutdown — only non-held (clock)
+        # inputs do. Lets a one-shot source (an image, a CSV) sit
+        # alongside a streaming counter without going stale.
+        self.hold_last: bool = hold_last
         self._listeners: list[Callable[[], None]] = []
         if on_state_changed is not None:
             self._listeners.append(on_state_changed)
@@ -213,6 +222,8 @@ class InputPort:
         if self._finished:
             return
         if "param_type" in self.metadata:
+            return
+        if self.hold_last:
             return
         self._data = None
 
