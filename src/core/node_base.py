@@ -336,7 +336,19 @@ class NodeBase(ABC):
             raise ValueError(
                 f"{type(self).__name__} ({self._display_name}) is not skippable"
             )
+        old = self._skipped
         self._skipped = flag
+        if old != flag:
+            self._on_skipped_changed(flag)
+
+    def _on_skipped_changed(self, skipped: bool) -> None:
+        """Hook for subclasses; called whenever :attr:`skipped` flips.
+
+        Default: no-op. Override to react to the transition — e.g. a
+        node that buffers frames internally can drain its buffer
+        when entering skip mode so downstream sinks don't sit on
+        stale data while the user toggles skipping back and forth.
+        """
 
     # ── Internal signal handling ───────────────────────────────────────────────
 

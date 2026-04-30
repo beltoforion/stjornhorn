@@ -12,6 +12,40 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed
+
+- **Play Gate** (TickTack Step 1) now buffers frames in an **unbounded
+  FIFO** instead of the original latest-wins single slot. Each click
+  on the Play button steps through the buffered frames in arrival
+  order, so a `RangeSource(0..99) → PlayGate → …` flow can be walked
+  frame by frame instead of collapsing to one click. No silent drops
+  — the user is responsible for keeping the feeding stream
+  reasonable (a debug aid: piping a long video straight in costs
+  real memory).
+- **Play Gate** preview widget: the click handler no longer
+  pre-disables the Play button. With the FIFO queue, the gate's
+  state callback fires only on the empty ↔ non-empty transition;
+  pre-disabling stranded the user with a still-non-empty queue and
+  a permanently dim button after a single click.
+- **Play Gate** drains its queue immediately when the user toggles
+  the node into skip mode (header dimmer). Without the drain,
+  pre-skip backlog stayed buffered while new frames already
+  pass-through via the standard skip-node mechanism — exactly the
+  inverse of what the toggle visually promises.
+
+### Added (framework)
+
+- New `NodeBase._on_skipped_changed(skipped: bool)` hook fires on
+  every transition of the `skipped` flag. Default no-op; subclasses
+  override to react (PlayGate uses it to flush its queue).
+- **Meta Inspector**: the body widget now word-wraps long values
+  (notably `source_path`), uses an updated placeholder
+  ("(run the flow to see meta)") and forces an explicit
+  `update()` after each text refresh so the proxy widget repaints
+  reliably even when the callback chain runs entirely on the UI
+  thread (e.g. when triggered by a Play Gate click after the run
+  has otherwise quiesced).
+
 ### Added (TickTack Step 1, #250)
 
 - Per-frame metadata on `IoData`: new `IoMeta` open-ended `str → Any`

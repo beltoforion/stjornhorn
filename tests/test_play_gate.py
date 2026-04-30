@@ -68,25 +68,51 @@ def test_request_emit_with_empty_queue_is_a_noop() -> None:
     assert len(captured) == captured_count
 
 
-def test_second_input_overwrites_first_when_play_not_pressed() -> None:
-    """Latest-wins single-slot semantics: a second frame replaces the
-    first, so the gate stays usable on fast streams without an
-    unbounded queue."""
+def test_inputs_queue_in_fifo_order() -> None:
+    """FIFO: the user steps through the buffered frames in arrival
+    order, one per click."""
     node = PlayGate()
     feeder, captured = _wire(node)
     node.before_run()
 
     feeder.send(IoData.from_scalar(1))
     feeder.send(IoData.from_scalar(2))
+    feeder.send(IoData.from_scalar(3))
+
+    assert node.queue_depth == 3
+
+    node.request_emit()
+    node.request_emit()
     node.request_emit()
 
-    assert len(captured) == 1
-    assert int(captured[0].payload) == 2
+    assert [int(d.payload) for d in captured] == [1, 2, 3]
+    assert node.queue_depth == 0
+
+
+def test_queue_grows_unbounded() -> None:
+    """No maxlen: every input frame is preserved so the user can
+    step through the entire stream without silent drops."""
+    node = PlayGate()
+    feeder, captured = _wire(node)
+    node.before_run()
+
+    for i in range(2500):
+        feeder.send(IoData.from_scalar(i))
+
+    assert node.queue_depth == 2500
+
+    while node.has_queued:
+        node.request_emit()
+
+    assert len(captured) == 2500
+    assert int(captured[0].payload) == 0
+    assert int(captured[-1].payload) == 2499
 
 
 def test_state_callback_fires_on_queue_transitions() -> None:
     """The preview widget needs to know when the button should enable /
-    disable; the gate signals that through ``set_state_callback``."""
+    disable. State changes are emitted only at empty↔non-empty
+    transitions so a flurry of incoming frames doesn't spam the UI."""
     node = PlayGate()
     feeder, _ = _wire(node)
     node.before_run()
@@ -94,12 +120,13 @@ def test_state_callback_fires_on_queue_transitions() -> None:
     states: list[bool] = []
     node.set_state_callback(lambda queued: states.append(queued))
 
-    feeder.send(IoData.from_scalar(0))
-    node.request_emit()
+    feeder.send(IoData.from_scalar(0))   # 0 -> 1: True
+    feeder.send(IoData.from_scalar(1))   # 1 -> 2: no transition
+    feeder.send(IoData.from_scalar(2))   # 2 -> 3: no transition
+    node.request_emit()                  # 3 -> 2: no transition
+    node.request_emit()                  # 2 -> 1: no transition
+    node.request_emit()                  # 1 -> 0: False
 
-    # before_run cleared the queue (False), then receive queued (True),
-    # then request_emit released (False). The before_run notification
-    # happens before the callback was attached, so it isn't observed.
     assert states == [True, False]
 
 
@@ -119,27 +146,94 @@ def test_before_run_clears_a_stale_queue() -> None:
 
 
 def test_upstream_finish_with_queue_defers_output_finish() -> None:
-    """Regression: the upstream finishing while a frame is queued must
-    not close our output port — ``request_emit`` would otherwise raise
-    "send() called after finish()" and the click would silently do
-    nothing."""
+    """Regression: the upstream finishing while frames are queued
+    must not close our output port — ``request_emit`` would otherwise
+    raise "send() called after finish()" and the click would silently
+    do nothing."""
     node = PlayGate()
     feeder, captured = _wire(node)
     node.before_run()
 
     feeder.send(IoData.from_scalar(7))
-    feeder.finish()  # upstream done, we still have a queued frame
+    feeder.send(IoData.from_scalar(8))
+    feeder.send(IoData.from_scalar(9))
+    feeder.finish()  # upstream done, three frames still queued
 
     assert node.outputs[0].finished is False, (
-        "output must NOT finish while a frame is still queued"
+        "output must NOT finish while frames are still queued"
     )
 
+    # Step through the three buffered frames; output must stay open
+    # for the first two, finish only on the click that drains the
+    # last one.
     node.request_emit()
+    assert node.outputs[0].finished is False
+    node.request_emit()
+    assert node.outputs[0].finished is False
+    node.request_emit()
+    assert node.outputs[0].finished is True
 
-    assert len(captured) == 1
-    assert int(captured[0].payload) == 7
-    # Now that the queue has drained AND upstream is done, the
-    # deferred finish flushes — no further frames will arrive.
+    assert [int(d.payload) for d in captured] == [7, 8, 9]
+
+
+def test_skip_toggle_drains_queue_immediately() -> None:
+    """Toggling the node into skip mode must release every buffered
+    frame downstream without further user clicks — skip semantics
+    visually promise "this node is a wire", so pre-skip backlog
+    needs to flush rather than strand the user."""
+    node = PlayGate()
+    feeder, captured = _wire(node)
+    node.before_run()
+
+    states: list[bool] = []
+    node.set_state_callback(lambda queued: states.append(queued))
+
+    feeder.send(IoData.from_scalar(1))
+    feeder.send(IoData.from_scalar(2))
+    feeder.send(IoData.from_scalar(3))
+    assert node.queue_depth == 3
+    assert states == [True]
+
+    node.skipped = True
+
+    assert [int(d.payload) for d in captured] == [1, 2, 3]
+    assert node.queue_depth == 0
+    # Last state notification flips the button off.
+    assert states == [True, False]
+
+
+def test_skip_already_empty_queue_is_a_noop() -> None:
+    """Toggling skip with nothing buffered must not emit anything
+    and must not fire a spurious state callback."""
+    node = PlayGate()
+    feeder, captured = _wire(node)
+    node.before_run()
+
+    states: list[bool] = []
+    node.set_state_callback(lambda queued: states.append(queued))
+
+    node.skipped = True
+
+    assert captured == []
+    assert states == []
+
+
+def test_skip_drains_then_flushes_deferred_finish() -> None:
+    """Regression: a deferred-finish that was waiting for the user
+    to click through must flush together with the drain — once
+    skip pass-throughs everything, no further frames will arrive."""
+    node = PlayGate()
+    feeder, captured = _wire(node)
+    node.before_run()
+
+    feeder.send(IoData.from_scalar(7))
+    feeder.send(IoData.from_scalar(8))
+    feeder.finish()  # deferred finish (queue non-empty)
+    assert node.outputs[0].finished is False
+
+    node.skipped = True
+
+    assert [int(d.payload) for d in captured] == [7, 8]
     assert node.outputs[0].finished is True
 
 
