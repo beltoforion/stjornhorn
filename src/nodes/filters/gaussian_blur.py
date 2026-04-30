@@ -22,12 +22,14 @@ class GaussianBlur(NodeBase):
 
     ksize = OddIntParam(
         5,
-        min=1,
+        min=3,
         unit="px",
         description=(
-            "Kernel side length in pixels. Must be odd; even values "
-            "are bumped up to the next odd integer. Larger kernels "
-            "blur more strongly and run more slowly."
+            "Kernel side length in pixels. Must be odd and >= 3; "
+            "even values are bumped up to the next odd integer. "
+            "A 1-px kernel is rejected because it is the no-op "
+            "identity and would only confuse readers of saved flows. "
+            "Larger kernels blur more strongly and run more slowly."
         ),
     )
     sigma = FloatParam(

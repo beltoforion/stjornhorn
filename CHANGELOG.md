@@ -12,6 +12,35 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Fixed (#259)
+
+- `OddIntParam` editors (`GaussianBlur.ksize`, `Median.size`,
+  `AdaptiveGaussianThreshold.block_size`) now use a dedicated
+  odd-only spin box: arrows step in twos, typed even values are
+  rejected, and a committed even number is fixed up to the next
+  odd integer on focus loss. Previously the generic `IntParamWidget`
+  was used, so the spinner stopped at every integer and even input
+  was silently bumped on the node while the widget kept showing the
+  even value (UI ↔ model desync).
+- The previously-documented `WIDGET_CLASS` hook on `_ParamBase` was
+  never wired and would have required `core` to import from `ui`.
+  Replaced with a string `widget_kind` metadata key consulted by
+  `build_param_widget` before the per-`NodeParamType` dispatch, so
+  shape-specific descriptors can opt into custom widgets without
+  breaking the layering.
+- `IntParamWidget` now forwards the descriptor's declared `min` /
+  `max` to the spin box's `setRange`, so out-of-range values can no
+  longer be typed in (the historic wide fallback is kept when no
+  bound is declared). `FloatParamWidget` already did this — the
+  parity gap was the same root cause that allowed e.g. negative
+  kernel sizes and window=1 to hit the descriptor's validator
+  instead of being refused at the widget level.
+- `GaussianBlur.ksize` and `Median.size` now require `min=3` (a 1-px
+  kernel is the no-op identity); `TemporalMedian.window` and
+  `TemporalMean.window` now require `min=2` (a window of 1 is
+  pass-through). Bundled demo flows are unaffected (none use the
+  old lower bound).
+
 ### Added (TickTack Step 3, #159)
 
 - **Filename templating** for `FileSink` and `VideoSink`. The

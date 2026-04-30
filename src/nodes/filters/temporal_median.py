@@ -26,11 +26,12 @@ class TemporalMedian(NodeBase):
 
     window = IntParam(
         5,
-        min=1,
+        min=2,
         unit="frames",
         description=(
             "Number of recent frames whose per-pixel median is "
-            "emitted. Strong against transient outliers — single-"
+            "emitted. Must be >= 2 — a window of 1 is the no-op "
+            "identity. Strong against transient outliers — single-"
             "frame spikes, salt-and-pepper noise — without the "
             "smearing a mean would produce."
         ),
