@@ -64,4 +64,4 @@ class Rotate(NodeBase):
             out_size = (w, h)
 
         rotated = cv2.warpAffine(image, m, out_size, flags=cv2.INTER_LINEAR)
-        self.outputs[0].send(in_data.with_image(rotated))
+        self.outputs[0].send(in_data.clone(payload=rotated))

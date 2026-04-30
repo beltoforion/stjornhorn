@@ -16,11 +16,16 @@ once a first tagged release is cut.
 
 - Per-frame metadata on `IoData`: new `IoMeta` open-ended `str → Any`
   bag (no fixed schema — any node may stamp any key). Travels
-  alongside the payload and survives pass-through filters via
-  `IoData.with_image` / new `IoData.with_payload` / new
-  `IoData.with_meta`. Conventional keys: `frame_index`, `source_path`,
-  `timestamp`. Foundation for filename templating (#159) and the
-  animated hodogram pipeline (#246, #251).
+  alongside the payload and survives pass-through filters via the new
+  `IoData.clone(*, payload=..., **meta_changes)` helper. Conventional
+  keys: `frame_index`, `source_path`, `timestamp`. Foundation for
+  filename templating (#159) and the animated hodogram pipeline
+  (#246, #251).
+- The previous `IoData.with_image` was replaced by `IoData.clone(payload=...)`
+  — the operation was always a clone with the payload swapped. Meta
+  updates take the same method: `data.clone(frame_index=5)`, both can
+  combine: `data.clone(payload=arr, frame_index=5)`. Node-author code
+  that called `with_image` must switch to `clone(payload=...)`.
 - `OutputPort.send` auto-stamps `meta.frame_index` from a per-port
   emit counter; `OutputPort.reset` rewinds the counter at the start
   of every flow run. Producers no longer thread frame indices

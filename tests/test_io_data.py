@@ -294,22 +294,23 @@ def test_iometa_supports_arbitrary_keys() -> None:
     assert meta["station"] == "ALH02"
 
 
-def test_with_image_preserves_meta() -> None:
-    """Filters that pass through via ``with_image`` must carry meta forward."""
+def test_clone_payload_preserves_meta() -> None:
+    """Filters that pass through via ``clone(payload=...)`` must carry
+    meta forward to keep provenance alive across the chain."""
     from core.io_data import IoMeta
     src = IoData.from_image(
         np.zeros((2, 2, 3), dtype=np.uint8),
         meta=IoMeta(source_path=Path("ship.jpg"), frame_index=3),
     )
     new_payload = np.ones((2, 2, 3), dtype=np.uint8)
-    out = src.with_image(new_payload)
+    out = src.clone(payload=new_payload)
     assert out.payload is new_payload
     assert out.meta is src.meta  # forwarded by reference
 
 
-def test_with_meta_returns_new_iodata_with_overrides() -> None:
+def test_clone_meta_changes_returns_new_iodata_with_overrides() -> None:
     src = IoData.from_scalar(42)
-    out = src.with_meta(frame_index=5, source_path=Path("data.csv"))
+    out = src.clone(frame_index=5, source_path=Path("data.csv"))
     assert out is not src
     assert out.payload is src.payload
     assert out.meta["frame_index"] == 5

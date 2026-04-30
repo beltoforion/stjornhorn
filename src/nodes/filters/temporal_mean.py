@@ -62,4 +62,4 @@ class TemporalMean(NodeBase):
         # to the input dtype so downstream nodes get the type they expect.
         stack = np.stack(self._buffer, axis=0).astype(np.float32)
         mean = stack.mean(axis=0).astype(image.dtype)
-        self.outputs[0].send(in_data.with_image(mean))
+        self.outputs[0].send(in_data.clone(payload=mean))

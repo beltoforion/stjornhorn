@@ -47,4 +47,4 @@ class Flip(NodeBase):
     def process_impl(self) -> None:
         in_data = self.inputs[0].data
         flipped = cv2.flip(in_data.image, int(self._mode))
-        self.outputs[0].send(in_data.with_image(flipped))
+        self.outputs[0].send(in_data.clone(payload=flipped))

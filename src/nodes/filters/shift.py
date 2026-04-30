@@ -50,4 +50,4 @@ class Shift(NodeBase):
         matrix = np.float32([[1, 0, self._offset_x],
                              [0, 1, self._offset_y]])
         shifted = cv2.warpAffine(image, matrix, (w, h))
-        self.outputs[0].send(in_data.with_image(shifted))
+        self.outputs[0].send(in_data.clone(payload=shifted))
