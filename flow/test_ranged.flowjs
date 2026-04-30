@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.2",
+  "app_version": "0.3.0.3",
   "name": "test_ranged",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1292.0,
-        -522.0
+        -1334.2481444605353,
+        -828.49108435916
       ],
       "port_defaults": {
         "file_path": "ship.jpg"
@@ -20,8 +20,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -584.0,
-        -507.0
+        -760.6740586531498,
+        -480.8829652425778
       ],
       "port_defaults": {
         "output_path": "out.png"
@@ -29,23 +29,56 @@
     },
     {
       "id": 2,
-      "module": "nodes.sources.range_source",
-      "class": "RangeSource",
+      "module": "nodes.debug.meta_inspector",
+      "class": "MetaInspector",
       "position": [
-        -980.0,
-        -818.0
+        -789.65622737147,
+        -841.8902968863146
       ],
-      "port_defaults": {
-        "min_value": 1,
-        "max_value": 10,
-        "increment": 1.0,
-        "loop": false
-      }
+      "port_defaults": {}
+    },
+    {
+      "id": 3,
+      "module": "nodes.debug.play_gate",
+      "class": "PlayGate",
+      "position": [
+        -1032.3910209992757,
+        -844.1947411296163
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1053.1310191889934,
+        -506.2095854453295
+      ],
+      "port_defaults": {}
     }
   ],
   "connections": [
     {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
       "src_node": 0,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 0
