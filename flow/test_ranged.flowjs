@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "app_version": "0.3.0.2",
+  "name": "test_ranged",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [
+        -1292.0,
+        -522.0
+      ],
+      "port_defaults": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -584.0,
+        -507.0
+      ],
+      "port_defaults": {
+        "output_path": "out.png"
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
+      "position": [
+        -980.0,
+        -818.0
+      ],
+      "port_defaults": {
+        "min_value": 0,
+        "max_value": 99,
+        "increment": 1.0,
+        "loop": false
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": []
+}
