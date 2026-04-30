@@ -14,8 +14,8 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-04-30 (migrated from `refacturing.txt` to
-this Markdown file under `doc/internal/`).
+**Last reviewed:** 2026-04-30 (M13 added — sink-side tick ports
+violate SRP; design proposal under TickTack umbrella #249).
 
 ## High
 
@@ -90,6 +90,50 @@ incompatible ports but returns `None` for "trivial" rejections —
 callers must both `try`/`except` *and* check `None`.
 
 **Direction:** a `Result` / dedicated error enum, or always raise.
+
+### OPEN — M13. Sinks combine write-to-disk with clock-cardinality
+
+SRP. `src/nodes/sinks/file_sink.py:24` declares a second `tick`
+SCALAR input alongside `image`; the sink uses it to decide *how
+many times* to write. That mixes two concerns: writing a frame
+(sink) and pulse-rating the writes off an upstream clock
+(cardinality / lifecycle). Same shape will recur on `VideoSink`
+and any future sink the moment animation flows need it.
+
+The cleaner pattern is what filters already do today: a SCALAR
+clock plugged into a port-driven param drives the filter's
+lifecycle, the filter emits one frame per tick, and the sink just
+writes whatever arrives. The TickTack umbrella's `IoMeta`
+(`src/core/io_data.py:36`) is now an open-ended `str → Any`
+mapping — perfect substrate for letting filters tag their SCALAR
+inputs into outgoing meta so sink filename templates
+(`out_$tick:2$.png`) keep working without a sink-side port.
+
+**Direction:**
+
+1. Convention: a filter with a SCALAR input port stamps that
+   port's current value into outgoing `IoMeta` under the port
+   name (`Shift` → `meta["offset_x"] = 37`). Last-writer-wins
+   along a chain. Always stamp (default + connected alike) so
+   tokens don't silently disappear when ports are unwired.
+2. Reserve framework-meta keys (`frame_index`, `source_path`,
+   `timestamp`) — port-name validator rejects collisions.
+3. Drop the `tick` input port on `FileSink` (and any future
+   sink that grows one). Sink cardinality = upstream image
+   stream cardinality.
+4. New `Pulse` / `TickTagger` node — `(image, clock) →
+   image_with_meta_stamp` — for the "fire the same image N
+   times" case where there's no upstream filter to clock.
+   Replaces every sink-side tick port across the codebase.
+
+**Trigger:** TickTack Step 4 / #246 (animated hodogram) needs
+filter-level meta tagging anyway; folding this in early avoids
+hardcoding sink-port cardinality semantics that Step 4 would
+then have to undo.
+
+**References:** umbrella #249, FileSink port surface
+`src/nodes/sinks/file_sink.py:24`, `IoMeta` schema notes in
+`src/core/io_data.py:36`, demo flow `flow/test_ranged.flowjs`.
 
 ## Low
 
