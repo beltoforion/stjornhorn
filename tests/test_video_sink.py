@@ -9,7 +9,7 @@ import pytest
 from typing_extensions import override
 
 from core.flow import Flow
-from core.io_data import IoData, IoDataType
+from core.io_data import IoData, IoDataType, IoMeta
 from core.node_base import SourceNodeBase
 from core.port import OutputPort
 from nodes.filters.mosaic import Mosaic
@@ -233,3 +233,43 @@ def test_flow_can_be_run_twice(tmp_path: Path) -> None:
 
     assert first_size > 0
     assert second_size > 0
+
+
+def test_output_path_template_expands_from_first_frame_meta(
+    tmp_path: Path,
+) -> None:
+    """``output_path`` is a filename template — ``$source_stem$`` and
+    other tokens resolve once when the writer opens, against the first
+    frame's meta."""
+    node = VideoSink()
+    node.output_path = tmp_path / "encoded_$source_stem$.mp4"
+
+    up = _wire(node)
+    node.before_run()
+    # First frame carries source_path; subsequent frames don't have to
+    # since the path is fixed at writer-open time.
+    up.send(IoData.from_image(
+        _bgr_frame(50), meta=IoMeta(source_path=Path("input/sea.jpg")),
+    ))
+    up.send(IoData.from_image(_bgr_frame(120)))
+    up.send(IoData.from_image(_bgr_frame(200)))
+    up.finish()
+
+    expected = tmp_path / "encoded_sea.mp4"
+    assert expected.exists() and expected.stat().st_size > 0
+
+
+def test_output_path_template_with_no_tokens_is_unchanged(
+    tmp_path: Path,
+) -> None:
+    """Backwards compat: a template without placeholders behaves
+    exactly like the old literal-path behaviour."""
+    node = VideoSink()
+    node.output_path = tmp_path / "static.mp4"
+
+    up = _wire(node)
+    node.before_run()
+    up.send(IoData.from_image(_bgr_frame(50)))
+    up.finish()
+
+    assert (tmp_path / "static.mp4").exists()

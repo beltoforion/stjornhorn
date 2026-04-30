@@ -10,7 +10,7 @@ import rawpy
 from typing_extensions import override
 
 from constants import INPUT_DIR
-from core.io_data import IoData, IoDataType
+from core.io_data import IoData, IoDataType, IoMeta
 from core.node_base import SourceNodeBase
 from core.params import BoolParam, FilePathParam
 from core.path_utils import resolve_against
@@ -80,7 +80,14 @@ class DirectorySource(SourceNodeBase):
             image = self._load_image(path)
             if image is None:
                 continue
-            self.outputs[0].send(IoData.from_image(image))
+            # Stamp source_path so per-frame filename templating
+            # (FileSink output_path = "$source_stem$.png", etc.) gets
+            # one output file per input file. Without this, each
+            # emit's meta is empty and a $source_stem$ template
+            # collapses to a single overwriting filename.
+            self.outputs[0].send(
+                IoData.from_image(image, meta=IoMeta(source_path=path))
+            )
             yield
 
     @override

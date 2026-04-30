@@ -178,3 +178,23 @@ def test_directory_source_promotes_greyscale_to_bgr(tmp_path: Path) -> None:
     # channels keep working.
     assert captured[0].image.shape == (4, 4, 3)
     assert int(captured[0].image[0, 0, 0]) == 120
+
+
+def test_each_emit_carries_source_path_in_meta(tmp_path: Path) -> None:
+    """Per-frame source_path is what makes ``$source_stem$``-style
+    filename templating in FileSink produce one output per input —
+    without the stamp every emit's meta is empty and a templated
+    sink collapses to a single overwriting filename."""
+    _write_solid_png(tmp_path / "a.png", 10)
+    _write_solid_png(tmp_path / "b.png", 20)
+
+    node = DirectorySource()
+    node.directory = tmp_path
+    captured = _wire_capture(node)
+
+    node.before_run()
+    node.process_impl()
+
+    assert len(captured) == 2
+    stems = sorted(d.meta["source_path"].name for d in captured)
+    assert stems == ["a.png", "b.png"]
