@@ -18,28 +18,14 @@ _DISPLAY_TYPES = frozenset(IMAGE_TYPES | {IoDataType.SCALAR, IoDataType.MATRIX})
 class Display(NodeBase):
     """Pass-through node that surfaces each frame to an inline preview.
 
-    Stores the most recent payload on :attr:`latest_frame` and, when the
-    UI attaches one via :meth:`set_frame_callback`, invokes the
-    callback with every new :class:`IoData`. The payload is forwarded on
-    the output unchanged so the node can sit inline between any two
-    others (e.g. upstream of a VideoSink to watch encoding as it
-    happens).
+    The payload is forwarded on the output unchanged so the node can
+    sit inline between any two others (e.g. upstream of a VideoSink
+    to watch encoding as it happens). Accepts image (colour or
+    greyscale), SCALAR and MATRIX payloads.
 
-    Accepts every payload kind: image (colour or greyscale), SCALAR and
-    MATRIX. The preview widget on the UI side decides how to render
-    each kind (pixmap for images, formatted text for scalars and
-    matrices).
-
-    A small debug overlay (FPS + frame count) is rendered into the
-    top-left of each *displayed* image frame. The frame count is shown
-    from the very first tick; the FPS line is added from the second tick
-    once a measurable ``dt`` is available. The overlay is preview-only —
-    the output port still forwards the original :class:`IoData` so a
-    downstream VideoSink isn't recording debug overlays into the file.
-
-    The node itself is Qt-free — the preview widget lives on the UI
-    side in :mod:`ui.preview_widgets`; the worker-thread → main-thread
-    hand-off is the UI widget's responsibility (queued signal).
+    A small FPS + frame-count overlay is drawn on the *displayed*
+    copy of image frames; the output stays clean so downstream sinks
+    don't record the overlay.
     """
 
     # Exponential-moving-average smoothing factor for the FPS readout.

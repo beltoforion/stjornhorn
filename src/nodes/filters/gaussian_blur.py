@@ -12,12 +12,9 @@ from core.port import InputPort, OutputPort
 class GaussianBlur(NodeBase):
     """Smooth an image with an isotropic Gaussian kernel.
 
-    Wraps :func:`cv2.GaussianBlur`. ``ksize`` is the kernel side length
-    in pixels; the OpenCV-required odd-only invariant is enforced by
-    :class:`~core.params.OddIntParam` so even values are bumped up to
-    the next odd integer. ``sigma`` is the standard deviation of the
-    Gaussian; the OpenCV convention of ``sigma == 0`` "derive from
-    kernel size" is preserved.
+    ``ksize`` is the kernel side length in pixels (odd, ≥ 3).
+    ``sigma`` is the standard deviation of the Gaussian; ``0`` derives
+    it from the kernel size.
     """
 
     ksize = OddIntParam(
@@ -25,11 +22,8 @@ class GaussianBlur(NodeBase):
         min=3,
         unit="px",
         description=(
-            "Kernel side length in pixels. Must be odd and >= 3; "
-            "even values are bumped up to the next odd integer. "
-            "A 1-px kernel is rejected because it is the no-op "
-            "identity and would only confuse readers of saved flows. "
-            "Larger kernels blur more strongly and run more slowly."
+            "Kernel side length in pixels. Odd, >= 3. Larger kernels "
+            "blur more strongly and run more slowly."
         ),
     )
     sigma = FloatParam(
@@ -37,7 +31,7 @@ class GaussianBlur(NodeBase):
         min=0.0,
         description=(
             "Standard deviation of the Gaussian. Set to 0 to derive "
-            "it from the kernel size automatically (OpenCV's default)."
+            "it from the kernel size."
         ),
     )
 

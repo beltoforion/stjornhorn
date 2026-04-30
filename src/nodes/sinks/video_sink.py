@@ -35,28 +35,20 @@ _CODEC_FOURCC: dict[VideoCodec, str] = {
 class VideoSink(SinkNodeBase):
     """Sink node that encodes incoming frames to a video file.
 
-    Wraps :class:`cv2.VideoWriter`. The writer is initialised lazily on
-    the first frame so its dimensions and channel count can be inferred
-    from the data — every subsequent frame must match. The writer is
-    released on :meth:`_on_finish`, triggered by the runner's
-    end-of-stream signal, which is what turns the in-progress file into
-    a playable container.
+    The encoder opens on the first frame and expects every later
+    frame to match its shape and channel count. The file is finalised
+    when the upstream stream ends.
 
     Paths inside :data:`OUTPUT_DIR` are stored relative to that folder
     so saved flows port cleanly across machines; anything outside is
-    kept absolute. Ported from the original OCVL ``VideoSink`` — the
-    interactive preview, monitor-relative resize and blocking
-    ``waitKey`` are dropped, and GIF support is omitted because
-    ``imageio`` isn't a pipeline dependency.
+    kept absolute.
 
     The ``output_path`` is a :ref:`filename template
-    <core.filename_template>`: ``$source_stem$``, ``$flow_name$`` and
-    other meta-derived placeholders expand once at the moment the
-    encoder opens (i.e. on the first incoming frame). ``$frame_index$``
-    is also resolved at that point — it's the index of the first
-    frame, typically ``0``, so it's of limited use for video output;
-    use it as a `_offset` style differentiator if you're stitching
-    multiple runs.
+    <core.filename_template>` resolved once when the encoder opens:
+    ``$source_stem$``, ``$flow_name$`` and other meta-derived
+    placeholders expand from the first frame's meta. Per-frame tokens
+    like ``$frame_index$`` are not useful here — for per-frame paths
+    use :class:`FileSink` instead.
     """
 
     output_path = FilePathParam(

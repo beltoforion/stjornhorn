@@ -13,11 +13,9 @@ from core.port import InputPort, OutputPort
 class Delay(NodeBase):
     """Pace a stream by sleeping for ``delay_seconds`` between frames.
 
-    Drop between two nodes to slow the throughput of a flow — useful as
-    a UI-paced "slideshow" knob (e.g. one frame per second from a
-    ``DirectorySource`` into a ``Display``), and equally useful during
-    development to make per-frame status updates visible. The image
-    payload is passed straight through unchanged.
+    The image payload is forwarded unchanged. Useful as a "slideshow"
+    knob or to make per-frame status updates visible during
+    development.
     """
 
     delay_seconds = FloatParam(

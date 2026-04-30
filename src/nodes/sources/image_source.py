@@ -20,20 +20,10 @@ _SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".cr2"}
 class ImageSource(SourceNodeBase):
     """Source node that reads a single still image from disk.
 
-    Supported formats: JPEG, PNG, WebP, CR2 (RAW).
-
-    Paths inside the application's :data:`INPUT_DIR` are stored — and
-    therefore displayed — relative to that folder. Anything outside is kept
-    as an absolute path. Relative paths are resolved against ``INPUT_DIR``
-    at run time, which keeps saved flows portable across machines that
-    share the same input layout.
-
-    This source is *reactive*: the node editor automatically re-runs the
-    flow whenever any parameter on any node is edited, so changes take
-    effect immediately without pressing Run.
-
-    Parameters:
-      file_path -- path to the input image (relative to INPUT_DIR when possible)
+    Supported formats: JPEG, PNG, WebP, CR2 (RAW). Paths inside
+    :data:`INPUT_DIR` are stored relative to that folder so saved
+    flows port cleanly across machines. Reactive: the flow re-runs
+    on any parameter edit.
     """
 
     file_path = FilePathParam(

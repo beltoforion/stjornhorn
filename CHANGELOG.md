@@ -12,6 +12,19 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Docs
+
+- Swept every node docstring rendered in the Doc panel: dropped
+  stale "even values are bumped" claims (the odd-only spin box now
+  prevents typing an even value in the first place), removed
+  implementation-detail leaks (``Wraps cv2.X``, OCVL port
+  histories, numba/JIT internals, OpenCV constant names), and
+  shortened the verbose entries (FFT2D, MaskedBlend, Mosaic,
+  Overlay, Hodogram, PlotXY, sources). User-facing param
+  descriptions kept; internal "why" rationales pruned where they
+  belonged in commit messages or the refactoring backlog rather
+  than the node panel.
+
 ### Fixed (#259)
 
 - `OddIntParam` editors (`GaussianBlur.ksize`, `Median.size`,

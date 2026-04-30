@@ -11,10 +11,8 @@ from core.port import InputPort, OutputPort
 class HsvJoin(NodeBase):
     """Merge three single-channel images (H, S, V) into a BGR image.
 
-    Inverse of :class:`HsvSplit`. The three planes are stacked into an
-    ``H × W × 3`` HSV image (full-range hue, 0..255) and converted via
-    :data:`cv2.COLOR_HSV2BGR_FULL` so that
-    ``HsvSplit → HsvJoin`` is a pixel-exact identity on a BGR input.
+    Inverse of :class:`HsvSplit`; ``HsvSplit → HsvJoin`` is a
+    pixel-exact identity on a BGR input.
     """
 
     def __init__(self) -> None:

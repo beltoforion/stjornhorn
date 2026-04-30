@@ -12,7 +12,6 @@ class Invert(NodeBase):
     """Per-channel image inversion (``255 - pixel``).
 
     No parameters. Accepts colour or greyscale and emits the same type.
-    Wraps :func:`cv2.bitwise_not` so it stays cheap on large frames.
     """
 
     def __init__(self) -> None:

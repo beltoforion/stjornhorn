@@ -12,11 +12,8 @@ from core.port import InputPort, OutputPort
 class Normalize(NodeBase):
     """Equalise the histogram of an image.
 
-    Applies ``cv2.equalizeHist`` — a per-channel operation on 8-bit
-    single-channel data. Accepts both colour (``IMAGE``) and greyscale
-    (``IMAGE_GREY``) inputs and emits the same type on the output. For
-    colour inputs each channel is equalised independently. Ported from
-    the original OCVL ``NormalizeProcessor``.
+    Operates on 8-bit data. Accepts colour or greyscale and emits the
+    same type; colour inputs are equalised per channel.
     """
 
     def __init__(self) -> None:

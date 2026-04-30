@@ -12,15 +12,9 @@ from core.port import InputPort, OutputPort
 class TemporalMean(NodeBase):
     """Rolling per-pixel arithmetic mean over the last ``window`` frames.
 
-    Reduces additive Gaussian-style noise on a static scene. Maintains
-    a buffer of the most recent ``window`` frames and emits their
-    per-pixel mean each tick. Until the buffer is full, the mean of
-    however many frames have been seen so far is emitted (so the very
-    first frame passes through unchanged).
-
-    Shape changes mid-run (e.g. an upstream Crop param edited live)
-    flush the buffer rather than raising — the next emitted frame is
-    just the new input.
+    Reduces additive Gaussian-style noise on a static scene. While
+    the buffer fills, the mean of however many frames have arrived
+    so far is emitted. Shape changes mid-run flush the buffer.
     """
 
     window = IntParam(
@@ -28,10 +22,9 @@ class TemporalMean(NodeBase):
         min=2,
         unit="frames",
         description=(
-            "Number of recent frames averaged per output. Must be "
-            ">= 2 — a window of 1 is the no-op identity. Larger "
-            "values denoise more aggressively but blur any motion "
-            "in the scene."
+            "Number of recent frames averaged per output. >= 2. "
+            "Larger values denoise more aggressively but blur any "
+            "motion in the scene."
         ),
     )
 

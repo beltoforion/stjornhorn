@@ -19,40 +19,30 @@ _SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 class Ncc(NodeBase):
     """Normalised cross-correlation template matching.
 
-    Wraps ``cv2.matchTemplate`` with ``TM_CCORR_NORMED`` and rescales the
-    score map to a ``uint8`` greyscale image. The template is loaded from
-    disk via the ``template`` file-path parameter; a colour template is
-    converted to greyscale once at ``before_run`` time so the conversion
-    cost is paid a single time per run, not per frame. The ``image``
-    input is single-channel greyscale and the output is always greyscale.
+    Searches for ``template`` in the ``image`` input and emits the
+    normalised response as a uint8 greyscale image. Both inputs are
+    single-channel greyscale; a colour template file is reduced to
+    greyscale on load.
 
-    With ``retain_size=True`` (default) the match map is pasted into a
-    canvas the same size as ``image`` and offset by half the template
-    size, so each response sits at the pixel it corresponds to (template
-    centre). With ``retain_size=False`` the raw ``matchTemplate`` output
-    is emitted, which is smaller than the input by ``template.shape - 1``
-    on each axis.
+    With ``retain_size=True`` (default) each response sits at the
+    pixel of the template centre on a canvas matching the input size.
+    With ``retain_size=False`` the raw response map is emitted —
+    smaller than the input by ``template.shape - 1`` on each axis.
     """
 
     template = FilePathParam(
         "pad.jpg",
         filter="Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)",
         base_dir=INPUT_DIR,
-        description=(
-            "Path to the template image to search for. Loaded "
-            "once per run and converted to greyscale at load "
-            "time, so the per-frame cost is the matchTemplate "
-            "call only."
-        ),
+        description="Path to the template image to search for.",
     )
     retain_size = BoolParam(
         True,
         description=(
-            "When on, the match map is pasted onto a canvas the "
-            "same size as the input, with each response at the "
-            "template-centre pixel. When off, the raw response "
-            "is emitted (smaller than the input by template "
-            "size minus one on each axis)."
+            "When on, each response sits at the template-centre "
+            "pixel on a canvas matching the input size. When off, "
+            "the raw response is emitted (smaller than the input by "
+            "template size minus one on each axis)."
         ),
     )
 

@@ -12,16 +12,10 @@ from core.port import InputPort, OutputPort
 class TemporalMedian(NodeBase):
     """Rolling per-pixel median over the last ``window`` frames.
 
-    Strong against transient outliers — single-frame noise spikes,
-    flicker, salt-and-pepper noise — where a temporal mean would
-    smear the spike across several frames. Maintains a buffer of the
-    most recent ``window`` frames and emits the per-pixel median each
-    tick. Until the buffer is full, the median over however many
-    frames have been seen so far is emitted (the first frame passes
-    through unchanged).
-
-    Shape changes mid-run (e.g. an upstream Crop param edited live)
-    flush the buffer rather than raising.
+    Strong against transient outliers (single-frame spikes, flicker,
+    salt-and-pepper noise) without the smearing a mean would produce.
+    While the buffer fills, the median over however many frames have
+    arrived so far is emitted. Shape changes mid-run flush the buffer.
     """
 
     window = IntParam(
@@ -30,10 +24,7 @@ class TemporalMedian(NodeBase):
         unit="frames",
         description=(
             "Number of recent frames whose per-pixel median is "
-            "emitted. Must be >= 2 — a window of 1 is the no-op "
-            "identity. Strong against transient outliers — single-"
-            "frame spikes, salt-and-pepper noise — without the "
-            "smearing a mean would produce."
+            "emitted. >= 2."
         ),
     )
 

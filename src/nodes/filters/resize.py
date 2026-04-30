@@ -13,45 +13,29 @@ from core.port import InputPort, OutputPort
 
 
 class ResizeMethod(IntEnum):
-    """Strategy used by :class:`Resize` to map the source image onto
-    the target ``(width, height)``.
-
-    Backed by :class:`IntEnum` so the integer value persists in saved
-    flows and round-trips through the ``ENUM`` param widget.
+    """Strategy used by :class:`Resize` to map the source onto the
+    target ``(width, height)``.
     """
-    #: Stretch X and Y independently to fit the target. Aspect ratio is
-    #: not preserved — a 16:9 source forced into a square target looks
-    #: squished.
+    #: Stretch X and Y independently to fit the target; aspect ratio
+    #: is not preserved.
     SCALE        = 0
 
-    #: Centre the source on a target-sized canvas. Areas of the source
-    #: that fall outside the canvas are cropped; uncovered areas of the
-    #: canvas are filled with black. Pixel scale is preserved.
+    #: Centre the source on a target-sized canvas; crop overflow,
+    #: fill uncovered areas with black. Pixel scale is preserved.
     CROP_OR_FILL = 1
 
-    #: Scale uniformly to the largest size that still fits inside the
-    #: target, then centre on a target-sized black canvas
-    #: (letterbox / pillarbox). Aspect ratio is preserved; some pixels
-    #: of the canvas stay black on either the top/bottom or left/right
-    #: depending on which axis is the limiting one.
+    #: Scale uniformly to the largest size that fits inside the target,
+    #: then centre on a black canvas (letterbox / pillarbox).
     BEST_FIT     = 2
 
 
 class Resize(NodeBase):
     """Resize an image to an explicit ``(width, height)`` using one of
-    three layout strategies.
+    three layout strategies (see :class:`ResizeMethod`).
 
-    Parameters:
-      width   -- target width in pixels (must be ≥ 1).
-      height  -- target height in pixels (must be ≥ 1).
-      method  -- :class:`ResizeMethod` choice; see the enum docstring
-                 for what each strategy does.
-
-    Output dtype and channel count match the input. The canvas fill
-    used by ``CROP_OR_FILL`` and ``BEST_FIT`` is plain ``np.zeros``,
-    so colour images get RGB (0,0,0); BGRA images get ``alpha=0``
-    (transparent black) — split / join the alpha channel separately
-    if you need an opaque-black letterbox.
+    Output dtype and channel count match the input. Letterbox / crop
+    fills are black — for BGRA inputs that means ``alpha=0``
+    (transparent black).
     """
 
     #: Interpolation passed to :func:`cv2.resize` for both ``SCALE``

@@ -27,25 +27,11 @@ class NotifySeverity(IntEnum):
 class Notify(NodeBase):
     """Surface a status message in the floating banner.
 
-    Drop the node anywhere on an image edge: the input frame is
-    forwarded unchanged on the output (so the node sits inline
-    without altering the pipeline) and the configured ``message`` is
-    emitted at the chosen ``severity``:
-
-    - ``INFO`` (blue) — neutral status, run continues.
-    - ``WARNING`` (amber) — non-fatal issue, run continues.
-    - ``ERROR`` (red) — raises a ``RuntimeError``, run aborts at the
-      node (matching :class:`ThrowException`'s behaviour).
-
-    The ``message`` is a port-style input: type a literal string into
-    the inline editor, or wire any ``STRING`` source into the socket
-    to drive the message per frame (e.g. a ``ConstantValue`` carrying
-    a status line, or a node that computes the text dynamically).
-
-    Parameters:
-      severity -- :class:`NotifySeverity` choice; info / warning / error.
-      message  -- Text shown in the banner / exception. Empty messages
-                  are forwarded verbatim.
+    The input frame is forwarded unchanged so the node sits inline.
+    ``severity`` chooses INFO (blue) / WARNING (amber) — run
+    continues — or ERROR (red), which raises a ``RuntimeError`` and
+    aborts the run. ``message`` is a port-style input: type a literal
+    or wire any ``STRING`` source in to drive it per frame.
     """
 
     message = StringParam(

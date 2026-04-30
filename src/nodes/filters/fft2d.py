@@ -13,21 +13,14 @@ class Fft2D(NodeBase):
 
     Outputs:
 
-    * ``spectrum`` — the full complex spectrum as a 2-D
-      :data:`IoDataType.MATRIX` (``np.complex128``), with the DC
-      component shifted to the centre via :func:`numpy.fft.fftshift`.
-      Designed to be wired into :class:`InverseFft2D` (which undoes
-      both the shift and the transform) for a pixel-exact round trip.
-    * ``magnitude`` — a log-scaled magnitude spectrum normalised to
-      ``[0, 255]`` and emitted as a uint8
-      :data:`IoDataType.IMAGE_GREY` for direct previewing through a
-      Display node. Computed as
-      ``log1p(|spectrum|)`` so the bright DC peak does not crush the
-      surrounding harmonics into black.
+    * ``spectrum`` — fftshifted complex spectrum as a 2-D
+      :data:`IoDataType.MATRIX`. Wire into :class:`InverseFft2D`
+      for a pixel-exact round trip.
+    * ``magnitude`` — log-scaled magnitude spectrum normalised to
+      ``[0, 255]`` for direct previewing through a Display node.
 
-    Single-channel (greyscale) input only — a colour image must be
-    split with :class:`HsvSplit` / :class:`RgbaSplit` /
-    :class:`Grayscale` first.
+    Single-channel input only; split a colour image with
+    :class:`HsvSplit` / :class:`RgbaSplit` / :class:`Grayscale` first.
     """
 
     def __init__(self) -> None:

@@ -13,10 +13,9 @@ from core.port import InputPort, OutputPort
 class Shift(NodeBase):
     """Translate an image by integer pixel offsets.
 
-    Uses ``cv2.warpAffine`` with a pure translation matrix so that the
-    output canvas keeps the input's width and height — pixels shifted
-    outside the frame are dropped and exposed areas are filled with
-    black (OpenCV's default border).
+    The output canvas keeps the input's width and height — pixels
+    shifted outside the frame are dropped and exposed areas are
+    filled with black.
     """
 
     offset_x = IntParam(

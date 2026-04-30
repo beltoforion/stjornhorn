@@ -12,12 +12,9 @@ from core.port import InputPort, OutputPort
 class FrameDifference(NodeBase):
     """Per-pixel absolute difference between the current and previous frame.
 
-    A baseline change-detector for video streams. Holds the previous
-    frame internally; the buffer is reset at the start of every flow
-    run. The first frame in a stream emits an all-zero image (same
-    shape and dtype as the input) because there is no prior frame to
-    diff against. Frames whose shape changes mid-stream also reset the
-    buffer rather than raising.
+    The first frame in a stream emits an all-zero image (no prior
+    frame to diff against). Shape changes mid-stream reset the buffer
+    rather than raising.
     """
 
     def __init__(self) -> None:

@@ -11,17 +11,9 @@ from core.port import OutputPort
 class ConstantValue(SourceNodeBase):
     """Reactive source that emits a single SCALAR value, latched downstream.
 
-    Mirror of :class:`~nodes.sources.image_source.ImageSource` for
-    numeric pipelines: the value is emitted exactly once per run, and
-    stays latched on whichever streaming consumer it feeds (see
-    :meth:`core.port.InputPort.clear` for the latching mechanism).
-    Useful as the fixed input to a :class:`~nodes.filters.math.Math`
-    node — e.g. multiplying every value of a streaming
-    :class:`~nodes.sources.range_source.RangeSource` by a constant.
-
-    Reactive: editing ``value`` re-runs the flow automatically so the
-    update is visible immediately, the same way ImageSource refreshes
-    when the file path changes.
+    The value is emitted once per run and stays latched on streaming
+    consumers — useful as the fixed input to a :class:`Math` node.
+    Reactive: editing ``value`` re-runs the flow automatically.
     """
 
     value = FloatParam(0.0, constant=True)

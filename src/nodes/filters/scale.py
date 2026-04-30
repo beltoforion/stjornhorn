@@ -13,12 +13,7 @@ from core.port import InputPort, OutputPort
 
 
 class Interpolation(IntEnum):
-    """Resampling method used by :class:`Scale`.
-
-    Values mirror the corresponding ``cv2.INTER_*`` flags exactly so the
-    enum member can be passed straight into :func:`cv2.resize` without a
-    lookup table.
-    """
+    """Resampling method used by :class:`Scale`."""
     NEAREST   = cv2.INTER_NEAREST
     LINEAR    = cv2.INTER_LINEAR
     CUBIC     = cv2.INTER_CUBIC
@@ -29,10 +24,7 @@ class Interpolation(IntEnum):
 class Scale(NodeBase):
     """Resize an image by a percentage factor.
 
-    The input is resized by ``scale_percent`` (100 = no change). Ported
-    from the original OCVL ``ScaleProcessor`` — the target-size mode is
-    omitted here because there is no tuple param type; if an absolute
-    size is needed, compute the matching scale factor.
+    ``scale_percent`` of 100 leaves the image unchanged.
     """
 
     scale_percent = IntParam(
@@ -50,8 +42,8 @@ class Scale(NodeBase):
         description=(
             "Resampling method. NEAREST is fast and pixelated; "
             "LINEAR / CUBIC / LANCZOS4 produce progressively "
-            "smoother results at higher cost; AREA is OpenCV's "
-            "preferred choice when downsampling."
+            "smoother results at higher cost; AREA is preferred "
+            "when downsampling."
         ),
     )
 

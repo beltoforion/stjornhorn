@@ -29,37 +29,11 @@ _RENDER_DPI: int = 100
 class PlotXY(NodeBase):
     """Render two columns of a :data:`IoDataType.DATASET` as an XY line plot.
 
-    Generic enough to cover waveforms (time vs amplitude), CV curves
-    (voltage vs capacitance), diode I-V characteristics, spectra, and
-    any other "Y vs X" view from a single ``Dataset`` payload — that
-    breadth is the whole point of project Datenkrake's single
-    ``DATASET`` payload kind.
-
-    Output is a 3-channel BGR image so it slots into the existing
-    viewer / file-sink pipeline without a special path. Matplotlib's
-    off-screen ``Agg`` backend is used for rendering; no GUI thread
-    is touched.
-
-    The node always plots two named columns. A one-column input is
-    rejected with a clear error; insert
-    :class:`~nodes.filters.add_index_column.AddIndexColumn` upstream
-    to add an explicit X axis (sample number, or time in seconds via
-    ``step = 1 / sample_rate``).
-
-    Axis labels come from the column names. If ``df.attrs["units"]``
-    is set (a ``{column: unit_string}`` dict, populated by upstream
-    nodes like ``SetUnits`` or by a domain-aware source), the unit is
-    appended to each label as ``"col [unit]"``.
-
-    Parameters:
-      x_column -- column name for the X axis. Empty (default) picks the
-                  first column of the input dataset.
-      y_column -- column name for Y. Empty (default) picks the second
-                  column.
-      width    -- output image width in pixels (≥ 64).
-      height   -- output image height in pixels (≥ 64).
-      title    -- overlay title; empty (default) shows none.
-      grid     -- when True (default), draws a faint grid.
+    Output is a BGR image so it slots into the viewer / file-sink
+    pipeline. A one-column input is rejected — insert
+    :class:`AddIndexColumn` upstream to add an explicit X axis. Axis
+    labels come from the column names; ``df.attrs["units"]`` is
+    appended as ``"col [unit]"`` when set.
     """
 
     x_column = StringParam(

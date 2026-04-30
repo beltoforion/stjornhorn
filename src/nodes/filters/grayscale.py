@@ -12,10 +12,8 @@ from core.port import InputPort, OutputPort
 class Grayscale(NodeBase):
     """Converts a colour image to greyscale.
 
-    Emits a single-channel (H×W) :data:`IoDataType.IMAGE_GREY` payload.
-    Downstream nodes that accept ``IMAGE_GREY`` (including the viewer and
-    file sink) can consume the output directly; use an :class:`RgbaJoin`
-    upstream of colour-only consumers.
+    Emits a single-channel :data:`IoDataType.IMAGE_GREY` payload. Use
+    :class:`RgbaJoin` upstream of colour-only consumers.
     """
 
     def __init__(self) -> None:

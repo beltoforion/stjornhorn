@@ -12,13 +12,7 @@ from core.port import OutputPort
 
 
 class GradientDirection(IntEnum):
-    """Axis selector for :class:`GradientSource`.
-
-    Backed by :class:`IntEnum` so the integer representation persists
-    cleanly across saved flow files: JSON stores the int, the setter
-    accepts both ints and enum members, and the ``ENUM`` param widget
-    renders a combo box of ``name``-based labels.
-    """
+    """Axis selector for :class:`GradientSource`."""
     VERTICAL   = 0  # gradient runs along Y
     HORIZONTAL = 1  # gradient runs along X
     RADIAL     = 2  # gradient runs from the centre outward (always symmetric)
@@ -27,19 +21,10 @@ class GradientDirection(IntEnum):
 class GradientMode(IntEnum):
     """Symmetry selector for :class:`GradientSource`.
 
-    ``SYMMETRIC`` produces a "double" gradient that is mirrored around
-    the image centre — 0 in the middle, ramping to 255 at *both* ends
-    of the chosen axis. This is the right shape for tilt-shift,
-    vignette and any other compositing that needs to fade out toward
-    both edges.
-
-    ``LINEAR`` produces a single-sided gradient — 0 at one end of the
-    axis, 255 at the other — which is what cross-fades, day/night
-    transitions, soft-edge wipes and similar one-way blends need. Has
-    no effect when ``direction = RADIAL``: a radial gradient is
-    inherently rotation-symmetric, so a "linear radial" has no
-    meaningful interpretation; the node falls back to the symmetric
-    ramp in that case.
+    ``SYMMETRIC`` produces a centre-mirrored gradient (0 in the
+    middle, 255 at both ends) — tilt-shift, vignette. ``LINEAR``
+    produces a one-sided gradient (0 → 255) — cross-fades, wipes.
+    Ignored when ``direction = RADIAL`` (always symmetric).
     """
     SYMMETRIC = 0  # 0 in the middle, 255 at both ends (the "double" gradient)
     LINEAR    = 1  # 0 at one end, 255 at the other
@@ -48,41 +33,11 @@ class GradientMode(IntEnum):
 class GradientSource(SourceNodeBase):
     """Procedurally generates a single-channel greyscale gradient image.
 
-    Emits a 2-D ``uint8`` image where each pixel encodes a normalised
-    distance along the chosen axis, mapped through an optional
-    plateau + smooth ramp. Designed as the procedural mask source
-    that :class:`~nodes.filters.masked_blend.MaskedBlend` consumes —
-    drop one in to soft-mask any per-frame compositing pipeline
-    (tilt-shift blur, vignette, cross-fade, soft-edge wipe, …)
-    without having to ship a hand-painted PNG.
-
-    Parameters:
-      width, height -- output image size in pixels.
-      direction     -- VERTICAL / HORIZONTAL / RADIAL axis along which
-                       the gradient grows.
-      mode          -- SYMMETRIC (mirrored around the centre, the
-                       classic "double" gradient — tilt-shift,
-                       vignette) or LINEAR (one-sided 0 → 255 — cross
-                       fades, wipes). Ignored when ``direction =
-                       RADIAL``.
-      band_width    -- normalised plateau width where the mask stays
-                       at 0. In SYMMETRIC mode this is the half-width
-                       of a centre band: ``0.0`` = no plateau,
-                       ``0.5`` = inner half flat. In LINEAR mode this
-                       is the leading dead-zone before the ramp
-                       starts: ``0.0`` = ramp from the very first
-                       pixel, ``0.5`` = first half of the image
-                       stays at 0 then ramps to 255 over the second
-                       half. Clamped to ``[0, 1)``.
-      smooth        -- when ``True`` (default) the ramp is cosine-eased
-                       for a photographic falloff; when ``False`` the
-                       ramp is linear, which is preferable when the
-                       mask drives a numeric blend that should stay
-                       proportional to distance.
-
-    Reactive: the node editor re-runs the flow whenever any parameter
-    on any node changes, so size / direction / mode / band edits
-    update the downstream preview live without pressing Run.
+    Emits a uint8 image where each pixel encodes a normalised distance
+    along the chosen axis, mapped through an optional plateau and
+    smooth ramp. Useful as a procedural mask for :class:`MaskedBlend`
+    (tilt-shift, vignette, cross-fade) without having to ship a
+    hand-painted PNG. Reactive: re-runs on any parameter edit.
     """
 
     width = IntParam(512, min=1, constant=True)

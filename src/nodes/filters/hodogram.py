@@ -152,13 +152,7 @@ class ParticleMotion:
 
 
 class HodogramRenderer:
-    """Render a :class:`ParticleMotion` as a particle-motion plot.
-
-    Strategy split from :class:`Hodogram` so a future variant
-    (animated, 3-D, log-scale) can be dropped in without touching
-    the node. Always closes the matplotlib figure on exit so
-    long-running flows don't leak figures across frames.
-    """
+    """Render a :class:`ParticleMotion` as a particle-motion plot."""
 
     def render(
         self,
@@ -245,41 +239,14 @@ class HodogramRenderer:
 class Hodogram(NodeBase):
     """Render two single-column :data:`IoDataType.DATASET` inputs as a hodogram.
 
-    A hodogram is a particle-motion plot — the trajectory of one signal
-    against another instead of each one against time. The canonical use
-    is seismic polarisation analysis (plot N-vs-E ground motion to
-    estimate back-azimuth from a P-wave's linear arrival), but the same
-    view is generic enough for Lissajous figures, phase-space loops, or
-    any pair of correlated signals.
+    A hodogram is a particle-motion plot — the trajectory of one
+    signal against another. Typical uses: seismic polarisation
+    analysis (N vs E ground motion), Lissajous figures, phase-space
+    loops. The first column of each input is used as the signal, so
+    one single-column source per axis wires straight in.
 
-    Two ``DATASET`` inputs (``x`` and ``y``) carry the two channels.
-    The node uses the **first column** of each input as the signal,
-    so the natural pipeline is one ``CsvSource`` (or any single-column
-    producer) per axis, wired straight in. No ``JoinDatasets`` step
-    is needed.
-
-    Three visual options on top of the basic trajectory:
-
-    * **Color-by-time** (default on) — colours each segment via the
-      ``viridis`` colormap so the direction of travel reads as a
-      gradient cool→warm.
-    * **Equal aspect** (default on) — forces 1:1 axis scaling so the
-      geometry (linear vs elliptical motion) is meaningful at a glance.
-    * **Show polarization** (default off) — fits a 2-D PCA axis through
-      the trajectory and overlays it; the legend reports the angle
-      from +X and the linearity ratio. Off by default so the node
-      stays generic for non-seismic use.
-
-    Parameters:
-      x_label / y_label -- override axis labels. Empty (default) uses
-                           the column name of the input's first column.
-                           Useful when both sources share a generic
-                           name like ``c0`` from ``CsvSource``.
-      width / height    -- output image size in pixels (≥ 64).
-      color_by_time     -- gradient-colour the trajectory.
-      equal_aspect      -- force 1:1 axis scaling.
-      show_polarization -- overlay the fitted PCA axis + readout.
-      title             -- optional plot title.
+    ``show_polarization`` overlays a 2-D PCA fit through the
+    trajectory and reports the angle from +X and the linearity ratio.
     """
 
     x_label = StringParam(

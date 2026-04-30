@@ -13,34 +13,17 @@ from core.port import InputPort, OutputPort
 class Overlay(NodeBase):
     """Composite an overlay image onto a base image.
 
-    The overlay input is optionally resized by ``scale``, rotated by
-    ``angle`` degrees (counter-clockwise, around the overlay's centre,
-    with the bounding box expanded so no pixels are lost) and then
-    blended onto the base so that the overlay's **centre** lands at
-    ``(xpos, ypos)`` with opacity ``alpha``. The output canvas always
-    matches the base image — any part of the transformed overlay that
-    falls outside the base is clipped.
+    The overlay is optionally resized by ``scale``, rotated by
+    ``angle`` degrees (counter-clockwise around its centre, with the
+    bounding box expanded so no pixels are lost) and blended onto the
+    base so the overlay's **centre** lands at ``(xpos, ypos)`` with
+    opacity ``alpha``. The output canvas matches the base; pixels
+    outside it are clipped.
 
-    Type strategy:
-      If either input is colour (:data:`IoDataType.IMAGE`), any
-      greyscale input is promoted to BGR via
-      ``cv2.cvtColor(..., COLOR_GRAY2BGR)`` and the output is emitted
-      as ``IMAGE``. If both inputs are greyscale, the output stays
-      greyscale.
-
-    Per-pixel alpha:
-      If the overlay has a 4th channel (BGRA, e.g. an RGBA PNG loaded
-      through :class:`ImageSource`), the alpha plane is used as a
-      per-pixel mask. The node's ``alpha`` parameter then acts as a
-      global multiplier on top, so ``alpha=1.0`` respects the image's
-      own transparency and ``alpha=0.5`` halves it uniformly. The base
-      image is always reduced to BGR before compositing — any alpha
-      channel on the base is dropped.
-
-    Param ordering note:
-      ``angle`` is declared first so the auto-created ports land in
-      the order ``angle, scale, xpos, ypos, alpha`` — index 2..6 on
-      ``self.inputs``, matching the layout saved flows reference.
+    If either input is colour the output is colour (greyscale inputs
+    are promoted); otherwise the output stays greyscale. A BGRA
+    overlay's alpha channel is used as a per-pixel mask and the
+    ``alpha`` parameter then acts as a global multiplier on top.
     """
 
     angle = FloatParam(

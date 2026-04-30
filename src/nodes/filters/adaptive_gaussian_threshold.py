@@ -13,15 +13,9 @@ from core.port import InputPort, OutputPort
 class AdaptiveGaussianThreshold(NodeBase):
     """Adaptive Gaussian binary threshold.
 
-    Wraps ``cv2.adaptiveThreshold`` with
-    ``ADAPTIVE_THRESH_GAUSSIAN_C`` and ``THRESH_BINARY``. ``block_size``
-    must be odd and >= 3 — :class:`~core.params.OddIntParam` enforces
-    the odd-only invariant; the ``min=3`` check catches the lower bound
-    after the even→odd bump (so 2 → 3 is accepted).
-
-    Accepts colour or greyscale inputs; 3-channel inputs are internally
-    converted to greyscale first. The output is always a single-channel
-    binary :data:`IoDataType.IMAGE_GREY` payload.
+    Accepts colour or greyscale; colour inputs are reduced to greyscale
+    first. The output is always a single-channel binary
+    :data:`IoDataType.IMAGE_GREY` payload.
     """
 
     block_size = OddIntParam(
@@ -30,16 +24,14 @@ class AdaptiveGaussianThreshold(NodeBase):
         unit="px",
         description=(
             "Side length of the neighbourhood used to compute the "
-            "local threshold. Must be odd and >= 3; even values "
-            "are bumped up to the next odd integer."
+            "local threshold. Odd, >= 3."
         ),
     )
     c = IntParam(
         -32,
         description=(
             "Constant subtracted from the local weighted mean. "
-            "Negative values bias toward classifying pixels as "
-            "white; positive values bias toward black."
+            "Negative values bias toward white; positive toward black."
         ),
     )
 

@@ -12,11 +12,10 @@ from core.port import InputPort, OutputPort
 class RgbaSplit(NodeBase):
     """Split a BGR or BGRA image into its four channels.
 
-    Emits four single-channel (H×W) :data:`IoDataType.IMAGE_GREY` payloads
-    on the ``B``, ``G``, ``R`` and ``A`` output ports. When the input has
-    no alpha (plain BGR, as delivered by :class:`VideoSource` or a JPEG
-    read through :class:`ImageSource`), ``A`` is emitted as a constant
-    255 plane so downstream nodes always see a well-defined alpha.
+    Emits four single-channel greyscale payloads on ``B``, ``G``,
+    ``R`` and ``A``. For plain BGR inputs the ``A`` plane is emitted
+    as a constant 255 so downstream nodes always see a well-defined
+    alpha.
     """
 
     def __init__(self) -> None:

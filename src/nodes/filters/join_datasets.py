@@ -15,31 +15,13 @@ _MAX_INPUTS: int = 4
 class JoinDatasets(NodeBase):
     """Merge up to four :data:`IoDataType.DATASET` inputs into one.
 
-    Each connected input contributes its columns to the output DataFrame.
-    This is the standard way to feed a multi-column node (e.g.
-    :class:`~nodes.filters.hodogram.Hodogram`) from multiple single-column
-    sources (e.g. several :class:`~nodes.sources.csv_source.CsvSource` nodes).
-
-    Typical seismic use-case::
-
-        CsvSource(.002) ─┐
-                         ├─→ JoinDatasets(column_names="N,E") ─→ Hodogram
-        CsvSource(.003) ─┘
-
-    The ``column_names`` parameter is a comma-separated list that renames
-    the **first column of each input** before joining.  This handles the
-    common single-column case where every input carries a generic name
-    (e.g. ``c0``); without a rename the join would raise a collision error.
-    Leave it empty to keep original column names (all names must then be
-    distinct across all inputs).
-
-    ``df.attrs`` from the first connected input is forwarded to the output.
-    Attributes from later inputs are ignored to keep the contract simple —
-    metadata (``sample_rate``, ``units``, …) is assumed to be the same for
-    all inputs in a homogeneous recording session.
-
-    Parameters:
-      column_names -- comma-separated rename list; empty = keep originals.
+    Each connected input contributes its columns to the output. The
+    optional ``column_names`` is a comma-separated rename list applied
+    to the **first column of each input** before joining — useful when
+    several single-column sources all carry the same generic name
+    (e.g. ``c0``). Empty keeps original names (which must then be
+    distinct). ``df.attrs`` from the first connected input is
+    forwarded.
     """
 
     column_names = StringParam(

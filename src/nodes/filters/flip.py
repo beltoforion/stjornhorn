@@ -12,13 +12,10 @@ from core.port import InputPort, OutputPort
 
 
 class FlipMode(IntEnum):
-    """Direction passed to :func:`cv2.flip`.
+    """Flip direction for :class:`Flip`.
 
-    Values mirror OpenCV's ``flipCode`` convention exactly so the enum
-    member can be passed to :func:`cv2.flip` without a lookup table:
-    ``HORIZONTAL = 1`` (mirror around the vertical axis, left↔right),
-    ``VERTICAL = 0`` (mirror around the horizontal axis, top↔bottom),
-    ``BOTH = -1`` (equivalent to a 180° rotation).
+    ``HORIZONTAL`` mirrors left↔right, ``VERTICAL`` mirrors top↔bottom,
+    ``BOTH`` is equivalent to a 180° rotation.
     """
     HORIZONTAL = 1
     VERTICAL   = 0

@@ -12,17 +12,11 @@ from core.port import InputPort, OutputPort
 class HsvSplit(NodeBase):
     """Split a BGR image into its HSV components.
 
-    Emits three single-channel (H×W) :data:`IoDataType.IMAGE_GREY`
-    payloads on the ``H``, ``S`` and ``V`` output ports. Uses
-    :data:`cv2.COLOR_BGR2HSV_FULL` so the hue channel covers the full
-    0..255 range (rather than the OpenCV default of 0..179) — this
-    keeps the split planes uniformly bright in the greyscale preview
-    and lets :class:`HsvJoin` round-trip back to the original BGR
-    image via :data:`cv2.COLOR_HSV2BGR_FULL`.
-
-    A 4-channel BGRA input is accepted; the alpha channel is dropped
-    (HSV has no alpha). Use :class:`RgbaSplit` upstream if alpha needs
-    to be preserved alongside the HSV channels.
+    Emits three single-channel greyscale payloads on the ``H``, ``S``
+    and ``V`` output ports, with the hue channel using the full
+    0..255 range so :class:`HsvJoin` round-trips back to the original
+    BGR image. A 4-channel BGRA input is accepted; the alpha channel
+    is dropped (HSV has no alpha).
     """
 
     def __init__(self) -> None:
