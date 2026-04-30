@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.4",
+  "app_version": "0.3.0.2",
   "name": "video_proc_chain",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -1660.4444444444443,
-        -1304.4444444444448
+        -1668.1279416231005,
+        -1723.2734437136428
       ],
       "port_defaults": {
         "file_path": "video.mp4",
@@ -35,8 +35,8 @@
       "module": "nodes.filters.flip",
       "class": "Flip",
       "position": [
-        -1618.595034232671,
-        -1079.7286681743858
+        -1626.278531411327,
+        -1498.5576674435838
       ],
       "port_defaults": {
         "mode": 1
@@ -65,8 +65,8 @@
       "module": "nodes.filters.temporal_mean",
       "class": "TemporalMean",
       "position": [
-        -1618.595034232671,
-        -939.728668174386
+        -1626.278531411327,
+        -1358.5576674435847
       ],
       "port_defaults": {
         "window": 5
@@ -81,8 +81,8 @@
       "module": "nodes.filters.frame_difference",
       "class": "FrameDifference",
       "position": [
-        -1618.595034232671,
-        -631.728668174386
+        -1626.278531411327,
+        -1050.5576674435843
       ],
       "port_defaults": {},
       "size": [
@@ -95,8 +95,8 @@
       "module": "nodes.filters.gaussian_blur",
       "class": "GaussianBlur",
       "position": [
-        -1618.595034232671,
-        -799.728668174386
+        -1626.278531411327,
+        -1218.5576674435847
       ],
       "port_defaults": {
         "ksize": 21,
@@ -112,8 +112,8 @@
       "module": "nodes.filters.mosaic",
       "class": "Mosaic",
       "position": [
-        -1275.636218565114,
-        -1193.4070221972984
+        -1319.3851106639931,
+        -1472.6786237317206
       ],
       "port_defaults": {
         "layout": "AB / CD"
@@ -205,8 +205,8 @@
   "backdrops": [
     {
       "position": [
-        -1648.729395134581,
-        -1136.3427650300487
+        -1656.412892313237,
+        -1555.1717642992467
       ],
       "size": [
         269.0,
