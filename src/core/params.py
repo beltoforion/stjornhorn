@@ -44,10 +44,13 @@ class _ParamBase:
     auto-created input port). They override :meth:`_coerce` and
     :meth:`_validate` to enforce per-type invariants.
 
-    The optional class attribute :attr:`WIDGET_CLASS` lets a subclass
-    short-circuit the param-widget factory and ship its own widget
-    (e.g. :class:`OddIntParam` driving an _OddSpinBox-backed editor)
-    without growing the per-NodeParamType dispatch table.
+    A descriptor that needs a widget more specific than its
+    :class:`NodeParamType` default (e.g. :class:`OddIntParam` wanting an
+    odd-only spin box) sets :attr:`_WIDGET_KIND` to a string identifier
+    that the UI's param-widget factory looks up in its kind registry
+    before falling back to the per-:class:`NodeParamType` table. The
+    string indirection keeps ``core.params`` free of any ``ui.*``
+    import.
     """
 
     _NODE_PARAM_TYPE: NodeParamType
@@ -57,10 +60,10 @@ class _ParamBase:
     #: and give static type-checkers (Pylance / pyright) visibility of
     #: the otherwise-dynamic attribute.
     _BACKING_TYPE: type = object
-    #: Optional widget override consulted by the param-widget builder.
-    #: ``None`` (the default) means "use the registry's per-NodeParamType
-    #: default widget".
-    WIDGET_CLASS: type | None = None
+    #: Optional widget-kind identifier consulted by the param-widget
+    #: factory before its default per-:class:`NodeParamType` dispatch.
+    #: ``None`` means "use the default widget for my param type".
+    _WIDGET_KIND: str | None = None
 
     def __init__(
         self,
@@ -169,6 +172,8 @@ class _ParamBase:
             meta["unit"] = self.unit
         if self.description is not None:
             meta["description"] = self.description
+        if self._WIDGET_KIND is not None:
+            meta["widget_kind"] = self._WIDGET_KIND
         return meta
 
     def make_port(self) -> InputPort:
@@ -294,7 +299,15 @@ class OddIntParam(IntParam):
     the behaviour of the hand-rolled setters this descriptor replaces
     (e.g. the legacy ``Median.size`` rejected ``0`` outright instead
     of silently bumping it to ``1``).
+
+    Advertises ``widget_kind="odd_int"`` so the editor uses an
+    odd-only :class:`QSpinBox` subclass: the up/down arrows step in
+    twos and a typed even value is rejected at validation time and
+    fixed up to the next odd integer on focus loss — matching what
+    the descriptor itself does on assignment.
     """
+
+    _WIDGET_KIND = "odd_int"
 
     def _shape(self, value: int) -> int:
         return value + 1 if value % 2 == 0 else value

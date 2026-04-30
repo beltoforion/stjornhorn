@@ -7,7 +7,7 @@ from pathlib import Path
 from typing_extensions import override
 
 from PySide6.QtCore import Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QValidator
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -198,13 +198,24 @@ class IntParamWidget(ParamWidgetBase):
 
     def __init__(self, node: NodeBase, port: InputPort) -> None:
         super().__init__(node, port)
-        self._spin = QSpinBox()
+        self._spin = self._build_spin_box(port)
         self._spin.setRange(-10_000_000, 10_000_000)
         self._spin.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._size_value_control(self._spin)
         self._spin.valueChanged.connect(self._on_value_changed)
         self._spin.setValue(int(self._initial_value(0)))
         self._make_row_layout().addWidget(self._spin)
+
+    def _build_spin_box(self, port: InputPort) -> QSpinBox:
+        """Hook for subclasses to inject a custom :class:`QSpinBox`.
+
+        Default returns a plain :class:`QSpinBox`; :class:`OddIntParamWidget`
+        overrides it to return an :class:`_OddSpinBox` so the validate /
+        fixup / step-by-2 behaviour piggybacks on the rest of the
+        construction sequence (range, alignment, size, signal wire-up,
+        initial value) without duplication.
+        """
+        return QSpinBox()
 
     def _on_value_changed(self, value: int) -> None:
         self._write_to_node(value)
@@ -217,6 +228,59 @@ class IntParamWidget(ParamWidgetBase):
     @override
     def get_value(self) -> object:
         return self._spin.value()
+
+
+class _OddSpinBox(QSpinBox):
+    """:class:`QSpinBox` constrained to odd integers.
+
+    Steps in twos so the up/down arrows skip over even values, marks
+    a typed even number as :attr:`QValidator.State.Intermediate` (so
+    the user can keep typing without the box snapping back), and
+    fixes any committed even value up to the next odd integer on
+    :meth:`fixup`. Mirrors the descriptor's
+    :meth:`OddIntParam._shape` rule one layer up so what the user
+    sees in the spin box matches what the node stores.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setSingleStep(2)
+
+    @override
+    def validate(self, input_: str, pos: int) -> tuple[QValidator.State, str, int]:
+        state, text, new_pos = super().validate(input_, pos)
+        if state != QValidator.State.Acceptable:
+            return state, text, new_pos
+        try:
+            value = int(text)
+        except ValueError:
+            return state, text, new_pos
+        if value % 2 == 0:
+            return QValidator.State.Intermediate, text, new_pos
+        return state, text, new_pos
+
+    @override
+    def fixup(self, input_: str) -> str:
+        try:
+            value = int(input_)
+        except ValueError:
+            return super().fixup(input_)
+        if value % 2 == 0:
+            return str(value + 1)
+        return input_
+
+
+class OddIntParamWidget(IntParamWidget):
+    """Spin-box editor for :class:`~core.params.OddIntParam`.
+
+    Swaps the base :class:`QSpinBox` for :class:`_OddSpinBox` so the
+    widget enforces the odd-only invariant the descriptor declares.
+    Issue: #259
+    """
+
+    @override
+    def _build_spin_box(self, port: InputPort) -> QSpinBox:
+        return _OddSpinBox()
 
 
 class FloatParamWidget(ParamWidgetBase):
@@ -706,6 +770,16 @@ _PARAM_WIDGET_CLASSES: dict[NodeParamType, type[ParamWidgetBase]] = {
     NodeParamType.STRING:    StringParamWidget,
 }
 
+#: Per-shape widget overrides keyed by the ``widget_kind`` string a
+#: descriptor advertises in its metadata. Consulted before the
+#: per-:class:`NodeParamType` dispatch so a shape-specific descriptor
+#: (e.g. :class:`~core.params.OddIntParam`) can pick a custom widget
+#: without growing :data:`_PARAM_WIDGET_CLASSES` — every entry there
+#: would otherwise need to consider every shape.
+_PARAM_WIDGET_BY_KIND: dict[str, type[ParamWidgetBase]] = {
+    "odd_int": OddIntParamWidget,
+}
+
 
 def _install_description_tooltip(
     widget: ParamWidgetBase,
@@ -744,12 +818,16 @@ def build_param_widget(node: NodeBase, port: InputPort) -> ParamWidgetBase | Non
     a log) when a widget constructor raises — misconfigured metadata
     should not bring the node editor down.
     """
+    widget_kind = port.metadata.get("widget_kind")
     param_type = port.metadata.get("param_type")
-    cls = _PARAM_WIDGET_CLASSES.get(param_type)
+    cls = _PARAM_WIDGET_BY_KIND.get(widget_kind) if widget_kind else None
+    if cls is None:
+        cls = _PARAM_WIDGET_CLASSES.get(param_type)
     if cls is None:
         logger.warning(
-            "No widget class registered for port %r (param_type=%r)",
-            port.name, param_type,
+            "No widget class registered for port %r "
+            "(param_type=%r, widget_kind=%r)",
+            port.name, param_type, widget_kind,
         )
         return None
     try:
