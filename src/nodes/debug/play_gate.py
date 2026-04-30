@@ -149,6 +149,34 @@ class PlayGate(NodeBase):
         if not still_queued:
             super()._on_finish()
 
+    @override
+    def _on_skipped_changed(self, skipped: bool) -> None:
+        """When the user toggles the node into skip mode, flush every
+        queued frame immediately and disable the button.
+
+        Skip semantics on the rest of the framework are "this node is
+        a wire" — incoming frames go straight to outputs via
+        :meth:`_process_skipped`. Without this drain, the user would
+        be left clicking through the pre-skip backlog while new
+        frames already pass through automatically, which is exactly
+        the inverse of what the toggle visually promises.
+        """
+        if not skipped:
+            return
+        with self._lock:
+            backlog = list(self._queue)
+            self._queue.clear()
+            flush_finish = self._pending_finish
+            if flush_finish:
+                self._pending_finish = False
+        if backlog:
+            self._notify_state(False)
+        for data in backlog:
+            self.outputs[0].send(data)
+        if flush_finish:
+            for port in self._outputs:
+                port.finish()
+
     # ── Internal ───────────────────────────────────────────────────────────────
 
     def _notify_state(self, queued: bool) -> None:

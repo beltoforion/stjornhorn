@@ -176,6 +176,67 @@ def test_upstream_finish_with_queue_defers_output_finish() -> None:
     assert [int(d.payload) for d in captured] == [7, 8, 9]
 
 
+def test_skip_toggle_drains_queue_immediately() -> None:
+    """Toggling the node into skip mode must release every buffered
+    frame downstream without further user clicks — skip semantics
+    visually promise "this node is a wire", so pre-skip backlog
+    needs to flush rather than strand the user."""
+    node = PlayGate()
+    feeder, captured = _wire(node)
+    node.before_run()
+
+    states: list[bool] = []
+    node.set_state_callback(lambda queued: states.append(queued))
+
+    feeder.send(IoData.from_scalar(1))
+    feeder.send(IoData.from_scalar(2))
+    feeder.send(IoData.from_scalar(3))
+    assert node.queue_depth == 3
+    assert states == [True]
+
+    node.skipped = True
+
+    assert [int(d.payload) for d in captured] == [1, 2, 3]
+    assert node.queue_depth == 0
+    # Last state notification flips the button off.
+    assert states == [True, False]
+
+
+def test_skip_already_empty_queue_is_a_noop() -> None:
+    """Toggling skip with nothing buffered must not emit anything
+    and must not fire a spurious state callback."""
+    node = PlayGate()
+    feeder, captured = _wire(node)
+    node.before_run()
+
+    states: list[bool] = []
+    node.set_state_callback(lambda queued: states.append(queued))
+
+    node.skipped = True
+
+    assert captured == []
+    assert states == []
+
+
+def test_skip_drains_then_flushes_deferred_finish() -> None:
+    """Regression: a deferred-finish that was waiting for the user
+    to click through must flush together with the drain — once
+    skip pass-throughs everything, no further frames will arrive."""
+    node = PlayGate()
+    feeder, captured = _wire(node)
+    node.before_run()
+
+    feeder.send(IoData.from_scalar(7))
+    feeder.send(IoData.from_scalar(8))
+    feeder.finish()  # deferred finish (queue non-empty)
+    assert node.outputs[0].finished is False
+
+    node.skipped = True
+
+    assert [int(d.payload) for d in captured] == [7, 8]
+    assert node.outputs[0].finished is True
+
+
 def test_upstream_finish_with_empty_queue_propagates_immediately() -> None:
     """Symmetric to the deferred case: when nothing is queued, finish
     propagates the moment upstream signals end-of-stream so downstream

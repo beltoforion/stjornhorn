@@ -27,6 +27,17 @@ once a first tagged release is cut.
   state callback fires only on the empty ↔ non-empty transition;
   pre-disabling stranded the user with a still-non-empty queue and
   a permanently dim button after a single click.
+- **Play Gate** drains its queue immediately when the user toggles
+  the node into skip mode (header dimmer). Without the drain,
+  pre-skip backlog stayed buffered while new frames already
+  pass-through via the standard skip-node mechanism — exactly the
+  inverse of what the toggle visually promises.
+
+### Added (framework)
+
+- New `NodeBase._on_skipped_changed(skipped: bool)` hook fires on
+  every transition of the `skipped` flag. Default no-op; subclasses
+  override to react (PlayGate uses it to flush its queue).
 - **Meta Inspector**: the body widget now word-wraps long values
   (notably `source_path`), uses an updated placeholder
   ("(run the flow to see meta)") and forces an explicit
