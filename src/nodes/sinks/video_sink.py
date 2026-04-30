@@ -8,7 +8,8 @@ import numpy as np
 from typing_extensions import override
 
 from constants import OUTPUT_DIR
-from core.io_data import IMAGE_TYPES
+from core.filename_template import expand as expand_template
+from core.io_data import IMAGE_TYPES, IoData
 from core.node_base import SinkNodeBase
 from core.params import EnumParam, FilePathParam, FloatParam
 from core.path_utils import resolve_against
@@ -47,6 +48,15 @@ class VideoSink(SinkNodeBase):
     interactive preview, monitor-relative resize and blocking
     ``waitKey`` are dropped, and GIF support is omitted because
     ``imageio`` isn't a pipeline dependency.
+
+    The ``output_path`` is a :ref:`filename template
+    <core.filename_template>`: ``$source_stem$``, ``$flow_name$`` and
+    other meta-derived placeholders expand once at the moment the
+    encoder opens (i.e. on the first incoming frame). ``$frame_index$``
+    is also resolved at that point — it's the index of the first
+    frame, typically ``0``, so it's of limited use for video output;
+    use it as a `_offset` style differentiator if you're stitching
+    multiple runs.
     """
 
     output_path = FilePathParam(
@@ -55,6 +65,13 @@ class VideoSink(SinkNodeBase):
         mode="save",
         filter="Video (*.mp4)",
         base_dir=OUTPUT_DIR,
+        description=(
+            "Where to encode the video. May contain $token$ placeholders "
+            "expanded once at the moment the writer opens: "
+            "$source_stem$, $source_name$, $source_ext$, $flow_name$. "
+            "Per-frame tokens like $frame_index$ resolve against the "
+            "first frame's meta; for per-frame paths use FileSink instead."
+        ),
     )
     fps = FloatParam(30.0, min=0.0, min_exclusive=True, constant=True)
     codec = EnumParam(VideoCodec, VideoCodec.MP4V, constant=True)
@@ -76,7 +93,8 @@ class VideoSink(SinkNodeBase):
 
     @override
     def process_impl(self) -> None:
-        frame: np.ndarray = self.inputs[0].data.image
+        in_data: IoData = self.inputs[0].data
+        frame: np.ndarray = in_data.image
 
         # Always encode as BGR so a single sink can consume either
         # colour or greyscale upstream pipelines without producing
@@ -85,7 +103,9 @@ class VideoSink(SinkNodeBase):
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
 
         if self._writer is None:
-            self._open_writer(frame)
+            # Resolve the filename template against the first frame's
+            # meta — fixed for the life of the writer.
+            self._open_writer(frame, in_data)
             self._frame_shape = frame.shape
         elif frame.shape != self._frame_shape:
             raise ValueError(
@@ -109,13 +129,17 @@ class VideoSink(SinkNodeBase):
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
-    def _resolved_path(self) -> Path:
-        return resolve_against(self._output_path, OUTPUT_DIR)
+    def _resolved_path(self, in_data: IoData | None = None) -> Path:
+        meta = dict(in_data.meta) if in_data is not None else {}
+        # ``output_path`` is a Path after the descriptor coerces it; the
+        # engine works on strings so we round-trip via ``str``.
+        rendered = expand_template(str(self._output_path), meta)
+        return resolve_against(Path(rendered), OUTPUT_DIR)
 
-    def _open_writer(self, frame: np.ndarray) -> None:
+    def _open_writer(self, frame: np.ndarray, in_data: IoData) -> None:
         h, w = frame.shape[:2]
         fourcc = cv2.VideoWriter.fourcc(*_CODEC_FOURCC[self._codec])
-        path = self._resolved_path()
+        path = self._resolved_path(in_data)
         path.parent.mkdir(parents=True, exist_ok=True)
         # frame is BGR by the time this is called, so isColor=True always.
         self._writer = cv2.VideoWriter(

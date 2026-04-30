@@ -168,6 +168,33 @@ firing and shutdown.
 Visually: held ports render with a dashed `PORT_INPUT_COLOR` ring
 in the editor.
 
+### Filename templating (`core.filename_template`, #159)
+
+`FileSink` and `VideoSink` use `core.filename_template.expand` to
+resolve `$token$` placeholders in their `output_path` against the
+incoming frame's `IoMeta` plus a per-sink **context** mapping.
+
+Token resolution order:
+
+1. Direct meta lookup (`$frame_index$`, custom keys).
+2. Path-derived shortcuts when `meta["source_path"]` is set —
+   `$source_stem$`, `$source_name$`, `$source_ext$`.
+3. Run-context fallback (`$flow_name$` etc., context-injected by
+   the sink).
+
+Width syntax `$tok:N$` zero-pads numeric values.
+
+`FileSink` additionally exposes every connected SCALAR input as a
+`$<port_name>$` token — so a `tick` port driven by
+`RangeSource(1..10)` resolves `$tick$` to the actual scalar value
+`1, 2, …, 10`, distinct from the always-0-based `$frame_index$`
+emit counter.
+
+Multi-input merge: meta fields from every connected input are
+unioned with later-declared inputs winning on key collisions; this
+lets a held image's `source_path` and a clock's `frame_index` both
+reach the template.
+
 ### Skip (`NodeBase.skipped`)
 
 Blender-style mute: when a skippable node is toggled, `process()`
@@ -230,9 +257,6 @@ These are tracked in GitHub issues and the refactoring backlog
 (`refactoring.md`). The principle: **promote a bolt-on to a
 framework primitive once it's needed by more than one node.**
 
-- **Filename templating from `IoData.meta` (#159)** — sinks read
-  conventional meta keys via `$tok$` placeholders. Builds on the
-  metadata system landed in #250.
 - **Animation primitives (#246)** — `SlidingWindow` node + band
   hooks on `PlotXY` / `PlotSeries`. First real consumer of
   `hold_last`.

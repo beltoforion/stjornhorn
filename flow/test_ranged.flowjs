@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.3",
+  "app_version": "0.3.0.5",
   "name": "test_ranged",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1334.2481444605353,
-        -828.49108435916
+        -1334.0,
+        -828.0
       ],
       "port_defaults": {
         "file_path": "ship.jpg"
@@ -20,68 +20,41 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -760.6740586531498,
-        -480.8829652425778
+        -760.0,
+        -480.0
       ],
       "port_defaults": {
-        "output_path": "out.png"
+        "output_path": "out_$tick:2$.png"
       }
     },
     {
       "id": 2,
-      "module": "nodes.debug.meta_inspector",
-      "class": "MetaInspector",
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
       "position": [
-        -789.65622737147,
-        -841.8902968863146
+        -1334.0,
+        -480.0
       ],
-      "port_defaults": {}
-    },
-    {
-      "id": 3,
-      "module": "nodes.debug.play_gate",
-      "class": "PlayGate",
-      "position": [
-        -1032.3910209992757,
-        -844.1947411296163
-      ],
-      "port_defaults": {}
-    },
-    {
-      "id": 4,
-      "module": "nodes.filters.display",
-      "class": "Display",
-      "position": [
-        -1053.1310191889934,
-        -506.2095854453295
-      ],
-      "port_defaults": {}
+      "port_defaults": {
+        "min_value": 1,
+        "max_value": 10,
+        "increment": 1.0,
+        "loop": false
+      }
     }
   ],
   "connections": [
     {
-      "src_node": 3,
-      "src_output": 0,
-      "dst_node": 2,
-      "dst_input": 0
-    },
-    {
       "src_node": 0,
       "src_output": 0,
-      "dst_node": 3,
+      "dst_node": 1,
       "dst_input": 0
     },
     {
       "src_node": 2,
       "src_output": 0,
-      "dst_node": 4,
-      "dst_input": 0
-    },
-    {
-      "src_node": 4,
-      "src_output": 0,
       "dst_node": 1,
-      "dst_input": 0
+      "dst_input": 1
     }
   ],
   "backdrops": []

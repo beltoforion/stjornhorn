@@ -12,6 +12,37 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Added (TickTack Step 3, #159)
+
+- **Filename templating** for `FileSink` and `VideoSink`. The
+  `output_path` parameter is now a template with `$token$`
+  placeholders that resolve at write time against the incoming
+  frame's `IoMeta` (and a per-sink context for SCALAR inputs).
+  Supported tokens: `$frame_index$`, `$source_stem$`,
+  `$source_name$`, `$source_ext$`, plus any custom meta key any
+  upstream node stamps. Width syntax `$tok:N$` zero-pads numerics
+  (e.g. `out_$frame_index:4$.png` → `out_0042.png`). Templates
+  with no placeholders behave as the legacy literal path.
+- **`FileSink` second input** — a new optional SCALAR `tick` port
+  declared after `image`. When connected, every tick drives one
+  write so a streaming counter can paginate the output (e.g.
+  `RangeSource(1..10) → FileSink.tick` writes ten files); when
+  dangling, the legacy single-write-on-image-arrival behaviour is
+  preserved. The `image` input is now `hold_last=True` so a
+  one-shot source (an `ImageSource`, a `CsvSource`) survives across
+  the tick stream.
+- **Scalar-input-as-template-token** — every connected SCALAR input
+  on a sink is exposed in the templating context under its port
+  name. So a `tick` port driven by `RangeSource(1..10)` gives you
+  `$tick$` → 1, 2, …, 10 in the filename, distinct from
+  `$frame_index$` which is the per-port emit counter.
+- New `core.filename_template.expand` helper — pure-function
+  expander, fully unit-tested.
+- Bundled demo: `flow/test_ranged.flowjs` is rewired as
+  `ImageSource → FileSink` with a `RangeSource(1..10) → tick` clock
+  and `output_path = out_$tick:2$.png`. Running it produces ten
+  files `out_01.png` … `out_10.png` from a single image source.
+
 ### Added (TickTack Step 2, #251)
 
 - `InputPort` gains a `hold_last: bool` constructor flag. Held inputs
