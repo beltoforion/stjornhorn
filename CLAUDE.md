@@ -17,8 +17,10 @@
 - `APP_VERSION` in `src/constants.py` is a four-component string `Major.Minor.Release.Build`.
 - Claude only ever ticks the **Build** (last) digit autonomously — once per source-code-changing PR. Bumping `Major`, `Minor`, or `Release` is the user's call and must be explicitly requested.
 - The user-facing surfaces (welcome banner `<span class="version">`, "What's new in …" headings, `CHANGELOG.md` section headers) show **`M.m.r` only** — the build digit is for traceability, not display. Don't put a four-component string in those headings.
-- New `CHANGELOG.md` sections and welcome.html "What's new" blocks only appear when `M.m.r` moves. Builds within the same `M.m.r` collect their entries under the existing `M.m.r` section — append to it, do not start a new one. Don't list every PR separately; group changes by `M.m.r`.
-- Whenever `APP_VERSION` is bumped (build or otherwise), update `doc/welcome.html`'s `<span class="version">` in the same PR. The "What's new" heading only changes when `M.m.r` moves.
+- The current `M.m.r` `CHANGELOG.md` section and welcome.html "What's new" block represent **work staged toward the next release cut**, not a fixed past release. Build digits accumulate entries under the existing section — append to it, do not start a new one. Don't list every PR separately; group changes by `M.m.r`.
+- When the user requests an `M` / `m` / `r` bump, treat it as a **release cut**: rename the in-flight section to the new `M.m.r` with a fresh release date (its content becomes the release notes for the new version), bump `APP_VERSION` to the new `M.m.r.0`, and update the welcome.html `<span class="version">` and "What's new in …" heading in the same PR. After the cut, build digits start at `.0` again under the renamed section and keep accumulating until the next cut.
+- Example: 0.3.0.x builds collect under `[0.3.0]`. When the user calls "bump to 0.4.0", the `[0.3.0]` heading becomes `[0.4.0] — YYYY-MM-DD`, `APP_VERSION` jumps to `0.4.0.0`, and welcome.html's banner + "What's new" heading both move to `v0.4.0`. Subsequent 0.4.0.x builds collect under the new heading.
+- Whenever `APP_VERSION` is bumped (build or otherwise), update `doc/welcome.html`'s `<span class="version">` in the same PR. The "What's new" heading only changes on a release cut (i.e. when `M.m.r` moves).
 
 ## Branch Hygiene
 - Keep working branches regularly updated from the main branch (fetch + merge/rebase from `main`) while work is in progress.
