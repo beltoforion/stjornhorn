@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.13",
+  "app_version": "0.3.0.6",
   "name": "folder_resize",
   "nodes": [
     {
@@ -57,7 +57,7 @@
         -631.8173913043478
       ],
       "port_defaults": {
-        "output_path": "out.png"
+        "output_path": "$source_stem$.resized.png"
       }
     },
     {
