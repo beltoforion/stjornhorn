@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "app_version": "0.3.0.4",
+  "name": "test_ranged_2",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.debug.meta_inspector",
+      "class": "MetaInspector",
+      "position": [
+        -820.7267326113265,
+        -832.6352527723149
+      ],
+      "port_defaults": {},
+      "size": [
+        336.4833360948551,
+        212.52686448928534
+      ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.debug.play_gate",
+      "class": "PlayGate",
+      "position": [
+        -1032.3910209992757,
+        -844.1947411296163
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 2,
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
+      "position": [
+        -1314.2162641879734,
+        -691.4840102317003
+      ],
+      "port_defaults": {
+        "min_value": 0,
+        "max_value": 99,
+        "increment": 1.0,
+        "loop": false
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 0,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": []
+}
