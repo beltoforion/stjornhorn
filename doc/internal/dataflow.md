@@ -86,6 +86,14 @@ streaming loop until every source's generator raises
 - `source_path` — set by source nodes that read from disk
   (ImageSource, CsvSource).
 - `timestamp` — run start time, populated by the runner (planned).
+- `<scalar_port_name>` — for every SCALAR input port on the
+  emitting node, `OutputPort.send` stamps the port's current value
+  under its port name (refactor M13). A filter with a `tick` port
+  emits frames carrying `meta["tick"] = <value>`; falls back to the
+  port's `default_value` when no upstream is connected (None
+  defaults are skipped). The names `frame_index`, `source_path`,
+  `timestamp` are reserved — `NodeBase._add_input` rejects port
+  declarations that collide with them.
 
 Custom nodes are free to add domain keys. Sinks doing filename
 templating (#159) read meta to render placeholders without reaching
@@ -184,16 +192,14 @@ Token resolution order:
 
 Width syntax `$tok:N$` zero-pads numeric values.
 
-`FileSink` additionally exposes every connected SCALAR input as a
-`$<port_name>$` token — so a `tick` port driven by
-`RangeSource(1..10)` resolves `$tick$` to the actual scalar value
-`1, 2, …, 10`, distinct from the always-0-based `$frame_index$`
-emit counter.
-
-Multi-input merge: meta fields from every connected input are
-unioned with later-declared inputs winning on key collisions; this
-lets a held image's `source_path` and a clock's `frame_index` both
-reach the template.
+SCALAR-port values reach the template via the upstream auto-stamp
+(see "Core types → IoMeta"): an upstream filter with a `tick`
+SCALAR port emits `meta["tick"] = <value>`, the sink reads it as
+`$tick$`. So `RangeSource → Repeat → FileSink` with template
+`out_$tick:2$.png` writes `out_01.png`, `out_02.png`, … without
+the sink needing a clock port of its own. Sinks themselves are
+single-input (one frame in, one file out) — cardinality control
+lives in upstream filters.
 
 ### Skip (`NodeBase.skipped`)
 
@@ -204,12 +210,16 @@ input (data-flow short-circuit). `_on_skipped_changed(skipped)` is
 a hook subclasses override to react to the toggle (PlayGate uses
 it to drain its buffered frames).
 
-### Frame-index auto-stamping
+### Frame-index + SCALAR-port auto-stamping
 
 `OutputPort.send(data)` stamps `data.meta["frame_index"]` from a
-per-port emit counter and increments. Producers no longer thread
-frame indices manually; sinks doing filename templating read
-`meta["frame_index"]` directly.
+per-port emit counter and increments. It also walks the owning
+node's SCALAR input ports and stamps each one's current value into
+meta under the port name (refactor M13) — so a filter that
+consumes a clock automatically tags its emissions for downstream
+templating. See "Core types → IoMeta" for the reserved-name list
+and the default-value fallback rule. Producers no longer thread
+indices or clock values manually; sinks read them directly.
 
 ## Lifecycle hooks (`NodeBase`)
 

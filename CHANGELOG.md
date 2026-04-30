@@ -12,6 +12,34 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (M13: SCALAR-port auto-stamp; sinks lose tick port)
+
+- **`OutputPort.send` auto-stamps every SCALAR input on the owning
+  node into outgoing `IoMeta` under the port name.** A filter with
+  a `tick` SCALAR input emits frames with `meta["tick"] = <value>`
+  for free; downstream sinks read `$tick$` from meta the same way
+  they read `$frame_index$` or `$source_stem$`. Falls back to the
+  port's inline `default_value` when no upstream is connected (None
+  defaults are skipped).
+- **`FileSink` lost its `tick` input port.** Cardinality control
+  moves upstream to the new `Pulse` node — or to any filter with a
+  SCALAR-driven port. The sink stays single-input: one frame in,
+  one file out. The `_scalar_inputs_as_context` and `_merged_meta`
+  helpers are gone too; the templating engine reads everything
+  from one source now.
+- **New `Pulse` filter.** Pairs a held payload (any type) with a
+  SCALAR clock; each tick re-emits the held data with `meta["tick"]`
+  auto-stamped. Replaces the canonical
+  `RangeSource → FileSink.tick` wiring with
+  `RangeSource → Pulse.tick` + `image → Pulse.data → FileSink`.
+- **Reserved meta keys** (`frame_index`, `source_path`, `timestamp`)
+  are now rejected at port-declaration time — a node trying to
+  declare an input with one of those names raises immediately
+  instead of silently shadowing the framework stamp.
+- Bundled `flow/test_ranged.flowjs` migrated to the new shape:
+  `ImageSource → Pulse → FileSink`, `RangeSource → Pulse.tick`,
+  template `out_$tick:2$.png`.
+
 ### Changed
 
 - **Doc panel: single-body layout.** The "Details" disclosure

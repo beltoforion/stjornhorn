@@ -9,7 +9,7 @@ from typing_extensions import override
 
 from constants import OUTPUT_DIR
 from core.filename_template import expand as expand_template
-from core.io_data import IMAGE_TYPES, IoDataType
+from core.io_data import IMAGE_TYPES
 from core.node_base import SinkNodeBase
 from core.params import FilePathParam
 from core.path_utils import resolve_against
@@ -29,10 +29,10 @@ class FileSink(SinkNodeBase):
     template — ``$frame_index$``, ``$source_stem$`` etc. expand at
     write time, with width syntax ``$tok:N$`` for zero-padding.
 
-    The optional ``tick`` SCALAR input drives one write per tick when
-    connected; otherwise the sink fires on every image frame. The
-    ``image`` port latches its last value so a one-shot source can
-    sit alongside a streaming ``tick`` clock.
+    The sink writes one file per arriving frame. To produce N files
+    from a single source use :class:`~nodes.filters.repeat.Repeat` with
+    a clock; any SCALAR-port value the upstream pipeline reads ends
+    up as a ``$<port_name>$`` token in the template (refactor M13).
     """
 
     output_path = FilePathParam(
@@ -44,9 +44,10 @@ class FileSink(SinkNodeBase):
         description=(
             "Where to write each frame. May contain $token$ placeholders: "
             "$frame_index$, $source_stem$, $source_name$, $source_ext$, "
-            "$flow_name$. Width syntax $tok:N$ zero-pads, e.g. "
-            "out_$frame_index:4$.png. With no placeholders the file is "
-            "overwritten on every frame."
+            "$flow_name$, plus any SCALAR port value an upstream filter "
+            "stamped (e.g. $tick$ from a Repeat). Width syntax $tok:N$ "
+            "zero-pads, e.g. out_$frame_index:4$.png. With no placeholders "
+            "the file is overwritten on every frame."
         ),
     )
 
@@ -55,18 +56,7 @@ class FileSink(SinkNodeBase):
         # ``output_format`` is set programmatically (not a UI param) so
         # it stays as a plain attribute with a hand-rolled property.
         self._output_format: OutputFormat = OutputFormat.SAME_AS_INPUT
-        # Image is held: a one-shot source (ImageSource) feeds it once
-        # and stays alive against any tick clock that drives the sink.
-        # Without hold_last the second tick would arrive at an empty
-        # image port and the dispatcher wouldn't fire.
-        self._add_input(InputPort("image", set(IMAGE_TYPES), hold_last=True))
-        # Optional clock. When connected, it's the lifecycle driver
-        # (its frame_index is what flows into the template); when
-        # dangling, the image input is the only input and behaves as
-        # the legacy single-write path.
-        self._add_input(
-            InputPort("tick", {IoDataType.SCALAR}, optional=True),
-        )
+        self._add_input(InputPort("image", set(IMAGE_TYPES)))
         self._apply_default_params()
 
     @property
@@ -79,20 +69,11 @@ class FileSink(SinkNodeBase):
 
     @override
     def process_impl(self) -> None:
-        # Combine metas from every connected input — later inputs win
-        # on key collisions. tick (declared after image) brings the
-        # per-write frame_index; image brings source_path. Resulting
-        # bag has both, ready for the template engine.
-        meta = self._merged_meta()
-        # Plus: every connected SCALAR input is exposed by its port
-        # name as a template token (e.g. ``$tick$`` resolves to the
-        # current tick value). Lets the user template on the actual
-        # scalar value rather than the per-port emit counter — so a
-        # ``RangeSource(1..10) → tick`` flow can write ``out_01.png``
-        # rather than ``out_00.png`` with 0-based frame_index.
-        context = self._scalar_inputs_as_context()
-
-        resolved_template = self._resolved_template(meta, context)
+        # Auto-stamped SCALAR-port values from upstream filters land
+        # in IoMeta directly (refactor M13), so the templating engine
+        # reads everything from one source.
+        meta: dict[str, Any] = dict(self.inputs[0].data.meta)
+        resolved_template = self._resolved_template(meta)
 
         if self._output_format == OutputFormat.SAME_AS_INPUT:
             output = resolved_template
@@ -106,47 +87,9 @@ class FileSink(SinkNodeBase):
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
-    def _merged_meta(self) -> dict[str, Any]:
-        """Union of every connected input's :class:`IoMeta`.
-
-        Later-declared inputs win on key collisions so the clock's
-        per-tick ``frame_index`` overrides the held image's stale one.
+    def _resolved_template(self, meta: dict[str, Any]) -> Path:
+        """Expand the user's template against *meta*, then resolve
+        relative paths against :data:`OUTPUT_DIR`.
         """
-        merged: dict[str, Any] = {}
-        for port in self._inputs:
-            if port.has_data:
-                merged.update(dict(port.data.meta))
-        return merged
-
-    def _scalar_inputs_as_context(self) -> dict[str, Any]:
-        """Expose every connected SCALAR input as a ``$<port_name>$``
-        token in the templating context.
-
-        The actual scalar value (extracted from the 0-d numpy payload)
-        becomes the token's value, so a ``tick`` port driven by a
-        ``RangeSource(1..10)`` resolves ``$tick$`` to 1, 2, …, 10
-        rather than the port's 0-based emit counter.
-        """
-        ctx: dict[str, Any] = {}
-        for port in self._inputs:
-            if not port.has_data:
-                continue
-            if port.data.type is not IoDataType.SCALAR:
-                continue
-            ctx[port.name] = port.data.payload.item()
-        return ctx
-
-    def _resolved_template(
-        self,
-        meta: dict[str, Any],
-        context: dict[str, Any],
-    ) -> Path:
-        """Expand the user's template against *meta* + *context*, then
-        resolve relative paths against :data:`OUTPUT_DIR`.
-
-        ``output_path`` is a :class:`Path` after the param descriptor
-        coerces it; the engine works on strings so we round-trip via
-        ``str``.
-        """
-        rendered = expand_template(str(self._output_path), meta, context)
+        rendered = expand_template(str(self._output_path), meta)
         return resolve_against(Path(rendered), OUTPUT_DIR)
