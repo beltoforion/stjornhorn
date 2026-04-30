@@ -253,7 +253,10 @@ class MetaInspectorPreview(_PreviewWidgetBase):
             "         font-family: 'Consolas','Menlo',monospace;"
             "         font-size: 11px; }"
         )
-        self._label.setText("(no frame yet)")
+        # Word-wrap so a long source_path doesn't blow out the body
+        # width and force the user to resize the node.
+        self._label.setWordWrap(True)
+        self._label.setText("(run the flow to see meta)")
 
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
@@ -262,6 +265,10 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._label)
 
+        # Auto-connection delivers cross-thread emits via a queued
+        # connection. Same-thread emits (e.g. when ``request_emit``
+        # on a PlayGate fires the callback chain on the UI thread)
+        # become direct calls — already handled.
         self._text_ready.connect(self._on_text_ready)
         node.set_frame_callback(self._emit_from_worker)
 
@@ -271,6 +278,12 @@ class MetaInspectorPreview(_PreviewWidgetBase):
     @Slot(str)
     def _on_text_ready(self, text: str) -> None:
         self._label.setText(text)
+        # Belt-and-braces repaint nudge: setText already calls
+        # ``update`` internally, but a same-thread emit during a
+        # click handler can leave the proxy widget without a fresh
+        # paint event until the next event-loop turn. Forcing
+        # ``update`` is cheap and removes any timing ambiguity.
+        self._label.update()
 
 
 def _format_meta(data: IoData) -> str:

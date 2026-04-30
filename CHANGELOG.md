@@ -12,6 +12,23 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed
+
+- **Play Gate** (TickTack Step 1) now buffers frames in a bounded FIFO
+  instead of the original latest-wins single slot. Each click on the
+  Play button steps through the buffered frames in arrival order, so
+  a `RangeSource(0..99) → PlayGate → …` flow can be walked frame by
+  frame instead of collapsing to one click. Capacity defaults to
+  1000 (oldest frames evicted on overflow) and can be set via the
+  constructor for callers that need a tighter cap.
+- **Meta Inspector**: the body widget now word-wraps long values
+  (notably `source_path`), uses an updated placeholder
+  ("(run the flow to see meta)") and forces an explicit
+  `update()` after each text refresh so the proxy widget repaints
+  reliably even when the callback chain runs entirely on the UI
+  thread (e.g. when triggered by a Play Gate click after the run
+  has otherwise quiesced).
+
 ### Added (TickTack Step 1, #250)
 
 - Per-frame metadata on `IoData`: new `IoMeta` open-ended `str → Any`
