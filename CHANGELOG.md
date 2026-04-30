@@ -41,14 +41,16 @@ once a first tagged release is cut.
 - **Template field UX** in the editor: `FilePathParamWidget` (the
   line edit on every `output_path` / `file_path` field) gained
   (a) a hover tooltip listing every available `$token$` with a
-  short example, and (b) a live preview label beneath the field
-  that renders the typed template against a synthetic example
+  short example, and (b) a floating live-preview popup that
+  surfaces below the line edit while a template is being typed.
+  The preview renders the template against a synthetic example
   context (`source_path=example/photo.jpg`, `frame_index=0`, plus
-  `1` for any connected SCALAR input). Hidden when the field
-  contains no `$` so literal-path users see no extra noise; the
-  moment a token appears, the rendered example shows underneath
-  so typos like `$source_stm$` surface immediately as a
-  literal-text leftover.
+  `1` for any SCALAR input port on the node, e.g. `$tick$` when a
+  tick port is wired). Hidden when the field contains no `$` so
+  literal-path users see no noise. The popup is a top-level
+  tooltip-style window so it never overlaps the next param row in
+  the node body — the inline-label first attempt did, since
+  `_layout_param_widgets` allocates a fixed row height per param.
 - Bundled demo: `flow/test_ranged.flowjs` is rewired as
   `ImageSource → FileSink` with a `RangeSource(1..10) → tick` clock
   and `output_path = out_$tick:2$.png`. Running it produces ten

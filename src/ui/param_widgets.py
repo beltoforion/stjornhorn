@@ -13,12 +13,12 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QSpinBox,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -416,6 +416,57 @@ class EnumParamWidget(ParamWidgetBase):
         return member.name.replace("_", " ").title()
 
 
+class _TemplatePreviewPopup(QFrame):
+    """Floating tooltip-style frame that previews a rendered filename
+    template below an anchor :class:`QLineEdit`.
+
+    Top-level (parented to the anchor only for ownership / lifetime;
+    the window flag combination keeps it floating, frameless, and
+    non-stealing-of-focus) so showing it never disturbs the
+    fixed-row :class:`~ui.node_item.NodeItem` layout — the alternative
+    of an inline label below the line edit overlaps the next
+    parameter row when the row height is fixed at
+    :data:`~ui.param_widgets.PARAM_VALUE_HEIGHT`.
+
+    The anchor stays the source of truth for positioning: every
+    :meth:`show_preview` call recomputes the screen position from the
+    line edit's current global geometry, so dragging the node or
+    scrolling the editor keeps the preview glued to its source.
+    """
+
+    def __init__(self, anchor: QLineEdit) -> None:
+        super().__init__(
+            anchor,
+            Qt.WindowType.ToolTip
+            | Qt.WindowType.FramelessWindowHint,
+        )
+        self._anchor = anchor
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setStyleSheet(
+            "QFrame { background: #2f2f33; border: 1px solid #1a1a1d;"
+            "         border-radius: 3px; }"
+            "QLabel { color: #d6d6d6; font-size: 11px;"
+            "         font-family: 'Consolas','Menlo',monospace;"
+            "         padding: 4px 6px; }"
+        )
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._label = QLabel()
+        layout.addWidget(self._label)
+
+    def show_preview(self, text: str) -> None:
+        """Update the previewed text and surface the popup just below
+        the anchor's bottom-left corner."""
+        self._label.setText(text)
+        self.adjustSize()
+        anchor_bottom_left = self._anchor.mapToGlobal(
+            self._anchor.rect().bottomLeft()
+        )
+        # 2 px gap so the popup doesn't touch the line-edit border.
+        self.move(anchor_bottom_left.x(), anchor_bottom_left.y() + 2)
+        self.show()
+
+
 class FilePathParamWidget(ParamWidgetBase):
     """Line-edit + browse-button editor for :attr:`NodeParamType.FILE_PATH` parameters."""
 
@@ -454,45 +505,31 @@ class FilePathParamWidget(ParamWidgetBase):
         self._view.setToolTip("Open in system image viewer")
         self._view.clicked.connect(self._open_in_viewer)
 
-        # Live preview of the rendered template. Hidden when the field
-        # contains no ``$tokens$`` so ordinary literal-path users don't
-        # see redundant noise.
-        self._preview = QLabel()
-        self._preview.setStyleSheet(
-            "QLabel { color: #9a9a9f; font-size: 11px;"
-            "         font-family: 'Consolas','Menlo',monospace;"
-            "         padding: 2px 4px; }"
-        )
-        self._preview.setVisible(False)
+        # Live preview popup for rendered templates. Floats below the
+        # line edit as a separate top-level QFrame so the existing
+        # NodeItem row layout (fixed-height rows in
+        # ``_layout_param_widgets``) doesn't have to grow when a
+        # template appears. Hidden by default; shown when the field
+        # contains a ``$``-token, hidden again when the user clears
+        # all tokens or focus leaves the field.
+        self._preview_popup = _TemplatePreviewPopup(self._line)
 
         # Connect textChanged and seed the initial value only once
-        # self._view + self._preview exist, since both update slots
-        # touch them.
+        # self._view + self._preview_popup exist, since both update
+        # slots touch them.
         self._line.textChanged.connect(self._on_value_changed)
         self._line.textChanged.connect(self._update_view_enabled)
         self._line.textChanged.connect(self._update_preview)
+        self._line.editingFinished.connect(self._preview_popup.hide)
 
         # initialize self._path and the line edit's text to the node's current value (or the
         self.set_value(str(self._initial_value("")))
         self._update_view_enabled()
-        self._update_preview(self._line.text())
 
-        # Two-row layout: the existing horizontal control row on top,
-        # the preview label below it. Override _make_row_layout's
-        # default of installing a QHBoxLayout *as* the widget layout
-        # because we need the QVBoxLayout outer.
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(2)
-
-        row = QHBoxLayout()
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(4)
-        row.addWidget(self._line, 1)
-        row.addWidget(browse, 0)
-        row.addWidget(self._view, 0)
-        outer.addLayout(row)
-        outer.addWidget(self._preview)
+        layout = self._make_row_layout(spacing=4)
+        layout.addWidget(self._line, 1)
+        layout.addWidget(browse, 0)
+        layout.addWidget(self._view, 0)
 
     def _on_value_changed(self, value: str) -> None:
         # Mirror the typed value into ``self._path`` so the
@@ -613,16 +650,15 @@ class FilePathParamWidget(ParamWidgetBase):
 
     def _update_preview(self, text: str) -> None:
         """Render *text* against a synthetic meta + scalar-port context
-        and show the result below the line edit.
+        and surface the result in the floating preview popup.
 
         Hidden when the field contains no ``$`` so a literal-path user
-        doesn't see redundant repetition. Visible the moment the user
-        types a token, with the rendered example so a typo
-        (``$source_stm$``) shows up immediately as a left-over literal
-        placeholder.
+        doesn't see noise. Visible the moment a token appears, with
+        the rendered example so a typo (``$source_stm$``) shows up
+        immediately as a left-over literal placeholder.
         """
         if "$" not in text:
-            self._preview.setVisible(False)
+            self._preview_popup.hide()
             return
 
         meta: dict[str, object] = {
@@ -630,18 +666,17 @@ class FilePathParamWidget(ParamWidgetBase):
             "frame_index": 0,
             "timestamp": 1700000000.0,
         }
-        # Each connected (or declared) SCALAR input contributes its
-        # port name as a context token with a sample value 1, so a
-        # ``tick`` port wired to a ``RangeSource`` previews
-        # ``$tick$`` → 1 even before the flow runs.
+        # Each declared SCALAR input on the node contributes its port
+        # name as a context token with a sample value 1, so a ``tick``
+        # port wired to a ``RangeSource`` previews ``$tick$`` → 1 even
+        # before the flow runs.
         context: dict[str, object] = {"flow_name": "demo"}
         for port in self._node.inputs:
             if IoDataType.SCALAR in port.accepted_types:
                 context.setdefault(port.name, 1)
 
         rendered = expand_template(text, meta, context)
-        self._preview.setText(f"→ {rendered}")
-        self._preview.setVisible(True)
+        self._preview_popup.show_preview(f"→ {rendered}")
 
     @override
     def refresh(self) -> None:
