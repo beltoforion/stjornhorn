@@ -63,17 +63,24 @@ class PortItem(QGraphicsEllipseItem):
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.CursorShape.CrossCursor)
         # Pen (outline) by port kind:
-        #   * Optional input  → bright PORT_INPUT_COLOR ring (the
-        #     pre-existing "OK to leave unconnected" affordance).
-        #   * Required input  → subtle dark NODE_BORDER_COLOR.
         #   * Output          → bright PORT_OUTPUT_COLOR ring so the
         #     unconnected fill (set by ``_apply_default_brush``) is
         #     visibly haloed in yellow, mirroring the optional-input
         #     ring on the opposite side of the node.
+        #   * Held input      → bright PORT_INPUT_COLOR ring with a
+        #     dashed pen, signalling "this port latches its last
+        #     value — it's a parameter, not a per-tick clock".
+        #   * Optional input  → bright PORT_INPUT_COLOR ring (the
+        #     pre-existing "OK to leave unconnected" affordance).
+        #   * Required input  → subtle dark NODE_BORDER_COLOR.
         # The pen stays put for the lifetime of the port; brush is
         # what tracks connection state via ``_apply_default_brush``.
         if self._kind == "output":
             self.setPen(QPen(PORT_OUTPUT_COLOR, 1.4))
+        elif self._is_held():
+            held_pen = QPen(PORT_INPUT_COLOR, 1.4)
+            held_pen.setStyle(Qt.PenStyle.DashLine)
+            self.setPen(held_pen)
         elif self._is_optional():
             self.setPen(QPen(PORT_INPUT_COLOR, 1.4))
         else:
@@ -164,6 +171,16 @@ class PortItem(QGraphicsEllipseItem):
         if self._kind != "input":
             return False
         return bool(getattr(self._model, "optional", False))
+
+    def _is_held(self) -> bool:
+        """True if this port is an input marked ``hold_last=True``.
+
+        Held inputs latch their last received value; outputs don't
+        have the concept (they push, they don't hold).
+        """
+        if self._kind != "input":
+            return False
+        return bool(getattr(self._model, "hold_last", False))
 
     # Press handling is intentionally left to the scene: if PortItem grabs
     # the mouse here, Qt routes subsequent move/release events to the item

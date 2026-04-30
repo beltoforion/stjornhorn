@@ -12,6 +12,19 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Added (TickTack Step 2, #251)
+
+- `InputPort` gains a `hold_last: bool` constructor flag. Held inputs
+  retain their last received value across `clear()` and across the
+  upstream's `finish()`, and the owning node's dispatcher excludes
+  held ports from the "all inputs finished → propagate" rule. Lets a
+  one-shot source (an image, a CSV-derived DataFrame) sit alongside a
+  streaming counter without going stale or pulling the consumer down
+  with it. Default behaviour for `hold_last=False` is unchanged.
+- Held input ports render with a dashed PORT_INPUT_COLOR ring in the
+  node editor so flows are visually self-documenting (the dot says
+  "this is a held parameter, not a per-tick clock").
+
 ### Changed
 
 - **Play Gate** (TickTack Step 1) now buffers frames in an **unbounded

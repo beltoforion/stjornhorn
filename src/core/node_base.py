@@ -379,7 +379,11 @@ class NodeBase(ABC):
 
         Fires :meth:`_on_finish` once every waited-on input has
         finished, so the lifecycle signal propagates down the graph
-        even when an optional input is dangling unconnected.
+        even when an optional input is dangling unconnected. Inputs
+        marked ``hold_last`` are excluded from the finish check —
+        they're parameters carried alongside a streaming clock, not
+        lifecycle drivers, so a held one-shot source going quiet must
+        not pull the consumer down with it.
         """
         waited = [
             p for p in self._inputs
@@ -395,7 +399,8 @@ class NodeBase(ABC):
                 p.clear()
             return
 
-        if waited and all(p.finished for p in waited):
+        clocks = [p for p in waited if not p.hold_last]
+        if clocks and all(p.finished for p in clocks):
             self._on_finish()
 
     # ── Overridable behaviour ──────────────────────────────────────────────────
