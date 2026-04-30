@@ -68,4 +68,4 @@ class Crop(NodeBase):
         # a view, which is fine for read-only consumers but bites in-place
         # writers. Cheap insurance for ~100kB-100MB frames.
         cropped = np.ascontiguousarray(cropped)
-        self.outputs[0].send(in_data.with_image(cropped))
+        self.outputs[0].send(in_data.clone(payload=cropped))

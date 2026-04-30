@@ -27,6 +27,12 @@ class IoDataType(Enum):
 IMAGE_TYPES: frozenset[IoDataType] = frozenset({IoDataType.IMAGE, IoDataType.IMAGE_GREY})
 
 
+#: Sentinel for "argument not supplied" on :meth:`IoData.clone`. Lets
+#: callers pass ``payload=None`` to actually mean "set the payload to
+#: None" rather than colliding with the default.
+_UNSET: Any = object()
+
+
 class IoMeta(Mapping[str, Any]):
     """Open-ended per-frame metadata bag travelling with an :class:`IoData`.
 
@@ -284,30 +290,28 @@ class IoData:
         """Return True if this carries an image payload (colour or greyscale)."""
         return self._type in IMAGE_TYPES
 
-    def with_image(self, image: np.ndarray) -> IoData:
-        """Return a new :class:`IoData` with the same type, payload replaced.
+    def clone(self, *, payload: Any = _UNSET, **meta_changes: Any) -> IoData:
+        """Return a copy of this :class:`IoData` with selected fields replaced.
 
-        Use this in pass-through filters so the output type (IMAGE vs
-        IMAGE_GREY) matches the input without the filter having to branch on
-        it explicitly. The :class:`IoMeta` is forwarded by reference so
-        provenance survives the filter chain.
+        Type is always forwarded so a pass-through filter doesn't have
+        to branch on IMAGE vs IMAGE_GREY (vs SCALAR vs DATASET).
+
+        - ``payload=value`` overrides the payload verbatim. Pass-through
+          filters use this to ship a transformed array without
+          rebuilding the envelope.
+        - Any other keyword arguments are interpreted as
+          :class:`IoMeta` updates and merged via
+          :meth:`IoMeta.replace` — ``data.clone(frame_index=5)`` keeps
+          the payload, stamps a new index, leaves other meta keys
+          alone.
+
+        Both can be combined: ``data.clone(payload=arr, frame_index=5)``.
         """
-        return IoData(self._type, payload=image, meta=self._meta)
-
-    def with_payload(self, payload: Any) -> IoData:
-        """Return a new :class:`IoData` with the same type/meta, payload
-        replaced. Generalisation of :meth:`with_image` for non-image
-        payload kinds."""
-        return IoData(self._type, payload=payload, meta=self._meta)
-
-    def with_meta(self, **changes: Any) -> IoData:
-        """Return a new :class:`IoData` with selected meta fields overridden.
-
-        Same payload and type; the IoMeta is the result of
-        ``self.meta.replace(**changes)``. Use to stamp a frame_index,
-        record a source path, etc., without rebuilding the payload.
-        """
-        return IoData(self._type, payload=self._payload, meta=self._meta.replace(**changes))
+        new_payload = self._payload if payload is _UNSET else payload
+        new_meta = (
+            self._meta.replace(**meta_changes) if meta_changes else self._meta
+        )
+        return IoData(self._type, payload=new_payload, meta=new_meta)
 
     def __repr__(self) -> str:
         # Image / SCALAR / MATRIX payloads expose a numpy ``shape``; the

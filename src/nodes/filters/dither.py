@@ -144,7 +144,7 @@ class Dither(NodeBase):
         else:
             out = self._dither_plane(image)
 
-        self.outputs[0].send(in_data.with_image(out))
+        self.outputs[0].send(in_data.clone(payload=out))
 
     def _dither_plane(self, plane: np.ndarray) -> np.ndarray:
         method = self._method

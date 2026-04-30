@@ -75,4 +75,4 @@ class Scale(NodeBase):
             (new_w, new_h),
             interpolation=int(self._interpolation),
         )
-        self.outputs[0].send(in_data.with_image(resized))
+        self.outputs[0].send(in_data.clone(payload=resized))

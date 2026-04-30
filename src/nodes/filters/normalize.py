@@ -38,4 +38,4 @@ class Normalize(NodeBase):
             equalised = [cv2.equalizeHist(c) for c in channels]
             result = cv2.merge(equalised)
 
-        self.outputs[0].send(in_data.with_image(result))
+        self.outputs[0].send(in_data.clone(payload=result))

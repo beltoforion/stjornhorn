@@ -41,4 +41,4 @@ class Median(NodeBase):
     def process_impl(self) -> None:
         in_data = self.inputs[0].data
         blurred = cv2.medianBlur(in_data.image, self._size)
-        self.outputs[0].send(in_data.with_image(blurred))
+        self.outputs[0].send(in_data.clone(payload=blurred))

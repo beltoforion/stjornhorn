@@ -43,4 +43,4 @@ class FrameDifference(NodeBase):
             diff = cv2.absdiff(image, self._prev_frame)
 
         self._prev_frame = image.copy()
-        self.outputs[0].send(in_data.with_image(diff))
+        self.outputs[0].send(in_data.clone(payload=diff))

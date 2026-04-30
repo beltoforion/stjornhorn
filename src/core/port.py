@@ -344,7 +344,7 @@ class OutputPort:
         # index is overwritten here per outbound hop, which matches
         # the "current stream's frame number" semantics most consumers
         # want.
-        data = data.with_meta(frame_index=self._emit_count)
+        data = data.clone(frame_index=self._emit_count)
         self._emit_count += 1
         self._last_emitted = data
         for port in self._connections:
