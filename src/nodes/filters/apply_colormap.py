@@ -15,19 +15,10 @@ from core.port import InputPort, OutputPort
 class Colormap(IntEnum):
     """Colormap selection for :class:`ApplyColormap`.
 
-    Values mirror OpenCV's ``cv2.COLORMAP_*`` flags so the enum member
-    can be passed straight into :func:`cv2.applyColorMap`. Backed by
-    :class:`IntEnum` so the integer representation (persisted in saved
-    flows) round-trips cleanly: JSON stores the int, the descriptor's
-    ``_coerce`` accepts both ints and enum members, and the ``ENUM``
-    param widget renders a combo box of ``name``-based labels.
-
-    The selection covers the perceptually-uniform family popularised by
-    matplotlib (VIRIDIS / PLASMA / MAGMA / INFERNO), the
-    historically-common FFT / spectrogram palettes (JET, the MATLAB
-    default for ``imagesc(abs(fft2(x)))`` and Audacity-style spectrum
-    views; TURBO, Google's perceptually improved JET drop-in), plus a
-    handful of classics (HOT, BONE, PARULA, OCEAN, COOL).
+    Covers the perceptually-uniform family (VIRIDIS / PLASMA / MAGMA /
+    INFERNO), the classic FFT / spectrogram palettes (JET, TURBO),
+    plus a handful of utility palettes (HOT, BONE, PARULA, OCEAN,
+    COOL).
     """
     VIRIDIS = cv2.COLORMAP_VIRIDIS
     PLASMA  = cv2.COLORMAP_PLASMA
@@ -45,19 +36,10 @@ class Colormap(IntEnum):
 class ApplyColormap(NodeBase):
     """Colorize a greyscale image with a chosen colormap.
 
-    Wraps :func:`cv2.applyColorMap`: maps each input intensity through
-    the selected lookup table and emits a 3-channel BGR image. Designed
-    as the display-side companion to nodes that produce single-channel
-    fields — e.g. the magnitude output of :class:`Fft2D`, depth maps,
-    individual channel splits — so the visualization concern stays out
-    of the producer node.
-
-    The node assumes the input has already been tonemapped to a
-    sensible 0..255 range. For high-dynamic-range sources like raw FFT
-    magnitudes, apply log compression upstream (``Fft2D`` does this)
-    rather than expecting the colormap step to handle it — combining
-    log-compressed data with a log-norm palette would compress twice
-    and crush the high end into a tiny color band.
+    Maps each input intensity through the selected lookup table and
+    emits a 3-channel BGR image. Expects the input to be tonemapped
+    into 0..255 already; for HDR sources (raw FFT magnitudes, depth
+    maps) apply log compression upstream.
     """
 
     # ``constant=True``: the palette is a build-time visualization

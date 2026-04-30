@@ -1,11 +1,11 @@
 """Widget-level tests for :class:`ui.node_doc_panel.NodeDocPanel` and
 its selection wiring on :class:`ui.node_list.NodeList`.
 
-These exercise the Qt-side glue that the pure-function renderer tests
-deliberately avoid: that the panel actually feeds its summary label
-and details browser through the renderers, that the disclosure
-toggle collapses / expands the body the way the user expects, and
-that ``NodeList.entry_selected`` fires with the right payload.
+These exercise the Qt-side glue that the pure-function renderer
+tests deliberately avoid: that the panel actually feeds its body
+browser through :func:`render_node_html`, that the empty / error
+states render cleanly, and that ``NodeList.entry_selected`` fires
+with the right payload.
 """
 from __future__ import annotations
 
@@ -43,89 +43,61 @@ def registry() -> NodeRegistry:
 
 def test_panel_starts_in_empty_state(qapp: QApplication) -> None:
     panel = NodeDocPanel()
-    assert "Select a node" in panel._summary.text()
-    # No node loaded yet → nothing to expand → toggle hidden.
-    assert panel._toggle.isHidden()
-    assert panel._details.isHidden()
+    assert "Select a node" in panel._body.toHtml()
 
 
 # ── show_class ─────────────────────────────────────────────────────────────────
 
-def test_show_class_renders_summary_and_keeps_details_collapsed(
+def test_show_class_renders_full_doc_in_one_body(qapp: QApplication) -> None:
+    """Showing a class fills the body with the full doc — display
+    name, description, Inputs, Outputs and Parameters all in one
+    place with nothing behind a disclosure."""
+    panel = NodeDocPanel()
+    panel.show_class(GaussianBlur)
+    html = panel._body.toHtml()
+    assert "Gaussian Blur" in html
+    # GaussianBlur's editable inputs (ksize, sigma) appear in the
+    # Inputs section; with the toggle gone they must be visible
+    # immediately, no click needed.
+    assert "ksize" in html
+    assert "sigma" in html
+
+
+def test_show_class_renders_sections_in_canonical_order(
     qapp: QApplication,
 ) -> None:
-    """Showing a class fills the always-visible summary head, but
-    the details body stays collapsed by default — the user must
-    click the disclosure to see the full docs."""
+    """Inputs → Outputs → Parameters. Use a node that has constant
+    params so all three sections are present."""
+    from nodes.sources.gradient_source import GradientSource
     panel = NodeDocPanel()
-    panel.show_class(GaussianBlur)
-    assert "Gaussian Blur" in panel._summary.text()
-    # GaussianBlur has params, so the disclosure must show; details
-    # body stays collapsed by default until the user clicks.
-    assert not panel._toggle.isHidden(), (
-        "GaussianBlur has params, so the disclosure must show"
-    )
-    assert panel._details.isHidden(), (
-        "details body must be collapsed by default"
-    )
-    # Inputs/Outputs live in the always-visible summary head — the
-    # user must see them without expanding the disclosure.
-    assert "ksize" in panel._summary.text()
-    assert "sigma" in panel._summary.text()
+    panel.show_class(GradientSource)
+    html = panel._body.toHtml()
+    outputs_at = html.index("Outputs")
+    params_at = html.index("Parameters")
+    assert outputs_at < params_at
 
 
-def test_clicking_toggle_expands_details(qapp: QApplication) -> None:
-    panel = NodeDocPanel()
-    panel.show_class(GaussianBlur)
-    panel._toggle.setChecked(True)
-    assert not panel._details.isHidden()
-
-
-def test_clicking_toggle_again_collapses_details(qapp: QApplication) -> None:
-    panel = NodeDocPanel()
-    panel.show_class(GaussianBlur)
-    panel._toggle.setChecked(True)
-    panel._toggle.setChecked(False)
-    assert panel._details.isHidden()
-
-
-def test_toggle_state_survives_selection_change(qapp: QApplication) -> None:
-    """A user reading docs for one node and clicking another should
-    not have to re-open the disclosure — the open state carries over
-    so the next class lands already-expanded."""
-    from nodes.filters.resize import Resize
-    panel = NodeDocPanel()
-    panel.show_class(GaussianBlur)
-    panel._toggle.setChecked(True)
-    panel.show_class(Resize)
-    assert panel._toggle.isChecked()
-    assert not panel._details.isHidden()
-    assert "Resize" in panel._summary.text()
-
-
-def test_clear_returns_to_empty_state(qapp: QApplication) -> None:
-    panel = NodeDocPanel()
-    panel.show_class(GaussianBlur)
-    panel._toggle.setChecked(True)
-    panel.clear()
-    assert "Select a node" in panel._summary.text()
-    assert panel._toggle.isHidden()
-    assert panel._details.isHidden()
-
-
-def test_show_class_swallows_introspection_failures(qapp: QApplication) -> None:
+def test_show_class_swallows_introspection_failures(
+    qapp: QApplication,
+) -> None:
     """A class whose constructor raises must not crash the panel —
-    the fallback message takes over the summary head and the
-    disclosure is hidden."""
+    the fallback message takes over the body instead."""
     class BrokenNode:
         def __init__(self) -> None:
             raise RuntimeError("unwirable")
 
     panel = NodeDocPanel()
     panel.show_class(BrokenNode)  # type: ignore[arg-type]
-    assert "Could not introspect" in panel._summary.text()
-    assert "BrokenNode" in panel._summary.text()
-    assert panel._toggle.isHidden()
+    html = panel._body.toHtml()
+    assert "Could not introspect" in html
+    assert "BrokenNode" in html
+
+
+def test_clear_returns_to_empty_state(qapp: QApplication) -> None:
+    panel = NodeDocPanel()
+    panel.show_class(GaussianBlur)
+    panel.clear()
+    assert "Select a node" in panel._body.toHtml()
 
 
 # ── show_entry (palette path) ──────────────────────────────────────────────────
@@ -139,7 +111,7 @@ def test_show_entry_resolves_class_via_registry(
     panel = NodeDocPanel()
     entry = registry.nodes["GaussianBlur"]
     panel.show_entry(entry)
-    assert "Gaussian Blur" in panel._summary.text()
+    assert "Gaussian Blur" in panel._body.toHtml()
 
 
 # ── NodeList selection signal ──────────────────────────────────────────────────
@@ -195,12 +167,6 @@ def _find_leaf(node_list: NodeList, class_name: str) -> QTreeWidgetItem:
 
 
 # ── Size negotiation (issue #233) ────────────────────────────────────────────
-#
-# Regression guard: a long docstring must not push the panel taller than its
-# default hint. Without the QScrollArea + sizeHint override added in #233,
-# the QLabel summary's wordwrap-driven height bled through to
-# ``minimumSizeHint``, and the enclosing QDockWidget grew on every selection
-# change — squashing the sibling Node List dock.
 
 from core.node_base import NodeBase
 
@@ -224,13 +190,10 @@ def test_size_hint_constant_across_show_class(qapp: QApplication) -> None:
     initial = panel.sizeHint()
     initial_min = panel.minimumSizeHint()
 
-    # Render docs for a real built-in node (short docstring).
     panel.show_class(GaussianBlur)
     assert panel.sizeHint() == initial
     assert panel.minimumSizeHint() == initial_min
 
-    # Then a NodeBase subclass with a much longer docstring — the case
-    # that originally pushed the dock taller.
     panel.show_class(_LongDocNode)
     assert panel.sizeHint() == initial
     assert panel.minimumSizeHint() == initial_min

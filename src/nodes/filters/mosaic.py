@@ -150,28 +150,15 @@ class MosaicLayout:
 class Mosaic(NodeBase):
     """Composite up to six images into a flexible grid layout.
 
-    A single ``layout`` string describes the cell arrangement (see
-    :class:`MosaicLayout` for syntax). Each letter ``A``–``F`` maps
-    to one of the six optional ``IMAGE`` inputs in order. Cells with
-    no incoming data — either because their input is unconnected or
-    because the layout uses ``.`` — are left as black padding.
+    The ``layout`` string describes the cell arrangement (see
+    :class:`MosaicLayout` for syntax). Letters ``A``–``F`` map to the
+    six optional inputs in order; ``.`` and unconnected cells are
+    black padding. Each input is pasted at the top-left of its cell
+    rectangle and padded on the right / bottom if smaller.
 
-    Sizing strategy:
-      * ``col_width[j] = max(input.width / col_span)`` over every
-        input whose rectangle includes column ``j``. Row heights are
-        the symmetric per-row max. Inputs spanning multiple cells
-        contribute their averaged dimension so the cell budget stays
-        proportional.
-      * Each input is pasted at the top-left of its rectangle and
-        padded on the right / bottom if smaller than the rectangle.
-
-    Type strategy (matches :class:`Merge`):
-      * Any colour input → output is colour; greyscale inputs are
-        promoted via ``cv2.cvtColor(..., COLOR_GRAY2BGR)``.
-      * All-greyscale inputs → output stays greyscale.
-
-    The default layout ``"AB"`` produces a horizontal stack of the
-    first two inputs, matching the most common simple use.
+    Any colour input promotes the output to colour; otherwise the
+    output stays greyscale. The default ``"AB"`` is a horizontal
+    stack of the first two inputs.
     """
 
     layout = StringParam(

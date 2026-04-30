@@ -11,15 +11,8 @@ from core.port import InputPort, OutputPort
 class HslJoin(NodeBase):
     """Merge three single-channel images (H, S, L) into a BGR image.
 
-    Inverse of :class:`HslSplit`. The three planes are stacked into an
-    ``H × W × 3`` HLS image (full-range hue, 0..255) and converted via
-    :data:`cv2.COLOR_HLS2BGR_FULL` so that
-    ``HslSplit → HslJoin`` is a pixel-exact identity on a BGR input.
-
-    The input ports are labelled ``H``, ``S``, ``L`` to match the
-    conventional HSL ordering users expect; internally the planes are
-    re-ordered to OpenCV's H, L, S layout before
-    :func:`cv2.cvtColor`.
+    Inverse of :class:`HslSplit`; ``HslSplit → HslJoin`` is a
+    pixel-exact identity on a BGR input.
     """
 
     def __init__(self) -> None:

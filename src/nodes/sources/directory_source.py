@@ -30,27 +30,12 @@ _SUPPORTED_EXTS: frozenset[str] = frozenset({
 class DirectorySource(SourceNodeBase):
     """Source node that emits every image file in a directory as a frame.
 
-    Walks the configured directory in lexicographic order (top-down, with
-    ``include_subdirectories`` controlling whether nested folders are
-    visited) and emits each readable image as one ``IoData.IMAGE`` frame
-    on the output port. Useful as a "video out of a folder of stills"
-    fixture for testing temporal nodes, batch-processing screenshots, etc.
-
-    Paths inside the application's :data:`INPUT_DIR` are stored — and
-    therefore displayed — relative to that folder. Anything outside is
-    kept as an absolute path. Relative paths are resolved against
-    ``INPUT_DIR`` at run time, which keeps saved flows portable across
-    machines that share the same input layout.
-
-    Files whose extension is unsupported are skipped silently. Files with
-    a supported extension that nonetheless fail to decode (corrupt,
-    truncated, …) are logged and skipped so a single bad file doesn't
-    abort the whole run. This source is **not** reactive — flipping a
-    parameter shouldn't kick off a potentially long directory walk.
-
-    Parameters:
-      directory               -- folder to iterate over (relative to INPUT_DIR when possible)
-      include_subdirectories  -- recurse into nested folders when True
+    Walks the directory in lexicographic order and emits each readable
+    image as one frame. Useful as a "video out of a folder of stills"
+    fixture. Unsupported extensions are skipped silently; supported
+    files that fail to decode are logged and skipped. Paths inside
+    :data:`INPUT_DIR` are stored relative to that folder. Not reactive
+    — running on every parameter edit could trigger a long walk.
     """
 
     directory = FilePathParam(

@@ -12,6 +12,31 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed
+
+- **Doc panel: single-body layout.** The "Details" disclosure
+  toggle is gone — the rest of the docstring and the Parameters
+  table now sit inline right after the brief description, in the
+  same scrollable body as Inputs and Outputs. With docstrings
+  shortened across the node corpus there's nothing left worth
+  hiding behind a click. The pure-function renderer collapses to a
+  single ``render_node_html`` (replacing the previous summary /
+  details split + ``has_details`` check), and the widget hosts one
+  ``QTextBrowser`` instead of a ``QLabel`` + toggle + browser stack.
+
+### Docs
+
+- Swept every node docstring rendered in the Doc panel: dropped
+  stale "even values are bumped" claims (the odd-only spin box now
+  prevents typing an even value in the first place), removed
+  implementation-detail leaks (``Wraps cv2.X``, OCVL port
+  histories, numba/JIT internals, OpenCV constant names), and
+  shortened the verbose entries (FFT2D, MaskedBlend, Mosaic,
+  Overlay, Hodogram, PlotXY, sources). User-facing param
+  descriptions kept; internal "why" rationales pruned where they
+  belonged in commit messages or the refactoring backlog rather
+  than the node panel.
+
 ### Fixed (#259)
 
 - `OddIntParam` editors (`GaussianBlur.ksize`, `Median.size`,

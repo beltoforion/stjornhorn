@@ -11,20 +11,10 @@ from core.port import InputPort, OutputPort
 class InverseFft2D(NodeBase):
     """Compute the inverse 2-D discrete Fourier transform.
 
-    Inverse of :class:`Fft2D`. Expects an fftshifted complex spectrum
-    on the ``spectrum`` input (the format :class:`Fft2D` emits) and
-    emits a uint8 :data:`IoDataType.IMAGE_GREY` on ``image``.
-
-    The reconstruction takes the real part of :func:`numpy.fft.ifft2`
-    (the imaginary part is at numerical-noise level for a spectrum
-    that came from a real-valued image, possibly modulated by a
-    real-valued mask), rounds to the nearest integer, clips to
-    ``[0, 255]`` and casts to ``uint8`` so the result composes
-    cleanly with the rest of the image-processing graph. The explicit
-    :func:`numpy.round` step is what makes ``Fft2D → InverseFft2D`` a
-    pixel-exact identity on a greyscale uint8 input — without it,
-    sub-ULP float drift from the forward+inverse transform would
-    truncate values like ``15 - 1e-13`` to ``14`` on the cast.
+    Inverse of :class:`Fft2D`. Expects the fftshifted complex
+    spectrum on ``spectrum`` and emits a uint8
+    :data:`IoDataType.IMAGE_GREY` on ``image``. Forms a pixel-exact
+    round trip with :class:`Fft2D` on a greyscale uint8 input.
     """
 
     def __init__(self) -> None:

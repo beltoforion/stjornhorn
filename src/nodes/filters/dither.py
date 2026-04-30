@@ -15,13 +15,7 @@ from core.port import InputPort, OutputPort
 
 
 class DitherMethod(IntEnum):
-    """Dithering algorithms supported by :class:`Dither`.
-
-    Backed by :class:`IntEnum` so the integer representation (persisted
-    in saved flows) round-trips cleanly: JSON stores the int, the
-    setter accepts both ints and enum members, and the ``ENUM`` param
-    widget renders a combo box of ``name``-based labels.
-    """
+    """Dithering algorithms supported by :class:`Dither`."""
     BAYER2          = 1
     BAYER4          = 2
     BAYER8          = 3
@@ -102,14 +96,9 @@ _BAYER_MATRICES: dict[DitherMethod, np.ndarray] = {
 class Dither(NodeBase):
     """Binary (black/white) dithering with a configurable algorithm.
 
-    Reduces an image to two levels (0 / 255) per channel using one of the
-    classic ordered or error-diffusion schemes. Greyscale inputs produce
-    greyscale outputs; colour inputs are dithered per channel and produce
-    a colour output of the same shape.
-
-    The error-diffusion inner loop is JIT-compiled by numba on first use
-    (``@njit(cache=True)``), making it comparable in speed to the
-    original OCVL implementation.
+    Reduces an image to two levels (0 / 255) per channel using one of
+    the classic ordered or error-diffusion schemes. Greyscale inputs
+    produce greyscale outputs; colour inputs are dithered per channel.
     """
 
     method = EnumParam(

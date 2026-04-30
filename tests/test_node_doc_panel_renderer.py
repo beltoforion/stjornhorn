@@ -1,31 +1,28 @@
-"""Unit tests for the pure-function HTML renderers used by the
+"""Unit tests for the pure-function HTML renderer used by the
 :class:`~ui.node_doc_panel.NodeDocPanel`.
 
-The renderers (``render_node_summary`` and ``render_node_details``)
-are intentionally Qt-free so the bulk of the documentation-display
-logic can be tested without a ``QApplication``; the widget tests in
-``test_node_doc_panel_widget.py`` only need to verify that the
-widget actually feeds its label / browser through these functions
-and toggles them in the right way.
+``render_node_html`` is intentionally Qt-free so the bulk of the
+documentation-display logic can be tested without a ``QApplication``;
+the widget tests in ``test_node_doc_panel_widget.py`` only need to
+verify that the panel actually feeds its browser through this
+function.
 """
 from __future__ import annotations
 
 from ui.node_doc_panel import (
     _strip_sphinx_roles,
-    has_details,
-    render_node_details,
-    render_node_summary,
+    render_node_html,
 )
 
 
 def _example_desc() -> dict:
     """A representative ``describe_node`` output covering every
-    branch of the renderers in one document.
+    branch of the renderer in one document.
 
     Mirrors the shape ``core.node_doc.describe_node`` produces, with
     one of each port flavour (image-flow input, INT param port with
-    bounds + unit, ENUM constant param) so the renderers' branches
-    all exercise."""
+    bounds + unit, ENUM constant param) so every branch fires.
+    """
     return {
         "class_name": "Resize",
         "display_name": "Resize",
@@ -68,185 +65,95 @@ def _example_desc() -> dict:
     }
 
 
-# ── render_node_summary ────────────────────────────────────────────────────────
+# ── Header (name, section, module path) ───────────────────────────────────────
 
-def test_summary_includes_display_name_section_and_brief() -> None:
-    out = render_node_summary(_example_desc())
+def test_includes_display_name_and_section() -> None:
+    out = render_node_html(_example_desc())
     assert ">Resize</h1>" in out
     assert '<p class="meta">Transform</p>' in out
-    # The PEP 257 summary line — first paragraph of the docstring —
-    # is always visible in the summary head.
-    assert "Resize an image to an explicit" in out
-    assert "three layout strategies." in out
 
 
-def test_summary_includes_inputs_and_outputs() -> None:
-    """Inputs and Outputs are structural — a user needs them to
-    decide how to wire the node, so they live in the always-visible
-    summary head, not behind the disclosure."""
-    out = render_node_summary(_example_desc())
-    assert "<h2>Inputs</h2>" in out
-    assert "<h2>Outputs</h2>" in out
-    # Required marker survives the move from details to summary.
-    assert "required" in out
-
-
-def test_summary_does_not_include_subsequent_paragraphs() -> None:
-    """The second-and-later paragraphs of the docstring belong in
-    the collapsible details section so the summary stays compact."""
-    out = render_node_summary(_example_desc())
-    assert "Output dtype and channel count" not in out
-
-
-def test_summary_does_not_include_parameters() -> None:
-    """Parameters can be many and detailed (descriptions, ranges,
-    enum mappings) — they belong in the collapsible details body,
-    not in the always-visible head."""
-    out = render_node_summary(_example_desc())
-    assert "<h2>Parameters</h2>" not in out
-
-
-def test_summary_keeps_module_path_in_h1_title_tooltip_only() -> None:
+def test_keeps_module_path_in_h1_title_tooltip_only() -> None:
     """The dotted ``nodes.filters.resize.Resize`` is too long for
     the visible meta line in a narrow dock — it survives only as
     the H1's ``title`` tooltip."""
-    out = render_node_summary(_example_desc())
+    out = render_node_html(_example_desc())
     assert 'title="nodes.filters.resize.Resize"' in out
-    # …and is NOT in the visible meta line.
     meta_inner = out.split('<p class="meta">', 1)[1].split("</p>", 1)[0]
     assert "nodes.filters.resize" not in meta_inner
 
 
-def test_summary_renders_when_docstring_is_missing() -> None:
+# ── Docstring (brief + body paragraphs) ───────────────────────────────────────
+
+def test_renders_brief_and_body_paragraphs() -> None:
+    """The PEP 257 summary line gets ``.brief`` styling; subsequent
+    paragraphs render as ``.doc`` blocks. Both appear in the same
+    body — no disclosure to expand."""
+    out = render_node_html(_example_desc())
+    assert '<p class="brief">Resize an image to an explicit' in out
+    assert '<p class="doc">Output dtype and channel count' in out
+
+
+def test_renders_when_docstring_is_missing() -> None:
     desc = _example_desc()
     desc["docstring"] = ""
-    out = render_node_summary(desc)
+    out = render_node_html(desc)
     assert ">Resize</h1>" in out
     assert '<p class="brief">' not in out
+    assert '<p class="doc">' not in out
 
 
-def test_summary_omits_inputs_section_when_node_has_no_inputs() -> None:
-    """A source has no inputs; that absence is itself information,
-    rendered as the missing section heading rather than a
-    placeholder."""
-    desc = _example_desc()
-    desc["inputs"] = []
-    out = render_node_summary(desc)
-    assert "<h2>Inputs</h2>" not in out
+# ── Inputs / Outputs / Parameters (order + presence) ──────────────────────────
+
+def test_sections_appear_in_canonical_order() -> None:
+    """Inputs, Outputs, Parameters render in that order so the user
+    reads the wiring contract before the configurable knobs."""
+    out = render_node_html(_example_desc())
+    inputs_at = out.index("<h2>Inputs</h2>")
+    outputs_at = out.index("<h2>Outputs</h2>")
+    params_at = out.index("<h2>Parameters</h2>")
+    assert inputs_at < outputs_at < params_at
 
 
-# ── render_node_details ────────────────────────────────────────────────────────
-
-def test_details_omits_summary_paragraph() -> None:
-    """The first paragraph already lives in the summary head; the
-    details body picks up from paragraph two onwards so the user
-    isn't reading the same sentence twice."""
-    out = render_node_details(_example_desc())
-    assert "Resize an image to an explicit" not in out
-    assert "Output dtype and channel count" in out
+def test_marks_required_input() -> None:
+    out = render_node_html(_example_desc())
+    assert "required" in out
 
 
-def test_details_does_not_repeat_inputs_outputs() -> None:
-    """Inputs and Outputs are now in the always-visible summary
-    head; the details body must not duplicate them."""
-    out = render_node_details(_example_desc())
-    assert "<h2>Inputs</h2>" not in out
-    assert "<h2>Outputs</h2>" not in out
-
-
-def test_details_renders_parameters() -> None:
-    """Parameters belong in the collapsible body — the descriptions
-    and enum mappings can be long enough to dominate a narrow
-    panel, so they only appear when the user asks for them."""
-    out = render_node_details(_example_desc())
-    assert "<h2>Parameters</h2>" in out
-
-
-def test_details_renders_param_metadata_extras() -> None:
-    """Parameter description, default, range and enum mapping all
-    appear under the Parameters section in the details body."""
-    out = render_node_details(_example_desc())
+def test_renders_param_metadata_extras() -> None:
+    out = render_node_html(_example_desc())
     assert "Layout strategy." in out
     assert "default <code>0</code>" in out
 
 
-def test_details_renders_enum_mapping() -> None:
-    out = render_node_details(_example_desc())
+def test_renders_enum_mapping() -> None:
+    out = render_node_html(_example_desc())
     assert "0=SCALE" in out
     assert "1=CROP_OR_FILL" in out
     assert "2=BEST_FIT" in out
 
 
-def test_details_omits_empty_parameters_section() -> None:
+def test_omits_empty_inputs_section() -> None:
+    """A source has no inputs; that absence is rendered as a missing
+    section heading rather than a placeholder."""
+    desc = _example_desc()
+    desc["inputs"] = []
+    out = render_node_html(desc)
+    assert "<h2>Inputs</h2>" not in out
+
+
+def test_omits_empty_parameters_section() -> None:
     desc = _example_desc()
     desc["params"] = []
-    out = render_node_details(desc)
+    out = render_node_html(desc)
     assert "<h2>Parameters</h2>" not in out
 
 
-# ── has_details ────────────────────────────────────────────────────────────────
-
-def test_has_details_true_when_node_has_params() -> None:
-    """Inputs and Outputs are no longer behind the disclosure, so
-    the disclosure should fire for params or extra docstring
-    paragraphs only."""
-    assert has_details(_example_desc())
-
-
-def test_has_details_false_when_only_inputs_outputs_present() -> None:
-    """A node whose only "extra" content is inputs/outputs has
-    *nothing* to disclose — those tables are always visible. The
-    toggle would dangle into a blank panel and confuse the user."""
-    desc = {
-        "class_name": "Pass",
-        "display_name": "Pass",
-        "section": "",
-        "module": "",
-        "docstring": "Just passes through.",
-        "inputs": [{"name": "image", "accepted_types": ["IMAGE"], "optional": False}],
-        "outputs": [{"name": "image", "emits": ["IMAGE"]}],
-        "params": [],
-    }
-    assert not has_details(desc)
-
-
-def test_has_details_true_for_only_extra_paragraphs() -> None:
-    """Even with no params, a multi-paragraph docstring still has
-    meaningful content for the details section."""
-    desc = {
-        "class_name": "Doc",
-        "display_name": "Doc",
-        "section": "",
-        "module": "",
-        "docstring": "Short summary.\n\nLong elaboration here.",
-        "inputs": [],
-        "outputs": [],
-        "params": [],
-    }
-    assert has_details(desc)
-
-
-def test_has_details_false_for_bare_node() -> None:
-    """A node with no params and only a one-paragraph docstring
-    has nothing to expand into."""
-    desc = {
-        "class_name": "NoOp",
-        "display_name": "No-Op",
-        "section": "",
-        "module": "",
-        "docstring": "Does nothing.",
-        "inputs": [],
-        "outputs": [],
-        "params": [],
-    }
-    assert not has_details(desc)
-
-
-# ── prose cleanup (shared by both renderers) ───────────────────────────────────
+# ── Prose cleanup (Sphinx roles, RST inline code, dedent, enum default) ───────
 
 def test_strip_sphinx_roles_removes_role_prefix() -> None:
     """``:class:`Resize``` → ``Resize``. The role prefix is dev
-    syntax leaking into user-visible text, this strips it without
+    syntax leaking into user-visible text; this strips it without
     losing the back-ticked target."""
     assert _strip_sphinx_roles(":class:`Resize`") == "Resize"
     assert _strip_sphinx_roles(":func:`cv2.GaussianBlur`") == "cv2.GaussianBlur"
@@ -258,42 +165,42 @@ def test_strip_sphinx_roles_removes_role_prefix() -> None:
 
 def test_strip_sphinx_roles_shortens_tilde_prefix() -> None:
     """``:class:`~ui.flow_scene.FlowScene``` is Sphinx shorthand for
-    "show only the last component" — the renderers mirror that."""
+    "show only the last component" — the renderer mirrors that."""
     assert (
         _strip_sphinx_roles(":class:`~ui.flow_scene.FlowScene`")
         == "FlowScene"
     )
 
 
-def test_summary_strips_sphinx_roles_from_brief() -> None:
+def test_strips_sphinx_roles_from_docstring() -> None:
     desc = _example_desc()
     desc["docstring"] = (
         "Wraps :func:`cv2.GaussianBlur` from the OpenCV API."
     )
-    out = render_node_summary(desc)
+    out = render_node_html(desc)
     assert ":func:" not in out
     assert "cv2.GaussianBlur" in out
 
 
-def test_details_strips_sphinx_roles_from_descriptions() -> None:
+def test_strips_sphinx_roles_from_param_descriptions() -> None:
     desc = _example_desc()
     desc["params"][0]["description"] = (
         "See :class:`ResizeMethod` for the choices."
     )
-    out = render_node_details(desc)
+    out = render_node_html(desc)
     assert ":class:" not in out
     assert "ResizeMethod" in out
 
 
-def test_summary_converts_rst_inline_code_to_code_tags() -> None:
+def test_converts_rst_inline_code_to_code_tags() -> None:
     desc = _example_desc()
     desc["docstring"] = "Wraps ``cv2.GaussianBlur`` from the OpenCV API."
-    out = render_node_summary(desc)
+    out = render_node_html(desc)
     assert "``" not in out
     assert "<code>cv2.GaussianBlur</code>" in out
 
 
-def test_details_dedents_class_docstring() -> None:
+def test_dedents_class_docstring() -> None:
     """Class docstrings whose first line is at column zero but body
     is indented to match the class definition come out dedented;
     otherwise leading whitespace would survive into HTML."""
@@ -302,12 +209,12 @@ def test_details_dedents_class_docstring() -> None:
         "First line at column zero.\n\n"
         "    Second paragraph indented by four spaces in source."
     )
-    out = render_node_details(desc)
+    out = render_node_html(desc)
     assert "    Second paragraph" not in out
     assert "Second paragraph indented" in out
 
 
-def test_details_normalises_enum_default_to_member_name() -> None:
+def test_normalises_enum_default_to_member_name() -> None:
     """Python ``Enum`` members repr as ``<MyEnum.NAME: 0>`` — that
     raw form must not leak into the panel via the default-extras
     line."""
@@ -319,34 +226,27 @@ def test_details_normalises_enum_default_to_member_name() -> None:
 
     desc = _example_desc()
     desc["params"][0]["default"] = _Method.SCALE
-    out = render_node_details(desc)
+    out = render_node_html(desc)
     assert "&lt;_Method.SCALE" not in out
     assert "default <code>SCALE</code>" in out
 
 
+# ── Real-node round trip ──────────────────────────────────────────────────────
+
 def test_real_node_round_trips_through_describe_node() -> None:
     """End-to-end: a real node class flows through ``describe_node``
-    and the resulting summary + details cover its essentials with
-    no Sphinx role leakage from the docstring."""
+    and the resulting body covers its essentials with no Sphinx
+    role leakage."""
     from core.node_doc import describe_node
     from nodes.filters.gaussian_blur import GaussianBlur
 
     desc = describe_node(GaussianBlur)
-    summary = render_node_summary(desc)
-    details = render_node_details(desc)
+    out = render_node_html(desc)
 
-    assert ">Gaussian Blur</h1>" in summary
-    # Inputs (including the editable param ports) and Outputs are
-    # in the summary head now.
-    assert "<h2>Inputs</h2>" in summary
-    assert "<h2>Outputs</h2>" in summary
-    assert "ksize" in summary
-    assert "sigma" in summary
-    assert ":class:" not in summary
-    assert ":func:" not in summary
-
-    # Details must not duplicate the input/output tables.
-    assert "<h2>Inputs</h2>" not in details
-    assert "<h2>Outputs</h2>" not in details
-    assert ":class:" not in details
-    assert ":func:" not in details
+    assert ">Gaussian Blur</h1>" in out
+    assert "<h2>Inputs</h2>" in out
+    assert "<h2>Outputs</h2>" in out
+    assert "ksize" in out
+    assert "sigma" in out
+    assert ":class:" not in out
+    assert ":func:" not in out

@@ -15,24 +15,9 @@ class RangeSource(SourceNodeBase):
 
     Drives downstream nodes with a numeric stream — animate a
     Math expression's ``a``, an Overlay's rotation angle, etc.
-
-    Parameters:
-      min_value  -- first emitted value (inclusive).
-      max_value  -- inclusive upper bound; the iterator stops once
-                    ``min_value + n * increment`` would exceed it.
-      increment  -- step size between emitted values (must be > 0).
-                    Whole-number increments emit ints (so a
-                    downstream Display shows ``42`` rather than
-                    ``42.0``); fractional increments promote every
-                    emitted value to float.
-      loop       -- when False (default), emits the range once and
-                    finishes; when True, repeats it
-                    :data:`_LOOP_CYCLES` times so a wraparound is
-                    observable in a finite run.
-
-    The looping cycle count is bounded because emitting forever would
-    only stop on a Stop click — the cap keeps a forgotten ``loop=True``
-    from filling logs / output files indefinitely.
+    Whole-number increments emit ints; fractional increments emit
+    floats. With ``loop=True`` the range repeats a bounded number
+    of times so a stray ``loop`` doesn't run indefinitely.
     """
 
     #: How many times the counter cycles when ``loop=True``. Bounded

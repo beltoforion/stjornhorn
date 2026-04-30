@@ -10,11 +10,9 @@ from core.port import InputPort, OutputPort
 class ThrowException(NodeBase):
     """Debug node that raises a RuntimeError whenever it processes.
 
-    Its only purpose is to surface the pipeline's exception handling path
-    (status bar message, log entry, run abort) during development. The node
-    declares one image input and one image output so it can be wired into a
-    flow like any filter; the output is never produced because ``process``
-    always raises before sending.
+    Use during development to exercise the pipeline's exception path
+    (status bar message, log entry, run abort). The output is never
+    produced because the node always raises before sending.
     """
 
     def __init__(self) -> None:

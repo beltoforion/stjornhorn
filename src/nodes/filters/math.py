@@ -193,40 +193,18 @@ class _ExpressionParam(StringParam):
 class Math(NodeBase):
     """Evaluate an arithmetic expression on up to four SCALAR streams.
 
-    Inputs:
-      ``a`` (required) — fires the node on every new value.
-      ``b``, ``c``, ``d`` (optional, default 0.0) — feed the
-      matching variable in the expression. Unconnected ports keep
-      their inline-edited default.
+    ``a`` (required) drives the node; ``b``, ``c``, ``d`` are
+    optional with default 0.0. ``expression`` is a Python-style
+    arithmetic expression in ``a``, ``b``, ``c``, ``d`` plus the
+    constants ``pi`` / ``e`` and the whitelisted math helpers. A
+    bad expression raises immediately on edit.
 
-    Param:
-      ``expression`` — a Python-style arithmetic expression in the
-      lowercase variables ``a``, ``b``, ``c``, ``d`` (matching the
-      input port names) plus the helpers in
-      :data:`_ALLOWED_FUNCTIONS` and the constants ``pi`` / ``e``.
-      Default ``"a"``.
+    Examples::
 
-    Examples:
-      ``"a + b"``                  — classic binary add.
-      ``"a * b + c * d"``          — bilinear blend.
-      ``"sin(a * pi/180) * b"``    — a in degrees, scaled by b.
-      ``"a if b > 0 else c"``      — conditional select.
-
-    Safety:
-      The expression is parsed via :mod:`ast` and every visited node
-      is checked against :data:`_ALLOWED_AST_NODES`,
-      :data:`_ALLOWED_NAMES`, :data:`_ALLOWED_CONSTANT_TYPES` and
-      (for calls) :data:`_ALLOWED_FUNCTIONS`. Compilation happens
-      after validation; the per-frame ``eval`` runs with empty
-      ``__builtins__`` and a fixed namespace. There is no path from a
-      user-typed expression to attribute access, item access,
-      statements, comprehensions, lambdas, f-strings, argument
-      unpacking, keyword args, or any name that is not explicitly
-      whitelisted — sandbox-escape patterns like
-      ``().__class__.__bases__[0].__subclasses__()`` are rejected at
-      parse time. A bad expression raises at the moment the
-      ``expression`` param is set, so a typo surfaces immediately in
-      the UI rather than mid-flow.
+        "a + b"
+        "a * b + c * d"
+        "sin(a * pi/180) * b"
+        "a if b > 0 else c"
     """
 
     a = FloatParam(

@@ -13,11 +13,10 @@ from core.port import InputPort, OutputPort
 class Rotate(NodeBase):
     """Rotate an image around its centre by ``angle`` degrees.
 
-    Positive ``angle`` rotates counter-clockwise (matching
-    :func:`cv2.getRotationMatrix2D` and the existing Overlay node).
-    With ``expand=True`` the output canvas grows to fit the rotated
-    image so no pixels are clipped; with ``expand=False`` the output
-    keeps the input dimensions and corners may fall outside.
+    Positive ``angle`` rotates counter-clockwise. With ``expand=True``
+    the output canvas grows to fit the rotated image so no pixels are
+    clipped; with ``expand=False`` the output keeps the input
+    dimensions and corners may fall outside.
     """
 
     angle = FloatParam(

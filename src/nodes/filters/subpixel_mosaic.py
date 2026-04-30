@@ -16,17 +16,10 @@ class SubpixelMosaic(NodeBase):
 
     Each source pixel is scattered across three mono-channel sub-pixels
     on a 1.5× wider, 2× taller canvas, echoing the R/G/B arrangement of
-    a physical display's shadow mask. Even and odd source columns use
-    mirrored tile patterns so the sub-pixels pack without gaps.
-
-    The raw mosaic distorts the source aspect ratio (vertical stretch
-    by 4/3). When ``keep_aspect`` is enabled the canvas is nearest-
-    neighbour rescaled to 2w × 2h so the output matches the source
-    proportions. ``output_grayscale`` drops the colour and emits the
+    a physical display's shadow mask. The raw mosaic distorts the
+    source aspect ratio (vertical stretch by 4/3); ``keep_aspect``
+    rescales it back to 2w × 2h. ``output_grayscale`` emits the
     per-pixel sample intensity as a single-channel image.
-
-    Ported from OCVL's ``RbgJoinProcessor.__rgbify`` visualisation; the
-    scatter kernel is JIT-compiled by numba (``@njit(cache=True)``).
     """
 
     keep_aspect = BoolParam(

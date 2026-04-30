@@ -24,30 +24,15 @@ class OutputFormat(Enum):
 class FileSink(SinkNodeBase):
     """Sink node that writes the incoming frame to disk.
 
-    Paths inside the application's :data:`OUTPUT_DIR` are stored — and
-    therefore displayed — relative to that folder. Anything outside is kept
-    as an absolute path. Relative paths are resolved against ``OUTPUT_DIR``
-    at run time, which keeps saved flows portable across machines that
-    share the same input layout.
+    Paths inside :data:`OUTPUT_DIR` are stored relative to that folder
+    so saved flows port cleanly. ``output_path`` is a filename
+    template — ``$frame_index$``, ``$source_stem$`` etc. expand at
+    write time, with width syntax ``$tok:N$`` for zero-padding.
 
-    The ``output_path`` is a :ref:`filename template
-    <core.filename_template>`: ``$frame_index$``, ``$source_stem$``,
-    ``$source_ext$``, ``$source_name$`` placeholders expand from the
-    incoming :class:`~core.io_data.IoMeta` at write time, with optional
-    width syntax ``$tok:N$`` for zero-padding (e.g.
-    ``out_$frame_index:2$.png`` → ``out_03.png``). A literal path
-    without placeholders behaves like the old single-file write.
-
-    Two inputs:
-
-    * ``image`` — the frame to write. Marked ``hold_last=True`` so a
-      one-shot source (an :class:`ImageSource`, a :class:`CsvSource`)
-      can sit alongside a ``tick`` clock without going stale on the
-      second tick.
-    * ``tick`` — optional SCALAR clock. When connected, every tick
-      drives one write; the per-port ``frame_index`` it carries flows
-      into the templated filename. When dangling, the sink falls back
-      to the legacy "fire on every image frame" behaviour.
+    The optional ``tick`` SCALAR input drives one write per tick when
+    connected; otherwise the sink fires on every image frame. The
+    ``image`` port latches its last value so a one-shot source can
+    sit alongside a streaming ``tick`` clock.
     """
 
     output_path = FilePathParam(

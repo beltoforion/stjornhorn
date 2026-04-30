@@ -13,32 +13,11 @@ from core.port import InputPort, OutputPort
 class AddIndexColumn(NodeBase):
     """Prepend a synthetic numeric column to a :data:`IoDataType.DATASET`.
 
-    Single-responsibility companion to nodes that need an explicit X axis
-    (``PlotXY``, ``Hodogram``) but receive a DATASET with no natural one
-    — typical for ``CsvSource`` reading a one-column trace where the
-    sample number / time has to be synthesised. Slotting this node
-    upstream means the X axis is a *real, named column* every
-    downstream node can address by name, instead of an implicit
-    "row index" baked into the renderer.
-
-    The new column is inserted at position 0 so it becomes the default
-    X for ``PlotXY`` (whose empty-``x_column`` falls back to the first
-    column). ``df.attrs`` is preserved so upstream metadata
-    (``sample_rate``, ``source_path``, …) survives the transform.
-
-    Set ``step = 1 / sample_rate`` to produce a time axis in seconds
-    instead of a bare sample index. The node is intentionally generic
-    — sample-rate awareness lives upstream (or in a future
-    ``AddTimeAxis`` thin wrapper) so this node stays domain-free.
-
-    Parameters:
-      name  -- column name for the new index. Default ``"index"``.
-               Raises if a column with the same name already exists.
-      start -- first value of the index. Default ``0.0``.
-      step  -- increment per row. Default ``1.0`` (sample numbers).
-               Strictly positive — a non-positive step would produce a
-               flat or descending axis that no downstream renderer
-               currently expects.
+    Useful when a downstream renderer (``PlotXY``, ``Hodogram``)
+    needs an explicit X axis but the DATASET has no natural one (e.g.
+    a one-column trace from ``CsvSource``). The new column is
+    inserted at position 0 so it becomes the default X. Set
+    ``step = 1 / sample_rate`` to produce a time axis in seconds.
     """
 
     name = StringParam(

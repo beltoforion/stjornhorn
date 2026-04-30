@@ -17,25 +17,9 @@ _TIME_COL: str = "t"
 class PlotSeries(NodeBase):
     """Synthesise a time axis and render a single-column trace as an XY plot.
 
-    Combines :class:`~nodes.filters.add_index_column.AddIndexColumn` and
-    :class:`~nodes.filters.plot_xy.PlotXY` into one node for the common
-    case of plotting a raw single-column :data:`IoDataType.DATASET`
-    (e.g. directly from :class:`~nodes.sources.csv_source.CsvSource`).
-
-    Internally the two nodes are instantiated as private members and
-    driven in sequence during :meth:`process_impl` — no logic is
-    duplicated.
-
-    Parameters:
-      step     -- time step between samples (seconds). Use
-                  ``1 / sample_rate``: e.g. ``0.125`` for 8 Hz.
-      start    -- time of the first sample (default ``0.0``).
-      y_column -- column to plot on Y. Empty (default) picks the first
-                  column of the input dataset (typically ``c0`` from
-                  :class:`~nodes.sources.csv_source.CsvSource`).
-      width / height -- output image size in pixels (≥ 64).
-      title    -- optional plot title.
-      grid     -- draw a faint grid (default True).
+    Combines :class:`AddIndexColumn` + :class:`PlotXY` into one node
+    for plotting a raw single-column :data:`IoDataType.DATASET`. Set
+    ``step = 1 / sample_rate`` for a seconds axis.
     """
 
     step = FloatParam(

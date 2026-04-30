@@ -19,21 +19,10 @@ _SUPPORTED_EXTS = {".mp4", ".avi", ".mov", ".mkv"}
 class VideoSource(SourceNodeBase):
     """Source node that reads video frames from a file.
 
-    Supported formats: MP4, AVI, MOV, MKV.
-
-    Paths inside the application's :data:`INPUT_DIR` are stored — and
-    therefore displayed — relative to that folder. Anything outside is
-    kept as an absolute path. Relative paths are resolved against
-    ``INPUT_DIR`` at run time, which keeps saved flows portable across
-    machines that share the same input layout.
-
-    Unlike :class:`ImageSource`, this source is **not** reactive — the flow
-    only runs when the Run button is pressed.  This avoids restarting a
-    potentially long video decode on every keystroke.
-
-    Parameters:
-      file_path      -- path to the input video (relative to INPUT_DIR when possible)
-      max_num_frames -- maximum number of frames to decode (-1 = all)
+    Supported formats: MP4, AVI, MOV, MKV. Paths inside
+    :data:`INPUT_DIR` are stored relative to that folder so saved
+    flows port cleanly. Not reactive — runs only on Run, to avoid
+    restarting long decodes on every keystroke.
     """
 
     file_path = FilePathParam(

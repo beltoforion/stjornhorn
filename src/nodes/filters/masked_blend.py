@@ -13,35 +13,16 @@ class MaskedBlend(NodeBase):
     """Per-pixel blend of two images driven by a greyscale mask.
 
     For every pixel ``out = base * (1 - m) + overlay * m`` with
-    ``m = mask / 255`` — the mask's intensity controls how much of
-    the overlay shows through. A black mask emits the base unchanged,
-    a white mask emits the overlay unchanged, and intermediate values
-    cross-fade smoothly. This is the missing primitive that
-    :class:`~nodes.filters.overlay.Overlay` doesn't cover: Overlay
-    blends with a *uniform* alpha (or a per-pixel alpha embedded in a
-    BGRA overlay), whereas this node accepts the mask as a separate
-    input — so you can drive the mask with any greyscale producer
-    (gradient image, threshold output, distance field, …) instead of
-    having to bake it into the overlay's alpha channel.
+    ``m = mask / 255`` — black mask emits ``base``, white mask emits
+    ``overlay``, intermediate values cross-fade. Unlike
+    :class:`~nodes.filters.overlay.Overlay` (which uses a uniform
+    alpha or BGRA channel), the mask is a separate input so any
+    greyscale producer can drive it.
 
-    Type strategy:
-      If either ``base`` or ``overlay`` is colour
-      (:data:`IoDataType.IMAGE`), any greyscale image input is
-      promoted to BGR via ``cv2.cvtColor(..., COLOR_GRAY2BGR)`` and
-      the output is emitted as ``IMAGE``. If both are greyscale, the
-      output stays greyscale. The ``mask`` input accepts either type
-      and is reduced to a single channel internally — feeding a 3- or
-      4-channel image keeps the first channel (cheap, and matches the
-      common case of a greyscale gradient that
-      :class:`~nodes.sources.image_source.ImageSource` has promoted
-      to BGR).
-
-    Size strategy:
-      ``base`` and ``overlay`` must have identical ``H x W``. The
-      ``mask`` is resized to ``base``'s ``H x W`` if it differs, with
-      :data:`cv2.INTER_LINEAR` so a small procedural gradient can
-      drive a full-resolution stream without the user having to match
-      sizes manually.
+    ``base`` and ``overlay`` must have identical ``H x W``; if either
+    is colour, the output is colour and the other is promoted. The
+    ``mask`` is reduced to a single channel and resized to ``base``
+    if it differs.
     """
 
     def __init__(self) -> None:

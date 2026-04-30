@@ -30,40 +30,11 @@ _COMMENT_CHAR: str = "#"
 class CsvSource(SourceNodeBase):
     """Source node that reads a CSV file as an :data:`IoDataType.DATASET`.
 
-    First end-to-end producer of the new ``DATASET`` payload — load any
-    CSV (seismic export, instrument log, simulation output, …) and the
-    rest of the data-flow nodes pick it up. The DataFrame's columns
-    identify channels and ``df.attrs["source_path"]`` records the
-    resolved file path so downstream nodes can include it in error
-    messages or UI hints.
-
-    Paths inside :data:`constants.INPUT_DIR` are stored — and therefore
-    displayed — relative to that folder, so saved flows stay portable
-    across machines that share the same input layout. Paths outside
-    are kept absolute. Resolution back to an absolute path happens at
-    run time.
-
-    This source is *reactive*: editing any parameter re-runs the flow
-    immediately, matching :class:`~nodes.sources.image_source.ImageSource`'s
-    UX.
-
-    Lines beginning with ``#`` are always skipped, so files that lead
-    with a metadata header line (seismic ASCII traces with
-    ``# stat … samp …``, gnuplot output, many instrument-log dumps)
-    load without any extra configuration — the data section starts on
-    the first non-``#`` line.
-
-    Parameters:
-      file_path  -- path to the CSV (relative to INPUT_DIR when possible).
-      delimiter  -- column separator. Default ``","``. Type ``\\t`` for
-                    a tab; ``;`` for European-style CSVs is supported
-                    natively.
-      has_header -- when True (default), the first row is treated as
-                    column names. When False, columns get synthetic
-                    ``c0``, ``c1``, … names so downstream column
-                    selectors still have something to bind to.
-      decimal    -- decimal separator inside numeric cells. Default
-                    ``"."``; set to ``","`` for European decimals.
+    Paths inside :data:`INPUT_DIR` are stored relative to that folder
+    so saved flows port cleanly. Reactive: re-runs the flow on any
+    parameter edit. Lines beginning with ``#`` are skipped, so files
+    that lead with a metadata header (seismic ASCII traces, gnuplot
+    output, instrument logs) load without extra configuration.
     """
 
     file_path = FilePathParam(

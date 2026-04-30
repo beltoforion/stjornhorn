@@ -12,15 +12,9 @@ from core.port import InputPort, OutputPort
 class Clamp(NodeBase):
     """Clamp a SCALAR stream to ``[min_value, max_value]``.
 
-    Each frame the input value is constrained to the configured range:
-    values below ``min_value`` become ``min_value``, values above
-    ``max_value`` become ``max_value``, and values inside the range
-    pass through unchanged.
-
     If ``min_value > max_value`` the bounds are swapped before
-    clamping — the alternative (raising) would be hostile in a UI
-    where the user types one bound at a time and may transiently
-    invert the range.
+    clamping, so a transiently-inverted range during editing is
+    tolerated.
     """
 
     min_value = FloatParam(
