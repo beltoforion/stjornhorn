@@ -12,6 +12,13 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (PlotXY / PlotSeries config-only params)
+
+- **`title` and `grid` on `PlotXY` and `PlotSeries` are now constant
+  params** — config-only inline editors instead of wireable input
+  ports. Neither value is animated frame-to-frame in any reasonable
+  flow, so the socket dot was just visual noise.
+
 ### Removed (PlotXY band ports)
 
 - **`PlotXY` lost its `band_start` / `band_end` SCALAR input ports.**

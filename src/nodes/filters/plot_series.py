@@ -80,10 +80,12 @@ class PlotSeries(NodeBase):
     title = StringParam(
         "",
         placeholder="(no title)",
+        constant=True,
         description="Optional plot title rendered above the axes.",
     )
     grid = BoolParam(
         True,
+        constant=True,
         description="Draw a faint grid across the plot area.",
     )
 
