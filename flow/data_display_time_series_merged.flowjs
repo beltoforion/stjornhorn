@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.20",
+  "app_version": "0.3.0.21",
   "name": "data_display_time_series_merged",
   "nodes": [
     {
@@ -46,8 +46,8 @@
       "module": "nodes.filters.join_datasets",
       "class": "JoinDatasets",
       "position": [
-        -1620.0,
-        -380.0
+        -1635.0753230131995,
+        -420.7033721356379
       ],
       "port_defaults": {
         "column_names": "N,E"
@@ -58,8 +58,8 @@
       "module": "nodes.sources.range_source",
       "class": "RangeSource",
       "position": [
-        -1620.0,
-        -140.0
+        -1635.0753230131995,
+        -180.7033721356379
       ],
       "port_defaults": {
         "min_value": 0,
@@ -72,8 +72,8 @@
       "module": "nodes.filters.sliding_window",
       "class": "SlidingWindow",
       "position": [
-        -1200.0,
-        -300.0
+        -1335.677907118793,
+        -417.5875195029539
       ],
       "port_defaults": {
         "window_size": 256,
@@ -86,8 +86,8 @@
       "module": "nodes.filters.plot_series",
       "class": "PlotSeries",
       "position": [
-        -750.0,
-        -540.0
+        -1005.9587513438214,
+        -211.15035202085602
       ],
       "port_defaults": {
         "step": 0.125,
@@ -104,8 +104,8 @@
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -750.0,
-        260.0
+        -1006.795588508817,
+        -558.0282059811692
       ],
       "port_defaults": {
         "x_column": "N",
@@ -121,8 +121,8 @@
       "module": "nodes.filters.mosaic",
       "class": "Mosaic",
       "position": [
-        -250.0,
-        -200.0
+        -738.1923924956512,
+        -416.036930689539
       ],
       "port_defaults": {
         "layout": "AB"
@@ -133,8 +133,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        80.0,
-        -100.0
+        -509.44512981608955,
+        -223.09001240277166
       ],
       "port_defaults": {},
       "size": [
@@ -147,14 +147,18 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        420.0,
-        260.0
+        144.34771870365216,
+        232.26140565571347
       ],
       "port_defaults": {
         "output_path": "ground_motion_merged.mp4",
         "fps": 30.0,
         "codec": 0
-      }
+      },
+      "size": [
+        318.25416156768057,
+        148.0
+      ]
     }
   ],
   "connections": [
@@ -226,31 +230,14 @@
         -540.0
       ],
       "size": [
-        560.0,
-        450.0
+        548.201921120105,
+        494.5705202129368
       ],
       "title": "Sources",
       "color": [
         70,
         60,
         40,
-        140
-      ]
-    },
-    {
-      "position": [
-        -1670.0,
-        -440.0
-      ],
-      "size": [
-        420.0,
-        420.0
-      ],
-      "title": "Merge + Window",
-      "color": [
-        50,
-        70,
-        60,
         140
       ]
     }
