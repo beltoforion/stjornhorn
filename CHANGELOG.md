@@ -12,26 +12,34 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
-### Added (PolarSpectrum node)
+### Changed (PolarSpectrum split into reusable building blocks)
 
-- **New `PolarSpectrum` filter (section "Visualization").** For each
-  azimuth θ ∈ [0, 2π), rotates the input pair (x, y) into a single
-  trace ``r_θ(t) = x cos θ + y sin θ``, takes the magnitude FFT, and
-  renders the result as a polar heatmap (angular axis = azimuth,
-  radial axis = frequency, colour = amplitude). Pairs with
-  `SlidingWindow` upstream so each window produces one polar-spectrum
-  frame — particle-motion analytics for two-component sensor data
-  (seismology N + E channels, etc.).
-- Defaults follow the geographic / seismic convention: θ = 0 at the
-  top, angles increase clockwise, dB amplitude scaling, viridis
-  colormap. Configurable: `n_angles` (azimuth resolution), `n_fft`
-  inferred from the input length with a Hann window, `freq_max`
-  (clip the radial axis), `db_scale`, `colormap`, `width`/`height`,
-  optional title.
-- Tests cover: rotated-FFT math (synthetic motion along the x-axis,
-  y-axis, and 45° diagonal each peaks at the corresponding azimuth),
-  dB floor relative to the spectrum peak, output shape, no-figure-
-  leak, column-resolution errors.
+- **`PolarSpectrum` removed** in favour of three single-responsibility
+  nodes that compose to the same chain and stay useful on their own:
+  - **`DirectionalProjection`** (section "Data"): `DATASET (x, y) →
+    DATASET` with `n_angles` columns, each `r_j(t) = x·cos θ_j +
+    y·sin θ_j`. Stamps the per-column azimuth array onto
+    `df.attrs["thetas_rad"]` so downstream renderers can recover the
+    angle binding without reparsing column names.
+  - **`Spectrum`** (section "Frequency"): per-column magnitude FFT of
+    a `DATASET`. The output's row index is frequency in Hz; columns
+    match the input. `sample_rate`, `freq_max`, `db_scale`, and an
+    optional Hann taper are configurable. First 1-D FFT node in the
+    catalogue (complementary to the existing image-domain `Fft2D`).
+  - **`PolarHeatmap`** (section "Visualization"): generic polar
+    heatmap renderer for `DATASET` payloads. Treats columns as angle
+    bins (read from `df.attrs["thetas_rad"]` or parsed from
+    degree-suffixed column names) and the index as the radial axis.
+    Configurable colormap, θ-zero location, and θ direction (CW for
+    geographic / seismic convention, CCW for math convention).
+- The original directional-FFT polar plot is reproduced by chaining
+  `DirectionalProjection → Spectrum → PolarHeatmap`. Bundled demo
+  flow `flow/data_display_time_series_merged.flowjs` is updated to
+  the new chain in the same PR.
+- Each new node has its own focused test module. The pure-math tests
+  that previously lived on `PolarSpectrum._compute_spectrum` /
+  `_to_db` carry over to `Spectrum`; the rotation math is now its
+  own test module (`test_directional_projection`).
 
 ### Changed (PlotXY / PlotSeries config-only params)
 

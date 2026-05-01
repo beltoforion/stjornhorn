@@ -14,10 +14,34 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-04-30 (M13 in flight — auto-stamp + Repeat
-landed on a branch, sink-port migration follows).
+**Last reviewed:** 2026-05-01 (PolarSpectrum split into reusable
+`DirectionalProjection` + `Spectrum` + `PolarHeatmap`; subgraph
+primitive flagged high-priority — issue #268).
 
 ## High
+
+### OPEN — H7. Subgraph / composite-node primitive (blocks multi-rate flows)
+
+Tracked as issue **#268** — promoted to *high priority* by the user.
+
+The push-only round-robin runner can't express nested loops, so
+"for each outer frame, run an inner sweep, collect, emit one
+result per outer frame" patterns must be hard-coded inside a
+single `process_impl` (current `DirectionalProjection.n_angles`,
+any future windowed-sweep / parameter-sweep / multi-pass node).
+This is the planned-but-not-built `Subgraphs / composite nodes`
+entry in `doc/internal/dataflow.md`.
+
+Concretely missing: re-entrant `Flow.run_to_completion`,
+restartable sources, `PortInputSource` / `PortOutputSink` proxy
+nodes, a `Subgraph` node class, flowjs schema extension for nested
+graphs, UI navigation into subgraphs, Stop-propagation through
+nested flows.
+
+**Direction:** see issue #268 for the staged PR breakdown
+(framework-only first, then proxy nodes, then persistence, then
+UI, then Stop hook, then demo flow). Resolves the multi-rate and
+sub-graph strain points in `dataflow.md` simultaneously.
 
 ### OPEN — H1. NodeBase is a god class
 
@@ -153,6 +177,28 @@ key dispatch to a Qt implementation detail.
 flag from `NodeItem`.
 
 ## Resolved
+
+### DONE — PolarSpectrum was a too-special monolith
+
+Resolved 2026-05-01 on branch `claude/refactor-polar-spectrum-node-SuRec`.
+
+The original `PolarSpectrum` node fused three distinct concerns
+(directional projection of a 2-component vector signal, per-column
+1-D magnitude FFT, polar heatmap rendering) and was therefore only
+useful in exactly one downstream shape. Replaced by three
+single-responsibility nodes:
+
+- `DirectionalProjection` (filter, "Data") — 2-component DATASET →
+  N-column DATASET with `r_j = x·cos θ_j + y·sin θ_j`. Stamps
+  `df.attrs["thetas_rad"]` for downstream binding.
+- `Spectrum` (filter, "Frequency") — per-column magnitude FFT with
+  optional Hann taper, dB scaling, and `freq_max` clipping. First
+  1-D FFT node in the catalogue (complementary to `Fft2D`).
+- `PolarHeatmap` (filter, "Visualization") — generic polar (θ, r)
+  heatmap renderer for DATASET payloads.
+
+The old chain reproduces as `DirectionalProjection → Spectrum →
+PolarHeatmap`; bundled demo flow updated in the same PR.
 
 ### DONE — H2. Convention-driven port↔attribute coupling via name reflection
 
