@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.18",
+  "app_version": "0.3.0.19",
   "name": "data_display_time_series_merged",
   "nodes": [
     {
@@ -83,11 +83,47 @@
     },
     {
       "id": 5,
+      "module": "nodes.filters.plot_series",
+      "class": "PlotSeries",
+      "position": [
+        -750.0,
+        -700.0
+      ],
+      "port_defaults": {
+        "step": 0.125,
+        "start": 0.0,
+        "y_column": "N",
+        "width": 1600,
+        "height": 400,
+        "title": "N-Component",
+        "grid": true
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.plot_series",
+      "class": "PlotSeries",
+      "position": [
+        -750.0,
+        -380.0
+      ],
+      "port_defaults": {
+        "step": 0.125,
+        "start": 0.0,
+        "y_column": "E",
+        "width": 1600,
+        "height": 400,
+        "title": "E-Component",
+        "grid": true
+      }
+    },
+    {
+      "id": 7,
       "module": "nodes.filters.plot_xy",
       "class": "PlotXY",
       "position": [
-        -800.0,
-        -380.0
+        -750.0,
+        -60.0
       ],
       "port_defaults": {
         "x_column": "N",
@@ -99,26 +135,38 @@
       }
     },
     {
-      "id": 6,
+      "id": 8,
+      "module": "nodes.filters.mosaic",
+      "class": "Mosaic",
+      "position": [
+        -250.0,
+        -480.0
+      ],
+      "port_defaults": {
+        "layout": "AC / BC"
+      }
+    },
+    {
+      "id": 9,
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -380.0,
-        -260.0
+        80.0,
+        -200.0
       ],
       "port_defaults": {},
       "size": [
-        700.0,
-        420.0
+        1007.0,
+        434.0
       ]
     },
     {
-      "id": 7,
+      "id": 10,
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        100.0,
-        80.0
+        420.0,
+        180.0
       ],
       "port_defaults": {
         "output_path": "ground_motion_merged.mp4",
@@ -154,20 +202,50 @@
     },
     {
       "src_node": 4,
-      "src_output": 0,
+      "src_output": 1,
       "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 1,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 7,
       "dst_input": 0
     },
     {
       "src_node": 5,
       "src_output": 0,
-      "dst_node": 6,
+      "dst_node": 8,
       "dst_input": 0
     },
     {
       "src_node": 6,
       "src_output": 0,
-      "dst_node": 7,
+      "dst_node": 8,
+      "dst_input": 1
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 2
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 9,
+      "dst_input": 0
+    },
+    {
+      "src_node": 9,
+      "src_output": 0,
+      "dst_node": 10,
       "dst_input": 0
     }
   ],

@@ -15,14 +15,17 @@ once a first tagged release is cut.
 ### Added (merged time-series demo flow)
 
 - **New `flow/data_display_time_series_merged.flowjs`.** A leaner
-  variant of the animated-hodogram demo: both N and E channels merge
+  variant of the animated-hodogram demo. Both N and E channels merge
   into a single multi-column DATASET via `JoinDatasets`, a single
-  `SlidingWindow` slices the merged stream per tick, and a single
-  `PlotXY` renders the windowed N-vs-E motion. 8 nodes / 7
-  connections (vs 11 / 13 in the multi-panel original). The full
-  multi-panel `data_display_time_series.flowjs` stays bundled
-  unchanged for the band-animated waveform + dedicated hodogram
-  experience; pick whichever fits the use case.
+  `SlidingWindow` slices the merged stream per tick, and the same
+  three panels render as in the original — two `PlotSeries` waveforms
+  (one per channel, each with the moving band) plus a `PlotXY`
+  rendering the windowed N-vs-E ground motion. 11 nodes / 12
+  connections (vs 11 / 13 in the multi-panel original — same node
+  count but one fewer SlidingWindow, simpler topology with the
+  windowing happening once for both channels). The original
+  `data_display_time_series.flowjs` stays bundled unchanged for the
+  dedicated `Hodogram` (with time colouring + polarisation overlay).
 - `SlidingWindow` regression-tested on multi-column DataFrames so the
   merged-channel pattern is covered by CI rather than living
   implicitly in the demo.
