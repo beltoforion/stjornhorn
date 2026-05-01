@@ -4,6 +4,7 @@ from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
 from constants import ASSETS_DIR
+from core.io_data import IoDataType
 
 # ── Node header colours by category ────────────────────────────────────────────
 # RGBA tuples; kept separate from the QSS sheet so node-drawing code can
@@ -27,6 +28,42 @@ NODE_PARAM_LABEL_COLOR    = QColor(210, 210, 210)
 PORT_INPUT_COLOR          = QColor(210, 210, 210)
 PORT_OUTPUT_COLOR         = QColor(220, 180,   0)
 PORT_HOVER_COLOR          = QColor(255, 255, 255)
+
+#: Per-:class:`~core.io_data.IoDataType` ring/fill colour for ports.
+#:
+#: A port whose ``accepted_types`` (input) or ``emits`` (output) set
+#: contains *N* types is rendered as *N* equal arcs around the port
+#: ring, each picking its colour from this map. The same palette
+#: drives the connected-state pie-slice fill.
+#:
+#: The palette borrows from common node-editor conventions (Blender,
+#: Houdini): images blue, numerics orange, structures green/violet,
+#: booleans red. When introducing a new :class:`IoDataType`, add an
+#: entry here so the UI doesn't fall back to the neutral default.
+PORT_TYPE_COLORS: dict[IoDataType, QColor] = {
+    IoDataType.IMAGE:       QColor( 59, 130, 246),  # blue
+    IoDataType.IMAGE_GREY:  QColor(156, 163, 175),  # light grey
+    IoDataType.SCALAR:      QColor(245, 158,  11),  # orange
+    IoDataType.MATRIX:      QColor(139,  92, 246),  # violet
+    IoDataType.DATASET:     QColor( 16, 185, 129),  # green
+    IoDataType.BOOL:        QColor(239,  68,  68),  # red
+    IoDataType.STRING:      QColor( 20, 184, 166),  # teal
+    IoDataType.ENUM:        QColor(236,  72, 153),  # pink
+    IoDataType.PATH:        QColor(161,  98,   7),  # brown
+}
+
+#: Fallback ring colour used by :class:`~ui.port_item.PortItem` for any
+#: :class:`IoDataType` not present in :data:`PORT_TYPE_COLORS` — keeps
+#: the UI usable while a new type is being added without forcing a
+#: theme update in the same patch. Same neutral grey as the legacy
+#: input ring.
+PORT_TYPE_DEFAULT_COLOR   = QColor(210, 210, 210)
+
+#: Glyph colour for the small triangle drawn beside an output port to
+#: signal flow direction. Light grey so it reads against both the
+#: canvas background and the node body without competing with the
+#: type-coloured ring.
+PORT_DIRECTION_GLYPH_COLOR = QColor(210, 210, 210)
 
 LINK_COLOR                = QColor(180, 180, 180)
 LINK_SELECTED_COLOR       = QColor(240, 200,   0)
