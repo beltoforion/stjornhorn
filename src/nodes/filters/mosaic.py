@@ -7,11 +7,11 @@ can express side-by-side stacks, NxM grids, and shapes where one
 input spans multiple cells (e.g. a tall hodogram next to two stacked
 waveforms).
 
-Inputs are a fixed pool of nine optional ``image[i]`` ports. The
+Inputs are a fixed pool of nine optional ``image_i`` ports. The
 editor starts with a single visible row and grows by one row each
 time the user wires up the previous tail (see
 :attr:`NodeBase.SHOW_ONLY_USED_INPUTS`). Layout cells reference
-inputs by digit (``1``…``9``); ``image[i]`` is referenced as ``i``
+inputs by digit (``1``…``9``); ``image_i`` is referenced as ``i``
 in the descriptor string.
 """
 from __future__ import annotations
@@ -27,11 +27,11 @@ from core.node_base import NodeBase
 from core.params import StringParam
 from core.port import InputPort, OutputPort
 
-#: Total number of ``image[i]`` input ports the node owns.
+#: Total number of ``image_i`` input ports the node owns.
 _NUM_INPUTS: int = 9
 
 #: Digits that may appear in a layout cell. Each digit ``d``
-#: references input port ``image[d]`` (1-indexed).
+#: references input port ``image_<d>`` (1-indexed).
 _LAYOUT_DIGITS: str = "123456789"
 
 #: Markers for an empty cell in the layout string. Both ``.`` and
@@ -77,7 +77,7 @@ class MosaicLayout:
     Syntax:
       * Rows are separated by ``/``.
       * Inside a row, every non-whitespace character is one cell:
-        a digit ``1``–``9`` (referencing input port ``image[d]``),
+        a digit ``1``–``9`` (referencing input port ``image_<d>``),
         or ``.`` / ``0`` for an empty cell.
       * A digit that occupies multiple adjacent cells declares a
         spanning input — those cells must form an axis-aligned
@@ -89,9 +89,9 @@ class MosaicLayout:
         "12"              two inputs side by side
         "1 / 2"           two inputs stacked vertically
         "12 / 34"         classic 2x2 grid
-        "13 / 23"         image[1] and image[2] on the left,
-                          image[3] spans two rows on the right
-        "11 / 2."         image[1] spans the top row, image[2]
+        "13 / 23"         image_1 and image_2 on the left,
+                          image_3 spans two rows on the right
+        "11 / 2."         image_1 spans the top row, image_2
                           only bottom-left
 
     Whitespace inside a row is ignored, so ``"1 2 / 3 4"`` and
@@ -172,12 +172,12 @@ class Mosaic(NodeBase):
 
     The ``layout`` string describes the cell arrangement (see
     :class:`MosaicLayout` for syntax). Digits ``1``–``9`` map to the
-    nine optional inputs ``image[1]``…``image[9]`` in order; ``.`` or
+    nine optional inputs ``image_1``…``image_9`` in order; ``.`` or
     ``0`` and unconnected cells are black padding. Each input is
     pasted at the top-left of its cell rectangle and padded on the
     right / bottom if smaller.
 
-    Inputs are a fixed pool of nine optional ``image[i]`` ports. The
+    Inputs are a fixed pool of nine optional ``image_i`` ports. The
     editor starts with a single visible row and grows by one row each
     time the user wires up the previous tail. The layout descriptor
     is a constant parameter (rendered italicised between the output
@@ -197,7 +197,7 @@ class Mosaic(NodeBase):
         constant=True,
         description=(
             "Layout descriptor. Rows separated by '/', each digit "
-            "(1-9) references the matching image[…] input, '.' or "
+            "(1-9) references the matching image_<digit> input, '.' or "
             "'0' is empty. Repeat a digit across adjacent cells to "
             "span a rectangle. Examples: '12', '1 / 2', '12 / 34', "
             "'13 / 23'."
@@ -209,7 +209,7 @@ class Mosaic(NodeBase):
         self._layout: str
         for i in range(1, _NUM_INPUTS + 1):
             self._add_input(InputPort(
-                f"image[{i}]", set(IMAGE_TYPES), optional=True,
+                f"image_{i}", set(IMAGE_TYPES), optional=True,
             ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
         self._apply_default_params()
