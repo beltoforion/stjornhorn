@@ -210,6 +210,18 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
             color=colour,
         )
 
+    # Notify each node that the flow is fully restored. Sources use
+    # this hook to warm caches (probe video metadata, count directory
+    # entries) so the first paint doesn't trigger blocking I/O.
+    for node in flow.nodes:
+        try:
+            node.on_flow_loaded()
+        except Exception:
+            logger.exception(
+                f"on_flow_loaded raised for {type(node).__name__} "
+                f"({node.display_name}); continuing load"
+            )
+
     return flow
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

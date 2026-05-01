@@ -198,3 +198,56 @@ def test_each_emit_carries_source_path_in_meta(tmp_path: Path) -> None:
     assert len(captured) == 2
     stems = sorted(d.meta["source_path"].name for d in captured)
     assert stems == ["a.png", "b.png"]
+
+
+# ── Tick-count + on_flow_loaded ──────────────────────────────────────────────
+
+
+def test_tick_count_returns_supported_file_count(tmp_path: Path) -> None:
+    _write_solid_png(tmp_path / "a.png", 10)
+    _write_solid_png(tmp_path / "b.png", 20)
+    _write_solid_png(tmp_path / "c.png", 30)
+    (tmp_path / "notes.txt").write_text("ignored")  # unsupported
+
+    node = DirectorySource()
+    node.directory = tmp_path
+
+    assert node.tick_count() == 3
+
+
+def test_tick_count_returns_none_for_missing_directory(tmp_path: Path) -> None:
+    node = DirectorySource()
+    node.directory = tmp_path / "does_not_exist"
+
+    assert node.tick_count() is None
+
+
+def test_on_flow_loaded_warms_count_cache(tmp_path: Path) -> None:
+    _write_solid_png(tmp_path / "x.png", 5)
+    _write_solid_png(tmp_path / "y.png", 6)
+
+    node = DirectorySource()
+    node.directory = tmp_path
+    node.on_flow_loaded()
+
+    # Cache populated; next call doesn't re-walk. Smoke-test by removing
+    # files from disk — the cached count survives.
+    (tmp_path / "x.png").unlink()
+    (tmp_path / "y.png").unlink()
+
+    assert node.tick_count() == 2  # served from cache, not from disk
+
+
+def test_tick_count_invalidates_when_subdir_toggle_changes(tmp_path: Path) -> None:
+    _write_solid_png(tmp_path / "a.png", 1)
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    _write_solid_png(sub / "b.png", 2)
+    _write_solid_png(sub / "c.png", 3)
+
+    node = DirectorySource()
+    node.directory = tmp_path
+    assert node.tick_count() == 1  # top-level only
+
+    node.include_subdirectories = True
+    assert node.tick_count() == 3  # cache key changed, re-walks

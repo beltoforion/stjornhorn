@@ -23,10 +23,19 @@ once a first tagged release is cut.
   steps). The badge updates live as constant params are edited.
   Supported: `RangeSource` (computed from min/max/increment/loop),
   `ImageSource`, `GradientSource`, `CsvSource`, `ConstantValue` (all
-  show `1×`), `VideoSource` (shows `max_num_frames` when set).
-  `DirectorySource` shows no badge (count is not known until run time).
+  show `1×`), `VideoSource` (probes `cv2.CAP_PROP_FRAME_COUNT` once
+  per file — cached by `(path, mtime)` — and caps by `max_num_frames`
+  when set). `DirectorySource` shows no badge (count is not known
+  until run time).
 - `SourceNodeBase` gains a `tick_count() -> int | None` method;
   subclasses override it to report their frame count.
+- **`NodeBase.on_flow_loaded()` lifecycle hook.** Fires once per node
+  after a flow has been deserialized (params restored, scene populated,
+  connections wired). Default is a no-op; `VideoSource` and
+  `DirectorySource` override it to warm their tick-count caches at
+  load time so the first repaint doesn't stall on `cv2.VideoCapture`
+  metadata reads or directory walks. Exceptions are logged and
+  swallowed by the loader so a single bad node can't sink the load.
 
 ### Changed (M13: SCALAR-port auto-stamp; sinks lose tick port)
 

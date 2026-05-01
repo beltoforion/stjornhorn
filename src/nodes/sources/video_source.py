@@ -37,10 +37,26 @@ class VideoSource(SourceNodeBase):
         super().__init__("Video Source", section="Sources")
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
+        # Probed total frame count, cached by (path, mtime). Populated
+        # eagerly by on_flow_loaded() and lazily by tick_count() if the
+        # node was added in the editor rather than restored from a file.
+        self._frame_count_cache: tuple[tuple[str, float], int] | None = None
+
+    @override
+    def on_flow_loaded(self) -> None:
+        # Warm the frame-count cache at flow-load time so the first
+        # repaint doesn't stall on cv2.VideoCapture.
+        self._probe_frame_count()
 
     @override
     def tick_count(self) -> int | None:
-        return self._max_num_frames if self._max_num_frames >= 0 else None
+        total = self._probe_frame_count()
+        capped = self._max_num_frames if self._max_num_frames >= 0 else None
+        if total is None:
+            return capped
+        if capped is None:
+            return total
+        return min(total, capped)
 
     @override
     def iter_frames(self) -> Iterator[None]:
@@ -87,3 +103,37 @@ class VideoSource(SourceNodeBase):
     def _resolved_path(self) -> Path:
         """Return an absolute path; relative values are joined with INPUT_DIR."""
         return resolve_against(self._file_path, INPUT_DIR)
+
+    def _probe_frame_count(self) -> int | None:
+        """Return the total frame count of the configured video file.
+
+        Reads ``cv2.CAP_PROP_FRAME_COUNT`` (metadata only, no decode) and
+        caches the result keyed by ``(path, mtime)`` so a repaint loop
+        doesn't re-open the file. Returns ``None`` when the path is
+        empty / missing / unreadable so the header badge silently
+        disappears rather than showing a misleading number.
+        """
+        try:
+            path = self._resolved_path()
+        except (TypeError, ValueError):
+            return None
+        if not path.is_file() or path.suffix.lower() not in _SUPPORTED_EXTS:
+            return None
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            return None
+        cache_key = (str(path), mtime)
+        if self._frame_count_cache is not None and self._frame_count_cache[0] == cache_key:
+            return self._frame_count_cache[1]
+        cap = cv2.VideoCapture(str(path))
+        try:
+            if not cap.isOpened():
+                return None
+            count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        finally:
+            cap.release()
+        if count <= 0:
+            return None
+        self._frame_count_cache = (cache_key, count)
+        return count
