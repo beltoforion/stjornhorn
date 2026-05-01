@@ -46,8 +46,8 @@
       "module": "nodes.filters.plot_series",
       "class": "PlotSeries",
       "position": [
-        -1205.6357935245223,
-        -776.0062416822783
+        -1115.5101042083763,
+        -781.8840040289834
       ],
       "port_defaults": {
         "step": 0.125,
@@ -64,8 +64,8 @@
       "module": "nodes.filters.plot_series",
       "class": "PlotSeries",
       "position": [
-        -1206.9240349089678,
-        -409.01768969111777
+        -1116.2907954016732,
+        -407.32361044799075
       ],
       "port_defaults": {
         "step": 0.125,
@@ -82,8 +82,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -1206.9240349089673,
-        -24.299689393284908
+        -1142.549023670141,
+        -19.217451663903883
       ],
       "port_defaults": {
         "x_label": "N",
@@ -101,8 +101,8 @@
       "module": "nodes.filters.mosaic",
       "class": "Mosaic",
       "position": [
-        -868.7596213623468,
-        -462.64099985108356
+        -772.7561696994958,
+        -588.0332632474604
       ],
       "port_defaults": {
         "layout": "AC / BC"
@@ -113,8 +113,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -902.7233178659706,
-        -110.74741628216199
+        -533.2761396390098,
+        -306.07653310817557
       ],
       "port_defaults": {},
       "size": [
@@ -127,8 +127,8 @@
       "module": "nodes.sources.range_source",
       "class": "RangeSource",
       "position": [
-        -1777.9347757473952,
-        -51.00299309065915
+        -1773.4539361493241,
+        -53.243412889694625
       ],
       "port_defaults": {
         "min_value": 0,
@@ -170,8 +170,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -231.1919856370697,
-        378.1360443046987
+        215.51795271252254,
+        207.6809362502491
       ],
       "port_defaults": {
         "output_path": "out.mp4",
