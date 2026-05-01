@@ -16,7 +16,7 @@ class SlidingWindow(NodeBase):
     with ``window_start`` / ``window_end`` (sample-row indices) in
     :class:`~core.io_data.IoMeta`:
 
-    * ``dataset`` — the slice
+    * ``dataset_windowed`` — the slice
       ``df.iloc[start + idx*step : start + idx*step + window_size]``;
       what an :class:`Hodogram` or any windowed analytic plugs into.
     * ``dataset_full`` — the unmodified input dataset, re-stamped per
@@ -69,8 +69,8 @@ class SlidingWindow(NodeBase):
         # driver — every tick fires the node, every finish ends it.
         self._add_input(InputPort("dataset", {IoDataType.DATASET}, hold_last=True))
         self._add_input(InputPort("window_index", {IoDataType.SCALAR}))
-        self._add_output(OutputPort("dataset",      {IoDataType.DATASET}))
-        self._add_output(OutputPort("dataset_full", {IoDataType.DATASET}))
+        self._add_output(OutputPort("dataset_windowed", {IoDataType.DATASET}))
+        self._add_output(OutputPort("dataset_full",     {IoDataType.DATASET}))
         self._apply_default_params()
 
     @override
