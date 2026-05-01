@@ -12,6 +12,15 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Removed (RangeSource.loop)
+
+- **`RangeSource.loop` parameter dropped.** The bounded-cycle counter
+  (10 repeats when `loop=True`) was a footgun — a tick-driven flow that
+  needs more frames is better expressed by widening `max_value` /
+  shrinking `increment`, not by silently multiplying the run by 10×.
+  The `_LOOP_CYCLES` constant is gone with it. Bundled flow files
+  stripped of the now-unrecognised `"loop"` port-default key.
+
 ### Changed (window bounds via IoMeta, demo-flow simplification)
 
 - **`SlidingWindow` carries window bounds in `IoMeta`** instead of as

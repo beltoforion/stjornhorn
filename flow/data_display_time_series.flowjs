@@ -133,8 +133,7 @@
       "port_defaults": {
         "min_value": 0,
         "max_value": 250,
-        "increment": 1.0,
-        "loop": false
+        "increment": 1.0
       }
     },
     {

@@ -38,8 +38,7 @@
       "port_defaults": {
         "min_value": -360,
         "max_value": 0,
-        "increment": 2.0,
-        "loop": true
+        "increment": 2.0
       }
     },
     {
@@ -83,8 +82,7 @@
       "port_defaults": {
         "min_value": 0,
         "max_value": 1000,
-        "increment": 2.0,
-        "loop": false
+        "increment": 2.0
       }
     },
     {
