@@ -12,6 +12,75 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (PlotXY / PlotSeries config-only params)
+
+- **`title`, `grid`, `width`, and `height` on `PlotXY` and
+  `PlotSeries` are now constant params** — config-only inline editors
+  instead of wireable input ports. None of these get meaningfully
+  animated frame-to-frame in any reasonable flow, so the socket dots
+  were just visual noise.
+
+### Removed (PlotSeries.start)
+
+- **`PlotSeries.start` parameter dropped.** Time-axis offsets belong
+  in a dedicated transform node upstream (e.g. a Shift on the time
+  column) — baking them into PlotSeries' rendering conflated config
+  with data. The synthetic time axis is now ``i * step``; the band
+  meta-conversion drops the offset term too. Bundled flow files
+  stripped of the now-unused ``"start"`` port-default key.
+
+### Removed (PlotXY band ports)
+
+- **`PlotXY` lost its `band_start` / `band_end` SCALAR input ports.**
+  They were a hold-over from before PlotSeries took its own cv2-overlay
+  band path; nothing in-tree wires them anymore. The band-drawing code
+  (`axvspan`) is gone with them. Direct PlotXY users who want a band
+  can either layer it themselves on the emitted image or revisit
+  introducing a band primitive when a real consumer exists.
+
+### Fixed (PlotSeries cache invariant)
+
+- **PlotSeries now holds a reference to its cached DataFrame** so
+  CPython can't recycle the GC'd address for the next emit's
+  DataFrame — that would have faked a cache hit on logically-different
+  content. Surfaced by a regression test that creates throwaway
+  DataFrames in a tight loop and asserts re-render count.
+
+### Changed (PlotSeries: multi-channel stacked panels)
+
+- **`PlotSeries` now plots every column of the input dataset as its
+  own panel, stacked top-to-bottom with a shared X (time) axis.** The
+  N-vs-E waveform pair previously needed two `PlotSeries` nodes; one
+  node with a 2-column input (e.g. from `JoinDatasets`) now produces
+  the same visual. Single-column inputs collapse to one panel and
+  render exactly like before.
+- **`y_column` (single) → `y_columns` (comma-separated list).** Empty
+  plots every column (the `JoinDatasets` case); ``"N,E"`` filters to
+  those columns; a typo loudly raises `KeyError` rather than silently
+  dropping a series. Bundled flow files updated to the new key.
+- The internal dependency on `AddIndexColumn` is gone — PlotSeries
+  computes the synthetic time axis inline so its single-responsibility
+  surface (one node = one stacked time-series plot) reads cleaner.
+- The band overlay still tracks the moving window; it now spans every
+  panel of the stack so the highlighted region lines up across
+  channels.
+
+### Added (merged time-series demo flow)
+
+- **New `flow/data_display_time_series_merged.flowjs`.** A leaner
+  variant of the animated-hodogram demo: both N and E channels merge
+  into a single multi-column DATASET via `JoinDatasets`, a single
+  `SlidingWindow` slices it per tick, and a single `PlotSeries` plots
+  N and E as stacked panels with a shared time axis and moving band.
+  A `PlotXY` adds the windowed N-vs-E motion plot alongside.
+  **10 nodes / 10 connections** (vs 11 / 13 in the original
+  multi-panel `data_display_time_series.flowjs`). The original stays
+  bundled for the dedicated `Hodogram` (time-coloured trajectory +
+  polarisation overlay).
+- `SlidingWindow` regression-tested on multi-column DataFrames so the
+  merged-channel pattern is covered by CI rather than living
+  implicitly in the demo.
+
 ### Removed (RangeSource.loop)
 
 - **`RangeSource.loop` parameter dropped.** The bounded-cycle counter

@@ -1,0 +1,244 @@
+{
+  "version": 1,
+  "app_version": "0.3.0.21",
+  "name": "data_display_time_series_merged",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.csv_source",
+      "class": "CsvSource",
+      "position": [
+        -2200.0,
+        -480.0
+      ],
+      "port_defaults": {
+        "file_path": "quakedata/quake_eib_20000908_1139.001",
+        "delimiter": ",",
+        "has_header": false,
+        "decimal": "."
+      },
+      "size": [
+        455.0625,
+        176.0
+      ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.sources.csv_source",
+      "class": "CsvSource",
+      "position": [
+        -2200.0,
+        -260.0
+      ],
+      "port_defaults": {
+        "file_path": "quakedata/quake_eib_20000908_1139.002",
+        "delimiter": ",",
+        "has_header": false,
+        "decimal": "."
+      },
+      "size": [
+        455.0625,
+        176.0
+      ]
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.join_datasets",
+      "class": "JoinDatasets",
+      "position": [
+        -1635.0753230131995,
+        -420.7033721356379
+      ],
+      "port_defaults": {
+        "column_names": "N,E"
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
+      "position": [
+        -1635.0753230131995,
+        -180.7033721356379
+      ],
+      "port_defaults": {
+        "min_value": 0,
+        "max_value": 250,
+        "increment": 1.0
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.sliding_window",
+      "class": "SlidingWindow",
+      "position": [
+        -1335.677907118793,
+        -417.5875195029539
+      ],
+      "port_defaults": {
+        "window_size": 256,
+        "step": 8,
+        "start": 0
+      }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.plot_series",
+      "class": "PlotSeries",
+      "position": [
+        -1005.9587513438214,
+        -211.15035202085602
+      ],
+      "port_defaults": {
+        "step": 0.125,
+        "y_columns": "",
+        "width": 1600,
+        "height": 800,
+        "title": "Ground motion (N + E)",
+        "grid": true
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.plot_xy",
+      "class": "PlotXY",
+      "position": [
+        -1006.795588508817,
+        -558.0282059811692
+      ],
+      "port_defaults": {
+        "x_column": "N",
+        "y_column": "E",
+        "width": 800,
+        "height": 800,
+        "title": "Ground Motion (windowed)",
+        "grid": true
+      }
+    },
+    {
+      "id": 7,
+      "module": "nodes.filters.mosaic",
+      "class": "Mosaic",
+      "position": [
+        -738.1923924956512,
+        -416.036930689539
+      ],
+      "port_defaults": {
+        "layout": "AB"
+      }
+    },
+    {
+      "id": 8,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -509.44512981608955,
+        -223.09001240277166
+      ],
+      "port_defaults": {},
+      "size": [
+        1007.0,
+        434.0
+      ]
+    },
+    {
+      "id": 9,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        144.34771870365216,
+        232.26140565571347
+      ],
+      "port_defaults": {
+        "output_path": "ground_motion_merged.mp4",
+        "fps": 30.0,
+        "codec": 0
+      },
+      "size": [
+        318.25416156768057,
+        148.0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 1
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 1
+    },
+    {
+      "src_node": 4,
+      "src_output": 1,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 0
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 9,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 1
+    }
+  ],
+  "backdrops": [
+    {
+      "position": [
+        -2250.0,
+        -540.0
+      ],
+      "size": [
+        548.201921120105,
+        494.5705202129368
+      ],
+      "title": "Sources",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    }
+  ]
+}

@@ -33,10 +33,10 @@ class AxesDescriptor:
     """Minimal axes geometry needed to paint shapes onto a cached plot
     bitmap without re-rendering through matplotlib.
 
-    Lives in :mod:`plot_xy` because it's produced by :meth:`PlotXY.render_with_axes`
-    and consumed by :class:`~nodes.filters.plot_series.PlotSeries`'s frame-cache
-    (the only current caller). matplotlib's coordinate system is
-    bottom-up; image coords are top-down, so consumers must flip Y via
+    Produced by :meth:`PlotXY.render_with_axes` and consumed by
+    :class:`~nodes.filters.plot_series.PlotSeries`'s frame-cache (the
+    only current caller). matplotlib's coordinate system is bottom-up;
+    image coords are top-down, so consumers must flip Y via
     ``canvas_height - y_pixel``.
     """
     pixel_x:       tuple[float, float]   # axes left/right pixel x (matplotlib coords)
@@ -75,32 +75,31 @@ class PlotXY(NodeBase):
         640,
         min=64,
         unit="px",
+        constant=True,
         description="Output image width in pixels.",
     )
     height = IntParam(
         360,
         min=64,
         unit="px",
+        constant=True,
         description="Output image height in pixels.",
     )
     title = StringParam(
         "",
         placeholder="(no title)",
+        constant=True,
         description="Optional plot title rendered above the axes.",
     )
     grid = BoolParam(
         True,
+        constant=True,
         description="Draw a faint grid across the plot area.",
     )
 
     def __init__(self) -> None:
         super().__init__("Plot XY", section="Visualization")
         self._add_input(InputPort("dataset", {IoDataType.DATASET}))
-        # Optional band overlay: when both endpoints are connected, the
-        # renderer paints a translucent vertical band across that x-range.
-        # Either one missing → no band (current behaviour).
-        self._add_input(InputPort("band_start", {IoDataType.SCALAR}, optional=True))
-        self._add_input(InputPort("band_end",   {IoDataType.SCALAR}, optional=True))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
 
@@ -109,8 +108,6 @@ class PlotXY(NodeBase):
         df: pd.DataFrame = self.inputs[0].data.payload
         x_col = self._resolve_column(df, self._x_column, default_index=0)
         y_col = self._resolve_column(df, self._y_column, default_index=1)
-
-        band = self._resolve_band()
 
         bgr = self._render(
             df[x_col].to_numpy(),
@@ -121,29 +118,10 @@ class PlotXY(NodeBase):
             height=self._height,
             title=self._title,
             grid=self._grid,
-            band=band,
         )
         self.outputs[0].send(IoData.from_image(bgr))
 
     # ── Pure helpers (testable without rendering) ─────────────────────────────
-
-    def _resolve_band(self) -> tuple[float, float] | None:
-        """Return ``(start, end)`` if both band ports carry SCALARs, else ``None``.
-
-        Order is normalised so a reversed pair still draws a forward band —
-        matplotlib's ``axvspan`` accepts either, but normalising up-front
-        keeps downstream consumers (snapshots, regression baselines)
-        deterministic.
-        """
-        bs_port = self.inputs[1]
-        be_port = self.inputs[2]
-        if not (bs_port.has_data and be_port.has_data):
-            return None
-        bs = float(bs_port.data.payload)
-        be = float(be_port.data.payload)
-        if bs > be:
-            bs, be = be, bs
-        return (bs, be)
 
     @staticmethod
     def _resolve_column(
@@ -202,14 +180,8 @@ class PlotXY(NodeBase):
         height: int,
         title: str,
         grid: bool,
-        band: tuple[float, float] | None = None,
     ) -> np.ndarray:
         """Render the plot to a BGR ``uint8`` array via matplotlib Agg.
-
-        ``band`` paints a translucent vertical span (``axvspan``) behind
-        the trace — typically used to highlight the slice the rest of
-        the flow is currently focused on. Painted *before* the line so
-        the trace stays legible.
 
         Always closes the figure before returning so a long-running
         flow doesn't leak figures across frames.
@@ -218,7 +190,7 @@ class PlotXY(NodeBase):
             x, y,
             x_label=x_label, y_label=y_label,
             width=width, height=height,
-            title=title, grid=grid, band=band,
+            title=title, grid=grid,
         )
         return bgr
 
@@ -233,16 +205,13 @@ class PlotXY(NodeBase):
         height: int,
         title: str,
         grid: bool,
-        band: tuple[float, float] | None = None,
     ) -> tuple[np.ndarray, AxesDescriptor]:
         """Render the plot and return the bitmap together with the axes
         pixel / data geometry.
 
         Used by :class:`~nodes.filters.plot_series.PlotSeries` to cache
         the trace render and overlay a moving band in cv2 across many
-        ticks without re-rendering through matplotlib. ``band=None``
-        leaves the bitmap blank in the band region so the caller can
-        paint it later (or not at all).
+        ticks without re-rendering through matplotlib.
         """
         fig = plt.figure(
             figsize=(width / _RENDER_DPI, height / _RENDER_DPI),
@@ -250,8 +219,6 @@ class PlotXY(NodeBase):
         )
         try:
             ax = fig.add_subplot(111)
-            if band is not None:
-                ax.axvspan(band[0], band[1], alpha=0.20, color="#ffd24a", zorder=0)
             ax.plot(x, y)
             ax.set_xlabel(x_label)
             ax.set_ylabel(y_label)

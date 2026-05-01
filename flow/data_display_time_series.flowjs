@@ -51,12 +51,11 @@
       ],
       "port_defaults": {
         "step": 0.125,
-        "start": 0.0,
-        "y_column": "c0",
         "width": 1600,
         "height": 400,
         "title": "N-Component",
-        "grid": true
+        "grid": true,
+        "y_columns": "c0"
       }
     },
     {
@@ -69,12 +68,11 @@
       ],
       "port_defaults": {
         "step": 0.125,
-        "start": 0.0,
-        "y_column": "c0",
         "width": 1600,
         "height": 400,
         "title": "E-Component",
-        "grid": true
+        "grid": true,
+        "y_columns": "c0"
       }
     },
     {
