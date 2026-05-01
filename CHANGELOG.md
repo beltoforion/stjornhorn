@@ -12,6 +12,27 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Added (PolarSpectrum node)
+
+- **New `PolarSpectrum` filter (section "Visualization").** For each
+  azimuth θ ∈ [0, 2π), rotates the input pair (x, y) into a single
+  trace ``r_θ(t) = x cos θ + y sin θ``, takes the magnitude FFT, and
+  renders the result as a polar heatmap (angular axis = azimuth,
+  radial axis = frequency, colour = amplitude). Pairs with
+  `SlidingWindow` upstream so each window produces one polar-spectrum
+  frame — particle-motion analytics for two-component sensor data
+  (seismology N + E channels, etc.).
+- Defaults follow the geographic / seismic convention: θ = 0 at the
+  top, angles increase clockwise, dB amplitude scaling, viridis
+  colormap. Configurable: `n_angles` (azimuth resolution), `n_fft`
+  inferred from the input length with a Hann window, `freq_max`
+  (clip the radial axis), `db_scale`, `colormap`, `width`/`height`,
+  optional title.
+- Tests cover: rotated-FFT math (synthetic motion along the x-axis,
+  y-axis, and 45° diagonal each peaks at the corresponding azimuth),
+  dB floor relative to the spectrum peak, output shape, no-figure-
+  leak, column-resolution errors.
+
 ### Changed (PlotXY / PlotSeries config-only params)
 
 - **`title`, `grid`, `width`, and `height` on `PlotXY` and
