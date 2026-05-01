@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.16",
+  "app_version": "0.3.0.29",
   "name": "video_fft",
   "nodes": [
     {
@@ -31,8 +31,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1805.6872234939024,
-        -302.5868403460163
+        -1778.9098729985424,
+        -292.1734262644875
       ],
       "port_defaults": {},
       "size": [
@@ -87,8 +87,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1093.802998683355,
-        -534.433068041629
+        -1029.834883611107,
+        -471.9525835524563
       ],
       "port_defaults": {},
       "size": [
