@@ -42,20 +42,25 @@ class DisplayPreview(_PreviewWidgetBase):
     """Inline preview for :class:`~nodes.filters.display.Display`.
 
     Shows every frame the Display sees as a scaled pixmap inside the
-    node body. Frames arrive on the worker thread via the node's
-    ``frame_callback``; a queued :class:`Signal` hops them to the UI
-    thread where the pixmap is swapped in.
+    node body, with a status line beneath the image listing FPS,
+    running frame number, and image resolution. Frames arrive on the
+    worker thread via the node's ``frame_callback``; a queued
+    :class:`Signal` hops them to the UI thread where the pixmap and
+    status line are swapped in.
     """
 
-    #: Worker thread emits a ready QImage for image payloads. AutoConnection
-    #: resolves to a queued connection across threads so Qt handles the
-    #: marshalling for us.
-    _frame_ready = Signal(QImage)
-    #: Worker thread emits formatted text for SCALAR / MATRIX payloads.
-    _text_ready = Signal(str)
+    #: Worker thread emits a ready QImage and the status string for
+    #: image payloads. AutoConnection resolves to a queued connection
+    #: across threads so Qt handles the marshalling for us.
+    _frame_ready = Signal(QImage, str)
+    #: Worker thread emits formatted text and the status string for
+    #: SCALAR / MATRIX payloads.
+    _text_ready = Signal(str, str)
 
     _PREVIEW_MIN_W: int = 180
     _PREVIEW_MIN_H: int = 100
+
+    _STATUS_PLACEHOLDER: str = "—"
 
     def __init__(self, node: Display) -> None:
         super().__init__(node)
@@ -72,14 +77,31 @@ class DisplayPreview(_PreviewWidgetBase):
         self._placeholder_text = "(no frame yet)"
         self._label.setText(self._placeholder_text)
 
+        # Status bar beneath the image. Fixed height so the image area
+        # owns all the slack from the resize grip.
+        self._status = QLabel(self._STATUS_PLACEHOLDER)
+        self._status.setAlignment(
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+        )
+        self._status.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed,
+        )
+        self._status.setStyleSheet(
+            "QLabel { background: #1a1a1a; border: 1px solid #333;"
+            "         border-top: none; color: #d6d6d6;"
+            "         font-family: 'Consolas','Menlo',monospace;"
+            "         font-size: 11px; padding: 2px 6px; }"
+        )
+
         # Mirror Expanding on the enclosing widget so its parent layout
         # honours vertical stretch rather than collapsing to sizeHint.
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(2)
-        layout.addWidget(self._label)
+        layout.setSpacing(0)
+        layout.addWidget(self._label, 1)
+        layout.addWidget(self._status, 0)
 
         # Original-resolution frame; we always scale from this to avoid
         # losing quality on successive resizes.
@@ -103,13 +125,21 @@ class DisplayPreview(_PreviewWidgetBase):
         self-owning QImage (so the underlying numpy buffer can be freed
         without tearing the pixmap) and hop across threads via
         ``_frame_ready``; SCALAR / MATRIX payloads format to a string
-        and hop via ``_text_ready``.
+        and hop via ``_text_ready``. The current FPS and frame count
+        are read from the node here, on the worker thread, so the
+        snapshot stays consistent with the payload being sent.
         """
+        node = self._node
+        assert isinstance(node, Display)
+        status = _format_status(
+            node.current_fps, node.frames_processed, in_data.payload,
+        )
+
         if in_data.type is IoDataType.SCALAR:
-            self._text_ready.emit(_format_scalar(in_data.payload))
+            self._text_ready.emit(_format_scalar(in_data.payload), status)
             return
         if in_data.type is IoDataType.MATRIX:
-            self._text_ready.emit(_format_matrix(in_data.payload))
+            self._text_ready.emit(_format_matrix(in_data.payload), status)
             return
 
         try:
@@ -125,22 +155,24 @@ class DisplayPreview(_PreviewWidgetBase):
                 f"(shape={getattr(in_data.payload, 'shape', '?')}): {exc}"
             )
             return
-        self._frame_ready.emit(qimg)
+        self._frame_ready.emit(qimg, status)
 
     # ── UI thread ──────────────────────────────────────────────────────────────
 
-    @Slot(QImage)
-    def _on_frame_ready(self, qimg: QImage) -> None:
+    @Slot(QImage, str)
+    def _on_frame_ready(self, qimg: QImage, status: str) -> None:
         self._source_image = qimg
         self._render_scaled()
+        self._status.setText(status)
 
-    @Slot(str)
-    def _on_text_ready(self, text: str) -> None:
+    @Slot(str, str)
+    def _on_text_ready(self, text: str, status: str) -> None:
         # Switching to text mode invalidates any cached image so a
         # later resize doesn't redraw stale pixels behind the text.
         self._source_image = None
         self._label.setPixmap(QPixmap())
         self._label.setText(text)
+        self._status.setText(status)
 
     def _render_scaled(self) -> None:
         if self._source_image is None:
@@ -152,6 +184,36 @@ class DisplayPreview(_PreviewWidgetBase):
             Qt.TransformationMode.SmoothTransformation,
         )
         self._label.setPixmap(pixmap)
+
+
+# ── Status line ───────────────────────────────────────────────────────────────
+
+
+def _format_status(
+    fps: float | None, frame_count: int, payload: np.ndarray,
+) -> str:
+    """Format the status line shown beneath the preview image.
+
+    Reports FPS, the running frame number, and the resolution /
+    shape of the current payload. FPS is omitted (rendered as a dash)
+    on the very first frame, before a measurable interval exists.
+    Image shapes render as ``W×H``; matrices keep their numpy shape;
+    scalars show ``scalar``.
+    """
+    fps_text = f"{fps:.1f}" if fps is not None else "—"
+
+    if payload.ndim == 0:
+        size_text = "scalar"
+    elif payload.ndim == 2:
+        h, w = payload.shape
+        size_text = f"{w}×{h}"
+    elif payload.ndim == 3:
+        h, w = payload.shape[:2]
+        size_text = f"{w}×{h}"
+    else:
+        size_text = "×".join(str(d) for d in payload.shape)
+
+    return f"FPS {fps_text}   N {frame_count}   {size_text}"
 
 
 # ── Scalar / matrix formatting ────────────────────────────────────────────────

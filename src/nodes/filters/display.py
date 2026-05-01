@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from typing import Callable
 
-import cv2
 import numpy as np
 from typing_extensions import override
 
@@ -23,9 +22,10 @@ class Display(NodeBase):
     to watch encoding as it happens). Accepts image (colour or
     greyscale), SCALAR and MATRIX payloads.
 
-    A small FPS + frame-count overlay is drawn on the *displayed*
-    copy of image frames; the output stays clean so downstream sinks
-    don't record the overlay.
+    FPS and frame count are tracked on the node and exposed as
+    properties; the inline preview widget reads them to render a
+    status line beneath the image. The pixel payload is never
+    annotated, so downstream sinks see clean frames.
     """
 
     # Exponential-moving-average smoothing factor for the FPS readout.
@@ -50,10 +50,9 @@ class Display(NodeBase):
     def latest_frame(self) -> np.ndarray | None:
         """Most recent payload seen, or ``None`` before any run.
 
-        For image payloads this is the overlay-annotated frame (so the
-        preview widget renders the debug info); for SCALAR / MATRIX
-        payloads it is the raw 0-d / 2-d array unchanged. The output
-        port always forwards the original payload either way.
+        Always the original payload — the node no longer mutates the
+        pixels, so what the preview renders matches what the output
+        port forwards.
         """
         return self._latest_frame
 
@@ -61,6 +60,15 @@ class Display(NodeBase):
     def frames_processed(self) -> int:
         """Total frames dispatched since the last run started."""
         return self._frame_count
+
+    @property
+    def current_fps(self) -> float | None:
+        """Smoothed frames-per-second for the dispatch cadence.
+
+        ``None`` until at least two frames have been seen — a single
+        tick has no measurable interval.
+        """
+        return self._fps_ema
 
     # ── UI integration ─────────────────────────────────────────────────────────
 
@@ -71,7 +79,9 @@ class Display(NodeBase):
 
         Receives the full :class:`IoData` envelope (not just the array)
         so the preview widget can dispatch on payload kind — image
-        pixmap vs. scalar/matrix text.
+        pixmap vs. scalar/matrix text. The widget can read
+        :attr:`current_fps` and :attr:`frames_processed` from the node
+        at callback time to render the status line.
 
         The callback fires on whichever thread :meth:`process_impl`
         runs on — the UI widget is responsible for marshalling back
@@ -97,7 +107,7 @@ class Display(NodeBase):
 
         # Track dispatch cadence regardless of payload kind — a SCALAR
         # stream has the same notion of "frames per second" as an
-        # image stream, even if we don't render an overlay onto it.
+        # image stream.
         now = time.monotonic()
         if self._last_frame_ts is not None:
             dt = now - self._last_frame_ts
@@ -112,79 +122,9 @@ class Display(NodeBase):
                     )
         self._last_frame_ts = now
 
-        # Image payloads get the debug overlay drawn on a copy for the
-        # preview; SCALAR / MATRIX payloads bypass the overlay since
-        # the text-mode preview has no image to annotate. The view
-        # IoData (annotated copy or original) is what the callback
-        # receives — the output port always forwards the original.
-        if in_data.is_image():
-            annotated = self._draw_overlay(in_data.payload, self._fps_ema, self._frame_count)
-            view_data = IoData(in_data.type, payload=annotated)
-            self._latest_frame = annotated
-        else:
-            view_data = in_data
-            self._latest_frame = in_data.payload
+        self._latest_frame = in_data.payload
 
         if self._frame_callback is not None:
-            self._frame_callback(view_data)
+            self._frame_callback(in_data)
 
-        # Forward the original payload — overlays are display-only so a
-        # downstream sink (e.g. VideoSink) doesn't record them to disk.
         self.outputs[0].send(in_data)
-
-    # ── Overlay ────────────────────────────────────────────────────────────────
-
-    @staticmethod
-    def _draw_overlay(
-        image: np.ndarray,
-        fps: float | None,
-        frame_count: int,
-    ) -> np.ndarray:
-        """Return a copy of *image* with a debug overlay in the top-left.
-
-        Shows the frame count on every tick. The FPS line is added from
-        tick 2 onwards once a measurable ``dt`` is available.
-        Greyscale (2-D) and colour (3-D) images are both handled.
-        """
-        annotated = image.copy()
-        font  = cv2.FONT_HERSHEY_SIMPLEX
-        scale = 0.6
-        thick = 1
-        pad   = 4
-
-        lines: list[str] = []
-        if fps is not None:
-            lines.append(f"FPS {fps:5.1f}")
-        lines.append(f"N   {frame_count:5d}")
-
-        sizes = [cv2.getTextSize(t, font, scale, thick) for t in lines]
-        line_h   = sizes[0][0][1]
-        baseline = sizes[0][1]
-        total_w  = max(s[0][0] for s in sizes)
-        line_gap = 6  # px between successive baselines
-
-        x     = 8
-        y_top = 8 + line_h  # baseline of the first rendered line
-
-        rect_top    = y_top - line_h - pad
-        rect_bottom = y_top + (len(lines) - 1) * (line_h + line_gap) + baseline + pad
-        rect_right  = x + total_w + pad
-
-        # Greyscale (2-D) and colour (3-D) take different scalar shapes for
-        # cv2.rectangle / putText — branch once instead of guessing.
-        is_grey = annotated.ndim == 2
-        bg = 0         if is_grey else (0, 0, 0)
-        fg = 255       if is_grey else (255, 255, 255)
-
-        cv2.rectangle(
-            annotated,
-            (x - pad, rect_top),
-            (rect_right, rect_bottom),
-            bg, -1,
-        )
-
-        for i, text in enumerate(lines):
-            y = y_top + i * (line_h + line_gap)
-            cv2.putText(annotated, text, (x, y), font, scale, fg, thick, cv2.LINE_AA)
-
-        return annotated
