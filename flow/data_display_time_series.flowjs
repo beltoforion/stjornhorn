@@ -46,8 +46,8 @@
       "module": "nodes.filters.plot_series",
       "class": "PlotSeries",
       "position": [
-        -1115.5101042083763,
-        -781.8840040289834
+        -1038.8436388165699,
+        -778.4766055671254
       ],
       "port_defaults": {
         "step": 0.125,
@@ -64,8 +64,8 @@
       "module": "nodes.filters.plot_series",
       "class": "PlotSeries",
       "position": [
-        -1116.2907954016732,
-        -407.32361044799075
+        -1039.624330009867,
+        -403.9162119861327
       ],
       "port_defaults": {
         "step": 0.125,
@@ -82,8 +82,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -1142.549023670141,
-        -19.217451663903883
+        -1065.8825582783345,
+        -15.810053202045765
       ],
       "port_defaults": {
         "x_label": "N",
@@ -101,8 +101,8 @@
       "module": "nodes.filters.mosaic",
       "class": "Mosaic",
       "position": [
-        -772.7561696994958,
-        -588.0332632474604
+        -752.3117789283475,
+        -588.0332632474602
       ],
       "port_defaults": {
         "layout": "AC / BC"
@@ -127,8 +127,8 @@
       "module": "nodes.sources.range_source",
       "class": "RangeSource",
       "position": [
-        -1773.4539361493241,
-        -53.243412889694625
+        -1642.0533149358944,
+        -273.53268962985686
       ],
       "port_defaults": {
         "min_value": 0,
@@ -142,8 +142,8 @@
       "module": "nodes.filters.sliding_window",
       "class": "SlidingWindow",
       "position": [
-        -1471.0607881423816,
-        -524.5999777996988
+        -1407.9369603045577,
+        -635.3887368620028
       ],
       "port_defaults": {
         "window_size": 256,
@@ -156,8 +156,8 @@
       "module": "nodes.filters.sliding_window",
       "class": "SlidingWindow",
       "position": [
-        -1467.7969355227071,
-        -217.59854948541468
+        -1422.7084870671183,
+        -91.35089380976612
       ],
       "port_defaults": {
         "window_size": 256,
@@ -304,12 +304,12 @@
     },
     {
       "position": [
-        -1798.8241384445391,
-        -582.0
+        -1689.3236207666807,
+        -669.6004141422867
       ],
       "size": [
-        566.2384984062655,
-        728.0753862239765
+        512.1323602595592,
+        925.1763180441216
       ],
       "title": "Sliding window",
       "color": [
