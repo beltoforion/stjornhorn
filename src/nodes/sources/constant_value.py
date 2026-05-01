@@ -29,5 +29,9 @@ class ConstantValue(SourceNodeBase):
         return True
 
     @override
+    def tick_count(self) -> int | None:
+        return 1
+
+    @override
     def process_impl(self) -> None:
         self.outputs[0].send(IoData.from_scalar(self._value))

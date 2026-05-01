@@ -18,6 +18,31 @@ def _wire_capture(node: RangeSource) -> list[IoData]:
     return captured
 
 
+def test_tick_count_matches_emitted_frame_count() -> None:
+    """tick_count() must agree with the actual number of frames emitted."""
+    cases = [
+        dict(min_value=0,   max_value=4,   increment=1.0,  loop=False),
+        dict(min_value=1,   max_value=1000, increment=10.0, loop=False),
+        dict(min_value=0,   max_value=9,   increment=1.0,  loop=True),
+        dict(min_value=0,   max_value=1,   increment=0.5,  loop=False),
+    ]
+    for params in cases:
+        node = RangeSource()
+        for k, v in params.items():
+            setattr(node, k, v)
+        captured = _wire_capture(node)
+        node.before_run()
+        node.process_impl()
+        assert node.tick_count() == len(captured), f"mismatch for {params}"
+
+
+def test_tick_count_empty_range() -> None:
+    node = RangeSource()
+    node.min_value = 10
+    node.max_value = 5  # inverted → 0 ticks
+    assert node.tick_count() == 0
+
+
 def test_emits_scalar_iodata_per_frame() -> None:
     node = RangeSource()
     node.min_value = 0

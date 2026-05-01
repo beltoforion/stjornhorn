@@ -373,6 +373,11 @@ class NodeItem(QGraphicsItem):
     SKIP_BUTTON_SIZE: float = 14.0
     HEADER_BUTTON_GAP: float = 4.0
     RESIZE_GRIP_SIZE: float = 12.0
+    # Source node header: play-triangle icon dimensions and the gap
+    # between the triangle's right edge and the title text.
+    SOURCE_ICON_H: float = 10.0
+    SOURCE_ICON_W: float = 9.0
+    SOURCE_ICON_GAP: float = 4.0
 
     # ── Port row geometry ──────────────────────────────────────────────────────
     #: Horizontal inset between a row's port label and the inline param
@@ -420,6 +425,9 @@ class NodeItem(QGraphicsItem):
 
         self._build_ports()
         self._relayout()
+        # Repaint the header badge whenever a constant param changes so the
+        # tick count stays in sync with the current param values.
+        self._signals.param_changed.connect(self.update)
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -522,6 +530,42 @@ class NodeItem(QGraphicsItem):
         painter.setPen(border_pen)
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
+
+        # ── source node play-icon (►) ──
+        if isinstance(self._node, SourceNodeBase):
+            # Position the icon flush with the left margin, vertically centred.
+            # For source nodes that also have a skip button the icon sits between
+            # PADDING and the skip button, matching _title_left logic.
+            skip_offset = (
+                self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
+                if self._skip_button is not None else 0.0
+            )
+            ix = self.PADDING + skip_offset
+            iy = (self.HEADER_HEIGHT - self.SOURCE_ICON_H) / 2
+            triangle = QPainterPath()
+            triangle.moveTo(ix, iy)
+            triangle.lineTo(ix + self.SOURCE_ICON_W, iy + self.SOURCE_ICON_H / 2)
+            triangle.lineTo(ix, iy + self.SOURCE_ICON_H)
+            triangle.closeSubpath()
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QBrush(QColor(255, 255, 255, 160)))
+            painter.drawPath(triangle)
+
+        # ── tick-count badge ──
+        tick_label = self._tick_label()
+        if tick_label:
+            tick_w = QFontMetricsF(QApplication.font()).horizontalAdvance(tick_label)
+            painter.setPen(QPen(QColor(255, 255, 255, 160)))
+            painter.drawText(
+                QRectF(
+                    self._width - self.PADDING - self.CLOSE_BUTTON_SIZE - self.PADDING - tick_w,
+                    0,
+                    tick_w,
+                    self.HEADER_HEIGHT,
+                ),
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
+                tick_label,
+            )
 
         # ── title text ──
         painter.setPen(QPen(NODE_TITLE_TEXT_COLOR))
@@ -675,15 +719,34 @@ class NodeItem(QGraphicsItem):
         return FILTER_HEADER_COLOR
 
     def _title_right_reserve(self) -> float:
-        """Horizontal space reserved on the header's right edge for buttons."""
-        return self.CLOSE_BUTTON_SIZE + self.PADDING
+        """Horizontal space reserved on the header's right edge for buttons
+        and (for source nodes) the tick-count badge."""
+        return self.CLOSE_BUTTON_SIZE + self.PADDING + self._tick_label_width()
 
     def _title_left(self) -> float:
-        """X offset where the title text starts, accounting for the left-side
-        skip button when the node is skippable."""
+        """X offset where the title text starts, accounting for the source
+        node play-icon and (when present) the left-side skip button."""
+        offset = self.PADDING
+        if isinstance(self._node, SourceNodeBase):
+            offset += self.SOURCE_ICON_W + self.SOURCE_ICON_GAP
         if self._skip_button is not None:
-            return self.PADDING + self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
-        return self.PADDING
+            offset += self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
+        return offset
+
+    def _tick_label(self) -> str:
+        """Badge text for source nodes whose frame count is known (e.g. ``"100×"``).
+        Returns an empty string for non-sources and sources with unknown count."""
+        if not isinstance(self._node, SourceNodeBase):
+            return ""
+        count = self._node.tick_count()
+        return f"{count}×" if count is not None else ""
+
+    def _tick_label_width(self) -> float:
+        """Pixel width reserved for the tick badge (zero when there is none)."""
+        label = self._tick_label()
+        if not label:
+            return 0.0
+        return QFontMetricsF(QApplication.font()).horizontalAdvance(label) + self.PADDING
 
     def toggle_skipped(self) -> None:
         """Flip the node's skipped state and refresh the visual."""

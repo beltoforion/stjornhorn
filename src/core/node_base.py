@@ -599,6 +599,19 @@ class NodeBase(ABC):
         for port in self._outputs:
             port.finish()
 
+    def on_flow_loaded(self) -> None:
+        """Hook fired once after the node has been deserialized into a flow.
+
+        Called by :func:`ui.flow_io.load_flow_into` for every node after
+        all params are restored, the node is in the scene, and connections
+        have been wired. The default is a no-op; override it for
+        cache-warming work that would otherwise stall the first paint —
+        :class:`~nodes.sources.video_source.VideoSource` reads its frame
+        count here, :class:`~nodes.sources.directory_source.DirectorySource`
+        counts files. Anything raised is caught at the caller and logged
+        so a single bad node doesn't sink the whole load.
+        """
+
 
 # ── Abstract base classes for sources and sinks ────────────────────────────────
 
@@ -656,6 +669,16 @@ class SourceNodeBase(NodeBase, ABC):
         """
         self.process()
         yield
+
+    def tick_count(self) -> int | None:
+        """Number of frames this source will emit, or ``None`` if unknown.
+
+        Used by the node header to display a frame count badge. Reactive
+        (one-shot) sources return ``1``; streaming sources that know their
+        count return it; sources whose count depends on runtime state
+        (file size, directory contents) return ``None``.
+        """
+        return None
 
     @final
     def start(self) -> None:

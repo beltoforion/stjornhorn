@@ -51,6 +51,21 @@ class DirectorySource(SourceNodeBase):
         super().__init__("Directory Source", section="Sources")
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
+        # File-count cache for the header badge, keyed by
+        # ``(path, include_subdirectories)`` so a toggle invalidates it.
+        # Warmed by :meth:`on_flow_loaded`; refreshed lazily by
+        # :meth:`tick_count` when the params change interactively.
+        self._count_cache: tuple[tuple[str, bool], int] | None = None
+
+    @override
+    def on_flow_loaded(self) -> None:
+        # Walk the directory at load time so the first paint doesn't
+        # block on a stat-heavy directory listing.
+        self._probe_file_count()
+
+    @override
+    def tick_count(self) -> int | None:
+        return self._probe_file_count()
 
     @override
     def iter_frames(self) -> Iterator[None]:
@@ -86,6 +101,29 @@ class DirectorySource(SourceNodeBase):
     def _resolved_path(self) -> Path:
         """Return an absolute path; relative values are joined with INPUT_DIR."""
         return resolve_against(self._directory, INPUT_DIR)
+
+    def _probe_file_count(self) -> int | None:
+        """Return the count of supported image files under the configured
+        directory, cached by ``(path, include_subdirectories)``.
+
+        Returns ``None`` for an unset / missing path so the header badge
+        silently disappears rather than showing a misleading number.
+        """
+        try:
+            path = self._resolved_path()
+        except (TypeError, ValueError):
+            return None
+        if not path.is_dir():
+            return None
+        cache_key = (str(path), bool(self._include_subdirectories))
+        if self._count_cache is not None and self._count_cache[0] == cache_key:
+            return self._count_cache[1]
+        try:
+            count = len(self._iter_image_files(path))
+        except OSError:
+            return None
+        self._count_cache = (cache_key, count)
+        return count
 
     def _iter_image_files(self, root: Path) -> list[Path]:
         """Return supported image files under *root* in lexicographic order.

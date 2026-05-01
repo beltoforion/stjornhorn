@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Iterator
 
 from typing_extensions import override
@@ -73,6 +74,14 @@ class RangeSource(SourceNodeBase):
                 self.outputs[0].send(IoData.from_scalar(value))
                 n += 1
                 yield
+
+    @override
+    def tick_count(self) -> int | None:
+        if self._increment <= 0.0 or self._max_value < self._min_value:
+            return 0
+        cycles = self._LOOP_CYCLES if self._loop else 1
+        per_cycle = math.floor((self._max_value - self._min_value) / self._increment) + 1
+        return per_cycle * cycles
 
     @override
     def process_impl(self) -> None:
