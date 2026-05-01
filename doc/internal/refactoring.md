@@ -14,9 +14,9 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-05-01 (PolarSpectrum split into reusable
-`DirectionalProjection` + `Spectrum` + `PolarHeatmap`; subgraph
-primitive flagged high-priority — issue #268).
+**Last reviewed:** 2026-05-01 (dynamic input ports on Math /
+JoinDatasets / Mosaic via `core.dynamic_ports.DynamicInputGroup`;
+new connection-listener and ports-changed framework hooks).
 
 ## High
 

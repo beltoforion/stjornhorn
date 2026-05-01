@@ -7,9 +7,10 @@ from typing import Any, Final
 import numpy as np
 from typing_extensions import override
 
+from core.dynamic_ports import MAX_DYNAMIC_INPUTS, DynamicInputGroup
 from core.io_data import IoData, IoDataType
-from core.node_base import NodeBase
-from core.params import FloatParam, StringParam
+from core.node_base import NodeBase, NodeParamType
+from core.params import StringParam
 from core.port import OutputPort
 
 
@@ -20,7 +21,6 @@ from core.port import OutputPort
 # which are common sandbox-escape primitives:
 #
 #   ast.Attribute      — ``A.__class__`` etc., the classic escape
-#   ast.Subscript      — ``A[0]`` (lets you reach into containers)
 #   ast.Lambda         — ``lambda: A``
 #   ast.NamedExpr      — ``x := A`` (Python 3.8+ walrus)
 #   ast.JoinedStr      — f-strings (allow nested expression parsing)
@@ -33,10 +33,9 @@ from core.port import OutputPort
 #   ast.MatMult / BitAnd / BitOr / BitXor / LShift / RShift / Invert
 #   ast.Is / IsNot / In / NotIn (identity / membership)
 #
-# Concretely: no attribute access, no item access, no statements, no
-# anonymous functions, no comprehensions, no string interpolation, no
-# argument unpacking, no keyword args, no bitwise / matmul ops, no
-# identity / membership comparisons.
+# ``ast.Subscript`` is allowed *only* in the narrow form ``v[<int>]``
+# (validated below) so the user can write ``v[1] + v[2]`` against the
+# dynamic input ports. Every other subscript shape is rejected.
 _ALLOWED_AST_NODES: Final[frozenset[type[ast.AST]]] = frozenset({
     ast.Expression,
     ast.BinOp, ast.UnaryOp,
@@ -48,19 +47,19 @@ _ALLOWED_AST_NODES: Final[frozenset[type[ast.AST]]] = frozenset({
     ast.BoolOp, ast.And, ast.Or, ast.Not,
     ast.Call, ast.Load,
     ast.Constant, ast.Name,
+    ast.Subscript,
 })
 
 
 # Allowed Constant payload types. ``ast.Constant`` is normally produced
 # by the parser only for literal numbers, strings, None, True / False,
 # bytes and Ellipsis. Strings and bytes are inert under our other
-# restrictions (no attribute access, no subscript, no method calls), but
-# numeric expressions have no use for them either way — disallow to
-# keep the threat model boring. Bool is allowed because a literal
-# ``True`` / ``False`` is sometimes useful as a 0 / 1 multiplier.
-# ``None`` is rejected so an expression that accidentally returns
-# ``None`` fails at parse time rather than producing a non-numeric
-# scalar downstream.
+# restrictions (no attribute access, no method calls), but numeric
+# expressions have no use for them either way — disallow to keep the
+# threat model boring. Bool is allowed because a literal ``True`` /
+# ``False`` is sometimes useful as a 0 / 1 multiplier. ``None`` is
+# rejected so an expression that accidentally returns ``None`` fails
+# at parse time rather than producing a non-numeric scalar downstream.
 _ALLOWED_CONSTANT_TYPES: Final[tuple[type, ...]] = (int, float, complex, bool)
 
 
@@ -91,14 +90,18 @@ _ALLOWED_CONSTANTS: Final[dict[str, float]] = {
 }
 
 
-_VARIABLE_NAMES: Final[frozenset[str]] = frozenset({"a", "b", "c", "d"})
+#: The lone variable name an expression may reference. The user
+#: subscripts it as ``v[1]``, ``v[2]``, etc. — one slot per dynamic
+#: input port. ``v`` itself never resolves bare; an expression like
+#: ``v + 1`` raises at validation time.
+_VARIABLE_NAME: Final[str] = "v"
 
 
 # Pre-computed once: the union of every name a parsed Name node may
 # reference. Recomputing per validate() would re-allocate this same
 # set on every keystroke in the editor.
 _ALLOWED_NAMES: Final[frozenset[str]] = frozenset(
-    _VARIABLE_NAMES
+    {_VARIABLE_NAME}
     | _ALLOWED_FUNCTIONS.keys()
     | _ALLOWED_CONSTANTS.keys()
 )
@@ -107,25 +110,27 @@ _ALLOWED_NAMES: Final[frozenset[str]] = frozenset(
 def _validate_ast(tree: ast.AST) -> None:
     """Walk *tree* and reject anything not on the strict whitelist.
 
-    Four classes of check, all enforced uniformly via :func:`ast.walk`
+    Five classes of check, all enforced uniformly via :func:`ast.walk`
     so a deeply-nested escape attempt cannot hide behind a permissive
     parent node:
 
     1. Every visited node's *type* must appear in
        :data:`_ALLOWED_AST_NODES`. This is the primary defense — it
-       rejects ``Attribute``, ``Subscript``, ``Lambda``, ``Starred``,
-       f-strings, comprehensions, walrus, etc.
-    2. Every :class:`ast.Name` must reference one of the four
-       variables, an allowed function or an allowed constant.
+       rejects ``Attribute``, ``Lambda``, ``Starred``, f-strings,
+       comprehensions, walrus, etc.
+    2. Every :class:`ast.Name` must reference :data:`_VARIABLE_NAME`,
+       an allowed function or an allowed constant.
     3. Every :class:`ast.Call` must have a bare ``ast.Name`` as its
        callable, and that name must be in :data:`_ALLOWED_FUNCTIONS`
        (so ``pi(A)`` and ``(sin if A else cos)(B)`` both fail).
        Keyword arguments are explicitly rejected.
     4. Every :class:`ast.Constant`'s *value* must be one of
        :data:`_ALLOWED_CONSTANT_TYPES`. Strings, bytes, ``None`` and
-       ``Ellipsis`` are rejected — they have no use in an arithmetic
-       expression and disallowing them keeps the threat surface
-       boring.
+       ``Ellipsis`` are rejected.
+    5. Every :class:`ast.Subscript` must be of the exact shape
+       ``Subscript(value=Name('v'), slice=Constant(int))`` with the
+       index ``>= 1``. Slices, attribute subscript values, computed
+       indices and bare ``v`` references all fail here.
     """
     for node in ast.walk(tree):
         node_type = type(node)
@@ -152,6 +157,33 @@ def _validate_ast(tree: ast.AST) -> None:
                 raise ValueError(
                     f"disallowed constant type: {type(node.value).__name__}"
                 )
+        elif isinstance(node, ast.Subscript):
+            _validate_subscript(node)
+
+
+def _validate_subscript(node: ast.Subscript) -> None:
+    """Reject every subscript shape except ``v[<positive int literal>]``.
+
+    Split out so the four narrow checks (value is the bare ``v`` name,
+    index is a literal, literal is an int, int is positive) all read
+    in one place. Bare ``v`` references — ``v + 1``, ``sin(v)`` — are
+    rejected indirectly: they trigger :class:`ast.Name` inside an
+    arithmetic position and are still rejected at the function /
+    operand boundary by Python's eval (no subscript means no value).
+    """
+    if not (isinstance(node.value, ast.Name) and node.value.id == _VARIABLE_NAME):
+        raise ValueError(
+            f"only {_VARIABLE_NAME!r} may be subscripted in an expression"
+        )
+    index_node = node.slice
+    if not (isinstance(index_node, ast.Constant) and type(index_node.value) is int):
+        raise ValueError(
+            f"{_VARIABLE_NAME}[…] index must be a positive integer literal"
+        )
+    if index_node.value < 1:
+        raise ValueError(
+            f"{_VARIABLE_NAME}[…] index must be >= 1 (got {index_node.value})"
+        )
 
 
 def _compile_expression(text: str):
@@ -190,80 +222,131 @@ class _ExpressionParam(StringParam):
         object.__setattr__(instance, "_compiled", compiled)
 
 
-class Math(NodeBase):
-    """Evaluate an arithmetic expression on up to four SCALAR streams.
+class _OneIndexedView:
+    """Read-only 1-indexed view onto a list of port values.
 
-    ``a`` (required) drives the node; ``b``, ``c``, ``d`` are
-    optional with default 0.0. ``expression`` is a Python-style
-    arithmetic expression in ``a``, ``b``, ``c``, ``d`` plus the
-    constants ``pi`` / ``e`` and the whitelisted math helpers. A
-    bad expression raises immediately on edit.
+    The user references inputs as ``v[1]`` … ``v[N]`` to match the
+    port labels (``v[1]`` is the first dynamic input). Internally the
+    list is 0-indexed, so this thin wrapper subtracts 1 on every read
+    and raises a clear error for out-of-range or non-integer keys
+    rather than silently returning ``IndexError`` from the underlying
+    list.
+    """
+
+    __slots__ = ("_values",)
+
+    def __init__(self, values: list[float]) -> None:
+        self._values = values
+
+    def __getitem__(self, index: object) -> float:
+        if not isinstance(index, int) or isinstance(index, bool):
+            raise TypeError(
+                f"v[…] index must be an integer (got {type(index).__name__})"
+            )
+        if index < 1 or index > len(self._values):
+            raise IndexError(
+                f"v[{index}] is out of range (have v[1]..v[{len(self._values)}])"
+            )
+        return self._values[index - 1]
+
+
+#: Stable key under which Math publishes its dynamic input group in
+#: the saved-flow JSON. On-disk schema — do not rename.
+_V_GROUP_KEY: str = "v"
+
+
+class Math(NodeBase):
+    """Evaluate an arithmetic expression on a list of SCALAR streams.
+
+    The node starts with a single input ``v[1]``. Whenever the tail
+    input is wired to an upstream, a fresh empty ``v[N+1]`` appears
+    below it, up to a hard cap of nine. Unconnected inputs use the
+    inline-edited default of the corresponding port row.
+
+    ``expression`` is a Python-style arithmetic expression in
+    ``v[1]`` … ``v[N]`` plus the constants ``pi`` / ``e`` and the
+    whitelisted math helpers. A bad expression raises immediately on
+    edit. The dispatcher fires once **at least one** connected input
+    has fresh data; missing inputs that the expression doesn't
+    reference are simply ignored.
 
     Examples::
 
-        "a + b"
-        "a * b + c * d"
-        "sin(a * pi/180) * b"
-        "a if b > 0 else c"
+        "v[1] + v[2]"
+        "v[1] * v[2] + v[3] * v[4]"
+        "sin(v[1] * pi/180) * v[2]"
+        "v[1] if v[2] > 0 else v[3]"
     """
 
-    a = FloatParam(
-        0.0,
-        optional=False,
-        description=(
-            "First operand of the expression. The dispatcher fires "
-            "once `a` has data."
-        ),
-    )
-    b = FloatParam(
-        0.0,
-        description=(
-            "Operand 'b' in the expression. Unconnected ports use "
-            "the inline-edited default."
-        ),
-    )
-    c = FloatParam(
-        0.0,
-        description=(
-            "Operand 'c' in the expression. Unconnected ports use "
-            "the inline-edited default."
-        ),
-    )
-    d = FloatParam(
-        0.0,
-        description=(
-            "Operand 'd' in the expression. Unconnected ports use "
-            "the inline-edited default."
-        ),
-    )
     expression = _ExpressionParam(
-        "a",
+        "v[1]",
         constant=True,
         description=(
-            "Arithmetic expression in the variables a, b, c, d "
-            "plus the helpers sin / cos / tan / asin / acos / "
-            "atan / atan2 / sinh / cosh / tanh / sqrt / exp / "
-            "log / log2 / log10 / abs / floor / ceil / round / "
-            "min / max / deg / rad and the constants pi and e. "
-            "Examples: 'a + b', 'a * b + c * d', "
-            "'sin(a * pi/180) * b', 'a if b > 0 else c'."
+            "Arithmetic expression over the dynamic inputs v[1]..v[N] "
+            "plus the helpers sin / cos / tan / asin / acos / atan / "
+            "atan2 / sinh / cosh / tanh / sqrt / exp / log / log2 / "
+            "log10 / abs / floor / ceil / round / min / max / deg / "
+            "rad and the constants pi and e. Examples: 'v[1] + v[2]', "
+            "'v[1] * v[2] + v[3] * v[4]', 'sin(v[1] * pi/180) * v[2]', "
+            "'v[1] if v[2] > 0 else v[3]'."
         ),
     )
 
     def __init__(self) -> None:
         super().__init__("Math", section="Math")
         self._add_output(OutputPort("result", {IoDataType.SCALAR}))
+        # Dynamic SCALAR inputs. Metadata carries the FLOAT param hint
+        # so the UI renders an inline slider on each row — Math's
+        # ports double as both data inputs and inline-edited
+        # constants when nothing's wired.
+        self._v_group = DynamicInputGroup(
+            self,
+            name_template="v[{i}]",
+            accepted_types={IoDataType.SCALAR},
+            metadata={"param_type": NodeParamType.FLOAT, "default": 0.0},
+            max_count=MAX_DYNAMIC_INPUTS,
+        )
+        # Seed each port's inline default to 0.0. New ports created
+        # later by the dynamic group inherit this through their
+        # metadata's ``default`` key when the UI builds a widget; the
+        # framework's port machinery uses ``default_value`` directly.
+        for port in self._v_group.ports:
+            port.default_value = 0.0
+        # Hook every existing and future port so a connect / disconnect
+        # event seeds new ports with the same default. Future ports
+        # are picked up via the ports-changed listener on the node.
+        self.add_ports_changed_listener(self._seed_new_port_defaults)
+        self._dynamic_input_groups: dict[str, DynamicInputGroup] = {
+            _V_GROUP_KEY: self._v_group,
+        }
         self._apply_default_params()
+
+    def _seed_new_port_defaults(self) -> None:
+        """Initialise ``default_value`` on freshly-appended dynamic ports.
+
+        Idempotent: ports that already have a non-``None`` default are
+        left alone, so a saved-flow restore (which writes the user's
+        last value before this listener fires) wins over the seed.
+        """
+        for port in self._v_group.ports:
+            if port.default_value is None:
+                port.default_value = 0.0
 
     @override
     def process_impl(self) -> None:
-        # NodeBase populated self._a / _b / _c / _d from connected
-        # input ports before this call (port-driven attribute machinery
-        # in :meth:`NodeBase._populate_port_driven_attributes`).
-        # Unconnected optional ports keep the attribute's current
-        # value (the inline-edited default).
+        # Build the value vector in port order. Connected ports
+        # contribute their fresh payload; unconnected ports fall back
+        # to their inline-edited default (the slider value).
+        values: list[float] = []
+        for port in self._v_group.ports:
+            if port.has_data:
+                payload = port.data.payload
+                values.append(float(payload.item() if hasattr(payload, "item") else payload))
+            else:
+                default = port.default_value
+                values.append(float(default) if default is not None else 0.0)
         namespace: dict[str, Any] = {
-            "a": self._a, "b": self._b, "c": self._c, "d": self._d,
+            "v": _OneIndexedView(values),
             **_ALLOWED_CONSTANTS,
             **_ALLOWED_FUNCTIONS,
         }

@@ -115,6 +115,13 @@ input's `accepted_types` set. An input has at most one upstream;
 fan-in is not supported. An output has any number of downstreams
 (fan-out).
 
+`InputPort` carries two independent listener lists. Data /
+lifecycle listeners (`add_listener`) fire on `receive()` /
+`finish()`; connection listeners (`add_connection_listener`) fire
+when `OutputPort.connect()` / `disconnect()` flips the upstream
+binding. The dispatcher hookup uses the first list; dynamic-port
+groups (see "Port-level extensions") use the second.
+
 ## The dispatcher
 
 `NodeBase._signal_input_ready` is registered as a listener on every
@@ -209,6 +216,48 @@ implementation forwards each output from the first type-compatible
 input (data-flow short-circuit). `_on_skipped_changed(skipped)` is
 a hook subclasses override to react to the toggle (PlayGate uses
 it to drain its buffered frames).
+
+### Dynamic input groups (`core.dynamic_ports`)
+
+A `DynamicInputGroup` lets a node grow an append-only list of
+homogeneous, optional input ports at runtime. Math (`v[1]`…`v[9]`),
+JoinDatasets (`dataset[1]`…`dataset[9]`) and Mosaic
+(`image[1]`…`image[9]`) all use it.
+
+Mechanics:
+
+- The node constructs the group in its `__init__`, which seeds
+  exactly one port and registers a connect/disconnect listener on
+  every port it owns (now and in the future).
+- Whenever the *tail* port becomes connected and the group is below
+  its cap (`MAX_DYNAMIC_INPUTS = 9`), the group appends a new empty
+  tail and notifies the owner via `NodeBase._notify_ports_changed`.
+- Disconnects do **not** trim. The list is append-only by design so
+  saved-flow connections (which key port endpoints by integer index)
+  stay stable across edits and round-trips.
+- Nodes publish their groups via `self._dynamic_input_groups: dict[
+  str, DynamicInputGroup]` so the saved-flow serialiser can persist
+  the count under a stable string key (`"v"`, `"dataset"`,
+  `"image"`).
+
+Framework support added for this feature:
+
+- `InputPort.add_connection_listener(cb)` / `remove_connection_listener` —
+  fires from `OutputPort.connect()` / `disconnect()` when an input's
+  upstream binding flips. Distinct from the data-arrival listener
+  list so a topology consumer isn't woken up by every frame.
+- `NodeBase.add_ports_changed_listener(cb)` — fires after the input
+  list mutates. `NodeItem` registers here to rebuild port-row
+  widgets on the fly without re-creating the node graphic.
+- `_populate_port_driven_attributes` skips ports whose name isn't a
+  Python identifier (`v[1]`, `image[3]` …) — they have no
+  descriptor / backing slot, so the owning node reads them straight
+  from `self._inputs` in `process_impl`.
+
+Saved-flow shape: nodes with dynamic groups carry an extra
+`"dynamic_inputs": {"<key>": <count>}` entry. `flow_io._instantiate_node`
+calls `group.ensure_at_least(count)` before applying `port_defaults`
+so a default for slot `v[5]` lands on the corresponding port.
 
 ### Frame-index + SCALAR-port auto-stamping
 

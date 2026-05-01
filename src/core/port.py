@@ -73,6 +73,13 @@ class InputPort:
         self._listeners: list[Callable[[], None]] = []
         if on_state_changed is not None:
             self._listeners.append(on_state_changed)
+        # Edge-changed listeners — fired by ``OutputPort.connect`` /
+        # ``OutputPort.disconnect`` whenever this port's ``upstream``
+        # transitions. Distinct from ``_listeners`` (data / finish
+        # signal fan-out) so a node that wants to grow ports on
+        # connection can hook in without also being woken up by every
+        # data frame. Used by :class:`core.dynamic_ports.DynamicInputGroup`.
+        self._connection_listeners: list[Callable[[], None]] = []
         self._data: IoData | None = None
         self._finished: bool = False
         self._upstream: "OutputPort | None" = None
@@ -169,6 +176,31 @@ class InputPort:
         :meth:`set_on_state_changed` slot.
         """
         self._listeners.append(callback)
+
+    def add_connection_listener(self, callback: Callable[[], None]) -> None:
+        """Register a zero-argument callback for upstream changes.
+
+        Fires after :meth:`OutputPort.connect` binds a new upstream and
+        after :meth:`OutputPort.disconnect` clears one. Distinct from
+        :meth:`add_listener` (which fires on data arrival / finish) so
+        consumers can react to topology changes without being woken up
+        by every data frame. Listeners fire in registration order on a
+        snapshot of the list, so a callback that mutates the list
+        (e.g. by appending a new port whose own listener it then adds)
+        does not re-enter the current notification.
+        """
+        self._connection_listeners.append(callback)
+
+    def remove_connection_listener(self, callback: Callable[[], None]) -> None:
+        """Unregister a previously-added connection listener; no-op if absent."""
+        try:
+            self._connection_listeners.remove(callback)
+        except ValueError:
+            pass
+
+    def _notify_connection_listeners(self) -> None:
+        for listener in tuple(self._connection_listeners):
+            listener()
 
     def remove_listener(self, callback: Callable[[], None]) -> None:
         """Unregister a previously-added listener.
@@ -315,18 +347,24 @@ class OutputPort:
         if input_port not in self._connections:
             self._connections.append(input_port)
             input_port._upstream = self
+            input_port._notify_connection_listeners()
 
     def disconnect(self, input_port: InputPort) -> None:
         if input_port in self._connections:
             self._connections.remove(input_port)
             if input_port.upstream is self:
                 input_port._upstream = None
+                input_port._notify_connection_listeners()
 
     def disconnect_all(self) -> None:
-        for input_port in self._connections:
+        # Snapshot first so listeners that mutate the topology (e.g. a
+        # dynamic-port group trimming its tail) don't surprise the loop.
+        ports = list(self._connections)
+        self._connections.clear()
+        for input_port in ports:
             if input_port.upstream is self:
                 input_port._upstream = None
-        self._connections.clear()
+                input_port._notify_connection_listeners()
 
     @property
     def connections(self) -> list[InputPort]:

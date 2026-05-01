@@ -8,6 +8,7 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 from constants import APP_VERSION
+from core.dynamic_ports import find_dynamic_groups
 from core.flow import Flow
 from core.node_base import NodeBase
 
@@ -64,7 +65,16 @@ def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
         # loader for flow files saved before the rename.
         port_defaults: dict = {}
         for p in node.param_input_ports:
-            port_defaults[p.name] = _jsonable(getattr(node, p.name, None))
+            # Dynamic ports (e.g. Math's ``v[1]``) have no class-level
+            # descriptor / backing attribute — their canonical value
+            # lives on the port's ``default_value`` slot. Identifier
+            # names route through ``getattr`` so the descriptor's
+            # current shaped value wins; non-identifier names fall back
+            # to the port's default_value.
+            if p.name.isidentifier():
+                port_defaults[p.name] = _jsonable(getattr(node, p.name, None))
+            else:
+                port_defaults[p.name] = _jsonable(p.default_value)
         for p in node.params:
             port_defaults[p.name] = _jsonable(getattr(node, p.name, None))
         entry: dict = {
@@ -81,6 +91,15 @@ def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
             entry["size"] = [float(item.width), float(item.body_height)]
         if node.skipped:
             entry["skipped"] = True
+        # Persist the size of every dynamic input group so the loader
+        # can grow the ports back to the saved width before wiring
+        # connections by index. Static-port nodes never publish any
+        # group, so the key stays absent for them.
+        dynamic_groups = find_dynamic_groups(node)
+        if dynamic_groups:
+            entry["dynamic_inputs"] = {
+                key: group.count for key, group in dynamic_groups.items()
+            }
         nodes_out.append(entry)
 
     connections_out: list[dict] = []
@@ -178,6 +197,20 @@ def load_flow_into(path: Path, scene: FlowScene) -> Flow:
         if src_item is None or dst_item is None:
             continue
         
+        # Fallback for hand-written / older saved flows missing the
+        # ``dynamic_inputs`` key: if a destination port index lies past
+        # the current input count, grow whichever dynamic group on the
+        # node owns that range. The first group whose port count
+        # covers the index wins; if none does, the lookup below
+        # IndexErrors and the connection is skipped via the existing
+        # error handler.
+        dst_input_idx = int(conn["dst_input"])
+        if dst_input_idx >= len(dst.inputs):
+            for group in find_dynamic_groups(dst).values():
+                group.ensure_at_least(dst_input_idx + 1)
+                if dst_input_idx < len(dst.inputs):
+                    break
+
         try:
             src_port = src_item.output_port(conn["src_output"])
             dst_port = dst_item.input_port(conn["dst_input"])
@@ -253,6 +286,18 @@ def _instantiate_node(entry: dict) -> NodeBase | None:
         logger.exception(f"Failed to instantiate {module_name}.{class_name}")
         return None
 
+    # Grow dynamic-input groups to the saved width *before* defaults
+    # are applied, so a saved default for slot ``v[5]`` can land on
+    # the port that the loop is about to create. Out-of-range counts
+    # are silently capped at the group's ``max_count``.
+    dynamic_inputs = entry.get("dynamic_inputs") or {}
+    if dynamic_inputs:
+        groups = find_dynamic_groups(node)
+        for key, count in dynamic_inputs.items():
+            group = groups.get(key)
+            if group is not None:
+                group.ensure_at_least(int(count))
+
     # Read the new ``port_defaults`` key first; fall back to the
     # legacy ``params`` key so flow files saved before the
     # param-as-port migration still load (the on-disk shape is
@@ -260,9 +305,18 @@ def _instantiate_node(entry: dict) -> NodeBase | None:
     defaults = entry.get("port_defaults")
     if defaults is None:
         defaults = entry.get("params") or {}
+    # Build a name → port lookup once so dynamic ports (whose names
+    # like ``v[1]`` aren't valid Python identifiers and have no
+    # descriptor) can be restored by writing to their ``default_value``
+    # slot directly.
+    port_by_name = {p.name: p for p in node.inputs}
     for name, value in defaults.items():
+        port = port_by_name.get(name)
         try:
-            setattr(node, name, value)
+            if port is not None and not name.isidentifier():
+                port.default_value = value
+            else:
+                setattr(node, name, value)
         except Exception:
             logger.warning(
                 f"Ignoring port default {name} on {module_name}.{class_name} ({value!r})"

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from core.dynamic_ports import MAX_DYNAMIC_INPUTS
 from core.io_data import IoData, IoDataType
 from core.port import OutputPort
 from nodes.filters.join_datasets import JoinDatasets
@@ -121,6 +122,30 @@ def test_single_input_does_not_emit() -> None:
     up.connect(node.inputs[0])
     up.send(IoData.from_dataset(pd.DataFrame({"c0": [1.0]})))
     assert node.outputs[0].last_emitted is None
+
+
+# ── Dynamic input growth ──────────────────────────────────────────────────────
+
+def test_starts_with_one_dataset_port() -> None:
+    node = JoinDatasets()
+    assert [p.name for p in node.inputs] == ["dataset[1]"]
+
+
+def test_grows_one_port_per_tail_connect() -> None:
+    node = JoinDatasets()
+    up = OutputPort("u1", {IoDataType.DATASET})
+    up.connect(node.inputs[0])
+    assert [p.name for p in node.inputs] == ["dataset[1]", "dataset[2]"]
+
+
+def test_growth_caps_at_nine() -> None:
+    node = JoinDatasets()
+    upstreams = []
+    for i in range(MAX_DYNAMIC_INPUTS):
+        up = OutputPort(f"u{i}", {IoDataType.DATASET})
+        up.connect(node.inputs[i])
+        upstreams.append(up)
+    assert len(node.inputs) == MAX_DYNAMIC_INPUTS
 
 
 # ── Input mutation guard ──────────────────────────────────────────────────────

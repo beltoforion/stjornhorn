@@ -63,7 +63,10 @@
         -1130.0872072939355
       ],
       "port_defaults": {
-        "layout": "AB"
+        "layout": "12"
+      },
+      "dynamic_inputs": {
+        "image": 2
       }
     },
     {

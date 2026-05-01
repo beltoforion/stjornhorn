@@ -6,6 +6,12 @@ layout is declared by a small descriptor string so a single Mosaic
 can express side-by-side stacks, NxM grids, and shapes where one
 input spans multiple cells (e.g. a tall hodogram next to two stacked
 waveforms).
+
+Inputs are dynamic: ``image[1]`` is present at construction; the
+node grows ``image[2]``, ``image[3]``… each time the tail input is
+wired up, capped at nine. Layout cells reference inputs by digit
+(``1``…``9``) — ``image[i]`` is referenced as ``i`` in the
+descriptor string.
 """
 from __future__ import annotations
 
@@ -15,30 +21,36 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
+from core.dynamic_ports import MAX_DYNAMIC_INPUTS, DynamicInputGroup
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
 from core.node_base import NodeBase
 from core.params import StringParam
-from core.port import InputPort, OutputPort
+from core.port import OutputPort
 
-#: Number of optional IMAGE inputs the node exposes. Letters ``A``…
-#: ``F`` of the layout string map to ports 0…5. Six is enough for a
-#: 2x3 / 3x2 grid (the largest the existing flows need) plus a couple
-#: of slots for spanning shapes.
-_NUM_INPUTS: int = 6
-_INPUT_LETTERS: str = "ABCDEF"
+#: Digits that may appear in a layout cell. Each digit ``d`` references
+#: input port ``image[d]`` (1-indexed). The character ``"0"`` is
+#: reserved for "empty cell" along with ``"."`` so a numeric layout
+#: parser doesn't have to special-case the dot just to flag empties.
+_LAYOUT_DIGITS: str = "123456789"
 
-#: Marker for an empty cell in the layout string.
-_EMPTY_CELL: str = "."
+#: Markers for an empty cell in the layout string. Both ``.`` and
+#: ``0`` work — ``0`` keeps a fixed-width grid easy to read at a
+#: glance (every cell is exactly one character with no symbol soup).
+_EMPTY_CELLS: frozenset[str] = frozenset({".", "0"})
 
 #: Row separator inside the layout string.
 _ROW_SEPARATOR: str = "/"
+
+#: Stable key under which Mosaic publishes its dynamic input group in
+#: the saved-flow JSON. On-disk schema — do not rename.
+_IMAGE_GROUP_KEY: str = "image"
 
 
 @dataclass(frozen=True)
 class _Rect:
     """Inclusive cell bounds for one input within the layout grid."""
 
-    letter: str
+    digit: str
     top: int
     bottom: int
     left: int
@@ -52,6 +64,15 @@ class _Rect:
     def col_span(self) -> int:
         return self.right - self.left + 1
 
+    @property
+    def port_index(self) -> int:
+        """Zero-based index of the input port this rectangle refers to.
+
+        ``self.digit`` is the user-facing 1-based label that appears in
+        the layout descriptor; the framework's port list is 0-indexed.
+        """
+        return int(self.digit) - 1
+
 
 class MosaicLayout:
     """Parses and validates a layout descriptor string.
@@ -59,23 +80,25 @@ class MosaicLayout:
     Syntax:
       * Rows are separated by ``/``.
       * Inside a row, every non-whitespace character is one cell:
-        an uppercase letter ``A``–``F`` (mapped to input port 0–5),
-        or ``.`` for an empty cell.
-      * A letter that occupies multiple adjacent cells declares a
+        a digit ``1``–``9`` (referencing input port ``image[d]``),
+        or ``.`` / ``0`` for an empty cell.
+      * A digit that occupies multiple adjacent cells declares a
         spanning input — those cells must form an axis-aligned
-        rectangle (no holes, no L-shapes within a single letter).
+        rectangle (no holes, no L-shapes within a single digit).
       * Every row must have the same column count.
 
     Examples::
 
-        "AB"              two inputs side by side
-        "A / B"           two inputs stacked vertically
-        "AB / CD"         classic 2x2 grid
-        "AC / BC"         A and B on the left, C spans two rows on the right
-        "AA / B."         A spans the top row, B only bottom-left
+        "12"              two inputs side by side
+        "1 / 2"           two inputs stacked vertically
+        "12 / 34"         classic 2x2 grid
+        "13 / 23"         image[1] and image[2] on the left,
+                          image[3] spans two rows on the right
+        "11 / 2."         image[1] spans the top row, image[2]
+                          only bottom-left
 
-    Whitespace inside a row is ignored, so ``"A B / C D"`` and
-    ``"AB / CD"`` parse the same.
+    Whitespace inside a row is ignored, so ``"1 2 / 3 4"`` and
+    ``"12 / 34"`` parse the same.
     """
 
     def __init__(self, descriptor: str) -> None:
@@ -100,25 +123,25 @@ class MosaicLayout:
                     f"{descriptor!r}"
                 )
             for ch in r:
-                if ch == _EMPTY_CELL:
+                if ch in _EMPTY_CELLS:
                     continue
-                if not (ch.isalpha() and ch.isupper()):
+                if ch not in _LAYOUT_DIGITS:
                     raise ValueError(
-                        f"Mosaic cell {ch!r} is not an uppercase letter "
-                        f"or {_EMPTY_CELL!r}: {descriptor!r}"
+                        f"Mosaic cell {ch!r} is not a digit 1-9 or empty "
+                        f"({sorted(_EMPTY_CELLS)}): {descriptor!r}"
                     )
         return rows
 
     def _parse_rectangles(self) -> list[_Rect]:
-        seen_letters: dict[str, list[tuple[int, int]]] = {}
+        seen_digits: dict[str, list[tuple[int, int]]] = {}
         for i, row in enumerate(self._rows):
             for j, ch in enumerate(row):
-                if ch == _EMPTY_CELL:
+                if ch in _EMPTY_CELLS:
                     continue
-                seen_letters.setdefault(ch, []).append((i, j))
+                seen_digits.setdefault(ch, []).append((i, j))
 
         rects: list[_Rect] = []
-        for letter, cells in seen_letters.items():
+        for digit, cells in seen_digits.items():
             top = min(i for i, _ in cells)
             bottom = max(i for i, _ in cells)
             left = min(j for _, j in cells)
@@ -128,10 +151,10 @@ class MosaicLayout:
                         for j in range(left, right + 1)}
             if set(cells) != expected:
                 raise ValueError(
-                    f"Mosaic letter {letter!r} does not form a rectangle "
+                    f"Mosaic digit {digit!r} does not form a rectangle "
                     f"in layout {self._descriptor!r}"
                 )
-            rects.append(_Rect(letter, top, bottom, left, right))
+            rects.append(_Rect(digit, top, bottom, left, right))
         return rects
 
     @property
@@ -148,47 +171,68 @@ class MosaicLayout:
 
 
 class Mosaic(NodeBase):
-    """Composite up to six images into a flexible grid layout.
+    """Composite up to nine images into a flexible grid layout.
 
     The ``layout`` string describes the cell arrangement (see
-    :class:`MosaicLayout` for syntax). Letters ``A``–``F`` map to the
-    six optional inputs in order; ``.`` and unconnected cells are
-    black padding. Each input is pasted at the top-left of its cell
-    rectangle and padded on the right / bottom if smaller.
+    :class:`MosaicLayout` for syntax). Digits ``1``–``9`` map to the
+    nine optional inputs ``image[1]``…``image[9]`` in order; ``.`` or
+    ``0`` and unconnected cells are black padding. Each input is
+    pasted at the top-left of its cell rectangle and padded on the
+    right / bottom if smaller.
+
+    Inputs are dynamic: the node starts with ``image[1]`` and grows
+    ``image[2]``, ``image[3]``… one slot at a time as the user wires
+    up the tail input, capped at nine. The layout descriptor is a
+    plain :class:`StringParam` whose digits index into the input list
+    independently of how many ports are currently visible on the node.
 
     Any colour input promotes the output to colour; otherwise the
-    output stays greyscale. The default ``"AB"`` is a horizontal
+    output stays greyscale. The default ``"12"`` is a horizontal
     stack of the first two inputs.
     """
 
     layout = StringParam(
-        "AB",
-        placeholder="AB",
+        "12",
+        placeholder="12",
+        constant=True,
         description=(
-            "Layout descriptor. Rows separated by '/', each letter "
-            "(A-F) is one cell, '.' is empty. Repeat a letter across "
-            "adjacent cells to span a rectangle. Examples: 'AB', "
-            "'A / B', 'AB / CD', 'AC / BC'."
+            "Layout descriptor. Rows separated by '/', each digit "
+            "(1-9) references the matching image[…] input, '.' or "
+            "'0' is empty. Repeat a digit across adjacent cells to "
+            "span a rectangle. Examples: '12', '1 / 2', '12 / 34', "
+            "'13 / 23'."
         ),
     )
 
     def __init__(self) -> None:
         super().__init__("Mosaic", section="Composit")
         self._layout: str
-        for letter in _INPUT_LETTERS:
-            self._add_input(InputPort(letter, set(IMAGE_TYPES), optional=True))
+        self._image_group = DynamicInputGroup(
+            self,
+            name_template="image[{i}]",
+            accepted_types=set(IMAGE_TYPES),
+            max_count=MAX_DYNAMIC_INPUTS,
+        )
+        self._dynamic_input_groups: dict[str, DynamicInputGroup] = {
+            _IMAGE_GROUP_KEY: self._image_group,
+        }
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
         self._apply_default_params()
 
     @override
     def process_impl(self) -> None:
         layout = MosaicLayout(self._layout)
+        ports = self._image_group.ports
 
-        # Map each rectangle to its IoData (None if input is empty / unconnected).
+        # Map each rectangle to its IoData (skip rectangles whose
+        # referenced port doesn't exist yet, i.e. the user wrote a
+        # digit higher than the current input count).
         rect_data: dict[_Rect, IoData] = {}
         for rect in layout.rectangles:
-            idx = _INPUT_LETTERS.index(rect.letter)
-            port = self._inputs[idx]
+            idx = rect.port_index
+            if idx >= len(ports):
+                continue
+            port = ports[idx]
             if port.has_data:
                 rect_data[rect] = port.data
 

@@ -165,6 +165,12 @@ class NodeBase(ABC):
         self._outputs: list[OutputPort] = []
         self._params: list[NodeParam] = []
         self._skipped: bool = False
+        # Listeners notified after the input-port list mutates
+        # (currently: dynamic-port groups appending or trimming a port).
+        # The UI's :class:`NodeItem` registers here so it can rebuild
+        # its port-row widgets on the fly. Empty by default; nodes with
+        # static ports never fire this.
+        self._ports_changed_listeners: list[Callable[[], None]] = []
         # Initialise every descriptor's backing slot to its declared
         # default before subclass ``__init__`` runs, so ``self._<name>``
         # exists from the first line after ``super().__init__()``. The
@@ -202,6 +208,44 @@ class NodeBase(ABC):
         # hooks, UI indicators, tests) can attach their own listeners
         # later without clobbering the dispatcher hookup. Issue: M11.
         port.add_listener(self._signal_input_ready)
+
+    def _remove_input(self, port: InputPort) -> None:
+        """Remove a previously-registered input port.
+
+        Reverses :meth:`_add_input`: detaches the dispatcher listener
+        and drops the port from ``self._inputs``. Caller is responsible
+        for ensuring nothing is currently driving the port (no upstream
+        connection); the framework does not auto-disconnect.
+        """
+        port.remove_listener(self._signal_input_ready)
+        self._inputs.remove(port)
+
+    def add_ports_changed_listener(self, callback: Callable[[], None]) -> None:
+        """Register a zero-argument callback fired after the input-port
+        list mutates.
+
+        Used by the UI to rebuild port-row widgets when a node grows or
+        trims a dynamic input. Listeners fire in registration order on
+        a snapshot of the list, so a callback that mutates the list
+        does not re-enter the current notification.
+        """
+        self._ports_changed_listeners.append(callback)
+
+    def remove_ports_changed_listener(self, callback: Callable[[], None]) -> None:
+        """Unregister a previously-added ports-changed listener; no-op if absent."""
+        try:
+            self._ports_changed_listeners.remove(callback)
+        except ValueError:
+            pass
+
+    def _notify_ports_changed(self) -> None:
+        """Fire every registered ports-changed listener.
+
+        Called by dynamic-port helpers after they append or trim an
+        input port so the UI (and any other observer) can resync.
+        """
+        for listener in tuple(self._ports_changed_listeners):
+            listener()
 
     def _add_output(self, port: OutputPort) -> None:
         self._outputs.append(port)
@@ -494,6 +538,15 @@ class NodeBase(ABC):
                 if "param_type" not in port.metadata:
                     continue
                 attr_name = f"_{port.name}"
+                # Dynamic ports (e.g. Math's ``v[1]``) carry the
+                # ``param_type`` metadata so the UI renders an inline
+                # widget, but their names aren't Python identifiers
+                # and they have no descriptor / backing slot to
+                # populate. The owning node reads them directly from
+                # ``self._inputs`` in ``process_impl``; the populate
+                # path simply skips them.
+                if not hasattr(self, attr_name):
+                    continue
                 snapshot[attr_name] = getattr(self, attr_name)
                 value = self._extract_driven_value(port.data)
                 setattr(self, port.name, value)

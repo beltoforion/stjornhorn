@@ -103,7 +103,10 @@
         -588.0332632474602
       ],
       "port_defaults": {
-        "layout": "AC / BC"
+        "layout": "13 / 23"
+      },
+      "dynamic_inputs": {
+        "image": 3
       }
     },
     {
