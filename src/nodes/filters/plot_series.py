@@ -82,15 +82,14 @@ class PlotSeries(NodeBase):
         self._height: int
         self._title: str
         self._grid: bool
+        # Single dataset input. Band-overlay endpoints arrive as
+        # ``window_start`` / ``window_end`` keys on the input's
+        # :class:`~core.io_data.IoMeta` — typically stamped by an
+        # upstream :class:`~nodes.filters.sliding_window.SlidingWindow`
+        # on its passthrough output. Absent keys → no band drawn
+        # (current behaviour with the input wired straight from a
+        # CsvSource).
         self._add_input(InputPort("dataset", {IoDataType.DATASET}))
-        # Band overlay endpoints, expressed in sample-row coordinates so
-        # the upstream :class:`SlidingWindow` can wire its ``window_start``
-        # / ``window_end`` SCALAR outputs straight in. PlotSeries converts
-        # those row indices to the time axis (``start + idx * step``)
-        # before the renderer sees them — keeps the band aligned with the
-        # synthesized x-axis without the flow author doing the math.
-        self._add_input(InputPort("band_start", {IoDataType.SCALAR}, optional=True))
-        self._add_input(InputPort("band_end",   {IoDataType.SCALAR}, optional=True))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
 
@@ -98,14 +97,12 @@ class PlotSeries(NodeBase):
         self._plotter = PlotXY()
         # Cached trace render so a moving band (driven by SlidingWindow
         # in the animated-hodogram demo) doesn't force matplotlib to
-        # re-render the full waveform every tick. Keyed on
-        # ``(id(input_iodata), step, start, y_column, width, height,
-        # title, grid)`` — IoData is treated as immutable by framework
-        # convention (``OutputPort.send`` clones on every emit), so a
-        # different identity always means different content. Any
-        # upstream filter that emits a fresh DataFrame per tick (shift,
-        # resample) naturally invalidates the cache; a held one-shot
-        # input keeps the cache warm across the streaming clock.
+        # re-render the full waveform every tick. Keyed on the input
+        # *DataFrame* identity (preserved across SlidingWindow's
+        # passthrough re-emits — each tick wraps the same DataFrame in
+        # a fresh IoData) plus the visual params. Any upstream that
+        # emits a different DataFrame per tick (shift, resample) gets
+        # a different ``id(payload)`` and re-renders correctly.
         self._cache_key:    tuple | None              = None
         self._cache_base:   np.ndarray | None         = None
         self._cache_axes:   AxesDescriptor | None     = None
@@ -114,7 +111,7 @@ class PlotSeries(NodeBase):
     def process_impl(self) -> None:
         in_io = self.inputs[0].data
         cache_key = (
-            id(in_io), self._step, self._start, self._y_column,
+            id(in_io.payload), self._step, self._start, self._y_column,
             self._width, self._height, self._title, self._grid,
         )
         if (
@@ -124,14 +121,15 @@ class PlotSeries(NodeBase):
         ):
             self._refresh_cache(in_io, cache_key)
 
-        # Cv2 overlay against the cached base. Each tick that arrives
-        # with both band ports fresh paints a fresh rectangle; a tick
-        # without band data emits the unmodified base.
-        bs_port = self.inputs[1]
-        be_port = self.inputs[2]
-        if bs_port.has_data and be_port.has_data:
-            bs_time = self._start + float(bs_port.data.payload) * self._step
-            be_time = self._start + float(be_port.data.payload) * self._step
+        # Read band endpoints from the input's IoMeta. SlidingWindow
+        # stamps ``window_start`` / ``window_end`` (sample-row indices)
+        # on every emit; PlotSeries converts to the time axis here so
+        # the band aligns with the synthesized x-axis.
+        ws = in_io.meta.get("window_start")
+        we = in_io.meta.get("window_end")
+        if ws is not None and we is not None:
+            bs_time = self._start + float(ws) * self._step
+            be_time = self._start + float(we) * self._step
             assert self._cache_base is not None and self._cache_axes is not None
             result = self._overlay_band(
                 self._cache_base, self._cache_axes, bs_time, be_time,

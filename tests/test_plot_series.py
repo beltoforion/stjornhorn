@@ -114,61 +114,70 @@ def test_negative_step_rejected() -> None:
         node.step = -1.0
 
 
-# ── Band overlay (issue #246) ───────────────────────────────────────────────
+# ── Band overlay via IoMeta (issue #246) ─────────────────────────────────────
 
 
-def test_band_inputs_unconnected_render_unchanged() -> None:
-    """Without band wiring, the rendered output is unchanged from the
-    pre-band baseline."""
+def _send(node: PlotSeries, df: pd.DataFrame, *,
+          window_start: int | None = None,
+          window_end:   int | None = None) -> np.ndarray:
+    """Drive *node* with *df* (and an optional window meta-stamp) and
+    return the emitted image. Mirrors the SlidingWindow → PlotSeries
+    contract: window endpoints arrive as IoMeta keys."""
+    from core.io_data import IoMeta
+    meta = None
+    if window_start is not None and window_end is not None:
+        meta = IoMeta(window_start=window_start, window_end=window_end)
+    node.inputs[0].receive(IoData.from_dataset(df, meta=meta))
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    return out.image
+
+
+def test_no_window_meta_renders_without_band() -> None:
+    """A dataset without ``window_start`` / ``window_end`` in its meta
+    renders unchanged from the pre-band baseline."""
     node1 = PlotSeries()
     node1.width = 200
     node1.height = 100
-    img1 = _run(node1, _single())
+    img1 = _send(node1, _single())
 
     node2 = PlotSeries()
     node2.width = 200
     node2.height = 100
-    img2 = _run(node2, _single())
+    img2 = _send(node2, _single())
     np.testing.assert_array_equal(img1, img2)
 
 
-def test_band_in_sample_row_coords_paints_translucent_span() -> None:
-    """Band endpoints are sample-row indices; PlotSeries converts them
-    via its own ``step``/``start`` to the time axis. With both wired,
-    the band is visible (some pixels deviate from the no-band render)."""
-    node = PlotSeries()
-    node.width = 400
-    node.height = 200
-    node.step = 0.1
-    node.start = 0.0
-    node.grid = False
+def test_window_meta_paints_translucent_band() -> None:
+    """``window_start`` / ``window_end`` keys (sample-row indices) on
+    the input dataset's meta drive PlotSeries to overlay a band; the
+    conversion to the synthesised time axis happens internally via
+    ``step`` / ``start``."""
+    node_with = PlotSeries()
+    node_with.width = 400
+    node_with.height = 200
+    node_with.step = 0.1
+    node_with.start = 0.0
+    node_with.grid = False
     df = pd.DataFrame({"c0": np.zeros(50)})
+    img_with = _send(node_with, df, window_start=10, window_end=30)
 
-    # Wire a band over rows 10..30 → time 1.0..3.0 of the synthetic axis.
-    node.inputs[1].receive(IoData.from_scalar(10))
-    node.inputs[2].receive(IoData.from_scalar(30))
-    node.inputs[0].receive(IoData.from_dataset(df))
-    img_with = node.outputs[0].last_emitted.image  # type: ignore[union-attr]
-
-    # Re-run with no band: this drives the inner PlotXY's band ports
-    # to clear() so a stale forwarded value can't leak into this frame.
-    node2 = PlotSeries()
-    node2.width = 400
-    node2.height = 200
-    node2.step = 0.1
-    node2.start = 0.0
-    node2.grid = False
-    node2.inputs[0].receive(IoData.from_dataset(df))
-    img_without = node2.outputs[0].last_emitted.image  # type: ignore[union-attr]
+    node_without = PlotSeries()
+    node_without.width = 400
+    node_without.height = 200
+    node_without.step = 0.1
+    node_without.start = 0.0
+    node_without.grid = False
+    img_without = _send(node_without, df)
 
     diff = np.any(img_with != img_without, axis=2)
     assert diff.sum() > 0, "expected the band to change some pixels"
 
 
-def test_band_clears_when_endpoints_disconnected_between_frames() -> None:
-    """When the band ports lose their fresh data (e.g. the upstream
-    SlidingWindow stops emitting), the next frame must render without
-    a stale band — the inner PlotXY's band ports get cleared."""
+def test_band_disappears_when_meta_keys_drop_off_between_frames() -> None:
+    """When the upstream stops stamping window meta (e.g. the
+    SlidingWindow finishes), the next frame renders without a stale
+    band — band logic re-checks meta on every frame."""
     node = PlotSeries()
     node.width = 200
     node.height = 100
@@ -176,91 +185,50 @@ def test_band_clears_when_endpoints_disconnected_between_frames() -> None:
     node.grid = False
     df = pd.DataFrame({"c0": np.zeros(50)})
 
-    # Frame 1: band wired
-    node.inputs[1].receive(IoData.from_scalar(10))
-    node.inputs[2].receive(IoData.from_scalar(30))
-    node.inputs[0].receive(IoData.from_dataset(df))
-    img_with_band = node.outputs[0].last_emitted.image  # type: ignore[union-attr]
+    img_with    = _send(node, df, window_start=10, window_end=30)
+    img_without = _send(node, df)  # same node — band must vanish
 
-    # Frame 2: band ports cleared (simulating a disconnect / no-emit
-    # tick from upstream). The clear() call in process_impl must wipe
-    # the stale forwarded scalars.
-    node.inputs[1].clear()
-    node.inputs[2].clear()
-    node.inputs[0].receive(IoData.from_dataset(df))
-    img_no_band = node.outputs[0].last_emitted.image  # type: ignore[union-attr]
-
-    diff = np.any(img_with_band != img_no_band, axis=2)
+    diff = np.any(img_with != img_without, axis=2)
     assert diff.sum() > 0, "expected band-on / band-off frames to differ"
 
 
-def test_band_position_tracks_step_and_start_conversion() -> None:
-    """A band over rows [s, e] must land at time [start + s*step,
-    start + e*step] on the rendered axis. We can't peek at matplotlib
-    state once the figure is closed, so verify by comparing two
-    PlotSeries instances configured so they should render identical
-    bands but via different (step, start, sample-row) triples."""
-    df = pd.DataFrame({"c0": np.zeros(100)})
+def test_partial_window_meta_does_not_render_band() -> None:
+    """Only ``window_start`` (or only ``window_end``) on the meta is
+    treated as no band — both must be present, parity with the
+    explicit-port behaviour the M13 refactor replaced."""
+    from core.io_data import IoMeta
 
-    a = PlotSeries()
-    a.width = 200
-    a.height = 100
-    a.step = 1.0
-    a.start = 0.0
-    a.grid = False
-    a.inputs[1].receive(IoData.from_scalar(20))
-    a.inputs[2].receive(IoData.from_scalar(40))
-    a.inputs[0].receive(IoData.from_dataset(df))
-    img_a = a.outputs[0].last_emitted.image  # type: ignore[union-attr]
+    node_partial = PlotSeries()
+    node_partial.width = 200; node_partial.height = 100; node_partial.grid = False
+    node_partial.inputs[0].receive(IoData.from_dataset(
+        pd.DataFrame({"c0": np.zeros(50)}),
+        meta=IoMeta(window_start=10),
+    ))
+    img_partial = node_partial.outputs[0].last_emitted.image  # type: ignore[union-attr]
 
-    # Different sample-row coords but same time-axis position: rows
-    # 200..400 with step=0.1 give the same band [20.0, 40.0] in time.
-    df2 = pd.DataFrame({"c0": np.zeros(1000)})
-    b = PlotSeries()
-    b.width = 200
-    b.height = 100
-    b.step = 0.1
-    b.start = 0.0
-    b.grid = False
-    b.inputs[1].receive(IoData.from_scalar(200))
-    b.inputs[2].receive(IoData.from_scalar(400))
-    b.inputs[0].receive(IoData.from_dataset(df2))
-    img_b = b.outputs[0].last_emitted.image  # type: ignore[union-attr]
+    node_baseline = PlotSeries()
+    node_baseline.width = 200; node_baseline.height = 100; node_baseline.grid = False
+    node_baseline.inputs[0].receive(IoData.from_dataset(pd.DataFrame({"c0": np.zeros(50)})))
+    img_baseline = node_baseline.outputs[0].last_emitted.image  # type: ignore[union-attr]
 
-    # The renders won't be byte-identical (the underlying trace has a
-    # different x-extent), but the band should occupy the same
-    # *fraction* of the plot area in both. Here we just sanity-check
-    # that both rendered without crashing — the precise pixel-level
-    # equivalence is hard to assert from the outside.
-    assert img_a is not None
-    assert img_b is not None
+    np.testing.assert_array_equal(img_partial, img_baseline)
 
 
 # ── Trace cache (perf optimization for animated band) ───────────────────────
 
 
-def test_trace_cache_reuses_render_when_dataset_identity_unchanged() -> None:
-    """When the input ``IoData`` instance stays the same across ticks
-    (the SlidingWindow→PlotSeries pattern: held one-shot CsvSource +
-    streaming clock), matplotlib full render runs ONCE; subsequent
+def test_trace_cache_reuses_render_when_dataframe_identity_unchanged() -> None:
+    """The SlidingWindow → PlotSeries passthrough wraps the *same*
+    DataFrame in a fresh IoData every tick. PlotSeries' cache is keyed
+    on ``id(payload)``, so matplotlib full-renders ONCE; subsequent
     ticks reuse the cached bitmap and just repaint the band in cv2.
     """
-    from core.port import OutputPort
-    from nodes.filters import plot_xy as plot_xy_mod
+    from core.io_data import IoMeta
     from nodes.filters.plot_xy import PlotXY
 
     node = PlotSeries()
     node.width = 200; node.height = 100; node.grid = False; node.step = 0.1
-
-    feeder = OutputPort("ds", {IoDataType.DATASET})
-    bs = OutputPort("bs", {IoDataType.SCALAR})
-    be = OutputPort("be", {IoDataType.SCALAR})
-    feeder.connect(node.inputs[0])
-    bs.connect(node.inputs[1])
-    be.connect(node.inputs[2])
-
-    feeder.send(IoData.from_dataset(pd.DataFrame({"c0": np.zeros(50)})))
-    feeder.finish()  # data retained on input port across subsequent ticks
+    df = pd.DataFrame({"c0": np.zeros(50)})
 
     render_count = 0
     real = PlotXY.render_with_axes
@@ -270,28 +238,25 @@ def test_trace_cache_reuses_render_when_dataset_identity_unchanged() -> None:
         return real(*args, **kwargs)
     PlotXY.render_with_axes = staticmethod(counting)
     try:
-        # Three ticks, three different bands, same dataset.
-        bs.send(IoData.from_scalar(5));  be.send(IoData.from_scalar(10))
-        bs.send(IoData.from_scalar(15)); be.send(IoData.from_scalar(20))
-        bs.send(IoData.from_scalar(25)); be.send(IoData.from_scalar(30))
+        # Three ticks, three different band positions, same DataFrame.
+        for ws, we in ((5, 10), (15, 20), (25, 30)):
+            node.inputs[0].receive(
+                IoData.from_dataset(df, meta=IoMeta(window_start=ws, window_end=we)),
+            )
     finally:
         PlotXY.render_with_axes = staticmethod(real)
 
     assert render_count == 1, f"expected 1 matplotlib render, got {render_count}"
 
 
-def test_trace_cache_invalidates_when_dataset_identity_changes() -> None:
-    """A new IoData instance (e.g. an upstream filter that emits a
-    fresh DataFrame per tick) must invalidate the cache so the
-    rendered trace stays correct."""
-    from core.port import OutputPort
+def test_trace_cache_invalidates_when_dataframe_changes() -> None:
+    """A different DataFrame (typical of an animated upstream like a
+    shift filter) must invalidate the cache so the rendered trace
+    stays correct."""
     from nodes.filters.plot_xy import PlotXY
 
     node = PlotSeries()
     node.width = 200; node.height = 100; node.grid = False
-
-    feeder = OutputPort("ds", {IoDataType.DATASET})
-    feeder.connect(node.inputs[0])
 
     render_count = 0
     real = PlotXY.render_with_axes
@@ -302,39 +267,31 @@ def test_trace_cache_invalidates_when_dataset_identity_changes() -> None:
     PlotXY.render_with_axes = staticmethod(counting)
     try:
         for value in (1.0, 2.0, 3.0):
-            # Each emit produces a new IoData via OutputPort.send's clone.
-            feeder.send(IoData.from_dataset(pd.DataFrame({"c0": np.full(20, value)})))
-            # Need to clear() so the next receive triggers a fire (port
-            # data persists otherwise; in real use the framework does
-            # this between dispatches).
-            node.inputs[0].clear()
+            # New DataFrame each iteration → new id(payload) → cache miss.
+            node.inputs[0].receive(
+                IoData.from_dataset(pd.DataFrame({"c0": np.full(20, value)})),
+            )
     finally:
         PlotXY.render_with_axes = staticmethod(real)
 
-    # Each fresh IoData → cache miss → re-render.
     assert render_count == 3
 
 
 def test_trace_cache_invalidates_on_param_change() -> None:
     """Editing a render-shaping param (size, title, step, …) between
-    ticks must re-render even though the input IoData hasn't changed."""
-    from core.port import OutputPort
+    ticks must re-render even though the input DataFrame hasn't
+    changed."""
+    from core.io_data import IoMeta
     from nodes.filters.plot_xy import PlotXY
 
     node = PlotSeries()
     node.width = 200; node.height = 100; node.grid = False
+    df = pd.DataFrame({"c0": np.zeros(50)})
 
-    # Connect all three ports so the dispatcher waits for the band
-    # endpoints before firing — otherwise the initial dataset send
-    # would immediately fire+clear before we could mark it finished.
-    ds = OutputPort("ds", {IoDataType.DATASET})
-    bs = OutputPort("bs", {IoDataType.SCALAR})
-    be = OutputPort("be", {IoDataType.SCALAR})
-    ds.connect(node.inputs[0])
-    bs.connect(node.inputs[1])
-    be.connect(node.inputs[2])
-    ds.send(IoData.from_dataset(pd.DataFrame({"c0": np.zeros(50)})))
-    ds.finish()  # retain-after-finish so the dataset survives ticks
+    def push(ws: int, we: int) -> None:
+        node.inputs[0].receive(
+            IoData.from_dataset(df, meta=IoMeta(window_start=ws, window_end=we)),
+        )
 
     render_count = 0
     real = PlotXY.render_with_axes
@@ -344,15 +301,11 @@ def test_trace_cache_invalidates_on_param_change() -> None:
         return real(*args, **kwargs)
     PlotXY.render_with_axes = staticmethod(counting)
     try:
-        # Tick 1: cache miss, renders.
-        bs.send(IoData.from_scalar(5));  be.send(IoData.from_scalar(10))
-        # Tick 2: same params → cache hit.
-        bs.send(IoData.from_scalar(15)); be.send(IoData.from_scalar(20))
-        # Change a param; tick 3: cache miss, renders.
+        push(5, 10)   # cache miss → renders
+        push(15, 20)  # cache hit
         node.title = "now with title"
-        bs.send(IoData.from_scalar(25)); be.send(IoData.from_scalar(30))
-        # Tick 4: same params again → cache hit.
-        bs.send(IoData.from_scalar(35)); be.send(IoData.from_scalar(40))
+        push(25, 30)  # param change → cache miss → renders
+        push(35, 40)  # cache hit
     finally:
         PlotXY.render_with_axes = staticmethod(real)
 

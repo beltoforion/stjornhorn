@@ -184,19 +184,7 @@
     {
       "src_node": 0,
       "src_output": 0,
-      "dst_node": 2,
-      "dst_input": 0
-    },
-    {
-      "src_node": 0,
-      "src_output": 0,
       "dst_node": 8,
-      "dst_input": 0
-    },
-    {
-      "src_node": 1,
-      "src_output": 0,
-      "dst_node": 3,
       "dst_input": 0
     },
     {
@@ -233,25 +221,13 @@
       "src_node": 8,
       "src_output": 1,
       "dst_node": 2,
-      "dst_input": 1
-    },
-    {
-      "src_node": 8,
-      "src_output": 2,
-      "dst_node": 2,
-      "dst_input": 2
+      "dst_input": 0
     },
     {
       "src_node": 9,
       "src_output": 1,
       "dst_node": 3,
-      "dst_input": 1
-    },
-    {
-      "src_node": 9,
-      "src_output": 2,
-      "dst_node": 3,
-      "dst_input": 2
+      "dst_input": 0
     },
     {
       "src_node": 2,

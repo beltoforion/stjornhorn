@@ -3,9 +3,10 @@
 Covers:
 - slice math for various ``window_size`` / ``step`` / ``start`` combinations
 - empty / out-of-range slices terminate the stream cleanly
-- ``window_start`` / ``window_end`` SCALAR outputs match the slice bounds
-- end-to-end run with a streaming clock (RangeSource shape) drains the
-  expected number of slices
+- ``window_start`` / ``window_end`` arrive in :class:`IoMeta` on both the
+  slice and the passthrough output
+- the passthrough output preserves DataFrame identity across ticks so a
+  downstream identity-based cache (``PlotSeries``) stays warm
 
 The integration with :class:`PlotSeries` band rendering lives in
 ``test_plot_series.py``; this file stays focused on slice mechanics.
@@ -28,31 +29,32 @@ def _make_df(n: int = 100) -> pd.DataFrame:
     return df
 
 
-def _wire(node: SlidingWindow) -> tuple[OutputPort, OutputPort,
-                                         list[IoData], list[IoData], list[IoData]]:
-    """Connect feeders + capture sinks to all three outputs.
+def _wire(node: SlidingWindow) -> tuple[
+    OutputPort, OutputPort, list[IoData], list[IoData],
+]:
+    """Connect feeders + capture sinks to both DATASET outputs.
 
-    Returns ``(dataset_feeder, idx_feeder, ds_log, ws_log, we_log)``.
+    Returns ``(dataset_feeder, idx_feeder, slice_log, full_log)``.
     """
     ds_feed = OutputPort("ds", {IoDataType.DATASET})
     idx_feed = OutputPort("idx", {IoDataType.SCALAR})
     ds_feed.connect(node.inputs[0])
     idx_feed.connect(node.inputs[1])
 
-    ds_log: list[IoData] = []
-    ws_log: list[IoData] = []
-    we_log: list[IoData] = []
+    slice_log: list[IoData] = []
+    full_log:  list[IoData] = []
 
-    ds_sink = InputPort("ds_sink", {IoDataType.DATASET})
-    ws_sink = InputPort("ws_sink", {IoDataType.SCALAR})
-    we_sink = InputPort("we_sink", {IoDataType.SCALAR})
-    ds_sink.add_listener(lambda: ds_log.append(ds_sink.data) if ds_sink.has_data else None)
-    ws_sink.add_listener(lambda: ws_log.append(ws_sink.data) if ws_sink.has_data else None)
-    we_sink.add_listener(lambda: we_log.append(we_sink.data) if we_sink.has_data else None)
-    node.outputs[0].connect(ds_sink)
-    node.outputs[1].connect(ws_sink)
-    node.outputs[2].connect(we_sink)
-    return ds_feed, idx_feed, ds_log, ws_log, we_log
+    slice_sink = InputPort("slice_sink", {IoDataType.DATASET})
+    full_sink  = InputPort("full_sink",  {IoDataType.DATASET})
+    slice_sink.add_listener(
+        lambda: slice_log.append(slice_sink.data) if slice_sink.has_data else None,
+    )
+    full_sink.add_listener(
+        lambda: full_log.append(full_sink.data) if full_sink.has_data else None,
+    )
+    node.outputs[0].connect(slice_sink)
+    node.outputs[1].connect(full_sink)
+    return ds_feed, idx_feed, slice_log, full_log
 
 
 # ── Slice math ────────────────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ def test_unit_step_emits_one_window_per_tick() -> None:
     node.step = 1
     node.start = 0
 
-    ds_feed, idx_feed, ds_log, ws_log, we_log = _wire(node)
+    ds_feed, idx_feed, slice_log, _ = _wire(node)
     node.before_run()
 
     ds_feed.send(IoData.from_dataset(_make_df(50)))
@@ -72,11 +74,8 @@ def test_unit_step_emits_one_window_per_tick() -> None:
     for i in range(5):
         idx_feed.send(IoData.from_scalar(i))
 
-    assert len(ds_log) == 5
-    assert [int(d.payload) for d in ws_log] == [0, 1, 2, 3, 4]
-    assert [int(d.payload) for d in we_log] == [10, 11, 12, 13, 14]
-    # Verify the slice itself: tick i covers rows [i, i+10).
-    for i, frame in enumerate(ds_log):
+    assert len(slice_log) == 5
+    for i, frame in enumerate(slice_log):
         df = frame.payload
         assert list(df["value"]) == list(range(i, i + 10))
 
@@ -88,7 +87,7 @@ def test_step_equal_to_window_yields_disjoint_slices() -> None:
     node.step = 25
     node.start = 0
 
-    ds_feed, idx_feed, ds_log, ws_log, we_log = _wire(node)
+    ds_feed, idx_feed, slice_log, _ = _wire(node)
     node.before_run()
 
     ds_feed.send(IoData.from_dataset(_make_df(100)))
@@ -96,8 +95,10 @@ def test_step_equal_to_window_yields_disjoint_slices() -> None:
     for i in range(4):
         idx_feed.send(IoData.from_scalar(i))
 
-    assert [int(d.payload) for d in ws_log] == [0, 25, 50, 75]
-    assert [int(d.payload) for d in we_log] == [25, 50, 75, 100]
+    starts = [int(d.meta["window_start"]) for d in slice_log]
+    ends   = [int(d.meta["window_end"])   for d in slice_log]
+    assert starts == [0, 25, 50, 75]
+    assert ends   == [25, 50, 75, 100]
 
 
 def test_start_offset_is_added_to_each_slice() -> None:
@@ -106,7 +107,7 @@ def test_start_offset_is_added_to_each_slice() -> None:
     node.step = 5
     node.start = 17
 
-    ds_feed, idx_feed, ds_log, ws_log, we_log = _wire(node)
+    ds_feed, idx_feed, slice_log, _ = _wire(node)
     node.before_run()
 
     ds_feed.send(IoData.from_dataset(_make_df(50)))
@@ -114,8 +115,10 @@ def test_start_offset_is_added_to_each_slice() -> None:
     for i in range(3):
         idx_feed.send(IoData.from_scalar(i))
 
-    assert [int(d.payload) for d in ws_log] == [17, 22, 27]
-    assert [int(d.payload) for d in we_log] == [22, 27, 32]
+    starts = [int(d.meta["window_start"]) for d in slice_log]
+    ends   = [int(d.meta["window_end"])   for d in slice_log]
+    assert starts == [17, 22, 27]
+    assert ends   == [22, 27, 32]
 
 
 def test_partial_last_window_is_emitted_clamped() -> None:
@@ -127,7 +130,7 @@ def test_partial_last_window_is_emitted_clamped() -> None:
     node.step = 30
     node.start = 0
 
-    ds_feed, idx_feed, ds_log, ws_log, we_log = _wire(node)
+    ds_feed, idx_feed, slice_log, _ = _wire(node)
     node.before_run()
 
     ds_feed.send(IoData.from_dataset(_make_df(100)))
@@ -135,24 +138,24 @@ def test_partial_last_window_is_emitted_clamped() -> None:
     for i in range(4):  # ticks 0..3 → starts 0, 30, 60, 90
         idx_feed.send(IoData.from_scalar(i))
 
-    assert len(ds_log) == 4
+    assert len(slice_log) == 4
     # Last window spans [90, 100) — only 10 rows, not 30.
-    last_df = ds_log[-1].payload
-    assert len(last_df) == 10
-    assert int(ws_log[-1].payload) == 90
-    assert int(we_log[-1].payload) == 100
+    last = slice_log[-1]
+    assert len(last.payload) == 10
+    assert int(last.meta["window_start"]) == 90
+    assert int(last.meta["window_end"])   == 100
 
 
 def test_index_past_end_emits_nothing() -> None:
     """Lifecycle ends naturally when the upstream counter exhausts.
     A tick whose start sample is past the dataset's length is a no-op
-    (no DATASET, no SCALARs)."""
+    on both outputs."""
     node = SlidingWindow()
     node.window_size = 10
     node.step = 10
     node.start = 0
 
-    ds_feed, idx_feed, ds_log, ws_log, we_log = _wire(node)
+    ds_feed, idx_feed, slice_log, full_log = _wire(node)
     node.before_run()
 
     ds_feed.send(IoData.from_dataset(_make_df(20)))
@@ -161,10 +164,80 @@ def test_index_past_end_emits_nothing() -> None:
     for i in range(4):
         idx_feed.send(IoData.from_scalar(i))
 
-    assert len(ds_log) == 2
-    assert len(ws_log) == 2
-    assert len(we_log) == 2
-    assert [int(d.payload) for d in ws_log] == [0, 10]
+    assert len(slice_log) == 2
+    assert len(full_log)  == 2
+    assert [int(d.meta["window_start"]) for d in slice_log] == [0, 10]
+
+
+# ── Passthrough output ────────────────────────────────────────────────────────
+
+
+def test_passthrough_emits_full_dataset_each_tick() -> None:
+    """``dataset_full`` carries the unmodified input on every tick so a
+    downstream PlotSeries can render the full waveform with a moving
+    band."""
+    node = SlidingWindow()
+    node.window_size = 10
+    node.step = 10
+
+    ds_feed, idx_feed, _, full_log = _wire(node)
+    node.before_run()
+
+    df = _make_df(50)
+    ds_feed.send(IoData.from_dataset(df))
+    ds_feed.finish()
+    for i in range(3):
+        idx_feed.send(IoData.from_scalar(i))
+
+    assert len(full_log) == 3
+    for f in full_log:
+        # Every emit carries the full DataFrame, not the slice.
+        assert len(f.payload) == 50
+
+
+def test_passthrough_preserves_dataframe_identity_across_ticks() -> None:
+    """The passthrough wraps the *same* DataFrame reference each tick so
+    PlotSeries' identity-based trace cache stays warm across the
+    streaming clock — re-rendering matplotlib once per dataset, not
+    once per tick."""
+    node = SlidingWindow()
+    node.window_size = 10
+    node.step = 10
+
+    ds_feed, idx_feed, _, full_log = _wire(node)
+    node.before_run()
+
+    df = _make_df(50)
+    ds_feed.send(IoData.from_dataset(df))
+    ds_feed.finish()
+    for i in range(4):
+        idx_feed.send(IoData.from_scalar(i))
+
+    payload_ids = {id(f.payload) for f in full_log}
+    assert len(payload_ids) == 1, (
+        f"expected one shared DataFrame across ticks, got {len(payload_ids)}"
+    )
+
+
+def test_passthrough_meta_carries_window_bounds() -> None:
+    """Both outputs carry ``window_start`` / ``window_end`` in their
+    meta — the slice for downstream window-aware analytics, the
+    passthrough for the full-trace plotter."""
+    node = SlidingWindow()
+    node.window_size = 8
+    node.step = 4
+
+    ds_feed, idx_feed, slice_log, full_log = _wire(node)
+    node.before_run()
+
+    ds_feed.send(IoData.from_dataset(_make_df(40)))
+    ds_feed.finish()
+    for i in range(3):
+        idx_feed.send(IoData.from_scalar(i))
+
+    for sl, fu in zip(slice_log, full_log):
+        assert sl.meta["window_start"] == fu.meta["window_start"]
+        assert sl.meta["window_end"]   == fu.meta["window_end"]
 
 
 # ── Metadata preservation ─────────────────────────────────────────────────────
@@ -177,15 +250,15 @@ def test_attrs_are_copied_into_each_emitted_slice() -> None:
     node.window_size = 5
     node.step = 5
 
-    ds_feed, idx_feed, ds_log, _, _ = _wire(node)
+    ds_feed, idx_feed, slice_log, _ = _wire(node)
     node.before_run()
 
     ds_feed.send(IoData.from_dataset(_make_df(20)))
     ds_feed.finish()
     idx_feed.send(IoData.from_scalar(0))
 
-    assert ds_log[0].payload.attrs["sample_rate"] == 100.0
-    assert ds_log[0].payload.attrs["units"] == {"value": "m/s"}
+    assert slice_log[0].payload.attrs["sample_rate"] == 100.0
+    assert slice_log[0].payload.attrs["units"] == {"value": "m/s"}
 
 
 def test_slice_does_not_mutate_source_dataframe() -> None:
@@ -198,7 +271,7 @@ def test_slice_does_not_mutate_source_dataframe() -> None:
     node.window_size = 5
     node.step = 5
 
-    ds_feed, idx_feed, _, _, _ = _wire(node)
+    ds_feed, idx_feed, _, _ = _wire(node)
     node.before_run()
 
     ds_feed.send(IoData.from_dataset(df))

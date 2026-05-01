@@ -12,6 +12,37 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (window bounds via IoMeta, demo-flow simplification)
+
+- **`SlidingWindow` carries window bounds in `IoMeta`** instead of as
+  separate SCALAR outputs. Both emitted DATASETs (the slice and the new
+  ``dataset_full`` passthrough) carry ``window_start`` and
+  ``window_end`` keys on their meta. Drops two SCALAR outputs from
+  SlidingWindow's port list and matches the M13 auto-stamp idiom —
+  per-frame annotations ride along with the payload, not on a sibling
+  channel.
+- **`SlidingWindow.dataset_full` passthrough output.** Re-emits the
+  unmodified input DataFrame on every tick, with the current window
+  bounds stamped into the meta. Lets ``PlotSeries`` plot the full
+  trace and overlay a moving band from a single wire — no fan-out
+  from the upstream `CsvSource`. The passthrough wraps the *same*
+  DataFrame reference each tick so PlotSeries' identity-based trace
+  cache stays warm.
+- **`PlotSeries` reads band bounds from input meta** instead of from
+  dedicated SCALAR input ports. The ``band_start`` / ``band_end``
+  ports are gone; downstream interpretation is "if the input dataset's
+  meta carries `window_start` / `window_end`, render a band".
+- `PlotXY` keeps its explicit ``band_start`` / ``band_end`` SCALAR
+  ports for direct uses where the band x-coords aren't sample-row
+  indices on a synthesised time axis.
+- **Demo flow simplified.** `flow/data_display_time_series.flowjs`
+  drops 4 connections (was 17, now 13): each `CsvSource` has one
+  downstream wire (its `SlidingWindow`); `SlidingWindow` fans out to
+  `Hodogram` (slice) and `PlotSeries` (passthrough with band meta).
+- PlotSeries' cache key now uses ``id(io.payload)`` (the DataFrame
+  identity) rather than ``id(io)`` (the IoData wrapper) so the
+  passthrough's per-tick ``IoData.clone`` doesn't bust the cache.
+
 ### Performance (PlotSeries trace cache)
 
 - **`PlotSeries` caches the matplotlib trace render across ticks.**
