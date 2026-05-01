@@ -161,8 +161,8 @@
     },
     {
       "id": 10,
-      "module": "nodes.filters.polar_spectrum",
-      "class": "PolarSpectrum",
+      "module": "nodes.filters.directional_projection",
+      "class": "DirectionalProjection",
       "position": [
         -1404.8967955232897,
         98.38290419683369
@@ -170,14 +170,7 @@
       "port_defaults": {
         "x_column": "",
         "y_column": "",
-        "sample_rate": 8.0,
-        "n_angles": 72,
-        "freq_max": 0.0,
-        "db_scale": true,
-        "colormap": 0,
-        "width": 640,
-        "height": 640,
-        "title": ""
+        "n_angles": 72
       }
     },
     {
@@ -185,7 +178,7 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1096.1149143974608,
+        -300.0,
         125.30716331822862
       ],
       "port_defaults": {},
@@ -193,6 +186,39 @@
         529.3320753961349,
         485.83643704897383
       ]
+    },
+    {
+      "id": 12,
+      "module": "nodes.filters.spectrum",
+      "class": "Spectrum",
+      "position": [
+        -1100.0,
+        98.38290419683369
+      ],
+      "port_defaults": {
+        "sample_rate": 8.0,
+        "freq_max": 0.0,
+        "db_scale": true,
+        "window": 1
+      }
+    },
+    {
+      "id": 13,
+      "module": "nodes.filters.polar_heatmap",
+      "class": "PolarHeatmap",
+      "position": [
+        -800.0,
+        98.38290419683369
+      ],
+      "port_defaults": {
+        "colormap": 0,
+        "theta_zero": 1,
+        "theta_direction": 1,
+        "width": 640,
+        "height": 640,
+        "title": "",
+        "colorbar_label": ""
+      }
     }
   ],
   "connections": [
@@ -264,6 +290,18 @@
     },
     {
       "src_node": 10,
+      "src_output": 0,
+      "dst_node": 12,
+      "dst_input": 0
+    },
+    {
+      "src_node": 12,
+      "src_output": 0,
+      "dst_node": 13,
+      "dst_input": 0
+    },
+    {
+      "src_node": 13,
       "src_output": 0,
       "dst_node": 11,
       "dst_input": 0

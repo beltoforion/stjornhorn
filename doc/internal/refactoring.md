@@ -14,8 +14,8 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-04-30 (M13 in flight — auto-stamp + Repeat
-landed on a branch, sink-port migration follows).
+**Last reviewed:** 2026-05-01 (PolarSpectrum split into reusable
+`DirectionalProjection` + `Spectrum` + `PolarHeatmap`).
 
 ## High
 
@@ -153,6 +153,28 @@ key dispatch to a Qt implementation detail.
 flag from `NodeItem`.
 
 ## Resolved
+
+### DONE — PolarSpectrum was a too-special monolith
+
+Resolved 2026-05-01 on branch `claude/refactor-polar-spectrum-node-SuRec`.
+
+The original `PolarSpectrum` node fused three distinct concerns
+(directional projection of a 2-component vector signal, per-column
+1-D magnitude FFT, polar heatmap rendering) and was therefore only
+useful in exactly one downstream shape. Replaced by three
+single-responsibility nodes:
+
+- `DirectionalProjection` (filter, "Data") — 2-component DATASET →
+  N-column DATASET with `r_j = x·cos θ_j + y·sin θ_j`. Stamps
+  `df.attrs["thetas_rad"]` for downstream binding.
+- `Spectrum` (filter, "Frequency") — per-column magnitude FFT with
+  optional Hann taper, dB scaling, and `freq_max` clipping. First
+  1-D FFT node in the catalogue (complementary to `Fft2D`).
+- `PolarHeatmap` (filter, "Visualization") — generic polar (θ, r)
+  heatmap renderer for DATASET payloads.
+
+The old chain reproduces as `DirectionalProjection → Spectrum →
+PolarHeatmap`; bundled demo flow updated in the same PR.
 
 ### DONE — H2. Convention-driven port↔attribute coupling via name reflection
 
