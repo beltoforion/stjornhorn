@@ -12,6 +12,18 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (Display: status bar instead of cv2 overlay)
+
+- **`Display` no longer blits FPS / frame-count text onto the
+  preview pixels.** The pixel payload is forwarded byte-identical
+  to the input — the inline preview widget renders a status line
+  beneath the image with FPS, running frame number, and image
+  resolution (`W×H`) instead. Removes the cv2 dependency from
+  `nodes/filters/display.py` and the special-case "annotated copy"
+  IoData branch in `process_impl`. The node now exposes
+  `current_fps` alongside the existing `frames_processed` so the
+  widget can read both at callback time.
+
 ### Changed (PolarSpectrum split into reusable building blocks)
 
 - **`PolarSpectrum` removed** in favour of three single-responsibility

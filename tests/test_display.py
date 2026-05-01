@@ -135,7 +135,7 @@ def test_display_forwards_finish() -> None:
 
 
 def test_display_has_no_params() -> None:
-    # Debug overlay is unconditional — no user-facing knobs to expose.
+    # Status line is unconditional — no user-facing knobs to expose.
     assert Display().params == []
 
 
@@ -164,12 +164,13 @@ def test_display_frames_processed_counts_all_payload_kinds() -> None:
     assert node.frames_processed == 1
 
 
-# ── Debug overlay (image preview only) ────────────────────────────────────────
+# ── Status data (read by the inline preview widget) ──────────────────────────
 
-def test_display_fps_overlay_does_not_leak_to_output() -> None:
-    # The overlay is for the preview only; the output port must still
-    # forward the original IoData byte-for-byte so downstream sinks
-    # (e.g. VideoSink) record clean frames.
+def test_display_does_not_mutate_image_payload() -> None:
+    # Status info now lives in a separate status bar on the preview
+    # widget, not blitted onto the pixels. The frame the callback sees
+    # must be byte-identical to the original — both inputs and outputs
+    # stay clean.
     node = Display()
     up, captured = _wire(node)
 
@@ -177,38 +178,52 @@ def test_display_fps_overlay_does_not_leak_to_output() -> None:
     node.set_frame_callback(received.append)
 
     node.before_run()
-    # Big enough that the FPS rect (≈ 90 × 25 px in the top-left) leaves
-    # plenty of unmodified canvas for the leak check.
     big = lambda v: np.full((128, 256, 3), v, dtype=np.uint8)
     for v in (60, 120, 200):
         up.send(IoData.from_image(big(v)))
 
-    # Output is unmodified everywhere.
     for c, v in zip(captured, (60, 120, 200)):
         np.testing.assert_array_equal(c.image, big(v))
-    # Preview callback gets the annotated IoData; the bottom-right
-    # corner (well outside the overlay box) is still untouched.
     for d, v in zip(received, (60, 120, 200)):
-        assert int(d.payload[-1, -1, 0]) == v
+        np.testing.assert_array_equal(d.payload, big(v))
 
 
-def test_display_overlay_writes_visible_pixels_from_first_frame() -> None:
-    # The frame-count line is shown from tick 1; the FPS line joins from
-    # tick 2. Both produce a black background rect in the top-left.
+def test_display_current_fps_is_none_before_second_frame() -> None:
     node = Display()
-    received: list[IoData] = []
-    node.set_frame_callback(received.append)
     up, _ = _wire(node)
 
     node.before_run()
-    for _ in range(3):
-        up.send(IoData.from_image(_bgr(100, h=64, w=128)))
+    assert node.current_fps is None
 
-    # All three frames have the overlay. Pixel (5, 50) sits inside the
-    # background rect (well clear of the text glyphs) and should be
-    # solid black, distinct from the uniform fill of 100.
-    for frame in received:
-        assert int(frame.payload[5, 50, 0]) == 0
+    up.send(IoData.from_image(_bgr()))
+    # A single tick has no measurable interval — FPS only becomes
+    # defined once a delta is available.
+    assert node.current_fps is None
+
+
+def test_display_current_fps_populates_from_second_frame() -> None:
+    node = Display()
+    up, _ = _wire(node)
+
+    node.before_run()
+    up.send(IoData.from_image(_bgr()))
+    up.send(IoData.from_image(_bgr()))
+
+    assert node.current_fps is not None
+    assert node.current_fps > 0.0
+
+
+def test_display_current_fps_resets_on_new_run() -> None:
+    node = Display()
+    up, _ = _wire(node)
+
+    node.before_run()
+    up.send(IoData.from_image(_bgr()))
+    up.send(IoData.from_image(_bgr()))
+    assert node.current_fps is not None
+
+    node.before_run()
+    assert node.current_fps is None
 
 
 # ── SCALAR / MATRIX support ───────────────────────────────────────────────────
