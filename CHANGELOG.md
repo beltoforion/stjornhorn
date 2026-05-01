@@ -12,6 +12,23 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Removed (PlotXY band ports)
+
+- **`PlotXY` lost its `band_start` / `band_end` SCALAR input ports.**
+  They were a hold-over from before PlotSeries took its own cv2-overlay
+  band path; nothing in-tree wires them anymore. The band-drawing code
+  (`axvspan`) is gone with them. Direct PlotXY users who want a band
+  can either layer it themselves on the emitted image or revisit
+  introducing a band primitive when a real consumer exists.
+
+### Fixed (PlotSeries cache invariant)
+
+- **PlotSeries now holds a reference to its cached DataFrame** so
+  CPython can't recycle the GC'd address for the next emit's
+  DataFrame — that would have faked a cache hit on logically-different
+  content. Surfaced by a regression test that creates throwaway
+  DataFrames in a tight loop and asserts re-render count.
+
 ### Changed (PlotSeries: multi-channel stacked panels)
 
 - **`PlotSeries` now plots every column of the input dataset as its

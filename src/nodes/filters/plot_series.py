@@ -110,9 +110,16 @@ class PlotSeries(NodeBase):
         # Any upstream that emits a different DataFrame per tick
         # (shift, resample) gets a different ``id(payload)`` and
         # re-renders correctly.
+        #
+        # ``_cache_df`` keeps a reference to the cached DataFrame so its
+        # ``id()`` stays unique while the cache is live. Without it,
+        # CPython would happily recycle the memory of a GC'd DataFrame
+        # for the *next* emit's DataFrame, faking a cache hit on
+        # genuinely-different content.
         self._cache_key:    tuple | None              = None
         self._cache_base:   np.ndarray | None         = None
         self._cache_axes:   AxesDescriptor | None     = None
+        self._cache_df:     pd.DataFrame | None       = None
 
     @override
     def process_impl(self) -> None:
@@ -191,6 +198,11 @@ class PlotSeries(NodeBase):
         self._cache_key  = cache_key
         self._cache_base = base
         self._cache_axes = axes
+        # Keep a reference so the DataFrame can't be garbage-collected
+        # while its id() is the cache key — otherwise Python may recycle
+        # its address for the next emit's DataFrame and serve a stale
+        # bitmap on what's actually a different input.
+        self._cache_df   = df
 
     @staticmethod
     def _x_axis_label(df: pd.DataFrame) -> str:
