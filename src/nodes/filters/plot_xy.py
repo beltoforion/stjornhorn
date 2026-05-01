@@ -77,6 +77,11 @@ class PlotXY(NodeBase):
     def __init__(self) -> None:
         super().__init__("Plot XY", section="Visualization")
         self._add_input(InputPort("dataset", {IoDataType.DATASET}))
+        # Optional band overlay: when both endpoints are connected, the
+        # renderer paints a translucent vertical band across that x-range.
+        # Either one missing → no band (current behaviour).
+        self._add_input(InputPort("band_start", {IoDataType.SCALAR}, optional=True))
+        self._add_input(InputPort("band_end",   {IoDataType.SCALAR}, optional=True))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
 
@@ -85,6 +90,8 @@ class PlotXY(NodeBase):
         df: pd.DataFrame = self.inputs[0].data.payload
         x_col = self._resolve_column(df, self._x_column, default_index=0)
         y_col = self._resolve_column(df, self._y_column, default_index=1)
+
+        band = self._resolve_band()
 
         bgr = self._render(
             df[x_col].to_numpy(),
@@ -95,10 +102,29 @@ class PlotXY(NodeBase):
             height=self._height,
             title=self._title,
             grid=self._grid,
+            band=band,
         )
         self.outputs[0].send(IoData.from_image(bgr))
 
     # ── Pure helpers (testable without rendering) ─────────────────────────────
+
+    def _resolve_band(self) -> tuple[float, float] | None:
+        """Return ``(start, end)`` if both band ports carry SCALARs, else ``None``.
+
+        Order is normalised so a reversed pair still draws a forward band —
+        matplotlib's ``axvspan`` accepts either, but normalising up-front
+        keeps downstream consumers (snapshots, regression baselines)
+        deterministic.
+        """
+        bs_port = self.inputs[1]
+        be_port = self.inputs[2]
+        if not (bs_port.has_data and be_port.has_data):
+            return None
+        bs = float(bs_port.data.payload)
+        be = float(be_port.data.payload)
+        if bs > be:
+            bs, be = be, bs
+        return (bs, be)
 
     @staticmethod
     def _resolve_column(
@@ -157,8 +183,14 @@ class PlotXY(NodeBase):
         height: int,
         title: str,
         grid: bool,
+        band: tuple[float, float] | None = None,
     ) -> np.ndarray:
         """Render the plot to a BGR ``uint8`` array via matplotlib Agg.
+
+        ``band`` paints a translucent vertical span (``axvspan``) behind
+        the trace — typically used to highlight the slice the rest of
+        the flow is currently focused on. Painted *before* the line so
+        the trace stays legible.
 
         Always closes the figure before returning so a long-running
         flow doesn't leak figures across frames.
@@ -169,6 +201,8 @@ class PlotXY(NodeBase):
         )
         try:
             ax = fig.add_subplot(111)
+            if band is not None:
+                ax.axvspan(band[0], band[1], alpha=0.20, color="#ffd24a", zorder=0)
             ax.plot(x, y)
             ax.set_xlabel(x_label)
             ax.set_ylabel(y_label)

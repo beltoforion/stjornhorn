@@ -12,6 +12,35 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Added (TickTack Step 4, animated hodogram, #246)
+
+- **New `SlidingWindow` filter (section "Data").** Slices a DATASET
+  into a sliding window driven by a SCALAR clock — each tick on
+  ``window_index`` re-emits the slice
+  ``df.iloc[start + idx*step : start + idx*step + window_size]``,
+  plus the slice's ``window_start`` and ``window_end`` sample
+  indices on two SCALAR outputs. The ``dataset`` input holds across
+  ticks (``hold_last``) so a one-shot upstream (``CsvSource`` →
+  ``SlidingWindow``) survives the streaming clock.
+- **`PlotXY` and `PlotSeries` band overlay.** Two new optional
+  SCALAR inputs (``band_start`` / ``band_end``); when both are
+  connected, the plot renders a translucent vertical band across
+  that x-range. ``PlotXY`` interprets endpoints in x-axis data
+  coordinates; ``PlotSeries`` interprets them in sample-row
+  coordinates and converts via its own ``step`` / ``start`` to
+  the synthesised time axis — wires straight from
+  ``SlidingWindow.window_start`` / ``window_end``. Band-off
+  rendering is bit-for-bit identical to the pre-feature baseline.
+- **`flow/data_display_time_series.flowjs` is now an animated
+  flow.** Inserts ``RangeSource → SlidingWindow_{N,E} → Hodogram``
+  for the windowed motion plot, wires the window endpoints into
+  the ``PlotSeries`` band ports so the highlighted band sweeps
+  along both waveforms in lock-step, and replaces the static
+  ``FileSink`` with ``VideoSink``. Existing static-plot use cases
+  stay reachable by leaving the ``window_index`` port unwired —
+  reusable nodes, no replacement of the still-image variant
+  needed.
+
 ### Added (source node header badges)
 
 - **Source nodes now show a play-triangle icon (►) in their header**

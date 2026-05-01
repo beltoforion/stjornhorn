@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.48",
+  "app_version": "0.3.0.14",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -46,7 +46,7 @@
       "module": "nodes.filters.plot_series",
       "class": "PlotSeries",
       "position": [
-        -1600.0,
+        -1100.0,
         -700.0
       ],
       "port_defaults": {
@@ -64,7 +64,7 @@
       "module": "nodes.filters.plot_series",
       "class": "PlotSeries",
       "position": [
-        -1600.0,
+        -1100.0,
         -400.0
       ],
       "port_defaults": {
@@ -82,8 +82,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -1609.2012770503088,
-        -89.70508521078281
+        -1100.0,
+        -90.0
       ],
       "port_defaults": {
         "x_label": "N",
@@ -93,7 +93,7 @@
         "color_by_time": true,
         "equal_aspect": true,
         "show_polarization": true,
-        "title": "Ground Motion"
+        "title": "Ground Motion (windowed)"
       }
     },
     {
@@ -101,7 +101,7 @@
       "module": "nodes.filters.mosaic",
       "class": "Mosaic",
       "position": [
-        -1300.0,
+        -700.0,
         -500.0
       ],
       "port_defaults": {
@@ -113,8 +113,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1268.8869256056792,
-        -195.46531082277914
+        -400.0,
+        -200.0
       ],
       "port_defaults": {},
       "size": [
@@ -124,14 +124,59 @@
     },
     {
       "id": 7,
-      "module": "nodes.sinks.file_sink",
-      "class": "FileSink",
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
       "position": [
-        -507.52829217252565,
-        262.1295940042186
+        -100.0,
+        100.0
       ],
       "port_defaults": {
-        "output_path": "out.png"
+        "output_path": "ground_motion.mp4",
+        "fps": 30.0,
+        "codec": 0
+      }
+    },
+    {
+      "id": 8,
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
+      "position": [
+        -2191.0,
+        -100.0
+      ],
+      "port_defaults": {
+        "min_value": 0,
+        "max_value": 250,
+        "increment": 1.0,
+        "loop": false
+      }
+    },
+    {
+      "id": 9,
+      "module": "nodes.filters.sliding_window",
+      "class": "SlidingWindow",
+      "position": [
+        -1620.0,
+        -534.0
+      ],
+      "port_defaults": {
+        "window_size": 256,
+        "step": 8,
+        "start": 0
+      }
+    },
+    {
+      "id": 10,
+      "module": "nodes.filters.sliding_window",
+      "class": "SlidingWindow",
+      "position": [
+        -1620.0,
+        -319.0
+      ],
+      "port_defaults": {
+        "window_size": 256,
+        "step": 8,
+        "start": 0
       }
     }
   ],
@@ -143,22 +188,70 @@
       "dst_input": 0
     },
     {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 9,
+      "dst_input": 0
+    },
+    {
       "src_node": 1,
       "src_output": 0,
       "dst_node": 3,
       "dst_input": 0
     },
     {
-      "src_node": 0,
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 10,
+      "dst_input": 0
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 9,
+      "dst_input": 1
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 10,
+      "dst_input": 1
+    },
+    {
+      "src_node": 9,
       "src_output": 0,
       "dst_node": 4,
       "dst_input": 0
     },
     {
-      "src_node": 1,
+      "src_node": 10,
       "src_output": 0,
       "dst_node": 4,
       "dst_input": 1
+    },
+    {
+      "src_node": 9,
+      "src_output": 1,
+      "dst_node": 2,
+      "dst_input": 1
+    },
+    {
+      "src_node": 9,
+      "src_output": 2,
+      "dst_node": 2,
+      "dst_input": 2
+    },
+    {
+      "src_node": 10,
+      "src_output": 1,
+      "dst_node": 3,
+      "dst_input": 1
+    },
+    {
+      "src_node": 10,
+      "src_output": 2,
+      "dst_node": 3,
+      "dst_input": 2
     },
     {
       "src_node": 2,
@@ -194,18 +287,35 @@
   "backdrops": [
     {
       "position": [
-        -2244.1647826086955,
+        -2244.0,
         -582.7795652173911
       ],
       "size": [
         560.0,
-        482.26347826086953
+        700.0
       ],
-      "title": "Input",
+      "title": "Sources",
       "color": [
         70,
         60,
         40,
+        140
+      ]
+    },
+    {
+      "position": [
+        -1670.0,
+        -582.0
+      ],
+      "size": [
+        500.0,
+        400.0
+      ],
+      "title": "Sliding window",
+      "color": [
+        50,
+        70,
+        60,
         140
       ]
     }

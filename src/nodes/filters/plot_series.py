@@ -76,6 +76,14 @@ class PlotSeries(NodeBase):
         self._title: str
         self._grid: bool
         self._add_input(InputPort("dataset", {IoDataType.DATASET}))
+        # Band overlay endpoints, expressed in sample-row coordinates so
+        # the upstream :class:`SlidingWindow` can wire its ``window_start``
+        # / ``window_end`` SCALAR outputs straight in. PlotSeries converts
+        # those row indices to the time axis (``start + idx * step``)
+        # before the renderer sees them — keeps the band aligned with the
+        # synthesized x-axis without the flow author doing the math.
+        self._add_input(InputPort("band_start", {IoDataType.SCALAR}, optional=True))
+        self._add_input(InputPort("band_end",   {IoDataType.SCALAR}, optional=True))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
 
@@ -101,6 +109,22 @@ class PlotSeries(NodeBase):
         self._plotter.height = self._height
         self._plotter.title = self._title
         self._plotter.grid = self._grid
+        # Forward band endpoints to PlotXY in time coordinates. Always
+        # push fresh values — the inner PlotXY's optional band ports
+        # don't gate dispatch, but stale values from a previous frame
+        # would survive across runs without an explicit overwrite.
+        bs_port = self.inputs[1]
+        be_port = self.inputs[2]
+        if bs_port.has_data and be_port.has_data:
+            bs_time = self._start + float(bs_port.data.payload) * self._step
+            be_time = self._start + float(be_port.data.payload) * self._step
+            self._plotter.inputs[1].receive(IoData.from_scalar(bs_time))
+            self._plotter.inputs[2].receive(IoData.from_scalar(be_time))
+        else:
+            # Clear so a partially-connected band on a previous frame
+            # doesn't leak into the next render.
+            self._plotter.inputs[1].clear()
+            self._plotter.inputs[2].clear()
         self._plotter.inputs[0].receive(indexed)
 
         result = self._plotter.outputs[0].last_emitted
