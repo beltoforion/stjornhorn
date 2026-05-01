@@ -15,9 +15,33 @@ Status markers:
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
 **Last reviewed:** 2026-05-01 (PolarSpectrum split into reusable
-`DirectionalProjection` + `Spectrum` + `PolarHeatmap`).
+`DirectionalProjection` + `Spectrum` + `PolarHeatmap`; subgraph
+primitive flagged high-priority — issue #268).
 
 ## High
+
+### OPEN — H7. Subgraph / composite-node primitive (blocks multi-rate flows)
+
+Tracked as issue **#268** — promoted to *high priority* by the user.
+
+The push-only round-robin runner can't express nested loops, so
+"for each outer frame, run an inner sweep, collect, emit one
+result per outer frame" patterns must be hard-coded inside a
+single `process_impl` (current `DirectionalProjection.n_angles`,
+any future windowed-sweep / parameter-sweep / multi-pass node).
+This is the planned-but-not-built `Subgraphs / composite nodes`
+entry in `doc/internal/dataflow.md`.
+
+Concretely missing: re-entrant `Flow.run_to_completion`,
+restartable sources, `PortInputSource` / `PortOutputSink` proxy
+nodes, a `Subgraph` node class, flowjs schema extension for nested
+graphs, UI navigation into subgraphs, Stop-propagation through
+nested flows.
+
+**Direction:** see issue #268 for the staged PR breakdown
+(framework-only first, then proxy nodes, then persistence, then
+UI, then Stop hook, then demo flow). Resolves the multi-rate and
+sub-graph strain points in `dataflow.md` simultaneously.
 
 ### OPEN — H1. NodeBase is a god class
 
