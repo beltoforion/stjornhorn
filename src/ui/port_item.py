@@ -31,6 +31,13 @@ PortKind = Literal["input", "output"]
 # the magic 5760 inline.
 _FULL_CIRCLE_16THS: int = 360 * 16
 
+# Connected-state fill darkening factor passed to ``QColor.darker``.
+# 100 = unchanged, >100 = darker. The ring keeps the full type colour;
+# the interior is rendered noticeably darker so the bright ring stays
+# visible against its own type-coloured fill (otherwise ring and fill
+# merge into a single flat blob and the connection state is lost).
+_CONNECTED_FILL_DARKEN: int = 200
+
 
 class PortItem(QGraphicsEllipseItem):
     """Small clickable dot at the edge of a node that represents one port.
@@ -237,7 +244,7 @@ class PortItem(QGraphicsEllipseItem):
     def _paint_pie(self, painter, rect: QRectF, types: list[IoDataType]) -> None:
         painter.setPen(QPen(Qt.PenStyle.NoPen))
         if len(types) == 1:
-            painter.setBrush(QBrush(self._type_color(types[0])))
+            painter.setBrush(QBrush(self._fill_color(types[0])))
             painter.drawEllipse(rect)
             return
         span = _FULL_CIRCLE_16THS // len(types)
@@ -246,8 +253,12 @@ class PortItem(QGraphicsEllipseItem):
         for i, t in enumerate(types):
             start = i * span
             slice_span = span if i < len(types) - 1 else _FULL_CIRCLE_16THS - start
-            painter.setBrush(QBrush(self._type_color(t)))
+            painter.setBrush(QBrush(self._fill_color(t)))
             painter.drawPie(rect, start, slice_span)
+
+    @classmethod
+    def _fill_color(cls, t: IoDataType) -> QColor:
+        return cls._type_color(t).darker(_CONNECTED_FILL_DARKEN)
 
     def _paint_ring(self, painter, rect: QRectF, types: list[IoDataType]) -> None:
         painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
