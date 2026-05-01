@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "app_version": "0.3.0.18",
+  "name": "data_display_time_series_merged",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.csv_source",
+      "class": "CsvSource",
+      "position": [
+        -2200.0,
+        -480.0
+      ],
+      "port_defaults": {
+        "file_path": "quakedata/quake_eib_20000908_1139.001",
+        "delimiter": ",",
+        "has_header": false,
+        "decimal": "."
+      },
+      "size": [
+        455.0625,
+        176.0
+      ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.sources.csv_source",
+      "class": "CsvSource",
+      "position": [
+        -2200.0,
+        -260.0
+      ],
+      "port_defaults": {
+        "file_path": "quakedata/quake_eib_20000908_1139.002",
+        "delimiter": ",",
+        "has_header": false,
+        "decimal": "."
+      },
+      "size": [
+        455.0625,
+        176.0
+      ]
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.join_datasets",
+      "class": "JoinDatasets",
+      "position": [
+        -1620.0,
+        -380.0
+      ],
+      "port_defaults": {
+        "column_names": "N,E"
+      }
+    },
+    {
+      "id": 3,
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
+      "position": [
+        -1620.0,
+        -140.0
+      ],
+      "port_defaults": {
+        "min_value": 0,
+        "max_value": 250,
+        "increment": 1.0
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.sliding_window",
+      "class": "SlidingWindow",
+      "position": [
+        -1200.0,
+        -300.0
+      ],
+      "port_defaults": {
+        "window_size": 256,
+        "step": 8,
+        "start": 0
+      }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.plot_xy",
+      "class": "PlotXY",
+      "position": [
+        -800.0,
+        -380.0
+      ],
+      "port_defaults": {
+        "x_column": "N",
+        "y_column": "E",
+        "width": 800,
+        "height": 800,
+        "title": "Ground Motion (windowed)",
+        "grid": true
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -380.0,
+        -260.0
+      ],
+      "port_defaults": {},
+      "size": [
+        700.0,
+        420.0
+      ]
+    },
+    {
+      "id": 7,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        100.0,
+        80.0
+      ],
+      "port_defaults": {
+        "output_path": "ground_motion_merged.mp4",
+        "fps": 30.0,
+        "codec": 0
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 1
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 1
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
+    }
+  ],
+  "backdrops": [
+    {
+      "position": [
+        -2250.0,
+        -540.0
+      ],
+      "size": [
+        560.0,
+        450.0
+      ],
+      "title": "Sources",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    },
+    {
+      "position": [
+        -1670.0,
+        -440.0
+      ],
+      "size": [
+        420.0,
+        420.0
+      ],
+      "title": "Merge + Window",
+      "color": [
+        50,
+        70,
+        60,
+        140
+      ]
+    }
+  ]
+}

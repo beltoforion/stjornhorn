@@ -280,3 +280,42 @@ def test_slice_does_not_mutate_source_dataframe() -> None:
         idx_feed.send(IoData.from_scalar(i))
 
     pd.testing.assert_frame_equal(df, df_snapshot)
+
+
+# ── Multi-column input (issue: merged time-series flow) ─────────────────────
+
+
+def test_slice_preserves_all_columns_of_multi_channel_dataframe() -> None:
+    """SlidingWindow operates on rows, so a multi-column DataFrame
+    (e.g. ``JoinDatasets`` output for N + E channels) must round-trip
+    cleanly: every column survives, slice contents match per-column,
+    attrs are preserved."""
+    df = pd.DataFrame({
+        "N": np.arange(50, dtype=np.float32),
+        "E": np.arange(50, dtype=np.float32) * -1.0,
+    })
+    df.attrs = {"sample_rate": 8.0}
+
+    node = SlidingWindow()
+    node.window_size = 10
+    node.step = 5
+
+    ds_feed, idx_feed, slice_log, full_log = _wire(node)
+    node.before_run()
+
+    ds_feed.send(IoData.from_dataset(df))
+    ds_feed.finish()
+    for i in range(3):
+        idx_feed.send(IoData.from_scalar(i))
+
+    assert len(slice_log) == 3
+    for i, frame in enumerate(slice_log):
+        sliced = frame.payload
+        assert list(sliced.columns) == ["N", "E"]
+        assert list(sliced["N"]) == list(range(i * 5, i * 5 + 10))
+        assert list(sliced["E"]) == [-x for x in range(i * 5, i * 5 + 10)]
+        assert sliced.attrs["sample_rate"] == 8.0
+
+    # Passthrough preserves the same multi-column DataFrame on every tick.
+    assert all(len(f.payload.columns) == 2 for f in full_log)
+    assert {id(f.payload) for f in full_log} == {id(df)}
