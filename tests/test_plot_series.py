@@ -55,12 +55,6 @@ def test_step_controls_time_axis_extent() -> None:
     assert not np.array_equal(img_slow, img_fast)
 
 
-def test_start_offset_accepted() -> None:
-    node = PlotSeries()
-    node.start = 100.0
-    node.step = 0.125
-    img = _run(node, _single())
-    assert img is not None
 
 
 # ── y_columns selection ──────────────────────────────────────────────────────

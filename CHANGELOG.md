@@ -20,6 +20,15 @@ once a first tagged release is cut.
   animated frame-to-frame in any reasonable flow, so the socket dots
   were just visual noise.
 
+### Removed (PlotSeries.start)
+
+- **`PlotSeries.start` parameter dropped.** Time-axis offsets belong
+  in a dedicated transform node upstream (e.g. a Shift on the time
+  column) — baking them into PlotSeries' rendering conflated config
+  with data. The synthetic time axis is now ``i * step``; the band
+  meta-conversion drops the offset term too. Bundled flow files
+  stripped of the now-unused ``"start"`` port-default key.
+
 ### Removed (PlotXY band ports)
 
 - **`PlotXY` lost its `band_start` / `band_end` SCALAR input ports.**

@@ -38,9 +38,9 @@ class PlotSeries(NodeBase):
     Band overlay endpoints arrive as ``window_start`` / ``window_end``
     keys on the input's :class:`~core.io_data.IoMeta` (typically
     stamped by :class:`~nodes.filters.sliding_window.SlidingWindow` on
-    its passthrough output) and are converted internally to time
-    coordinates via ``start`` / ``step``. The band spans every panel
-    so the highlighted window lines up across channels.
+    its passthrough output) and are scaled to the time axis via
+    ``step``. The band spans every panel so the highlighted window
+    lines up across channels.
     """
 
     step = FloatParam(
@@ -51,10 +51,6 @@ class PlotSeries(NodeBase):
             "Time step between samples in seconds. "
             "Use 1 / sample_rate, e.g. 0.125 for 8 Hz data."
         ),
-    )
-    start = FloatParam(
-        0.0,
-        description="Time of the first sample.",
     )
     y_columns = StringParam(
         "",
@@ -95,7 +91,6 @@ class PlotSeries(NodeBase):
         super().__init__("Plot Series", section="Visualization")
         # Explicit annotations so pyright sees the descriptor-backed attrs.
         self._step:      float
-        self._start:     float
         self._y_columns: str
         self._width:     int
         self._height:    int
@@ -131,7 +126,7 @@ class PlotSeries(NodeBase):
         df: pd.DataFrame = in_io.payload
         columns = self._select_columns(df)
         cache_key = (
-            id(in_io.payload), self._step, self._start, tuple(columns),
+            id(in_io.payload), self._step, tuple(columns),
             self._width, self._height, self._title, self._grid,
         )
         if (
@@ -148,8 +143,8 @@ class PlotSeries(NodeBase):
         ws = in_io.meta.get("window_start")
         we = in_io.meta.get("window_end")
         if ws is not None and we is not None:
-            bs_time = self._start + float(ws) * self._step
-            be_time = self._start + float(we) * self._step
+            bs_time = float(ws) * self._step
+            be_time = float(we) * self._step
             assert self._cache_base is not None and self._cache_axes is not None
             result = self._overlay_band(
                 self._cache_base, self._cache_axes, bs_time, be_time,
@@ -190,7 +185,7 @@ class PlotSeries(NodeBase):
         only repaint the band in cv2.
         """
         n = len(df)
-        x = self._start + np.arange(n, dtype=np.float64) * self._step
+        x = np.arange(n, dtype=np.float64) * self._step
         y_series = {col: df[col].to_numpy() for col in columns}
 
         base, axes = self._render(
