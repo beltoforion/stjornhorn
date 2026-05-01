@@ -56,13 +56,13 @@ class PortItem(QGraphicsEllipseItem):
       left edge of the node already disambiguates.
     """
 
-    RADIUS: float = 5.0
+    RADIUS: float = 6.0
     #: Horizontal distance from a port's centre to where its label text
     #: starts. Defined here (rather than as a per-call literal in
     #: :mod:`ui.node_item`) so the relationship between dot radius and
     #: label inset stays in one place — bumping ``RADIUS`` shouldn't
     #: leave the label text overlapping the dot.
-    LABEL_OFFSET: float = 11.0  # = RADIUS + 6 px breathing room
+    LABEL_OFFSET: float = 12.0  # = RADIUS + 6 px breathing room
     Z_VALUE = 2
 
     # Ring widths by port semantics. Required inputs and all outputs
