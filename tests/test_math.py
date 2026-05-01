@@ -25,25 +25,22 @@ from core.port import InputPort, OutputPort
 from nodes.filters.math import Math
 
 
-def _wire(node: Math, *, connect_optional: bool = False) -> tuple[
-    OutputPort, OutputPort, OutputPort, OutputPort, list[IoData],
+def _wire(node: Math, n_upstreams: int = 1) -> tuple[
+    list[OutputPort], list[IoData],
 ]:
-    """Connect upstreams + a capturing sink and return them.
+    """Wire *n_upstreams* SCALAR upstreams + a capturing sink.
 
-    Optional ``b`` / ``c`` / ``d`` ports stay unconnected unless
-    ``connect_optional`` is ``True``. When connected, every value on
-    every connected port must be sent before the dispatcher fires —
-    a connected optional port counts as ``waited`` too.
+    Each upstream drives the corresponding ``v[i]`` port (1-indexed
+    in the expression domain, 0-indexed in the returned list). Math
+    has nine optional input ports — the test only wires the first
+    *n_upstreams* and leaves the rest untouched (they fall back to
+    their inline default of 0.0 during eval).
     """
-    up_a = OutputPort("a_up", {IoDataType.SCALAR})
-    up_b = OutputPort("b_up", {IoDataType.SCALAR})
-    up_c = OutputPort("c_up", {IoDataType.SCALAR})
-    up_d = OutputPort("d_up", {IoDataType.SCALAR})
-    up_a.connect(node.inputs[0])
-    if connect_optional:
-        up_b.connect(node.inputs[1])
-        up_c.connect(node.inputs[2])
-        up_d.connect(node.inputs[3])
+    upstreams: list[OutputPort] = []
+    for i in range(n_upstreams):
+        up = OutputPort(f"v{i + 1}_up", {IoDataType.SCALAR})
+        up.connect(node.inputs[i])
+        upstreams.append(up)
 
     captured: list[IoData] = []
     sink = InputPort("sink", {IoDataType.SCALAR})
@@ -51,51 +48,66 @@ def _wire(node: Math, *, connect_optional: bool = False) -> tuple[
         lambda: captured.append(sink.data) if sink.has_data else None
     )
     node.outputs[0].connect(sink)
-    return up_a, up_b, up_c, up_d, captured
+    return upstreams, captured
 
 
 # ── Defaults / single-input expressions ───────────────────────────────────────
 
 
-def test_default_expression_passes_a_through() -> None:
-    """A brand-new node has expression='a'; emitting on a should
-    return a unchanged on every frame."""
+def test_default_expression_passes_v1_through() -> None:
+    """A brand-new node has expression='v[1]'; emitting on v[1] should
+    return its payload unchanged on every frame."""
     node = Math()
-    up_a, _, _, _, captured = _wire(node)
+    (up,), captured = _wire(node, 1)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(7))
-    up_a.send(IoData.from_scalar(13))
+    up.send(IoData.from_scalar(7))
+    up.send(IoData.from_scalar(13))
 
     assert [int(d.payload.item()) for d in captured] == [7, 13]
 
 
-def test_unconnected_optional_inputs_default_to_zero() -> None:
-    """b / c / d default to 0 when their ports are unconnected, so an
-    expression referencing all four still evaluates with only a wired."""
+def test_unconnected_inputs_default_to_zero() -> None:
+    """Inputs the expression references but the user hasn't wired up
+    fall back to the inline default 0.0, so an expression referencing
+    several slots still evaluates with only one wired."""
     node = Math()
-    node.expression = "a + b + c + d"
-    up_a, *_, captured = _wire(node)
+    node.expression = "v[1] + v[2] + v[3] + v[4]"
+    (up,), captured = _wire(node, 1)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(5))
+    up.send(IoData.from_scalar(5))
 
     assert int(captured[0].payload.item()) == 5
 
 
-def test_inline_default_picks_up_unconnected_optional() -> None:
-    """Setting the inline-edited attribute (no upstream) propagates to
-    the expression eval — mirrors the user typing 3.0 into the c
-    spinner without wiring anything to it."""
+def test_inline_default_picks_up_unconnected_port() -> None:
+    """Editing the inline default on an unconnected port (mimics the
+    user typing 3.0 into the v[3] spinner) propagates to the eval."""
     node = Math()
-    node.expression = "a + c"
-    node.c = 3.0
-    up_a, *_, captured = _wire(node)
+    node.expression = "v[1] + v[3]"
+    node.inputs[2].default_value = 3.0
+    (up,), captured = _wire(node, 1)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(10))
+    up.send(IoData.from_scalar(10))
 
     assert captured[0].payload.item() == 13.0
+
+
+# ── Topology ──────────────────────────────────────────────────────────────────
+
+
+def test_has_nine_input_ports() -> None:
+    """Backend always carries the full pool of nine ``v[i]`` ports
+    regardless of how many the editor currently shows."""
+    node = Math()
+    assert [p.name for p in node.inputs] == [f"v[{i}]" for i in range(1, 10)]
+
+
+def test_show_only_used_inputs_is_set() -> None:
+    """Math opts the editor into the "hide trailing rows" UI mode."""
+    assert Math.SHOW_ONLY_USED_INPUTS is True
 
 
 # ── Expression syntax / function support ──────────────────────────────────────
@@ -103,14 +115,14 @@ def test_inline_default_picks_up_unconnected_optional() -> None:
 
 def test_arithmetic_operators() -> None:
     node = Math()
-    node.expression = "a * b + c / d"
-    up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
+    node.expression = "v[1] * v[2] + v[3] / v[4]"
+    upstreams, captured = _wire(node, 4)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(2))
-    up_b.send(IoData.from_scalar(3))
-    up_c.send(IoData.from_scalar(10))
-    up_d.send(IoData.from_scalar(4))
+    upstreams[0].send(IoData.from_scalar(2))
+    upstreams[1].send(IoData.from_scalar(3))
+    upstreams[2].send(IoData.from_scalar(10))
+    upstreams[3].send(IoData.from_scalar(4))
 
     # 2*3 + 10/4 = 6 + 2.5 = 8.5
     assert captured[-1].payload.item() == 8.5
@@ -118,14 +130,13 @@ def test_arithmetic_operators() -> None:
 
 def test_pow_floordiv_and_modulo() -> None:
     node = Math()
-    node.expression = "a**2 + b % 3 + c // 2"
-    up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
+    node.expression = "v[1]**2 + v[2] % 3 + v[3] // 2"
+    upstreams, captured = _wire(node, 3)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(4))
-    up_b.send(IoData.from_scalar(7))
-    up_c.send(IoData.from_scalar(9))
-    up_d.send(IoData.from_scalar(0))
+    upstreams[0].send(IoData.from_scalar(4))
+    upstreams[1].send(IoData.from_scalar(7))
+    upstreams[2].send(IoData.from_scalar(9))
 
     # 4**2 + 7%3 + 9//2 = 16 + 1 + 4 = 21
     assert int(captured[-1].payload.item()) == 21
@@ -133,91 +144,106 @@ def test_pow_floordiv_and_modulo() -> None:
 
 def test_unary_negation() -> None:
     node = Math()
-    node.expression = "-a + +b"
-    up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
+    node.expression = "-v[1] + +v[2]"
+    upstreams, captured = _wire(node, 2)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(5))
-    up_b.send(IoData.from_scalar(7))
-    up_c.send(IoData.from_scalar(0))
-    up_d.send(IoData.from_scalar(0))
+    upstreams[0].send(IoData.from_scalar(5))
+    upstreams[1].send(IoData.from_scalar(7))
 
     assert int(captured[-1].payload.item()) == 2
 
 
 def test_trig_function_call() -> None:
     node = Math()
-    node.expression = "sin(a * pi / 180)"
-    up_a, *_, captured = _wire(node)
+    node.expression = "sin(v[1] * pi / 180)"
+    (up,), captured = _wire(node, 1)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(90))
+    up.send(IoData.from_scalar(90))
 
     assert abs(float(captured[-1].payload.item()) - 1.0) < 1e-9
 
 
 def test_min_max_call() -> None:
     node = Math()
-    node.expression = "max(a, b)"
-    up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
+    node.expression = "max(v[1], v[2])"
+    upstreams, captured = _wire(node, 2)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(3))
-    up_b.send(IoData.from_scalar(7))
-    up_c.send(IoData.from_scalar(0))
-    up_d.send(IoData.from_scalar(0))
+    upstreams[0].send(IoData.from_scalar(3))
+    upstreams[1].send(IoData.from_scalar(7))
 
     assert int(captured[-1].payload.item()) == 7
 
 
 def test_ternary_select() -> None:
     node = Math()
-    node.expression = "a if b > 0 else c"
-    up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
+    node.expression = "v[1] if v[2] > 0 else v[3]"
+    upstreams, captured = _wire(node, 3)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(11))
-    up_b.send(IoData.from_scalar(-1))
-    up_c.send(IoData.from_scalar(99))
-    up_d.send(IoData.from_scalar(0))
+    upstreams[0].send(IoData.from_scalar(11))
+    upstreams[1].send(IoData.from_scalar(-1))
+    upstreams[2].send(IoData.from_scalar(99))
 
     assert int(captured[-1].payload.item()) == 99
 
 
 def test_constants_pi_and_e() -> None:
     node = Math()
-    node.expression = "pi + e"
-    up_a, *_, captured = _wire(node)
+    node.expression = "v[1] * 0 + pi + e"
+    (up,), captured = _wire(node, 1)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(0))  # a unused but still triggers dispatch.
+    up.send(IoData.from_scalar(0))
 
     assert abs(float(captured[-1].payload.item()) - (math.pi + math.e)) < 1e-12
 
 
 def test_bool_constants_act_as_zero_and_one() -> None:
     """Literal ``True`` / ``False`` are allowed as constants because
-    ``a * True`` is a useful idiom for masking out a value."""
+    ``v[1] * True`` is a useful idiom for masking out a value."""
     node = Math()
-    node.expression = "a * True + b * False"
-    up_a, up_b, up_c, up_d, captured = _wire(node, connect_optional=True)
+    node.expression = "v[1] * True + v[2] * False"
+    upstreams, captured = _wire(node, 2)
 
     node.before_run()
-    up_a.send(IoData.from_scalar(7))
-    up_b.send(IoData.from_scalar(99))
-    up_c.send(IoData.from_scalar(0))
-    up_d.send(IoData.from_scalar(0))
+    upstreams[0].send(IoData.from_scalar(7))
+    upstreams[1].send(IoData.from_scalar(99))
 
     assert int(captured[-1].payload.item()) == 7
 
 
-def test_uppercase_variable_names_rejected() -> None:
-    """Variables are lowercase — uppercase ``A`` etc. must not work,
-    so users don't end up with two parallel naming conventions in the
-    same flow."""
+def test_v_subscript_index_must_be_int_literal_and_positive() -> None:
     node = Math()
-    with pytest.raises(ValueError):
-        node.expression = "A + B"
+    for bad in ("v[0]", "v[-1]", "v[1.0]"):
+        with pytest.raises(ValueError):
+            node.expression = bad
+
+
+def test_v_subscript_only_for_v_name() -> None:
+    """Other names cannot be subscripted (no ``pi[0]``, ``sin[1]`` …)."""
+    node = Math()
+    for bad in ("pi[0]", "sin[1]"):
+        with pytest.raises(ValueError):
+            node.expression = bad
+
+
+def test_v_index_in_range_at_parse_time() -> None:
+    """Index past the fixed pool size fails at parse time, not eval."""
+    node = Math()
+    with pytest.raises(ValueError, match="out of range"):
+        node.expression = "v[10]"
+
+
+def test_bare_v_rejected_at_parse_time() -> None:
+    """``v`` alone (no subscript) must not parse — the user should see
+    a tidy error at edit time, not a runtime TypeError on the proxy."""
+    node = Math()
+    for bad in ("v", "v + 1", "sin(v)"):
+        with pytest.raises(ValueError, match="subscript"):
+            node.expression = bad
 
 
 # ── Safety: rejected expressions ──────────────────────────────────────────────
@@ -239,58 +265,60 @@ def test_uppercase_variable_names_rejected() -> None:
     # ── The classic CPython sandbox-escape primitive ─────────────────────
     "().__class__",
     "().__class__.__bases__[0].__subclasses__()",
-    "a.__class__",
+    "v[1].__class__",
     "(1).__class__.__base__",
 
-    # ── Attribute / item access ──────────────────────────────────────────
-    "a.real",                            # Attribute on a Name.
-    "a[0]",                              # Subscript.
-    "a[b]",                              # Subscript with name index.
-    "[a, b]",                            # List literal.
-    "(a, b)",                            # Tuple literal.
-    "{a: b}",                            # Dict literal.
-    "{a, b}",                            # Set literal.
+    # ── Attribute / item access (other than v[<int>]) ────────────────────
+    "v[1].real",                         # Attribute on a Subscript.
+    "[v[1], v[2]]",                      # List literal.
+    "(v[1], v[2])",                      # Tuple literal.
+    "{v[1]: v[2]}",                      # Dict literal.
+    "{v[1], v[2]}",                      # Set literal.
 
     # ── Comprehensions / lambdas / walrus ────────────────────────────────
-    "[a for _ in (1,)]",                 # List comprehension.
-    "{a: b for _ in (1,)}",              # Dict comprehension.
-    "{a for _ in (1,)}",                 # Set comprehension.
-    "lambda: a",                         # Lambda.
-    "(x := a) + x",                      # Walrus.
+    "[v[1] for _ in (1,)]",              # List comprehension.
+    "{v[1]: v[2] for _ in (1,)}",        # Dict comprehension.
+    "{v[1] for _ in (1,)}",              # Set comprehension.
+    "lambda: v[1]",                      # Lambda.
+    "(x := v[1]) + x",                   # Walrus.
 
     # ── String interpolation / f-string ──────────────────────────────────
-    "f'{a}'",                            # f-string.
+    "f'{v[1]}'",                         # f-string.
 
     # ── Argument / keyword tricks ────────────────────────────────────────
-    "min(*[a, b])",                      # Star-args.
-    "min(x=a, y=b)",                     # Keyword arg.
+    "min(*[v[1], v[2]])",                # Star-args.
+    "min(x=v[1], y=v[2])",               # Keyword arg.
 
     # ── Unwhitelisted names / functions ──────────────────────────────────
     "z + 1",                             # Unknown variable.
-    "unknown(a)",                        # Unknown function name.
-    "pi(a)",                             # Constant used as a function.
-    "(sin if a else cos)(b)",            # Indirect call (Call.func not
-                                         # a bare ast.Name).
+    "unknown(v[1])",                     # Unknown function name.
+    "pi(v[1])",                          # Constant used as a function.
+    "(sin if v[1] else cos)(v[2])",      # Indirect call.
 
     # ── Unwhitelisted operators ──────────────────────────────────────────
-    "a | b",                             # BitOr.
-    "a & b",                             # BitAnd.
-    "a ^ b",                             # BitXor.
-    "a << 1",                            # LShift.
-    "a >> 1",                            # RShift.
-    "~a",                                # Invert.
-    "a is b",                            # Identity.
-    "a in (1,)",                         # Membership.
+    "v[1] | v[2]",                       # BitOr.
+    "v[1] & v[2]",                       # BitAnd.
+    "v[1] ^ v[2]",                       # BitXor.
+    "v[1] << 1",                         # LShift.
+    "v[1] >> 1",                         # RShift.
+    "~v[1]",                             # Invert.
+    "v[1] is v[2]",                      # Identity.
+    "v[1] in (1,)",                      # Membership.
 
     # ── Unwhitelisted constant types ─────────────────────────────────────
     "'hello'",                           # String literal.
     "b'hello'",                          # Bytes literal.
     "...",                               # Ellipsis.
     "None",                              # NoneType — explicitly rejected.
+
+    # ── Subscript misuse ─────────────────────────────────────────────────
+    "v[a]",                              # Computed index.
+    "v[1:2]",                            # Slice.
+    "v[1, 2]",                           # Tuple index.
 ])
 def test_disallowed_expressions_rejected_at_parse_time(expr: str) -> None:
     node = Math()
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, TypeError)):
         node.expression = expr
 
 
@@ -298,7 +326,7 @@ def test_statements_rejected() -> None:
     """``ast.parse`` in ``mode='eval'`` rejects statements outright;
     we surface that as a ``ValueError`` along with everything else."""
     node = Math()
-    for stmt in ("import os", "x = a", "del a"):
+    for stmt in ("import os", "x = v[1]", "del v"):
         with pytest.raises(ValueError):
             node.expression = stmt
 
@@ -312,20 +340,20 @@ def test_empty_expression_rejected() -> None:
 def test_syntax_error_rejected() -> None:
     node = Math()
     with pytest.raises(ValueError, match="invalid expression syntax"):
-        node.expression = "a + + + "
+        node.expression = "v[1] + + + "
 
 
 def test_failed_set_keeps_previous_expression() -> None:
     """A bad expression must not corrupt the node's state — the
     previously-valid expression keeps evaluating."""
     node = Math()
-    node.expression = "a * 2"
+    node.expression = "v[1] * 2"
     with pytest.raises(ValueError):
         node.expression = "garbage syntax !!"
-    # Still emits via "a * 2".
-    up_a, *_, captured = _wire(node)
+    # Still emits via "v[1] * 2".
+    (up,), captured = _wire(node, 1)
     node.before_run()
-    up_a.send(IoData.from_scalar(5))
+    up.send(IoData.from_scalar(5))
     assert int(captured[-1].payload.item()) == 10
 
 
@@ -344,16 +372,15 @@ def test_eval_runs_with_empty_builtins() -> None:
 # ── Streaming behaviour ───────────────────────────────────────────────────────
 
 
-def test_streams_per_frame_when_only_a_is_required() -> None:
-    """Optional ports unconnected: every value on a fires the
-    dispatcher, mirroring the old binary-op streaming test."""
+def test_streams_per_frame_when_only_v1_connected() -> None:
+    """A single-input flow fires the dispatcher per frame on v[1]."""
     node = Math()
-    node.expression = "a * 10"
-    up_a, *_, captured = _wire(node)
+    node.expression = "v[1] * 10"
+    (up,), captured = _wire(node, 1)
 
     node.before_run()
     for v in (1, 2, 3):
-        up_a.send(IoData.from_scalar(v))
+        up.send(IoData.from_scalar(v))
 
     assert [int(d.payload.item()) for d in captured] == [10, 20, 30]
 
@@ -363,5 +390,5 @@ def test_input_types_restricted_to_scalar() -> None:
     can't connect, so type errors surface at link time."""
     node = Math()
     img_up = OutputPort("img", {IoDataType.IMAGE})
-    for i in range(4):
-        assert img_up.can_connect(node.inputs[i]) is False
+    for port in node.inputs:
+        assert img_up.can_connect(port) is False

@@ -158,6 +158,15 @@ class NodeBase(ABC):
                     descriptors.append(attr)
         cls._param_descriptors = tuple(descriptors)
 
+    #: When True, the editor renders only the input rows up to the last
+    #: connected port + 1 (the next "to-be-wired" tail). Lets a node
+    #: declare a generous fixed pool of optional inputs (e.g. nine SCALAR
+    #: slots on Math) without showing every empty row in the body. The
+    #: backend port list is always the full pool so connection indices
+    #: stay stable across save / load. Default: False — every input port
+    #: is rendered, matching the behaviour of every existing node.
+    SHOW_ONLY_USED_INPUTS: bool = False
+
     def __init__(self, display_name: str, section: str | None = None) -> None:
         self._display_name = display_name
         self._section = section if section is not None else self.DEFAULT_SECTION
@@ -494,6 +503,15 @@ class NodeBase(ABC):
                 if "param_type" not in port.metadata:
                     continue
                 attr_name = f"_{port.name}"
+                # Dynamic ports (e.g. Math's ``v[1]``) carry the
+                # ``param_type`` metadata so the UI renders an inline
+                # widget, but their names aren't Python identifiers
+                # and they have no descriptor / backing slot to
+                # populate. The owning node reads them directly from
+                # ``self._inputs`` in ``process_impl``; the populate
+                # path simply skips them.
+                if not hasattr(self, attr_name):
+                    continue
                 snapshot[attr_name] = getattr(self, attr_name)
                 value = self._extract_driven_value(port.data)
                 setattr(self, port.name, value)

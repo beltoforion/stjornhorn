@@ -163,9 +163,10 @@ def test_flow_latches_reactive_source_across_streaming_frames(tmp_path: Path) ->
     filter must stay available while a streaming source drives the other
     input — otherwise only one paired frame would reach the sink.
 
-    Drives ``Mosaic`` with a streaming greyscale source on input ``A``
-    and a reactive one-shot source on input ``B``; every frame of the
-    streaming source must produce a merged output, not just the last one."""
+    Drives ``Mosaic`` with a streaming greyscale source on input
+    ``image[1]`` and a reactive one-shot source on input ``image[2]``;
+    every frame of the streaming source must produce a merged output,
+    not just the last one."""
     fixed = np.full((16, 16), 255, dtype=np.uint8)
     frames: list[np.ndarray] = []
     # Five frames, each with the bright patch in a different spot so the
@@ -179,7 +180,7 @@ def test_flow_latches_reactive_source_across_streaming_frames(tmp_path: Path) ->
     streaming_src = _GreyFrameListSource(frames)
     reactive_src = _ReactiveImageSource(fixed)
     merge = Mosaic()
-    merge.layout = "AB"
+    merge.layout = "12"
     sink = VideoSink()
     sink.output_path = tmp_path / "latched.mp4"
     sink.fps = 30.0
