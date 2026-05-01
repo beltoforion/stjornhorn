@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.14",
+  "app_version": "0.3.0.18",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -127,8 +127,8 @@
       "module": "nodes.sources.range_source",
       "class": "RangeSource",
       "position": [
-        -1642.0533149358944,
-        -273.53268962985686
+        -1740.1144025554997,
+        -286.435464316647
       ],
       "port_defaults": {
         "min_value": 0,
@@ -141,8 +141,8 @@
       "module": "nodes.filters.sliding_window",
       "class": "SlidingWindow",
       "position": [
-        -1407.9369603045577,
-        -635.3887368620028
+        -1424.7105673973847,
+        -470.2332208710883
       ],
       "port_defaults": {
         "window_size": 256,
@@ -155,8 +155,8 @@
       "module": "nodes.filters.sliding_window",
       "class": "SlidingWindow",
       "position": [
-        -1422.7084870671183,
-        -91.35089380976612
+        -1407.22515744297,
+        -217.79808574031009
       ],
       "port_defaults": {
         "window_size": 256,
@@ -279,12 +279,12 @@
     },
     {
       "position": [
-        -1689.3236207666807,
-        -669.6004141422867
+        -1787.384708386286,
+        -510.8962854947672
       ],
       "size": [
-        512.1323602595592,
-        925.1763180441216
+        610.1934478791645,
+        558.7375169392799
       ],
       "title": "Sliding window",
       "color": [
