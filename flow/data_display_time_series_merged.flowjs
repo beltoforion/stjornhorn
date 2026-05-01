@@ -199,18 +199,6 @@
       "dst_input": 0
     },
     {
-      "src_node": 5,
-      "src_output": 0,
-      "dst_node": 7,
-      "dst_input": 0
-    },
-    {
-      "src_node": 6,
-      "src_output": 0,
-      "dst_node": 7,
-      "dst_input": 1
-    },
-    {
       "src_node": 7,
       "src_output": 0,
       "dst_node": 8,
@@ -221,6 +209,18 @@
       "src_output": 0,
       "dst_node": 9,
       "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 1
     }
   ],
   "backdrops": [
