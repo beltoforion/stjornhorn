@@ -27,22 +27,21 @@ once a first tagged release is cut.
 ### Added (variable-arity inputs on Math, JoinDatasets, Mosaic)
 
 - **Math, JoinDatasets and Mosaic** each carry a fixed pool of nine
-  optional input ports (`v[1]…v[9]`, `dataset[1]…dataset[9]`,
-  `image[1]…image[9]`). The editor hides every row past
+  optional input ports (`v_1…v_9`, `dataset_1…dataset_9`,
+  `image_1…image_9`). The editor hides every row past
   `last_connected + 1` so a fresh node looks like a single-input
   node, and the body grows one row at a time as the user wires
   more upstreams. The opt-in is the new
   `NodeBase.SHOW_ONLY_USED_INPUTS` class attribute; the visibility
   logic lives in `NodeItem` and `FlowScene` triggers a relayout
   after every connect / disconnect.
-- **Math expression syntax** indexes into `v[i]` (1-based) instead
-  of referencing fixed names `a`, `b`, `c`, `d`. The AST whitelist
-  allows `v[<positive int literal>]` exclusively — no other
-  subscripting, attribute access or computed indexing — and rejects
-  bare `v` references at parse time. Out-of-range indices
-  (`v[10]+`) are caught at expression-set time. Existing flows
-  referencing `a`/`b`/`c`/`d` must be rebuilt; bundled demos are
-  already migrated.
+- **Math expression syntax** references inputs by name (`v_1` …
+  `v_9`) instead of the fixed names `a`, `b`, `c`, `d`. The AST
+  whitelist treats them as plain `Name` nodes — no subscript,
+  attribute or computed-index machinery is needed, so `ast.Subscript`
+  stays out of the allowed-node set entirely. Existing flows
+  referencing `a`/`b`/`c`/`d` (or the previous `v[i]` indexing)
+  must be rebuilt; bundled demos are already migrated.
 - **Mosaic layout descriptor** uses digits `1`-`9` instead of
   letters `A`-`F`; cells reference inputs by digit, `.` or `0` is
   empty. Maximum input count raised to nine. The `layout`

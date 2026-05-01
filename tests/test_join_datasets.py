@@ -126,10 +126,10 @@ def test_single_input_does_not_emit() -> None:
 # ── Topology ──────────────────────────────────────────────────────────────────
 
 def test_has_nine_input_ports() -> None:
-    """Backend always carries the full pool of nine ``dataset[i]``
+    """Backend always carries the full pool of nine ``dataset_i``
     ports; the editor hides the trailing unused rows."""
     node = JoinDatasets()
-    assert [p.name for p in node.inputs] == [f"dataset[{i}]" for i in range(1, 10)]
+    assert [p.name for p in node.inputs] == [f"dataset_{i}" for i in range(1, 10)]
 
 
 def test_show_only_used_inputs_is_set() -> None:

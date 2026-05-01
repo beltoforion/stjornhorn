@@ -19,7 +19,7 @@ _NUM_INPUTS: int = 9
 class JoinDatasets(NodeBase):
     """Merge two or more :data:`IoDataType.DATASET` inputs into one.
 
-    Carries a fixed pool of nine optional ``dataset[i]`` ports. The
+    Carries a fixed pool of nine optional ``dataset_i`` ports. The
     editor renders only the rows up to the last connected port plus
     one empty tail, so the body grows naturally as the user wires more
     inputs without exposing every empty slot up front.
@@ -50,7 +50,7 @@ class JoinDatasets(NodeBase):
         super().__init__("Join Datasets", section="Data")
         for i in range(1, _NUM_INPUTS + 1):
             self._add_input(InputPort(
-                f"dataset[{i}]", {IoDataType.DATASET}, optional=True,
+                f"dataset_{i}", {IoDataType.DATASET}, optional=True,
             ))
         self._add_output(OutputPort("dataset", {IoDataType.DATASET}))
         self._apply_default_params()

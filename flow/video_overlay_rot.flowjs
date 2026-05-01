@@ -94,7 +94,7 @@
         -1094.6558938252151
       ],
       "port_defaults": {
-        "expression": "v[1]+150"
+        "expression": "v_1+150"
       }
     },
     {

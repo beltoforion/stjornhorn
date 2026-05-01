@@ -503,13 +503,14 @@ class NodeBase(ABC):
                 if "param_type" not in port.metadata:
                     continue
                 attr_name = f"_{port.name}"
-                # Dynamic ports (e.g. Math's ``v[1]``) carry the
+                # Dynamic ports (e.g. Math's ``v_1`` pool) carry the
                 # ``param_type`` metadata so the UI renders an inline
-                # widget, but their names aren't Python identifiers
-                # and they have no descriptor / backing slot to
-                # populate. The owning node reads them directly from
-                # ``self._inputs`` in ``process_impl``; the populate
-                # path simply skips them.
+                # widget, but they're declared in ``__init__`` rather
+                # than as class-level descriptors, so no ``_<name>``
+                # backing slot exists. The owning node reads such
+                # ports directly via ``getattr(self, port.name, …)``
+                # in ``process_impl``; the populate path simply skips
+                # them.
                 if not hasattr(self, attr_name):
                     continue
                 snapshot[attr_name] = getattr(self, attr_name)

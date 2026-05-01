@@ -30,7 +30,7 @@ def _wire(node: Math, n_upstreams: int = 1) -> tuple[
 ]:
     """Wire *n_upstreams* SCALAR upstreams + a capturing sink.
 
-    Each upstream drives the corresponding ``v[i]`` port (1-indexed
+    Each upstream drives the corresponding ``v_i`` port (1-indexed
     in the expression domain, 0-indexed in the returned list). Math
     has nine optional input ports — the test only wires the first
     *n_upstreams* and leaves the rest untouched (they fall back to
@@ -55,7 +55,7 @@ def _wire(node: Math, n_upstreams: int = 1) -> tuple[
 
 
 def test_default_expression_passes_v1_through() -> None:
-    """A brand-new node has expression='v[1]'; emitting on v[1] should
+    """A brand-new node has expression='v_1'; emitting on v_1 should
     return its payload unchanged on every frame."""
     node = Math()
     (up,), captured = _wire(node, 1)
@@ -72,7 +72,7 @@ def test_unconnected_inputs_default_to_zero() -> None:
     fall back to the inline default 0.0, so an expression referencing
     several slots still evaluates with only one wired."""
     node = Math()
-    node.expression = "v[1] + v[2] + v[3] + v[4]"
+    node.expression = "v_1 + v_2 + v_3 + v_4"
     (up,), captured = _wire(node, 1)
 
     node.before_run()
@@ -83,9 +83,9 @@ def test_unconnected_inputs_default_to_zero() -> None:
 
 def test_inline_default_picks_up_unconnected_port() -> None:
     """Editing the inline default on an unconnected port (mimics the
-    user typing 3.0 into the v[3] spinner) propagates to the eval."""
+    user typing 3.0 into the v_3 spinner) propagates to the eval."""
     node = Math()
-    node.expression = "v[1] + v[3]"
+    node.expression = "v_1 + v_3"
     node.inputs[2].default_value = 3.0
     (up,), captured = _wire(node, 1)
 
@@ -95,14 +95,30 @@ def test_inline_default_picks_up_unconnected_port() -> None:
     assert captured[0].payload.item() == 13.0
 
 
+def test_inline_widget_setattr_picks_up_unconnected_port() -> None:
+    """The inline-row spinner writes via ``setattr(node, port.name, …)``
+    (because dynamic ports have no descriptor); ``process_impl`` must
+    pick that up via ``getattr`` so the slider value reaches eval."""
+    node = Math()
+    node.expression = "v_1 + v_2"
+    # Mimic what the inline FLOAT widget does on value change:
+    node.v_2 = 4.0  # type: ignore[attr-defined]
+    (up,), captured = _wire(node, 1)
+
+    node.before_run()
+    up.send(IoData.from_scalar(10))
+
+    assert captured[0].payload.item() == 14.0
+
+
 # ── Topology ──────────────────────────────────────────────────────────────────
 
 
 def test_has_nine_input_ports() -> None:
-    """Backend always carries the full pool of nine ``v[i]`` ports
+    """Backend always carries the full pool of nine ``v_i`` ports
     regardless of how many the editor currently shows."""
     node = Math()
-    assert [p.name for p in node.inputs] == [f"v[{i}]" for i in range(1, 10)]
+    assert [p.name for p in node.inputs] == [f"v_{i}" for i in range(1, 10)]
 
 
 def test_show_only_used_inputs_is_set() -> None:
@@ -115,7 +131,7 @@ def test_show_only_used_inputs_is_set() -> None:
 
 def test_arithmetic_operators() -> None:
     node = Math()
-    node.expression = "v[1] * v[2] + v[3] / v[4]"
+    node.expression = "v_1 * v_2 + v_3 / v_4"
     upstreams, captured = _wire(node, 4)
 
     node.before_run()
@@ -130,7 +146,7 @@ def test_arithmetic_operators() -> None:
 
 def test_pow_floordiv_and_modulo() -> None:
     node = Math()
-    node.expression = "v[1]**2 + v[2] % 3 + v[3] // 2"
+    node.expression = "v_1**2 + v_2 % 3 + v_3 // 2"
     upstreams, captured = _wire(node, 3)
 
     node.before_run()
@@ -144,7 +160,7 @@ def test_pow_floordiv_and_modulo() -> None:
 
 def test_unary_negation() -> None:
     node = Math()
-    node.expression = "-v[1] + +v[2]"
+    node.expression = "-v_1 + +v_2"
     upstreams, captured = _wire(node, 2)
 
     node.before_run()
@@ -156,7 +172,7 @@ def test_unary_negation() -> None:
 
 def test_trig_function_call() -> None:
     node = Math()
-    node.expression = "sin(v[1] * pi / 180)"
+    node.expression = "sin(v_1 * pi / 180)"
     (up,), captured = _wire(node, 1)
 
     node.before_run()
@@ -167,7 +183,7 @@ def test_trig_function_call() -> None:
 
 def test_min_max_call() -> None:
     node = Math()
-    node.expression = "max(v[1], v[2])"
+    node.expression = "max(v_1, v_2)"
     upstreams, captured = _wire(node, 2)
 
     node.before_run()
@@ -179,7 +195,7 @@ def test_min_max_call() -> None:
 
 def test_ternary_select() -> None:
     node = Math()
-    node.expression = "v[1] if v[2] > 0 else v[3]"
+    node.expression = "v_1 if v_2 > 0 else v_3"
     upstreams, captured = _wire(node, 3)
 
     node.before_run()
@@ -192,7 +208,7 @@ def test_ternary_select() -> None:
 
 def test_constants_pi_and_e() -> None:
     node = Math()
-    node.expression = "v[1] * 0 + pi + e"
+    node.expression = "v_1 * 0 + pi + e"
     (up,), captured = _wire(node, 1)
 
     node.before_run()
@@ -203,9 +219,9 @@ def test_constants_pi_and_e() -> None:
 
 def test_bool_constants_act_as_zero_and_one() -> None:
     """Literal ``True`` / ``False`` are allowed as constants because
-    ``v[1] * True`` is a useful idiom for masking out a value."""
+    ``v_1 * True`` is a useful idiom for masking out a value."""
     node = Math()
-    node.expression = "v[1] * True + v[2] * False"
+    node.expression = "v_1 * True + v_2 * False"
     upstreams, captured = _wire(node, 2)
 
     node.before_run()
@@ -215,34 +231,30 @@ def test_bool_constants_act_as_zero_and_one() -> None:
     assert int(captured[-1].payload.item()) == 7
 
 
-def test_v_subscript_index_must_be_int_literal_and_positive() -> None:
+def test_unknown_v_index_rejected_at_parse_time() -> None:
+    """``v_10`` and similar are simply unknown names — rejected at
+    parse time by the Name-whitelist check."""
     node = Math()
-    for bad in ("v[0]", "v[-1]", "v[1.0]"):
-        with pytest.raises(ValueError):
+    for bad in ("v_0", "v_10", "v_42"):
+        with pytest.raises(ValueError, match="unknown name"):
             node.expression = bad
-
-
-def test_v_subscript_only_for_v_name() -> None:
-    """Other names cannot be subscripted (no ``pi[0]``, ``sin[1]`` …)."""
-    node = Math()
-    for bad in ("pi[0]", "sin[1]"):
-        with pytest.raises(ValueError):
-            node.expression = bad
-
-
-def test_v_index_in_range_at_parse_time() -> None:
-    """Index past the fixed pool size fails at parse time, not eval."""
-    node = Math()
-    with pytest.raises(ValueError, match="out of range"):
-        node.expression = "v[10]"
 
 
 def test_bare_v_rejected_at_parse_time() -> None:
-    """``v`` alone (no subscript) must not parse — the user should see
-    a tidy error at edit time, not a runtime TypeError on the proxy."""
+    """Bare ``v`` is not on the name whitelist — rejected at edit time."""
     node = Math()
     for bad in ("v", "v + 1", "sin(v)"):
-        with pytest.raises(ValueError, match="subscript"):
+        with pytest.raises(ValueError, match="unknown name"):
+            node.expression = bad
+
+
+def test_subscript_rejected_at_parse_time() -> None:
+    """Subscript syntax is not on the AST whitelist — old ``v[1]``
+    style expressions fail loudly so a stale flow surfaces an error
+    instead of silently mis-evaluating."""
+    node = Math()
+    for bad in ("v_1[0]", "v_1[1:2]", "(v_1, v_2)[0]"):
+        with pytest.raises(ValueError, match="disallowed expression element"):
             node.expression = bad
 
 
@@ -265,56 +277,52 @@ def test_bare_v_rejected_at_parse_time() -> None:
     # ── The classic CPython sandbox-escape primitive ─────────────────────
     "().__class__",
     "().__class__.__bases__[0].__subclasses__()",
-    "v[1].__class__",
+    "v_1.__class__",
     "(1).__class__.__base__",
 
-    # ── Attribute / item access (other than v[<int>]) ────────────────────
-    "v[1].real",                         # Attribute on a Subscript.
-    "[v[1], v[2]]",                      # List literal.
-    "(v[1], v[2])",                      # Tuple literal.
-    "{v[1]: v[2]}",                      # Dict literal.
-    "{v[1], v[2]}",                      # Set literal.
+    # ── Attribute / subscript / collection literals ──────────────────────
+    "v_1.real",                          # Attribute on a Name.
+    "v_1[0]",                            # Subscript (whole class banned).
+    "[v_1, v_2]",                        # List literal.
+    "(v_1, v_2)",                        # Tuple literal.
+    "{v_1: v_2}",                        # Dict literal.
+    "{v_1, v_2}",                        # Set literal.
 
     # ── Comprehensions / lambdas / walrus ────────────────────────────────
-    "[v[1] for _ in (1,)]",              # List comprehension.
-    "{v[1]: v[2] for _ in (1,)}",        # Dict comprehension.
-    "{v[1] for _ in (1,)}",              # Set comprehension.
-    "lambda: v[1]",                      # Lambda.
-    "(x := v[1]) + x",                   # Walrus.
+    "[v_1 for _ in (1,)]",               # List comprehension.
+    "{v_1: v_2 for _ in (1,)}",          # Dict comprehension.
+    "{v_1 for _ in (1,)}",               # Set comprehension.
+    "lambda: v_1",                       # Lambda.
+    "(x := v_1) + x",                    # Walrus.
 
     # ── String interpolation / f-string ──────────────────────────────────
-    "f'{v[1]}'",                         # f-string.
+    "f'{v_1}'",                          # f-string.
 
     # ── Argument / keyword tricks ────────────────────────────────────────
-    "min(*[v[1], v[2]])",                # Star-args.
-    "min(x=v[1], y=v[2])",               # Keyword arg.
+    "min(*[v_1, v_2])",                  # Star-args.
+    "min(x=v_1, y=v_2)",                 # Keyword arg.
 
     # ── Unwhitelisted names / functions ──────────────────────────────────
     "z + 1",                             # Unknown variable.
-    "unknown(v[1])",                     # Unknown function name.
-    "pi(v[1])",                          # Constant used as a function.
-    "(sin if v[1] else cos)(v[2])",      # Indirect call.
+    "unknown(v_1)",                      # Unknown function name.
+    "pi(v_1)",                           # Constant used as a function.
+    "(sin if v_1 else cos)(v_2)",        # Indirect call.
 
     # ── Unwhitelisted operators ──────────────────────────────────────────
-    "v[1] | v[2]",                       # BitOr.
-    "v[1] & v[2]",                       # BitAnd.
-    "v[1] ^ v[2]",                       # BitXor.
-    "v[1] << 1",                         # LShift.
-    "v[1] >> 1",                         # RShift.
-    "~v[1]",                             # Invert.
-    "v[1] is v[2]",                      # Identity.
-    "v[1] in (1,)",                      # Membership.
+    "v_1 | v_2",                         # BitOr.
+    "v_1 & v_2",                         # BitAnd.
+    "v_1 ^ v_2",                         # BitXor.
+    "v_1 << 1",                          # LShift.
+    "v_1 >> 1",                          # RShift.
+    "~v_1",                              # Invert.
+    "v_1 is v_2",                        # Identity.
+    "v_1 in (1,)",                       # Membership.
 
     # ── Unwhitelisted constant types ─────────────────────────────────────
     "'hello'",                           # String literal.
     "b'hello'",                          # Bytes literal.
     "...",                               # Ellipsis.
     "None",                              # NoneType — explicitly rejected.
-
-    # ── Subscript misuse ─────────────────────────────────────────────────
-    "v[a]",                              # Computed index.
-    "v[1:2]",                            # Slice.
-    "v[1, 2]",                           # Tuple index.
 ])
 def test_disallowed_expressions_rejected_at_parse_time(expr: str) -> None:
     node = Math()
@@ -326,7 +334,7 @@ def test_statements_rejected() -> None:
     """``ast.parse`` in ``mode='eval'`` rejects statements outright;
     we surface that as a ``ValueError`` along with everything else."""
     node = Math()
-    for stmt in ("import os", "x = v[1]", "del v"):
+    for stmt in ("import os", "x = v_1", "del v_1"):
         with pytest.raises(ValueError):
             node.expression = stmt
 
@@ -340,17 +348,17 @@ def test_empty_expression_rejected() -> None:
 def test_syntax_error_rejected() -> None:
     node = Math()
     with pytest.raises(ValueError, match="invalid expression syntax"):
-        node.expression = "v[1] + + + "
+        node.expression = "v_1 + + + "
 
 
 def test_failed_set_keeps_previous_expression() -> None:
     """A bad expression must not corrupt the node's state — the
     previously-valid expression keeps evaluating."""
     node = Math()
-    node.expression = "v[1] * 2"
+    node.expression = "v_1 * 2"
     with pytest.raises(ValueError):
         node.expression = "garbage syntax !!"
-    # Still emits via "v[1] * 2".
+    # Still emits via "v_1 * 2".
     (up,), captured = _wire(node, 1)
     node.before_run()
     up.send(IoData.from_scalar(5))
@@ -373,9 +381,9 @@ def test_eval_runs_with_empty_builtins() -> None:
 
 
 def test_streams_per_frame_when_only_v1_connected() -> None:
-    """A single-input flow fires the dispatcher per frame on v[1]."""
+    """A single-input flow fires the dispatcher per frame on v_1."""
     node = Math()
-    node.expression = "v[1] * 10"
+    node.expression = "v_1 * 10"
     (up,), captured = _wire(node, 1)
 
     node.before_run()

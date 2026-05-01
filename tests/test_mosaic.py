@@ -90,10 +90,10 @@ def test_layout_rejects_empty_descriptor() -> None:
 
 
 def test_has_nine_input_ports() -> None:
-    """Backend always carries the full pool of nine ``image[i]``
+    """Backend always carries the full pool of nine ``image_i``
     ports; the editor hides the trailing unused rows."""
     node = Mosaic()
-    assert [p.name for p in node.inputs] == [f"image[{i}]" for i in range(1, 10)]
+    assert [p.name for p in node.inputs] == [f"image_{i}" for i in range(1, 10)]
 
 
 def test_show_only_used_inputs_is_set() -> None:
@@ -174,8 +174,8 @@ def test_mosaic_2x2_grid_color_inputs() -> None:
 
 
 def test_mosaic_l_shape_with_spanning_input() -> None:
-    """``"13 / 23"`` — image[1] / image[2] on left (1600x400 each),
-    image[3] spans both rows on the right (800x800)."""
+    """``"13 / 23"`` — image_1 / image_2 on left (1600x400 each),
+    image_3 spans both rows on the right (800x800)."""
     node = Mosaic()
     node.layout = "13 / 23"
     _wire(node, {
@@ -222,8 +222,8 @@ def test_mosaic_mixed_types_promote_to_color() -> None:
 
 
 def test_mosaic_unconnected_digit_renders_as_black_padding() -> None:
-    """Layout ``"12 / 34"`` but only image[1] and image[4] wired —
-    image[2] and image[3] cells stay zero."""
+    """Layout ``"12 / 34"`` but only image_1 and image_4 wired —
+    image_2 and image_3 cells stay zero."""
     node = Mosaic()
     node.layout = "12 / 34"
     _wire(node, {
@@ -240,7 +240,7 @@ def test_mosaic_unconnected_digit_renders_as_black_padding() -> None:
 
 
 def test_mosaic_explicit_dot_cell_is_black_padding() -> None:
-    """Layout ``"12 / .2"`` — bottom-left explicitly empty; image[2] spans rows."""
+    """Layout ``"12 / .2"`` — bottom-left explicitly empty; image_2 spans rows."""
     node = Mosaic()
     node.layout = "12 / .2"
     _wire(node, {

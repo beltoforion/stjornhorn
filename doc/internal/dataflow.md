@@ -213,8 +213,8 @@ it to drain its buffered frames).
 ### Variable-arity input pools (`SHOW_ONLY_USED_INPUTS`)
 
 `Math`, `JoinDatasets` and `Mosaic` each declare a fixed pool of
-nine optional input ports (`v[1]…v[9]`, `dataset[1]…dataset[9]`,
-`image[1]…image[9]`). The backend always carries the full pool —
+nine optional input ports (`v_1…v_9`, `dataset_1…dataset_9`,
+`image_1…image_9`). The backend always carries the full pool —
 connection indices stay stable across save / load — but the editor
 hides every row past `last_connected + 1`, so a fresh node looks
 like a single-input node and the body grows one row at a time as
@@ -237,10 +237,12 @@ never destroyed.
 
 Two consequences for nodes that use this:
 
-- Port names need not be Python identifiers (the bracketed forms
-  `v[1]` etc. are not). `_populate_port_driven_attributes` skips
-  ports without a backing `_<name>` slot — the owning node reads
-  them straight from `self._inputs` in `process_impl`.
+- Pool ports are declared in `__init__` rather than as class-level
+  descriptors, so they have no `_<name>` backing slot.
+  `_populate_port_driven_attributes` skips them; the owning node
+  reads each port via `getattr(self, port.name, port.default_value)`
+  in `process_impl` (the inline widget's `setattr` lands on the
+  instance, the slider's value reaches eval the same way).
 - Layout-driver parameters (Mosaic's `layout`, JoinDatasets'
   `column_names`) should be declared `constant=True` so they render
   in the constants block instead of as a port row, keeping the

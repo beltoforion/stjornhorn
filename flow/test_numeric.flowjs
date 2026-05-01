@@ -38,7 +38,7 @@
         -1381.7413559483023
       ],
       "port_defaults": {
-        "expression": "v[1] + v[2]"
+        "expression": "v_1 + v_2"
       }
     },
     {

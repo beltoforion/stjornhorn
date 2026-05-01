@@ -164,7 +164,7 @@ def test_flow_latches_reactive_source_across_streaming_frames(tmp_path: Path) ->
     input — otherwise only one paired frame would reach the sink.
 
     Drives ``Mosaic`` with a streaming greyscale source on input
-    ``image[1]`` and a reactive one-shot source on input ``image[2]``;
+    ``image_1`` and a reactive one-shot source on input ``image_2``;
     every frame of the streaming source must produce a merged output,
     not just the last one."""
     fixed = np.full((16, 16), 255, dtype=np.uint8)
