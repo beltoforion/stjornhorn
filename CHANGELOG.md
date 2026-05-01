@@ -12,6 +12,81 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (window bounds via IoMeta, demo-flow simplification)
+
+- **`SlidingWindow` carries window bounds in `IoMeta`** instead of as
+  separate SCALAR outputs. Both emitted DATASETs (the slice and the new
+  ``dataset_full`` passthrough) carry ``window_start`` and
+  ``window_end`` keys on their meta. Drops two SCALAR outputs from
+  SlidingWindow's port list and matches the M13 auto-stamp idiom —
+  per-frame annotations ride along with the payload, not on a sibling
+  channel.
+- **`SlidingWindow.dataset_full` passthrough output.** Re-emits the
+  unmodified input DataFrame on every tick, with the current window
+  bounds stamped into the meta. Lets ``PlotSeries`` plot the full
+  trace and overlay a moving band from a single wire — no fan-out
+  from the upstream `CsvSource`. The passthrough wraps the *same*
+  DataFrame reference each tick so PlotSeries' identity-based trace
+  cache stays warm.
+- **`PlotSeries` reads band bounds from input meta** instead of from
+  dedicated SCALAR input ports. The ``band_start`` / ``band_end``
+  ports are gone; downstream interpretation is "if the input dataset's
+  meta carries `window_start` / `window_end`, render a band".
+- `PlotXY` keeps its explicit ``band_start`` / ``band_end`` SCALAR
+  ports for direct uses where the band x-coords aren't sample-row
+  indices on a synthesised time axis.
+- **Demo flow simplified.** `flow/data_display_time_series.flowjs`
+  drops 4 connections (was 17, now 13): each `CsvSource` has one
+  downstream wire (its `SlidingWindow`); `SlidingWindow` fans out to
+  `Hodogram` (slice) and `PlotSeries` (passthrough with band meta).
+- PlotSeries' cache key now uses ``id(io.payload)`` (the DataFrame
+  identity) rather than ``id(io)`` (the IoData wrapper) so the
+  passthrough's per-tick ``IoData.clone`` doesn't bust the cache.
+
+### Performance (PlotSeries trace cache)
+
+- **`PlotSeries` caches the matplotlib trace render across ticks.**
+  Keyed on the input `IoData` identity plus the visual params; an
+  upstream node that emits a fresh dataset per tick (shift, resample,
+  any animated filter) naturally invalidates the cache, while a held
+  one-shot input (the typical `CsvSource → PlotSeries` shape) lets the
+  trace render exactly once. The moving band overlay runs in cv2
+  against the cached bitmap rather than triggering a fresh
+  matplotlib figure. Animated-hodogram demo: ~0.9ms/tick for the band
+  overlay (down from ~50ms+ for a full matplotlib redraw).
+- `PlotXY.render_with_axes` exposes the underlying axes pixel/data
+  geometry so downstream cv2 overlays can map data coordinates to
+  image pixels without re-running the layout.
+
+### Added (TickTack Step 4, animated hodogram, #246)
+
+- **New `SlidingWindow` filter (section "Data").** Slices a DATASET
+  into a sliding window driven by a SCALAR clock — each tick on
+  ``window_index`` re-emits the slice
+  ``df.iloc[start + idx*step : start + idx*step + window_size]``,
+  plus the slice's ``window_start`` and ``window_end`` sample
+  indices on two SCALAR outputs. The ``dataset`` input holds across
+  ticks (``hold_last``) so a one-shot upstream (``CsvSource`` →
+  ``SlidingWindow``) survives the streaming clock.
+- **`PlotXY` and `PlotSeries` band overlay.** Two new optional
+  SCALAR inputs (``band_start`` / ``band_end``); when both are
+  connected, the plot renders a translucent vertical band across
+  that x-range. ``PlotXY`` interprets endpoints in x-axis data
+  coordinates; ``PlotSeries`` interprets them in sample-row
+  coordinates and converts via its own ``step`` / ``start`` to
+  the synthesised time axis — wires straight from
+  ``SlidingWindow.window_start`` / ``window_end``. Band-off
+  rendering is bit-for-bit identical to the pre-feature baseline.
+- **`flow/data_display_time_series.flowjs` is now an animated
+  flow.** Inserts ``RangeSource → SlidingWindow_{N,E} → Hodogram``
+  for the windowed motion plot, wires the window endpoints into
+  the ``PlotSeries`` band ports so the highlighted band sweeps
+  along both waveforms in lock-step, and replaces the static
+  ``FileSink`` with ``VideoSink``. Existing static-plot use cases
+  stay reachable by leaving the ``window_index`` port unwired —
+  reusable nodes, no replacement of the still-image variant
+  needed.
+
 ### Added (source node header badges)
 
 - **Source nodes now show a play-triangle icon (►) in their header**

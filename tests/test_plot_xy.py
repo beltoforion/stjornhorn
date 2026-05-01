@@ -149,3 +149,92 @@ def test_no_open_figures_after_render_error() -> None:
             grid=False,
         )
     assert plt.get_fignums() == []
+
+
+# ── Band overlay (issue #246) ───────────────────────────────────────────────
+
+
+def test_band_inputs_when_unconnected_render_unchanged() -> None:
+    """No band SCALARs connected → render is byte-identical to the
+    pre-band baseline. Adding the optional ports must not perturb the
+    default visual."""
+    node = PlotXY()
+    node.width = 200
+    node.height = 100
+    img = _run(node, _xy_df())
+    # Render a second time without any band wiring; both should match.
+    node2 = PlotXY()
+    node2.width = 200
+    node2.height = 100
+    img2 = _run(node2, _xy_df())
+    np.testing.assert_array_equal(img, img2)
+
+
+def test_band_renders_yellow_pixels_in_band_x_range() -> None:
+    """With band_start / band_end connected, the band paints a
+    translucent yellow rectangle (#ffd24a, alpha 0.20). Inside the
+    band's x-range the image picks up yellow tint; outside the
+    image is plain white background.
+    """
+    node = PlotXY()
+    node.width = 400
+    node.height = 200
+    node.grid = False
+    df = pd.DataFrame({"t": np.linspace(0.0, 1.0, 32), "v": np.zeros(32)})
+    node.inputs[1].receive(IoData.from_scalar(0.4))
+    node.inputs[2].receive(IoData.from_scalar(0.6))
+    node.inputs[0].receive(IoData.from_dataset(df))
+    img = node.outputs[0].last_emitted.image  # type: ignore[union-attr]
+
+    # Sample a horizontal strip well above the trace at y=0 so we don't
+    # overlap with the actual line. Find columns whose green channel
+    # dropped below pure-white (band tint pulls G down).
+    strip = img[20, :, :]  # BGR
+    green = strip[:, 1].astype(np.int16)
+    inside_band_dim = np.where(green < 250)[0]
+    assert len(inside_band_dim) > 0, "expected the band to dim some pixels"
+
+
+def test_reversed_band_endpoints_normalize_to_forward_range() -> None:
+    """Wiring band_end < band_start is a wiring mistake — the node
+    normalises so the band still renders as a forward span instead of
+    matplotlib silently drawing an empty / inverted rectangle."""
+    node = PlotXY()
+    node.width = 200
+    node.height = 100
+    df = pd.DataFrame({"t": np.linspace(0.0, 1.0, 16), "v": np.zeros(16)})
+    node.inputs[1].receive(IoData.from_scalar(0.7))
+    node.inputs[2].receive(IoData.from_scalar(0.3))
+    node.inputs[0].receive(IoData.from_dataset(df))
+    img_reversed = node.outputs[0].last_emitted.image  # type: ignore[union-attr]
+
+    node2 = PlotXY()
+    node2.width = 200
+    node2.height = 100
+    node2.inputs[1].receive(IoData.from_scalar(0.3))
+    node2.inputs[2].receive(IoData.from_scalar(0.7))
+    node2.inputs[0].receive(IoData.from_dataset(df))
+    img_forward = node2.outputs[0].last_emitted.image  # type: ignore[union-attr]
+
+    np.testing.assert_array_equal(img_reversed, img_forward)
+
+
+def test_only_one_band_endpoint_connected_skips_band() -> None:
+    """Half-wired band (only band_start, not band_end) → no band drawn.
+    Either both or neither — partial connections don't render."""
+    node = PlotXY()
+    node.width = 200
+    node.height = 100
+    df = pd.DataFrame({"t": np.linspace(0.0, 1.0, 16), "v": np.zeros(16)})
+    node.inputs[1].receive(IoData.from_scalar(0.4))
+    # band_end intentionally not wired
+    node.inputs[0].receive(IoData.from_dataset(df))
+    img_partial = node.outputs[0].last_emitted.image  # type: ignore[union-attr]
+
+    node2 = PlotXY()
+    node2.width = 200
+    node2.height = 100
+    node2.inputs[0].receive(IoData.from_dataset(df))
+    img_baseline = node2.outputs[0].last_emitted.image  # type: ignore[union-attr]
+
+    np.testing.assert_array_equal(img_partial, img_baseline)

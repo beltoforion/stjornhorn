@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.48",
+  "app_version": "0.3.0.14",
   "name": "data_display_time_series",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -2194.241739130435,
-        -534.4499999999999
+        -2332.027556771116,
+        -532.2095802009644
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.001",
@@ -27,8 +27,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -2191.3626086956524,
-        -319.3843478260868
+        -2329.1484263363336,
+        -317.1439280270513
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.002",
@@ -46,8 +46,8 @@
       "module": "nodes.filters.plot_series",
       "class": "PlotSeries",
       "position": [
-        -1600.0,
-        -700.0
+        -1038.8436388165699,
+        -778.4766055671254
       ],
       "port_defaults": {
         "step": 0.125,
@@ -64,8 +64,8 @@
       "module": "nodes.filters.plot_series",
       "class": "PlotSeries",
       "position": [
-        -1600.0,
-        -400.0
+        -1039.624330009867,
+        -403.9162119861327
       ],
       "port_defaults": {
         "step": 0.125,
@@ -82,8 +82,8 @@
       "module": "nodes.filters.hodogram",
       "class": "Hodogram",
       "position": [
-        -1609.2012770503088,
-        -89.70508521078281
+        -1065.8825582783345,
+        -15.810053202045765
       ],
       "port_defaults": {
         "x_label": "N",
@@ -93,7 +93,7 @@
         "color_by_time": true,
         "equal_aspect": true,
         "show_polarization": true,
-        "title": "Ground Motion"
+        "title": "Ground Motion (windowed)"
       }
     },
     {
@@ -101,8 +101,8 @@
       "module": "nodes.filters.mosaic",
       "class": "Mosaic",
       "position": [
-        -1300.0,
-        -500.0
+        -752.3117789283475,
+        -588.0332632474602
       ],
       "port_defaults": {
         "layout": "AC / BC"
@@ -113,8 +113,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1268.8869256056792,
-        -195.46531082277914
+        -533.2761396390098,
+        -306.07653310817557
       ],
       "port_defaults": {},
       "size": [
@@ -124,14 +124,59 @@
     },
     {
       "id": 7,
-      "module": "nodes.sinks.file_sink",
-      "class": "FileSink",
+      "module": "nodes.sources.range_source",
+      "class": "RangeSource",
       "position": [
-        -507.52829217252565,
-        262.1295940042186
+        -1642.0533149358944,
+        -273.53268962985686
       ],
       "port_defaults": {
-        "output_path": "out.png"
+        "min_value": 0,
+        "max_value": 250,
+        "increment": 1.0,
+        "loop": false
+      }
+    },
+    {
+      "id": 8,
+      "module": "nodes.filters.sliding_window",
+      "class": "SlidingWindow",
+      "position": [
+        -1407.9369603045577,
+        -635.3887368620028
+      ],
+      "port_defaults": {
+        "window_size": 256,
+        "step": 40,
+        "start": 0
+      }
+    },
+    {
+      "id": 9,
+      "module": "nodes.filters.sliding_window",
+      "class": "SlidingWindow",
+      "position": [
+        -1422.7084870671183,
+        -91.35089380976612
+      ],
+      "port_defaults": {
+        "window_size": 256,
+        "step": 40,
+        "start": 0
+      }
+    },
+    {
+      "id": 10,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        215.51795271252254,
+        207.6809362502491
+      ],
+      "port_defaults": {
+        "output_path": "out.mp4",
+        "fps": 30.0,
+        "codec": 0
       }
     }
   ],
@@ -139,26 +184,50 @@
     {
       "src_node": 0,
       "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 9,
+      "dst_input": 0
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 1
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 9,
+      "dst_input": 1
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 9,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 1
+    },
+    {
+      "src_node": 8,
+      "src_output": 1,
       "dst_node": 2,
       "dst_input": 0
     },
     {
-      "src_node": 1,
-      "src_output": 0,
+      "src_node": 9,
+      "src_output": 1,
       "dst_node": 3,
       "dst_input": 0
-    },
-    {
-      "src_node": 0,
-      "src_output": 0,
-      "dst_node": 4,
-      "dst_input": 0
-    },
-    {
-      "src_node": 1,
-      "src_output": 0,
-      "dst_node": 4,
-      "dst_input": 1
     },
     {
       "src_node": 2,
@@ -187,25 +256,42 @@
     {
       "src_node": 6,
       "src_output": 0,
-      "dst_node": 7,
+      "dst_node": 10,
       "dst_input": 0
     }
   ],
   "backdrops": [
     {
       "position": [
-        -2244.1647826086955,
-        -582.7795652173911
+        -2381.785817640681,
+        -580.5391454183556
       ],
       "size": [
         560.0,
-        482.26347826086953
+        465.87613100079375
       ],
-      "title": "Input",
+      "title": "Sources",
       "color": [
         70,
         60,
         40,
+        140
+      ]
+    },
+    {
+      "position": [
+        -1689.3236207666807,
+        -669.6004141422867
+      ],
+      "size": [
+        512.1323602595592,
+        925.1763180441216
+      ],
+      "title": "Sliding window",
+      "color": [
+        50,
+        70,
+        60,
         140
       ]
     }
