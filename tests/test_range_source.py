@@ -21,10 +21,9 @@ def _wire_capture(node: RangeSource) -> list[IoData]:
 def test_tick_count_matches_emitted_frame_count() -> None:
     """tick_count() must agree with the actual number of frames emitted."""
     cases = [
-        dict(min_value=0,   max_value=4,   increment=1.0,  loop=False),
-        dict(min_value=1,   max_value=1000, increment=10.0, loop=False),
-        dict(min_value=0,   max_value=9,   increment=1.0,  loop=True),
-        dict(min_value=0,   max_value=1,   increment=0.5,  loop=False),
+        dict(min_value=0,   max_value=4,    increment=1.0),
+        dict(min_value=1,   max_value=1000, increment=10.0),
+        dict(min_value=0,   max_value=1,    increment=0.5),
     ]
     for params in cases:
         node = RangeSource()
@@ -148,26 +147,6 @@ def test_increment_setter_rejects_zero_and_negative() -> None:
         node.increment = -0.5
 
 
-def test_loop_repeats_range_bounded_cycles() -> None:
-    """loop=True cycles the range a bounded number of times so a
-    forgotten ``loop=True`` still terminates the run."""
-    node = RangeSource()
-    node.min_value = 0
-    node.max_value = 2
-    node.loop = True
-    captured = _wire_capture(node)
-
-    node.before_run()
-    node.process_impl()
-
-    expected_per_cycle = [0, 1, 2]
-    assert len(captured) == len(expected_per_cycle) * RangeSource._LOOP_CYCLES
-    head = [int(d.payload.item()) for d in captured[:3]]
-    tail = [int(d.payload.item()) for d in captured[-3:]]
-    assert head == expected_per_cycle
-    assert tail == expected_per_cycle
-
-
 def test_inverted_range_emits_nothing() -> None:
     """max_value < min_value is treated as an empty range — no values, no error."""
     node = RangeSource()
@@ -188,9 +167,7 @@ def test_params_round_trip_through_setattr() -> None:
     setattr(node, "min_value", "5")        # widget hands strings sometimes
     setattr(node, "max_value", 12.0)
     setattr(node, "increment", 2)
-    setattr(node, "loop", 1)
 
     assert node.min_value == 5
     assert node.max_value == 12
     assert node.increment == 2.0
-    assert node.loop is True

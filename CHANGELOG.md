@@ -12,22 +12,31 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Removed (RangeSource.loop)
+
+- **`RangeSource.loop` parameter dropped.** The bounded-cycle counter
+  (10 repeats when `loop=True`) was a footgun — a tick-driven flow that
+  needs more frames is better expressed by widening `max_value` /
+  shrinking `increment`, not by silently multiplying the run by 10×.
+  The `_LOOP_CYCLES` constant is gone with it. Bundled flow files
+  stripped of the now-unrecognised `"loop"` port-default key.
+
 ### Changed (window bounds via IoMeta, demo-flow simplification)
 
 - **`SlidingWindow` carries window bounds in `IoMeta`** instead of as
-  separate SCALAR outputs. Both emitted DATASETs (the slice and the new
-  ``dataset_full`` passthrough) carry ``window_start`` and
+  separate SCALAR outputs. Both emitted DATASETs (``dataset_windowed``
+  and the new ``dataset_full`` passthrough) carry ``window_start`` and
   ``window_end`` keys on their meta. Drops two SCALAR outputs from
   SlidingWindow's port list and matches the M13 auto-stamp idiom —
   per-frame annotations ride along with the payload, not on a sibling
   channel.
-- **`SlidingWindow.dataset_full` passthrough output.** Re-emits the
-  unmodified input DataFrame on every tick, with the current window
-  bounds stamped into the meta. Lets ``PlotSeries`` plot the full
-  trace and overlay a moving band from a single wire — no fan-out
-  from the upstream `CsvSource`. The passthrough wraps the *same*
-  DataFrame reference each tick so PlotSeries' identity-based trace
-  cache stays warm.
+- **`SlidingWindow.dataset_windowed`** (formerly ``dataset``) is the
+  per-tick slice; ``dataset_full`` is the unmodified input DataFrame
+  re-stamped each tick with the current window bounds. Lets
+  ``PlotSeries`` plot the full trace and overlay a moving band from a
+  single wire — no fan-out from the upstream `CsvSource`. The
+  passthrough wraps the *same* DataFrame reference each tick so
+  PlotSeries' identity-based trace cache stays warm.
 - **`PlotSeries` reads band bounds from input meta** instead of from
   dedicated SCALAR input ports. The ``band_start`` / ``band_end``
   ports are gone; downstream interpretation is "if the input dataset's

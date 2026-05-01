@@ -7,7 +7,7 @@ from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
 from core.node_base import SourceNodeBase
-from core.params import BoolParam, FloatParam, IntParam
+from core.params import FloatParam, IntParam
 from core.port import OutputPort
 
 
@@ -17,19 +17,12 @@ class RangeSource(SourceNodeBase):
     Drives downstream nodes with a numeric stream — animate a
     Math expression's ``a``, an Overlay's rotation angle, etc.
     Whole-number increments emit ints; fractional increments emit
-    floats. With ``loop=True`` the range repeats a bounded number
-    of times so a stray ``loop`` doesn't run indefinitely.
+    floats.
     """
-
-    #: How many times the counter cycles when ``loop=True``. Bounded
-    #: so a stray ``loop=True`` doesn't run indefinitely if the user
-    #: walks away.
-    _LOOP_CYCLES: int = 10
 
     min_value = IntParam(0, constant=True)
     max_value = IntParam(99, constant=True)
     increment = FloatParam(1.0, min=0.0, min_exclusive=True, constant=True)
-    loop = BoolParam(False, constant=True)
 
     def __init__(self) -> None:
         super().__init__("Range Source", section="Sources")
@@ -55,7 +48,6 @@ class RangeSource(SourceNodeBase):
         if self._max_value < self._min_value:
             return
 
-        cycles = self._LOOP_CYCLES if self._loop else 1
         # Whole-number increment + integer bounds → emit ints, so a
         # downstream Display shows ``42`` rather than ``42.0``. Any
         # fractional increment promotes every emitted value to float.
@@ -63,25 +55,22 @@ class RangeSource(SourceNodeBase):
         # Tolerance on the upper bound so float drift (e.g. 10 *
         # 0.1 == 1.0000000000000002) doesn't truncate the last value.
         tol = abs(self._increment) * 1e-9
-        for _ in range(cycles):
-            n = 0
-            while True:
-                value: int | float = self._min_value + n * self._increment
-                if value > self._max_value + tol:
-                    break
-                if emit_int:
-                    value = int(value)
-                self.outputs[0].send(IoData.from_scalar(value))
-                n += 1
-                yield
+        n = 0
+        while True:
+            value: int | float = self._min_value + n * self._increment
+            if value > self._max_value + tol:
+                break
+            if emit_int:
+                value = int(value)
+            self.outputs[0].send(IoData.from_scalar(value))
+            n += 1
+            yield
 
     @override
     def tick_count(self) -> int | None:
         if self._increment <= 0.0 or self._max_value < self._min_value:
             return 0
-        cycles = self._LOOP_CYCLES if self._loop else 1
-        per_cycle = math.floor((self._max_value - self._min_value) / self._increment) + 1
-        return per_cycle * cycles
+        return math.floor((self._max_value - self._min_value) / self._increment) + 1
 
     @override
     def process_impl(self) -> None:
