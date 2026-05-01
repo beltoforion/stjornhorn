@@ -8,8 +8,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -2194.241739130435,
-        -534.4499999999999
+        -2332.027556771116,
+        -532.2095802009644
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.001",
@@ -27,8 +27,8 @@
       "module": "nodes.sources.csv_source",
       "class": "CsvSource",
       "position": [
-        -2191.3626086956524,
-        -319.3843478260868
+        -2329.1484263363336,
+        -317.1439280270513
       ],
       "port_defaults": {
         "file_path": "quakedata/quake_eib_20000908_1139.002",
@@ -113,8 +113,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -847.0197604025516,
-        -98.22893062881386
+        -902.7233178659706,
+        -110.74741628216199
       ],
       "port_defaults": {},
       "size": [
@@ -127,8 +127,8 @@
       "module": "nodes.sources.range_source",
       "class": "RangeSource",
       "position": [
-        -2191.0,
-        -100.0
+        -1777.9347757473952,
+        -51.00299309065915
       ],
       "port_defaults": {
         "min_value": 0,
@@ -142,12 +142,12 @@
       "module": "nodes.filters.sliding_window",
       "class": "SlidingWindow",
       "position": [
-        -1589.8030374912612,
-        -514.5180887040393
+        -1471.0607881423816,
+        -524.5999777996988
       ],
       "port_defaults": {
         "window_size": 256,
-        "step": 8,
+        "step": 40,
         "start": 0
       }
     },
@@ -156,13 +156,27 @@
       "module": "nodes.filters.sliding_window",
       "class": "SlidingWindow",
       "position": [
-        -1594.3806541682115,
-        -224.31980888252104
+        -1467.7969355227071,
+        -217.59854948541468
       ],
       "port_defaults": {
         "window_size": 256,
-        "step": 8,
+        "step": 40,
         "start": 0
+      }
+    },
+    {
+      "id": 10,
+      "module": "nodes.sinks.video_sink",
+      "class": "VideoSink",
+      "position": [
+        -231.1919856370697,
+        378.1360443046987
+      ],
+      "port_defaults": {
+        "output_path": "out.mp4",
+        "fps": 30.0,
+        "codec": 0
       }
     }
   ],
@@ -262,17 +276,23 @@
       "src_output": 0,
       "dst_node": 6,
       "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 10,
+      "dst_input": 0
     }
   ],
   "backdrops": [
     {
       "position": [
-        -2244.0,
-        -582.7795652173911
+        -2381.785817640681,
+        -580.5391454183556
       ],
       "size": [
         560.0,
-        700.0
+        465.87613100079375
       ],
       "title": "Sources",
       "color": [
@@ -284,12 +304,12 @@
     },
     {
       "position": [
-        -1670.0,
+        -1798.8241384445391,
         -582.0
       ],
       "size": [
-        342.1965185027191,
-        692.228669439409
+        566.2384984062655,
+        728.0753862239765
       ],
       "title": "Sliding window",
       "color": [
