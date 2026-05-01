@@ -12,6 +12,21 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Performance (PlotSeries trace cache)
+
+- **`PlotSeries` caches the matplotlib trace render across ticks.**
+  Keyed on the input `IoData` identity plus the visual params; an
+  upstream node that emits a fresh dataset per tick (shift, resample,
+  any animated filter) naturally invalidates the cache, while a held
+  one-shot input (the typical `CsvSource → PlotSeries` shape) lets the
+  trace render exactly once. The moving band overlay runs in cv2
+  against the cached bitmap rather than triggering a fresh
+  matplotlib figure. Animated-hodogram demo: ~0.9ms/tick for the band
+  overlay (down from ~50ms+ for a full matplotlib redraw).
+- `PlotXY.render_with_axes` exposes the underlying axes pixel/data
+  geometry so downstream cv2 overlays can map data coordinates to
+  image pixels without re-running the layout.
+
 ### Added (TickTack Step 4, animated hodogram, #246)
 
 - **New `SlidingWindow` filter (section "Data").** Slices a DATASET

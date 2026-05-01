@@ -234,3 +234,126 @@ def test_band_position_tracks_step_and_start_conversion() -> None:
     # equivalence is hard to assert from the outside.
     assert img_a is not None
     assert img_b is not None
+
+
+# ── Trace cache (perf optimization for animated band) ───────────────────────
+
+
+def test_trace_cache_reuses_render_when_dataset_identity_unchanged() -> None:
+    """When the input ``IoData`` instance stays the same across ticks
+    (the SlidingWindow→PlotSeries pattern: held one-shot CsvSource +
+    streaming clock), matplotlib full render runs ONCE; subsequent
+    ticks reuse the cached bitmap and just repaint the band in cv2.
+    """
+    from core.port import OutputPort
+    from nodes.filters import plot_xy as plot_xy_mod
+    from nodes.filters.plot_xy import PlotXY
+
+    node = PlotSeries()
+    node.width = 200; node.height = 100; node.grid = False; node.step = 0.1
+
+    feeder = OutputPort("ds", {IoDataType.DATASET})
+    bs = OutputPort("bs", {IoDataType.SCALAR})
+    be = OutputPort("be", {IoDataType.SCALAR})
+    feeder.connect(node.inputs[0])
+    bs.connect(node.inputs[1])
+    be.connect(node.inputs[2])
+
+    feeder.send(IoData.from_dataset(pd.DataFrame({"c0": np.zeros(50)})))
+    feeder.finish()  # data retained on input port across subsequent ticks
+
+    render_count = 0
+    real = PlotXY.render_with_axes
+    def counting(*args, **kwargs):
+        nonlocal render_count
+        render_count += 1
+        return real(*args, **kwargs)
+    PlotXY.render_with_axes = staticmethod(counting)
+    try:
+        # Three ticks, three different bands, same dataset.
+        bs.send(IoData.from_scalar(5));  be.send(IoData.from_scalar(10))
+        bs.send(IoData.from_scalar(15)); be.send(IoData.from_scalar(20))
+        bs.send(IoData.from_scalar(25)); be.send(IoData.from_scalar(30))
+    finally:
+        PlotXY.render_with_axes = staticmethod(real)
+
+    assert render_count == 1, f"expected 1 matplotlib render, got {render_count}"
+
+
+def test_trace_cache_invalidates_when_dataset_identity_changes() -> None:
+    """A new IoData instance (e.g. an upstream filter that emits a
+    fresh DataFrame per tick) must invalidate the cache so the
+    rendered trace stays correct."""
+    from core.port import OutputPort
+    from nodes.filters.plot_xy import PlotXY
+
+    node = PlotSeries()
+    node.width = 200; node.height = 100; node.grid = False
+
+    feeder = OutputPort("ds", {IoDataType.DATASET})
+    feeder.connect(node.inputs[0])
+
+    render_count = 0
+    real = PlotXY.render_with_axes
+    def counting(*args, **kwargs):
+        nonlocal render_count
+        render_count += 1
+        return real(*args, **kwargs)
+    PlotXY.render_with_axes = staticmethod(counting)
+    try:
+        for value in (1.0, 2.0, 3.0):
+            # Each emit produces a new IoData via OutputPort.send's clone.
+            feeder.send(IoData.from_dataset(pd.DataFrame({"c0": np.full(20, value)})))
+            # Need to clear() so the next receive triggers a fire (port
+            # data persists otherwise; in real use the framework does
+            # this between dispatches).
+            node.inputs[0].clear()
+    finally:
+        PlotXY.render_with_axes = staticmethod(real)
+
+    # Each fresh IoData → cache miss → re-render.
+    assert render_count == 3
+
+
+def test_trace_cache_invalidates_on_param_change() -> None:
+    """Editing a render-shaping param (size, title, step, …) between
+    ticks must re-render even though the input IoData hasn't changed."""
+    from core.port import OutputPort
+    from nodes.filters.plot_xy import PlotXY
+
+    node = PlotSeries()
+    node.width = 200; node.height = 100; node.grid = False
+
+    # Connect all three ports so the dispatcher waits for the band
+    # endpoints before firing — otherwise the initial dataset send
+    # would immediately fire+clear before we could mark it finished.
+    ds = OutputPort("ds", {IoDataType.DATASET})
+    bs = OutputPort("bs", {IoDataType.SCALAR})
+    be = OutputPort("be", {IoDataType.SCALAR})
+    ds.connect(node.inputs[0])
+    bs.connect(node.inputs[1])
+    be.connect(node.inputs[2])
+    ds.send(IoData.from_dataset(pd.DataFrame({"c0": np.zeros(50)})))
+    ds.finish()  # retain-after-finish so the dataset survives ticks
+
+    render_count = 0
+    real = PlotXY.render_with_axes
+    def counting(*args, **kwargs):
+        nonlocal render_count
+        render_count += 1
+        return real(*args, **kwargs)
+    PlotXY.render_with_axes = staticmethod(counting)
+    try:
+        # Tick 1: cache miss, renders.
+        bs.send(IoData.from_scalar(5));  be.send(IoData.from_scalar(10))
+        # Tick 2: same params → cache hit.
+        bs.send(IoData.from_scalar(15)); be.send(IoData.from_scalar(20))
+        # Change a param; tick 3: cache miss, renders.
+        node.title = "now with title"
+        bs.send(IoData.from_scalar(25)); be.send(IoData.from_scalar(30))
+        # Tick 4: same params again → cache hit.
+        bs.send(IoData.from_scalar(35)); be.send(IoData.from_scalar(40))
+    finally:
+        PlotXY.render_with_axes = staticmethod(real)
+
+    assert render_count == 2

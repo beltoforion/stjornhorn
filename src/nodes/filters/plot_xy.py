@@ -8,6 +8,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+from dataclasses import dataclass
+
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,6 +26,23 @@ from core.port import InputPort, OutputPort
 #: matplotlib expects inches; 100 keeps the math simple and produces
 #: text-readable plots at typical pixel sizes.
 _RENDER_DPI: int = 100
+
+
+@dataclass(frozen=True)
+class AxesDescriptor:
+    """Minimal axes geometry needed to paint shapes onto a cached plot
+    bitmap without re-rendering through matplotlib.
+
+    Lives in :mod:`plot_xy` because it's produced by :meth:`PlotXY.render_with_axes`
+    and consumed by :class:`~nodes.filters.plot_series.PlotSeries`'s frame-cache
+    (the only current caller). matplotlib's coordinate system is
+    bottom-up; image coords are top-down, so consumers must flip Y via
+    ``canvas_height - y_pixel``.
+    """
+    pixel_x:       tuple[float, float]   # axes left/right pixel x (matplotlib coords)
+    pixel_y:       tuple[float, float]   # axes bottom/top pixel y (matplotlib coords)
+    data_xlim:     tuple[float, float]   # axes x-axis data range
+    canvas_height: int                   # for matplotlib→image y-flip
 
 
 class PlotXY(NodeBase):
@@ -195,6 +214,36 @@ class PlotXY(NodeBase):
         Always closes the figure before returning so a long-running
         flow doesn't leak figures across frames.
         """
+        bgr, _ = PlotXY.render_with_axes(
+            x, y,
+            x_label=x_label, y_label=y_label,
+            width=width, height=height,
+            title=title, grid=grid, band=band,
+        )
+        return bgr
+
+    @staticmethod
+    def render_with_axes(
+        x: np.ndarray,
+        y: np.ndarray,
+        *,
+        x_label: str,
+        y_label: str,
+        width: int,
+        height: int,
+        title: str,
+        grid: bool,
+        band: tuple[float, float] | None = None,
+    ) -> tuple[np.ndarray, AxesDescriptor]:
+        """Render the plot and return the bitmap together with the axes
+        pixel / data geometry.
+
+        Used by :class:`~nodes.filters.plot_series.PlotSeries` to cache
+        the trace render and overlay a moving band in cv2 across many
+        ticks without re-rendering through matplotlib. ``band=None``
+        leaves the bitmap blank in the band region so the caller can
+        paint it later (or not at all).
+        """
         fig = plt.figure(
             figsize=(width / _RENDER_DPI, height / _RENDER_DPI),
             dpi=_RENDER_DPI,
@@ -212,7 +261,14 @@ class PlotXY(NodeBase):
                 ax.grid(True, alpha=0.3)
             fig.tight_layout(pad=0.4)
             fig.canvas.draw()
+            descriptor = AxesDescriptor(
+                pixel_x=tuple(ax.bbox.intervalx),
+                pixel_y=tuple(ax.bbox.intervaly),
+                data_xlim=tuple(ax.get_xlim()),
+                canvas_height=int(height),
+            )
             rgba = np.asarray(fig.canvas.buffer_rgba())
-            return cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGR)
+            bgr = cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGR)
+            return bgr, descriptor
         finally:
             plt.close(fig)
