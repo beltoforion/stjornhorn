@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.26",
+  "app_version": "0.3.0.30",
   "name": "data_display_time_series_merged",
   "nodes": [
     {
@@ -146,8 +146,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        144.34771870365216,
-        232.26140565571347
+        177.32826782003391,
+        247.78166406342254
       ],
       "port_defaults": {
         "output_path": "ground_motion_merged.mp4",
@@ -178,8 +178,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -300.0,
-        125.30716331822862
+        -495.94326239732686,
+        247.52919827893743
       ],
       "port_defaults": {},
       "size": [
