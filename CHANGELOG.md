@@ -12,6 +12,23 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Removed (Output Inspector dock + toolbar-mirroring menu entries)
+
+- **Output Inspector** — the dockable panel that previewed the
+  selected node's image outputs is gone. The inline `Display` node
+  covers the same inspection use case directly inside the flow
+  graph, so the side-channel preview was redundant. With it goes
+  the F11 fullscreen shortcut, the floating-window promotion logic,
+  the two `Dock Layout` presets ("Inspector on Right", "Inspector
+  under Node List") and the auto-pick-most-downstream-node-after-
+  Run heuristic. `ViewerPanel`, `FlowScene.selected_node_changed`
+  and the unused `_last_emitted_selected` cache were removed.
+- **Node Editor menu trimmed.** Run, Stop, Save, Save As…, Open,
+  Reload, V-Stack, H-Stack, Group and Clear are no longer mirrored
+  in the page menu — they are already on the toolbar. The menu
+  now contains just the View submenu with the dock visibility
+  toggles for Node List and Node Documentation.
+
 ### Changed (Display: status bar instead of cv2 overlay)
 
 - **`Display` no longer blits FPS / frame-count text onto the

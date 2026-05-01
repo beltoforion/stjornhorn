@@ -60,11 +60,11 @@ class _SelectOnParamFocusFilter(QObject):
 
     Without this, clicking inside a spinbox / line edit / combo on a
     node body gives that *widget* keyboard focus but does not select
-    the *node* — the Output Inspector and any other selection-driven
-    panel keeps showing whatever was selected before, and the
-    ``Delete`` key dispatcher in :meth:`FlowScene.keyPressEvent` (which
-    branches on whether the focus item is a proxy widget) ends up
-    targeting the wrong thing. Issue: #170
+    the *node* — any selection-driven panel keeps showing whatever was
+    selected before, and the ``Delete`` key dispatcher in
+    :meth:`FlowScene.keyPressEvent` (which branches on whether the
+    focus item is a proxy widget) ends up targeting the wrong thing.
+    Issue: #170
 
     Installed by :meth:`NodeItem._wire_param_focus_to_selection` on
     each ParamWidgetBase wrapper *and* every focusable child inside it

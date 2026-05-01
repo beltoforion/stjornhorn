@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot
-from PySide6.QtGui import QAction, QIcon, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -23,8 +23,6 @@ from constants import FLOW_DIR
 from core import notifications
 from core.flow import Flow, is_valid_flow_name
 from core.flow_runner import FlowRunner
-from core.io_data import IMAGE_TYPES
-from core.node_base import SinkNodeBase
 from ui.flow_io import FlowIoError, load_flow_into, save_flow_to
 from ui.flow_scene import FlowScene
 from ui.flow_view import FlowView
@@ -41,7 +39,6 @@ from ui.recent_flows import RecentFlowsManager
 from ui.message_banner import MessageBanner
 from ui.flow_status_widget import FlowStatusWidget
 from ui.theme import STATUS_MUTED_COLOR, STATUS_OK_COLOR
-from ui.viewer_panel import ViewerPanel
 
 if TYPE_CHECKING:
     from core.node_registry import NodeRegistry
@@ -53,15 +50,15 @@ _FLOW_FILE_FILTER    = "Flow (*.flowjs);;All files (*)"
 
 
 class NodeEditorPage(PageBase):
-    """The editor. Central canvas + Node List dock (left) + Output Inspector (right).
+    """The editor. Central canvas + Node List dock + Node Documentation dock.
 
     Dockable panels are hosted on an inner QMainWindow so the Node List and
-    Output Inspector can be dragged around, floated, tabbed together, or
-    closed by the user. Defaults: Node List on the left, Output Inspector on
-    the right, both full-height. Whatever the user reshapes the docks into is
-    persisted via :mod:`ui.dock_layout` and re-applied on the next launch.
-    Toolbar actions are exposed via :meth:`page_toolbar_actions` so MainWindow
-    can render them in the global toolbar next to the page-selector radio
+    Node Documentation can be dragged around, floated, tabbed together, or
+    closed by the user. Defaults: both stacked on the left, full-height.
+    Whatever the user reshapes the docks into is persisted via
+    :mod:`ui.dock_layout` and re-applied on the next launch. Toolbar
+    actions are exposed via :meth:`page_toolbar_actions` so MainWindow can
+    render them in the global toolbar next to the page-selector radio
     group.
 
     Signal :attr:`title_changed` fires up to MainWindow whenever the active
@@ -123,31 +120,6 @@ class NodeEditorPage(PageBase):
         self._node_list_dock.setWidget(self._node_list)
         self._node_list_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
         self._inner.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._node_list_dock)
-
-        # Output Inspector dock — defaults to the right-hand area as a
-        # tall full-height column. Image previews stack vertically, so a
-        # narrow-but-tall slot fits the panel's aspect better than the
-        # half-height slot it used to share with the Node List on the
-        # left. Issue: #183
-        self._viewer = ViewerPanel()
-        self._viewer_dock = QDockWidget("Output Inspector", self._inner)
-        self._viewer_dock.setObjectName("OutputInspectorDock")
-        self._viewer_dock.setWidget(self._viewer)
-        self._viewer_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
-        self._inner.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._viewer_dock)
-        # A floating QDockWidget defaults to a Qt.Tool window, which on most
-        # desktop environments lacks maximise / fullscreen affordances.
-        # Promote it to a regular top-level window when it floats so the
-        # user can inspect large outputs in full screen; F11 toggles
-        # fullscreen while the dock is detached.
-        self._viewer_dock.topLevelChanged.connect(self._on_viewer_top_level_changed)
-        self._viewer_fullscreen_shortcut = QShortcut(
-            QKeySequence(Qt.Key.Key_F11), self._viewer_dock
-        )
-        self._viewer_fullscreen_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        self._viewer_fullscreen_shortcut.activated.connect(
-            self._toggle_viewer_fullscreen
-        )
 
         # Node Documentation dock — read-only Markdown view of the
         # currently selected node's docstring, ports and params. Kept
@@ -214,8 +186,6 @@ class NodeEditorPage(PageBase):
         self._notification_received.connect(self._on_notification)
         notifications.subscribe(self._forward_notification)
 
-        # Wire scene → viewer.
-        self._scene.selected_node_changed.connect(self._viewer.show_node)
         # Surface interactive-connection errors (type mismatches) in the
         # message banner instead of swallowing them inside FlowScene.
         self._scene.connection_error.connect(self._on_connection_error)
@@ -280,46 +250,22 @@ class NodeEditorPage(PageBase):
         return self._flow_status_widget
 
     def page_menus(self) -> list[QMenu]:
-        # Single "Node Editor" menu mirroring the toolbar actions plus
-        # a View submenu to toggle the docks. The menu itself is rebuilt
-        # on every activation because QMenu cannot be easily re-parented
-        # across hosts.
+        # Single "Node Editor" menu exposing only entries that are *not*
+        # already in the toolbar — currently just the dock visibility
+        # toggles. Toolbar actions (Run, Save, Open, Stack, …) are not
+        # duplicated here. The menu itself is rebuilt on every
+        # activation because QMenu cannot be easily re-parented across
+        # hosts.
         menu = QMenu("Node Editor")
-        menu.addAction(self._actions["run"])
-        menu.addAction(self._actions["stop"])
-        menu.addAction(self._actions["save"])
-        menu.addAction(self._actions["save_as"])
-        menu.addAction(self._actions["open"])
-        menu.addAction(self._actions["reload"])
-        menu.addSeparator()
-        menu.addAction(self._actions["stack_vertical"])
-        menu.addAction(self._actions["stack_horizontal"])
-        menu.addAction(self._actions["group"])
-        menu.addSeparator()
-        menu.addAction(self._actions["clear"])
-        menu.addSeparator()
-
         view_menu = menu.addMenu("View")
         view_menu.addAction(self._node_list_dock.toggleViewAction())
         view_menu.addAction(self._node_doc_dock.toggleViewAction())
-        view_menu.addAction(self._viewer_dock.toggleViewAction())
-        view_menu.addSeparator()
-        # Preset dock arrangements. Qt's drag-and-drop into a split-with-
-        # existing-dock zone is precise enough to be hard to discover when
-        # the source dock is on the opposite side of the canvas, so the
-        # two layouts users actually want are exposed as one-click presets
-        # in addition to the freeform drag affordances. Issue: #183
-        layout_menu = view_menu.addMenu("Dock Layout")
-        layout_menu.addAction(self._actions["layout_inspector_right"])
-        layout_menu.addAction(self._actions["layout_inspector_under_node_list"])
         return [menu]
 
     def on_activated(self) -> None:
         # Refresh menu label via title_changed so MainWindow picks up the
-        # current flow name. Also refresh the viewer to whatever is
-        # currently selected (nothing, typically).
+        # current flow name.
         self.title_changed.emit(self.page_title())
-        self._viewer.refresh()
 
     # ── Page state persistence (PageBase lifecycle) ────────────────────────────
 
@@ -343,55 +289,6 @@ class NodeEditorPage(PageBase):
         save_dock_layout(self._inner)
         save_node_list_state(self._node_list.get_section_states())
 
-    def _apply_layout_inspector_right(self) -> None:
-        """Inspector full-height on the right, Node List full-height on the left.
-
-        This is the v0.2.13 default. Exposed as a one-click preset so the
-        user can get back to it after experimenting with floats / tabs
-        without having to drag each dock back into place. Issue: #183
-        """
-        self._viewer_dock.setFloating(False)
-        self._node_list_dock.setFloating(False)
-        self._viewer_dock.show()
-        self._node_list_dock.show()
-        self._inner.addDockWidget(
-            Qt.DockWidgetArea.LeftDockWidgetArea, self._node_list_dock,
-        )
-        self._inner.addDockWidget(
-            Qt.DockWidgetArea.RightDockWidgetArea, self._viewer_dock,
-        )
-
-    def _apply_layout_inspector_under_node_list(self) -> None:
-        """Stack both docks vertically on the left (pre-0.2.13 default).
-
-        Mirrors the layout the editor used before the right-side default
-        landed. Drag-and-drop into the existing left-area split-zone is
-        precise enough to be hard to discover, so the same arrangement
-        is exposed as a preset. Issue: #183
-        """
-        self._viewer_dock.setFloating(False)
-        self._node_list_dock.setFloating(False)
-        self._viewer_dock.show()
-        self._node_list_dock.show()
-        self._inner.addDockWidget(
-            Qt.DockWidgetArea.LeftDockWidgetArea, self._node_list_dock,
-        )
-        self._inner.addDockWidget(
-            Qt.DockWidgetArea.LeftDockWidgetArea, self._viewer_dock,
-        )
-        self._inner.splitDockWidget(
-            self._node_list_dock, self._viewer_dock, Qt.Orientation.Vertical,
-        )
-        # Equalise the split so the inspector gets a useful initial slot
-        # rather than the minimum height Qt picks by default.
-        h = max(self._inner.height(), 2)
-        half = h // 2
-        self._inner.resizeDocks(
-            [self._node_list_dock, self._viewer_dock],
-            [half, h - half],
-            Qt.Orientation.Vertical,
-        )
-
     # ── Public API (called by MainWindow) ──────────────────────────────────────
 
     def set_flow(self, flow: Flow) -> None:
@@ -404,7 +301,6 @@ class NodeEditorPage(PageBase):
 
         self._flow = flow
         self._scene.set_flow(flow)
-        self._viewer.show_node(None)
         self._set_status("", kind="muted")
         self.title_changed.emit(self.page_title())
 
@@ -420,7 +316,6 @@ class NodeEditorPage(PageBase):
             return False
 
         self._flow = flow
-        self._viewer.show_node(None)
         # load_flow_into calls set_flow (clears dirty) but then every
         # node/link it re-creates goes through add_node / connect_ports,
         # which flip dirty back on. Reset once the rebuild is done so
@@ -471,14 +366,6 @@ class NodeEditorPage(PageBase):
                 "H-Stack", "view_column", self._on_stack_horizontal_clicked,
             ),
             "group": mk("Group", "select_all", self._on_group_clicked),
-            "layout_inspector_right": mk(
-                "Inspector on Right (default)", "vertical_split",
-                self._apply_layout_inspector_right,
-            ),
-            "layout_inspector_under_node_list": mk(
-                "Inspector under Node List", "horizontal_split",
-                self._apply_layout_inspector_under_node_list,
-            ),
         }
 
     # ── Action handlers ────────────────────────────────────────────────────────
@@ -551,32 +438,6 @@ class NodeEditorPage(PageBase):
             return
         self._node_doc_panel.show_class(type(node_items[0].node))
 
-    def _on_viewer_top_level_changed(self, floating: bool) -> None:
-        """Promote the floating Output Inspector to a real top-level window.
-
-        QDockWidget's default floating style is Qt.Tool, which most window
-        managers render without maximise / fullscreen controls. Re-flag the
-        window so the OS chrome offers those affordances, then re-show it
-        (Qt hides a widget whenever its window flags change).
-        """
-        if not floating:
-            return
-        self._viewer_dock.setWindowFlags(
-            Qt.WindowType.Window
-            | Qt.WindowType.WindowMinMaxButtonsHint
-            | Qt.WindowType.WindowCloseButtonHint
-        )
-        self._viewer_dock.show()
-
-    def _toggle_viewer_fullscreen(self) -> None:
-        """F11 handler: toggle fullscreen on the floating Output Inspector."""
-        if not self._viewer_dock.isFloating():
-            return
-        if self._viewer_dock.isFullScreen():
-            self._viewer_dock.showNormal()
-        else:
-            self._viewer_dock.showFullScreen()
-
     def _on_run_clicked(self) -> None:
         if self._flow is None:
             self._set_status("No flow to run", kind="fail")
@@ -630,15 +491,6 @@ class NodeEditorPage(PageBase):
             f"Ran at {datetime.now().strftime('%H:%M:%S')}",
             kind="ok",
         )
-
-        if self._viewer.current_node is None:
-            # Nothing selected yet — auto-show the most downstream node
-            # that produced image data so the user sees a result immediately.
-            best = self._best_viewer_node()
-            if best is not None:
-                self._viewer.show_node(best)
-        else:
-            self._viewer.refresh()
 
         self._finalize_run()
 
@@ -700,24 +552,6 @@ class NodeEditorPage(PageBase):
                 action.setEnabled(enabled)
         if enabled:
             self._update_selection_actions()
-
-    def _best_viewer_node(self):
-        """Return the most downstream non-sink node with IMAGE output data.
-
-        Iterates the flow's nodes in reverse registration order (later-added
-        nodes tend to be further downstream) and returns the first one that
-        has at least one IMAGE output port with data after a run.  Returns
-        ``None`` when the flow has no such node.
-        """
-        if self._flow is None:
-            return None
-        for node in reversed(self._flow.nodes):
-            if isinstance(node, SinkNodeBase):
-                continue
-            for port in node.outputs:
-                if (port.emits & IMAGE_TYPES) and port.last_emitted is not None:
-                    return node
-        return None
 
     def _on_save_clicked(self) -> None:
         if self._flow is None:

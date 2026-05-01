@@ -274,8 +274,8 @@ class OutputPort:
         self.emits: frozenset[IoDataType] = frozenset(emits)
         self._connections: list[InputPort] = []
         # Last IoData the port emitted via send(); None until the first
-        # send. Used by the viewer panel to show the current output of a
-        # node without needing the flow to re-run on every selection.
+        # send. Cached so debug inspectors / inline previews can read the
+        # current output of a node without re-running the flow.
         self._last_emitted: IoData | None = None
         self._finished: bool = False
         # Per-port emit counter — stamped onto IoData.meta.frame_index
@@ -426,8 +426,8 @@ class OutputPort:
 
         Called by :meth:`~core.node_base.NodeBase.before_run` for every
         output on every node. The last-emitted cache is preserved so
-        viewers still show the previous run's output until the new run
-        produces something fresh.
+        downstream observers still see the previous run's output until
+        the new run produces something fresh.
         """
         self._finished = False
         self._emit_count = 0
