@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.21",
+  "app_version": "0.3.0.26",
   "name": "data_display_time_series_merged",
   "nodes": [
     {
@@ -158,6 +158,41 @@
         318.25416156768057,
         148.0
       ]
+    },
+    {
+      "id": 10,
+      "module": "nodes.filters.polar_spectrum",
+      "class": "PolarSpectrum",
+      "position": [
+        -1404.8967955232897,
+        98.38290419683369
+      ],
+      "port_defaults": {
+        "x_column": "",
+        "y_column": "",
+        "sample_rate": 8.0,
+        "n_angles": 72,
+        "freq_max": 0.0,
+        "db_scale": true,
+        "colormap": 0,
+        "width": 640,
+        "height": 640,
+        "title": ""
+      }
+    },
+    {
+      "id": 11,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1096.1149143974608,
+        125.30716331822862
+      ],
+      "port_defaults": {},
+      "size": [
+        529.3320753961349,
+        485.83643704897383
+      ]
     }
   ],
   "connections": [
@@ -220,6 +255,18 @@
       "src_output": 0,
       "dst_node": 7,
       "dst_input": 1
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 10,
+      "dst_input": 0
+    },
+    {
+      "src_node": 10,
+      "src_output": 0,
+      "dst_node": 11,
+      "dst_input": 0
     }
   ],
   "backdrops": [
