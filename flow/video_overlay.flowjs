@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.4",
+  "app_version": "0.3.0.29",
   "name": "video_overlay",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -1718.0,
-        -802.0
+        -1693.2296798774894,
+        -792.563687572377
       ],
       "port_defaults": {
         "file_path": "video.mp4",
@@ -35,8 +35,8 @@
       "module": "nodes.filters.overlay",
       "class": "Overlay",
       "position": [
-        -1318.3359604734826,
-        -886.5214755646113
+        -1287.667945083708,
+        -780.3629607538526
       ],
       "port_defaults": {
         "angle": 0.0,
@@ -51,8 +51,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1634.5304136253037,
-        -577.4951338199512
+        -1693.2296798774894,
+        -652.563687572377
       ],
       "port_defaults": {
         "file_path": "logo.png"
@@ -99,5 +99,23 @@
       "dst_input": 0
     }
   ],
-  "backdrops": []
+  "backdrops": [
+    {
+      "position": [
+        -1719.2296798774894,
+        -840.563687572377
+      ],
+      "size": [
+        334.8125,
+        306.0
+      ],
+      "title": "Input",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
+    }
+  ]
 }
