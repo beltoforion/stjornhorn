@@ -624,8 +624,13 @@ class NodeItem(QGraphicsItem):
             painter.restore()
 
         # Inputs follow below; rows with a widget truncate the label.
+        # Skip rows past the visible-input count so labels match the
+        # body geometry on nodes that opt into ``SHOW_ONLY_USED_INPUTS``.
         inputs_top = self._inputs_top()
+        n_visible_inputs = self._visible_input_count()
         for i, port in enumerate(self._input_ports):
+            if i >= n_visible_inputs:
+                break
             y = inputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT
             label_right = self._width - label_inset
             proxy = self._param_proxies_by_row.get(i)
