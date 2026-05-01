@@ -1,20 +1,22 @@
 from __future__ import annotations
 
-from enum import Enum
 from typing import TYPE_CHECKING, Literal
 
 from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QBrush, QPen
-from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsItem
+from PySide6.QtGui import QBrush, QPainterPath, QPen
+from PySide6.QtWidgets import QGraphicsEllipseItem
 
+from core.io_data import IoDataType
 from ui.theme import (
-    NODE_BORDER_COLOR,
+    PORT_DIRECTION_GLYPH_COLOR,
     PORT_HOVER_COLOR,
-    PORT_INPUT_COLOR,
-    PORT_OUTPUT_COLOR,
+    PORT_TYPE_COLORS,
+    PORT_TYPE_DEFAULT_COLOR,
 )
 
 if TYPE_CHECKING:
+    from PySide6.QtGui import QColor
+
     from core.port import InputPort, OutputPort
 
     from ui.link_item import LinkItem
@@ -22,6 +24,12 @@ if TYPE_CHECKING:
 
 
 PortKind = Literal["input", "output"]
+
+
+# Qt's drawArc / drawPie work in 1/16-degree units; one full turn is
+# 360 * 16. Stored as a constant so the geometry helpers don't sprinkle
+# the magic 5760 inline.
+_FULL_CIRCLE_16THS: int = 360 * 16
 
 
 class PortItem(QGraphicsEllipseItem):
@@ -33,6 +41,19 @@ class PortItem(QGraphicsEllipseItem):
 
     Link creation is initiated by pressing the mouse on a port; the scene
     takes over from there (see :class:`FlowScene`).
+
+    Visual encoding (three orthogonal axes):
+
+    * **Type** — ring (and connected-state fill) is a pie of one arc per
+      :class:`IoDataType` in the port's accepted/emitted set, coloured
+      from :data:`ui.theme.PORT_TYPE_COLORS`. Multi-type ports therefore
+      read as multi-coloured rings without any "primary type" heuristic.
+    * **Semantics** — ring style differentiates required (thick solid),
+      optional input (thin solid) and held input (dashed). Outputs are
+      always thick solid.
+    * **Direction** — output ports get a small right-pointing triangle
+      glyph beside the dot. Input ports stay plain — the position on the
+      left edge of the node already disambiguates.
     """
 
     RADIUS: float = 5.0
@@ -43,6 +64,21 @@ class PortItem(QGraphicsEllipseItem):
     #: leave the label text overlapping the dot.
     LABEL_OFFSET: float = 11.0  # = RADIUS + 6 px breathing room
     Z_VALUE = 2
+
+    # Ring widths by port semantics. Required inputs and all outputs
+    # use the thicker stroke so the type colour stays visible at the
+    # default zoom level; optional inputs read as a thinner ring to
+    # signal "OK to leave unconnected" without a separate colour axis.
+    _RING_WIDTH_DEFAULT: float = 1.4
+    _RING_WIDTH_OPTIONAL: float = 1.0
+
+    # Direction glyph (output-only triangle) geometry, in port-local
+    # coords. The base sits flush with the right edge of the dot and
+    # the tip extends ``_GLYPH_LENGTH`` further out so the arrow reads
+    # at typical zoom levels without crowding adjacent ports.
+    _GLYPH_BASE_OFFSET: float = 1.0
+    _GLYPH_LENGTH: float = 4.5
+    _GLYPH_HALF_HEIGHT: float = 3.0
 
     def __init__(
         self,
@@ -58,34 +94,16 @@ class PortItem(QGraphicsEllipseItem):
         self._index = index
         self._model = model
         self._links: list[LinkItem] = []
+        self._hovered: bool = False
 
         self.setZValue(self.Z_VALUE)
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.CursorShape.CrossCursor)
-        # Pen (outline) by port kind:
-        #   * Output          → bright PORT_OUTPUT_COLOR ring so the
-        #     unconnected fill (set by ``_apply_default_brush``) is
-        #     visibly haloed in yellow, mirroring the optional-input
-        #     ring on the opposite side of the node.
-        #   * Held input      → bright PORT_INPUT_COLOR ring with a
-        #     dashed pen, signalling "this port latches its last
-        #     value — it's a parameter, not a per-tick clock".
-        #   * Optional input  → bright PORT_INPUT_COLOR ring (the
-        #     pre-existing "OK to leave unconnected" affordance).
-        #   * Required input  → subtle dark NODE_BORDER_COLOR.
-        # The pen stays put for the lifetime of the port; brush is
-        # what tracks connection state via ``_apply_default_brush``.
-        if self._kind == "output":
-            self.setPen(QPen(PORT_OUTPUT_COLOR, 1.4))
-        elif self._is_held():
-            held_pen = QPen(PORT_INPUT_COLOR, 1.4)
-            held_pen.setStyle(Qt.PenStyle.DashLine)
-            self.setPen(held_pen)
-        elif self._is_optional():
-            self.setPen(QPen(PORT_INPUT_COLOR, 1.4))
-        else:
-            self.setPen(QPen(NODE_BORDER_COLOR, 1))
-        self._apply_default_brush()
+        # All visuals are drawn in :meth:`paint`; suppress the default
+        # ellipse pen/brush so Qt doesn't paint a stray outline under
+        # our pie-arc ring.
+        self.setPen(QPen(Qt.PenStyle.NoPen))
+        self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
 
     # ── Identity ───────────────────────────────────────────────────────────────
 
@@ -118,12 +136,12 @@ class PortItem(QGraphicsEllipseItem):
     def add_link(self, link: LinkItem) -> None:
         if link not in self._links:
             self._links.append(link)
-            self._apply_default_brush()
+            self.update()
 
     def remove_link(self, link: LinkItem) -> None:
         if link in self._links:
             self._links.remove(link)
-            self._apply_default_brush()
+            self.update()
 
     def refresh_links(self) -> None:
         """Called by NodeItem when the node moves so link paths stay glued."""
@@ -133,24 +151,32 @@ class PortItem(QGraphicsEllipseItem):
     # ── Hover feedback ─────────────────────────────────────────────────────────
 
     def hoverEnterEvent(self, event) -> None:  # type: ignore[override]
-        self.setBrush(QBrush(PORT_HOVER_COLOR))
+        self._hovered = True
+        self.update()
         super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event) -> None:  # type: ignore[override]
-        self._apply_default_brush()
+        self._hovered = False
+        self.update()
         super().hoverLeaveEvent(event)
 
-    def _apply_default_brush(self) -> None:
-        # Connection state drives the fill: an unconnected port reads
-        # as a "ready to receive" affordance with a black interior; a
-        # connected port turns solid in its kind colour to signal the
-        # link is live. The pen / outline keeps the port-kind colour
-        # in both states so the dot stays identifiable at a glance.
-        if self._is_connected():
-            color = PORT_OUTPUT_COLOR if self._kind == "output" else PORT_INPUT_COLOR
-            self.setBrush(QBrush(color))
+    # ── Type / semantics introspection ─────────────────────────────────────────
+
+    def _types(self) -> list[IoDataType]:
+        """Return the port's accepted/emitted types in a stable order.
+
+        Sorted by enum-name so a port's ring colours stay put across
+        runs and across calls — frozenset iteration order is unspecified.
+        """
+        if self._kind == "input":
+            raw = getattr(self._model, "accepted_types", frozenset())
         else:
-            self.setBrush(QBrush(Qt.black))
+            raw = getattr(self._model, "emits", frozenset())
+        return sorted(raw, key=lambda t: t.name)
+
+    @staticmethod
+    def _type_color(t: IoDataType) -> QColor:
+        return PORT_TYPE_COLORS.get(t, PORT_TYPE_DEFAULT_COLOR)
 
     def _is_connected(self) -> bool:
         """True if this port currently has at least one link.
@@ -163,24 +189,101 @@ class PortItem(QGraphicsEllipseItem):
         return bool(self._links)
 
     def _is_optional(self) -> bool:
-        """True if this port is an input marked ``optional=True``.
-
-        Output ports are never optional — only the receiver side can
-        choose to run without an incoming payload.
-        """
         if self._kind != "input":
             return False
         return bool(getattr(self._model, "optional", False))
 
     def _is_held(self) -> bool:
-        """True if this port is an input marked ``hold_last=True``.
-
-        Held inputs latch their last received value; outputs don't
-        have the concept (they push, they don't hold).
-        """
         if self._kind != "input":
             return False
         return bool(getattr(self._model, "hold_last", False))
+
+    def _ring_width(self) -> float:
+        return self._RING_WIDTH_OPTIONAL if self._is_optional() else self._RING_WIDTH_DEFAULT
+
+    def _ring_style(self) -> Qt.PenStyle:
+        return Qt.PenStyle.DashLine if self._is_held() else Qt.PenStyle.SolidLine
+
+    # ── Painting ───────────────────────────────────────────────────────────────
+
+    def paint(self, painter, option, widget=None) -> None:  # type: ignore[override]
+        painter.setRenderHint(painter.RenderHint.Antialiasing, True)
+
+        types = self._types()
+        rect = self.rect()
+
+        # Interior fill — connection state.
+        # Hover wins over everything so the user always gets the same
+        # "you're about to grab this dot" feedback.
+        if self._hovered:
+            painter.setPen(QPen(Qt.PenStyle.NoPen))
+            painter.setBrush(QBrush(PORT_HOVER_COLOR))
+            painter.drawEllipse(rect)
+        elif self._is_connected() and types:
+            self._paint_pie(painter, rect, types)
+        else:
+            painter.setPen(QPen(Qt.PenStyle.NoPen))
+            painter.setBrush(QBrush(Qt.GlobalColor.black))
+            painter.drawEllipse(rect)
+
+        # Ring — type-coloured arcs on top of the fill.
+        self._paint_ring(painter, rect, types)
+
+        # Output direction glyph — drawn last so it sits above any
+        # neighbouring ring stroke.
+        if self._kind == "output":
+            self._paint_direction_glyph(painter)
+
+    def _paint_pie(self, painter, rect: QRectF, types: list[IoDataType]) -> None:
+        painter.setPen(QPen(Qt.PenStyle.NoPen))
+        if len(types) == 1:
+            painter.setBrush(QBrush(self._type_color(types[0])))
+            painter.drawEllipse(rect)
+            return
+        span = _FULL_CIRCLE_16THS // len(types)
+        # Distribute any rounding remainder onto the last slice so the
+        # pie always closes cleanly with no thin background sliver.
+        for i, t in enumerate(types):
+            start = i * span
+            slice_span = span if i < len(types) - 1 else _FULL_CIRCLE_16THS - start
+            painter.setBrush(QBrush(self._type_color(t)))
+            painter.drawPie(rect, start, slice_span)
+
+    def _paint_ring(self, painter, rect: QRectF, types: list[IoDataType]) -> None:
+        painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+        width = self._ring_width()
+        style = self._ring_style()
+        if not types:
+            pen = QPen(PORT_TYPE_DEFAULT_COLOR, width, style)
+            painter.setPen(pen)
+            painter.drawEllipse(rect)
+            return
+        if len(types) == 1:
+            pen = QPen(self._type_color(types[0]), width, style)
+            painter.setPen(pen)
+            painter.drawEllipse(rect)
+            return
+        span = _FULL_CIRCLE_16THS // len(types)
+        for i, t in enumerate(types):
+            start = i * span
+            arc_span = span if i < len(types) - 1 else _FULL_CIRCLE_16THS - start
+            pen = QPen(self._type_color(t), width, style)
+            pen.setCapStyle(Qt.PenCapStyle.FlatCap)
+            painter.setPen(pen)
+            painter.drawArc(rect, start, arc_span)
+
+    def _paint_direction_glyph(self, painter) -> None:
+        path = QPainterPath()
+        base_x = self.RADIUS + self._GLYPH_BASE_OFFSET
+        tip_x = base_x + self._GLYPH_LENGTH
+        h = self._GLYPH_HALF_HEIGHT
+        path.moveTo(base_x, -h)
+        path.lineTo(tip_x, 0.0)
+        path.lineTo(base_x, h)
+        path.closeSubpath()
+        painter.setPen(QPen(Qt.PenStyle.NoPen))
+        painter.setBrush(QBrush(PORT_DIRECTION_GLYPH_COLOR))
+        painter.drawPath(path)
 
     # Press handling is intentionally left to the scene: if PortItem grabs
     # the mouse here, Qt routes subsequent move/release events to the item
@@ -188,6 +291,12 @@ class PortItem(QGraphicsEllipseItem):
     # code path needs to consume. See FlowScene.mousePressEvent.
 
     def boundingRect(self) -> QRectF:  # type: ignore[override]
-        # Slightly larger than the visible ellipse so hit-testing is forgiving.
+        # Slightly larger than the visible ellipse so hit-testing is
+        # forgiving. Outputs extend further to the right to cover the
+        # direction glyph; without it the arrow would clip when scrolled
+        # near the viewport edge.
         r = self.RADIUS + 2
+        if self._kind == "output":
+            extra = self._GLYPH_BASE_OFFSET + self._GLYPH_LENGTH + 1.0
+            return QRectF(-r, -r, 2 * r + extra, 2 * r)
         return QRectF(-r, -r, 2 * r, 2 * r)

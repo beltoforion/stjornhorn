@@ -12,6 +12,27 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (port visuals: type-coloured rings + output direction glyph)
+
+- **Ports now encode their `IoDataType` set as colour.** Each port
+  renders as a pie of one arc per accepted (input) or emitted
+  (output) type, drawn from a new `PORT_TYPE_COLORS` palette in
+  `ui/theme.py` (image=blue, scalar=orange, dataset=green,
+  bool=red, …). Multi-type ports (e.g. `IMAGE_TYPES`) read as
+  multi-coloured rings without any "primary type" heuristic; the
+  connected-state fill uses the same pie. Previously every input
+  was grey and every output yellow, with the type only readable by
+  hovering over the node's source.
+- **Output ports get a small right-pointing triangle glyph** beside
+  the dot so flow direction stays obvious now that the ring colour
+  is no longer carrying it. Inputs stay plain — their position on
+  the left edge of the node already disambiguates.
+- **Required / optional / held semantics moved to ring style** —
+  required and outputs use a thicker solid ring, optional inputs a
+  thinner solid ring, held inputs a dashed ring. Three orthogonal
+  visual axes (type=colour, direction=glyph, semantics=stroke
+  style) replace the previous overloaded colour scheme.
+
 ### Removed (Output Inspector dock + toolbar-mirroring menu entries)
 
 - **Output Inspector** — the dockable panel that previewed the
