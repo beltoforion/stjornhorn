@@ -1,16 +1,11 @@
 """Unit tests for the Math expression node.
 
-Three themes:
+Two themes:
 
 * **Behaviour** — round-trip a handful of representative expressions
   through the node and verify the output. Covers operators, the
   whitelisted function set, ternary, default-zero on unconnected
   optional ports, and the streaming dispatcher contract.
-
-* **Dynamic ports** — Math grows its ``v[1]``…``v[N]`` input list
-  whenever the tail is wired up, capped at nine. Verify the
-  topology grows correctly and stays in sync with the expression's
-  index references.
 
 * **Safety** — exhaustively reject sandbox-escape and out-of-scope
   syntax at *parse time*. The primary defense is the AST type
@@ -25,25 +20,24 @@ import math
 
 import pytest
 
-from core.dynamic_ports import MAX_DYNAMIC_INPUTS
 from core.io_data import IoData, IoDataType
 from core.port import InputPort, OutputPort
 from nodes.filters.math import Math
 
 
-def _wire(node: Math, n_inputs: int = 1) -> tuple[
+def _wire(node: Math, n_upstreams: int = 1) -> tuple[
     list[OutputPort], list[IoData],
 ]:
-    """Grow Math to *n_inputs* ports, wire upstreams + a capturing sink.
+    """Wire *n_upstreams* SCALAR upstreams + a capturing sink.
 
-    Returns the list of upstream :class:`OutputPort`\\ s (one per
-    connected input) and the list captured by the sink. Each upstream
-    drives the corresponding ``v[i]`` port (1-indexed in the expression
-    domain, 0-indexed in the returned list).
+    Each upstream drives the corresponding ``v[i]`` port (1-indexed
+    in the expression domain, 0-indexed in the returned list). Math
+    has nine optional input ports — the test only wires the first
+    *n_upstreams* and leaves the rest untouched (they fall back to
+    their inline default of 0.0 during eval).
     """
-    node._v_group.ensure_at_least(n_inputs)
     upstreams: list[OutputPort] = []
-    for i in range(n_inputs):
+    for i in range(n_upstreams):
         up = OutputPort(f"v{i + 1}_up", {IoDataType.SCALAR})
         up.connect(node.inputs[i])
         upstreams.append(up)
@@ -78,16 +72,8 @@ def test_unconnected_inputs_default_to_zero() -> None:
     fall back to the inline default 0.0, so an expression referencing
     several slots still evaluates with only one wired."""
     node = Math()
-    node._v_group.ensure_at_least(4)
     node.expression = "v[1] + v[2] + v[3] + v[4]"
-    up = OutputPort("v1_up", {IoDataType.SCALAR})
-    up.connect(node.inputs[0])
-    captured: list[IoData] = []
-    sink = InputPort("sink", {IoDataType.SCALAR})
-    sink.add_listener(
-        lambda: captured.append(sink.data) if sink.has_data else None
-    )
-    node.outputs[0].connect(sink)
+    (up,), captured = _wire(node, 1)
 
     node.before_run()
     up.send(IoData.from_scalar(5))
@@ -99,17 +85,9 @@ def test_inline_default_picks_up_unconnected_port() -> None:
     """Editing the inline default on an unconnected port (mimics the
     user typing 3.0 into the v[3] spinner) propagates to the eval."""
     node = Math()
-    node._v_group.ensure_at_least(3)
     node.expression = "v[1] + v[3]"
     node.inputs[2].default_value = 3.0
-    up = OutputPort("v1_up", {IoDataType.SCALAR})
-    up.connect(node.inputs[0])
-    captured: list[IoData] = []
-    sink = InputPort("sink", {IoDataType.SCALAR})
-    sink.add_listener(
-        lambda: captured.append(sink.data) if sink.has_data else None
-    )
-    node.outputs[0].connect(sink)
+    (up,), captured = _wire(node, 1)
 
     node.before_run()
     up.send(IoData.from_scalar(10))
@@ -117,43 +95,19 @@ def test_inline_default_picks_up_unconnected_port() -> None:
     assert captured[0].payload.item() == 13.0
 
 
-# ── Dynamic input growth ──────────────────────────────────────────────────────
+# ── Topology ──────────────────────────────────────────────────────────────────
 
 
-def test_starts_with_a_single_v1_port() -> None:
+def test_has_nine_input_ports() -> None:
+    """Backend always carries the full pool of nine ``v[i]`` ports
+    regardless of how many the editor currently shows."""
     node = Math()
-    assert len(node.inputs) == 1
-    assert node.inputs[0].name == "v[1]"
+    assert [p.name for p in node.inputs] == [f"v[{i}]" for i in range(1, 10)]
 
 
-def test_grows_one_port_per_tail_connect() -> None:
-    """Wiring the tail port appends a new empty tail; wiring that one
-    appends another. Disconnecting does *not* trim — the topology is
-    append-only by design."""
-    node = Math()
-    up1 = OutputPort("u1", {IoDataType.SCALAR})
-    up1.connect(node.inputs[0])
-    assert [p.name for p in node.inputs] == ["v[1]", "v[2]"]
-
-    up2 = OutputPort("u2", {IoDataType.SCALAR})
-    up2.connect(node.inputs[1])
-    assert [p.name for p in node.inputs] == ["v[1]", "v[2]", "v[3]"]
-
-    up2.disconnect(node.inputs[1])
-    # Disconnect leaves the topology unchanged.
-    assert [p.name for p in node.inputs] == ["v[1]", "v[2]", "v[3]"]
-
-
-def test_growth_caps_at_nine() -> None:
-    node = Math()
-    upstreams = []
-    for i in range(MAX_DYNAMIC_INPUTS):
-        up = OutputPort(f"u{i}", {IoDataType.SCALAR})
-        up.connect(node.inputs[i])
-        upstreams.append(up)
-    assert len(node.inputs) == MAX_DYNAMIC_INPUTS
-    # Connecting the final port does not append a tenth.
-    assert node.inputs[-1].upstream is upstreams[-1]
+def test_show_only_used_inputs_is_set() -> None:
+    """Math opts the editor into the "hide trailing rows" UI mode."""
+    assert Math.SHOW_ONLY_USED_INPUTS is True
 
 
 # ── Expression syntax / function support ──────────────────────────────────────
@@ -161,7 +115,6 @@ def test_growth_caps_at_nine() -> None:
 
 def test_arithmetic_operators() -> None:
     node = Math()
-    node._v_group.ensure_at_least(4)
     node.expression = "v[1] * v[2] + v[3] / v[4]"
     upstreams, captured = _wire(node, 4)
 
@@ -177,7 +130,6 @@ def test_arithmetic_operators() -> None:
 
 def test_pow_floordiv_and_modulo() -> None:
     node = Math()
-    node._v_group.ensure_at_least(3)
     node.expression = "v[1]**2 + v[2] % 3 + v[3] // 2"
     upstreams, captured = _wire(node, 3)
 
@@ -192,7 +144,6 @@ def test_pow_floordiv_and_modulo() -> None:
 
 def test_unary_negation() -> None:
     node = Math()
-    node._v_group.ensure_at_least(2)
     node.expression = "-v[1] + +v[2]"
     upstreams, captured = _wire(node, 2)
 
@@ -216,7 +167,6 @@ def test_trig_function_call() -> None:
 
 def test_min_max_call() -> None:
     node = Math()
-    node._v_group.ensure_at_least(2)
     node.expression = "max(v[1], v[2])"
     upstreams, captured = _wire(node, 2)
 
@@ -229,7 +179,6 @@ def test_min_max_call() -> None:
 
 def test_ternary_select() -> None:
     node = Math()
-    node._v_group.ensure_at_least(3)
     node.expression = "v[1] if v[2] > 0 else v[3]"
     upstreams, captured = _wire(node, 3)
 
@@ -256,7 +205,6 @@ def test_bool_constants_act_as_zero_and_one() -> None:
     """Literal ``True`` / ``False`` are allowed as constants because
     ``v[1] * True`` is a useful idiom for masking out a value."""
     node = Math()
-    node._v_group.ensure_at_least(2)
     node.expression = "v[1] * True + v[2] * False"
     upstreams, captured = _wire(node, 2)
 
@@ -282,15 +230,20 @@ def test_v_subscript_only_for_v_name() -> None:
             node.expression = bad
 
 
-def test_v_index_out_of_range_at_eval() -> None:
-    """An index past the current port count fails cleanly at eval
-    time with an :class:`IndexError` from the 1-indexed view."""
+def test_v_index_in_range_at_parse_time() -> None:
+    """Index past the fixed pool size fails at parse time, not eval."""
     node = Math()
-    node.expression = "v[5]"  # only v[1] exists
-    (up,), _ = _wire(node, 1)
-    node.before_run()
-    with pytest.raises(IndexError):
-        up.send(IoData.from_scalar(1.0))
+    with pytest.raises(ValueError, match="out of range"):
+        node.expression = "v[10]"
+
+
+def test_bare_v_rejected_at_parse_time() -> None:
+    """``v`` alone (no subscript) must not parse — the user should see
+    a tidy error at edit time, not a runtime TypeError on the proxy."""
+    node = Math()
+    for bad in ("v", "v + 1", "sin(v)"):
+        with pytest.raises(ValueError, match="subscript"):
+            node.expression = bad
 
 
 # ── Safety: rejected expressions ──────────────────────────────────────────────
@@ -436,7 +389,6 @@ def test_input_types_restricted_to_scalar() -> None:
     """Math's inputs only declare SCALAR — an upstream IMAGE port
     can't connect, so type errors surface at link time."""
     node = Math()
-    node._v_group.ensure_at_least(4)
     img_up = OutputPort("img", {IoDataType.IMAGE})
-    for i in range(4):
-        assert img_up.can_connect(node.inputs[i]) is False
+    for port in node.inputs:
+        assert img_up.can_connect(port) is False

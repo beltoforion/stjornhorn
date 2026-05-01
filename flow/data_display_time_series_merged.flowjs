@@ -51,9 +51,6 @@
       ],
       "port_defaults": {
         "column_names": "N,E"
-      },
-      "dynamic_inputs": {
-        "dataset": 2
       }
     },
     {
@@ -128,9 +125,6 @@
       ],
       "port_defaults": {
         "layout": "12"
-      },
-      "dynamic_inputs": {
-        "image": 2
       }
     },
     {

@@ -81,9 +81,6 @@
       ],
       "port_defaults": {
         "layout": "12"
-      },
-      "dynamic_inputs": {
-        "image": 2
       }
     }
   ],

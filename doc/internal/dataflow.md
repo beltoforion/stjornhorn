@@ -115,13 +115,6 @@ input's `accepted_types` set. An input has at most one upstream;
 fan-in is not supported. An output has any number of downstreams
 (fan-out).
 
-`InputPort` carries two independent listener lists. Data /
-lifecycle listeners (`add_listener`) fire on `receive()` /
-`finish()`; connection listeners (`add_connection_listener`) fire
-when `OutputPort.connect()` / `disconnect()` flips the upstream
-binding. The dispatcher hookup uses the first list; dynamic-port
-groups (see "Port-level extensions") use the second.
-
 ## The dispatcher
 
 `NodeBase._signal_input_ready` is registered as a listener on every
@@ -217,47 +210,41 @@ input (data-flow short-circuit). `_on_skipped_changed(skipped)` is
 a hook subclasses override to react to the toggle (PlayGate uses
 it to drain its buffered frames).
 
-### Dynamic input groups (`core.dynamic_ports`)
+### Variable-arity input pools (`SHOW_ONLY_USED_INPUTS`)
 
-A `DynamicInputGroup` lets a node grow an append-only list of
-homogeneous, optional input ports at runtime. Math (`v[1]`…`v[9]`),
-JoinDatasets (`dataset[1]`…`dataset[9]`) and Mosaic
-(`image[1]`…`image[9]`) all use it.
+`Math`, `JoinDatasets` and `Mosaic` each declare a fixed pool of
+nine optional input ports (`v[1]…v[9]`, `dataset[1]…dataset[9]`,
+`image[1]…image[9]`). The backend always carries the full pool —
+connection indices stay stable across save / load — but the editor
+hides every row past `last_connected + 1`, so a fresh node looks
+like a single-input node and the body grows one row at a time as
+the user wires more upstreams.
 
-Mechanics:
+The opt-in is a single class attribute:
 
-- The node constructs the group in its `__init__`, which seeds
-  exactly one port and registers a connect/disconnect listener on
-  every port it owns (now and in the future).
-- Whenever the *tail* port becomes connected and the group is below
-  its cap (`MAX_DYNAMIC_INPUTS = 9`), the group appends a new empty
-  tail and notifies the owner via `NodeBase._notify_ports_changed`.
-- Disconnects do **not** trim. The list is append-only by design so
-  saved-flow connections (which key port endpoints by integer index)
-  stay stable across edits and round-trips.
-- Nodes publish their groups via `self._dynamic_input_groups: dict[
-  str, DynamicInputGroup]` so the saved-flow serialiser can persist
-  the count under a stable string key (`"v"`, `"dataset"`,
-  `"image"`).
+```python
+class Math(NodeBase):
+    SHOW_ONLY_USED_INPUTS: bool = True
+```
 
-Framework support added for this feature:
+`NodeItem._visible_input_count` reads it on every relayout pass.
+`FlowScene` triggers a relayout on the destination node after every
+successful `connect_ports` / link-delete so the body resizes in step
+with the user's wiring. Hidden `PortItem`s and their inline widgets
+are toggled with `setVisible(False)`; `LinkItem` identity is
+preserved across visibility changes since the underlying ports are
+never destroyed.
 
-- `InputPort.add_connection_listener(cb)` / `remove_connection_listener` —
-  fires from `OutputPort.connect()` / `disconnect()` when an input's
-  upstream binding flips. Distinct from the data-arrival listener
-  list so a topology consumer isn't woken up by every frame.
-- `NodeBase.add_ports_changed_listener(cb)` — fires after the input
-  list mutates. `NodeItem` registers here to rebuild port-row
-  widgets on the fly without re-creating the node graphic.
-- `_populate_port_driven_attributes` skips ports whose name isn't a
-  Python identifier (`v[1]`, `image[3]` …) — they have no
-  descriptor / backing slot, so the owning node reads them straight
-  from `self._inputs` in `process_impl`.
+Two consequences for nodes that use this:
 
-Saved-flow shape: nodes with dynamic groups carry an extra
-`"dynamic_inputs": {"<key>": <count>}` entry. `flow_io._instantiate_node`
-calls `group.ensure_at_least(count)` before applying `port_defaults`
-so a default for slot `v[5]` lands on the corresponding port.
+- Port names need not be Python identifiers (the bracketed forms
+  `v[1]` etc. are not). `_populate_port_driven_attributes` skips
+  ports without a backing `_<name>` slot — the owning node reads
+  them straight from `self._inputs` in `process_impl`.
+- Layout-driver parameters (Mosaic's `layout`, JoinDatasets'
+  `column_names`) should be declared `constant=True` so they render
+  in the constants block instead of as a port row, keeping the
+  input-row order purely the dynamic pool.
 
 ### Frame-index + SCALAR-port auto-stamping
 

@@ -40,8 +40,6 @@ def test_flow_nodes_round_trip_instantiate(flow_path: Path) -> None:
     data = json.loads(flow_path.read_text(encoding="utf-8"))
     nodes_by_id: dict[int, object] = {}
 
-    from core.dynamic_ports import find_dynamic_groups
-
     for entry in data.get("nodes", []):
         module_name = entry["module"]
         class_name = entry["class"]
@@ -49,16 +47,6 @@ def test_flow_nodes_round_trip_instantiate(flow_path: Path) -> None:
         module = importlib.import_module(module_name)
         cls = getattr(module, class_name)
         node = cls()
-        # Honour the saved-flow ``dynamic_inputs`` count so a node
-        # whose ports grow on demand is restored to the width the
-        # original flow had — same path the production loader uses.
-        dynamic_inputs = entry.get("dynamic_inputs") or {}
-        if dynamic_inputs:
-            groups = find_dynamic_groups(node)
-            for key, count in dynamic_inputs.items():
-                group = groups.get(key)
-                if group is not None:
-                    group.ensure_at_least(int(count))
         nodes_by_id[entry["id"]] = node
 
     for conn in data.get("connections", []):

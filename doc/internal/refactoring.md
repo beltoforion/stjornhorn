@@ -14,9 +14,9 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-05-01 (dynamic input ports on Math /
-JoinDatasets / Mosaic via `core.dynamic_ports.DynamicInputGroup`;
-new connection-listener and ports-changed framework hooks).
+**Last reviewed:** 2026-05-01 (variable-arity inputs on Math /
+JoinDatasets / Mosaic via fixed pool + `SHOW_ONLY_USED_INPUTS`
+visibility flag — no framework lifecycle changes).
 
 ## High
 

@@ -104,9 +104,6 @@
       ],
       "port_defaults": {
         "layout": "13 / 23"
-      },
-      "dynamic_inputs": {
-        "image": 3
       }
     },
     {

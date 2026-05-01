@@ -5,7 +5,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from core.dynamic_ports import MAX_DYNAMIC_INPUTS
 from core.io_data import IoData, IoDataType
 from core.port import OutputPort
 from nodes.filters.mosaic import Mosaic, MosaicLayout
@@ -87,29 +86,18 @@ def test_layout_rejects_empty_descriptor() -> None:
         MosaicLayout("")
 
 
-# ── Dynamic input growth ──────────────────────────────────────────────────────
+# ── Topology ──────────────────────────────────────────────────────────────────
 
 
-def test_starts_with_one_image_port() -> None:
+def test_has_nine_input_ports() -> None:
+    """Backend always carries the full pool of nine ``image[i]``
+    ports; the editor hides the trailing unused rows."""
     node = Mosaic()
-    assert [p.name for p in node.inputs] == ["image[1]"]
+    assert [p.name for p in node.inputs] == [f"image[{i}]" for i in range(1, 10)]
 
 
-def test_grows_one_port_per_tail_connect() -> None:
-    node = Mosaic()
-    up = OutputPort("u1", {IoDataType.IMAGE})
-    up.connect(node.inputs[0])
-    assert [p.name for p in node.inputs] == ["image[1]", "image[2]"]
-
-
-def test_growth_caps_at_nine() -> None:
-    node = Mosaic()
-    upstreams = []
-    for i in range(MAX_DYNAMIC_INPUTS):
-        up = OutputPort(f"u{i}", {IoDataType.IMAGE})
-        up.connect(node.inputs[i])
-        upstreams.append(up)
-    assert len(node.inputs) == MAX_DYNAMIC_INPUTS
+def test_show_only_used_inputs_is_set() -> None:
+    assert Mosaic.SHOW_ONLY_USED_INPUTS is True
 
 
 # ── Mosaic node — render output ───────────────────────────────────────────────
@@ -127,13 +115,8 @@ def _wire(node: Mosaic, digit_to_data: dict[str, IoData]) -> None:
     """Connect a fake upstream per used digit, then send all the data.
 
     Mosaic only fires once every connected input has data, so every
-    upstream must be connected before any send() runs. The dynamic
-    input group is grown to fit the highest-referenced digit so the
-    indexed lookup always has a port to bind to.
+    upstream must be connected before any send() runs.
     """
-    if digit_to_data:
-        max_digit = max(int(d) for d in digit_to_data)
-        node._image_group.ensure_at_least(max_digit)
     upstreams: list[tuple[OutputPort, IoData]] = []
     for digit, data in digit_to_data.items():
         idx = int(digit) - 1
@@ -275,7 +258,6 @@ def test_mosaic_does_not_fire_until_every_connected_input_has_data() -> None:
     """Connected upstreams gate the dispatch."""
     node = Mosaic()
     node.layout = "12 / 34"
-    node._image_group.ensure_at_least(3)
     up_1 = OutputPort("1", {IoDataType.IMAGE})
     up_2 = OutputPort("2", {IoDataType.IMAGE})
     up_3 = OutputPort("3", {IoDataType.IMAGE})

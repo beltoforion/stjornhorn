@@ -158,6 +158,15 @@ class NodeBase(ABC):
                     descriptors.append(attr)
         cls._param_descriptors = tuple(descriptors)
 
+    #: When True, the editor renders only the input rows up to the last
+    #: connected port + 1 (the next "to-be-wired" tail). Lets a node
+    #: declare a generous fixed pool of optional inputs (e.g. nine SCALAR
+    #: slots on Math) without showing every empty row in the body. The
+    #: backend port list is always the full pool so connection indices
+    #: stay stable across save / load. Default: False — every input port
+    #: is rendered, matching the behaviour of every existing node.
+    SHOW_ONLY_USED_INPUTS: bool = False
+
     def __init__(self, display_name: str, section: str | None = None) -> None:
         self._display_name = display_name
         self._section = section if section is not None else self.DEFAULT_SECTION
@@ -165,12 +174,6 @@ class NodeBase(ABC):
         self._outputs: list[OutputPort] = []
         self._params: list[NodeParam] = []
         self._skipped: bool = False
-        # Listeners notified after the input-port list mutates
-        # (currently: dynamic-port groups appending or trimming a port).
-        # The UI's :class:`NodeItem` registers here so it can rebuild
-        # its port-row widgets on the fly. Empty by default; nodes with
-        # static ports never fire this.
-        self._ports_changed_listeners: list[Callable[[], None]] = []
         # Initialise every descriptor's backing slot to its declared
         # default before subclass ``__init__`` runs, so ``self._<name>``
         # exists from the first line after ``super().__init__()``. The
@@ -208,44 +211,6 @@ class NodeBase(ABC):
         # hooks, UI indicators, tests) can attach their own listeners
         # later without clobbering the dispatcher hookup. Issue: M11.
         port.add_listener(self._signal_input_ready)
-
-    def _remove_input(self, port: InputPort) -> None:
-        """Remove a previously-registered input port.
-
-        Reverses :meth:`_add_input`: detaches the dispatcher listener
-        and drops the port from ``self._inputs``. Caller is responsible
-        for ensuring nothing is currently driving the port (no upstream
-        connection); the framework does not auto-disconnect.
-        """
-        port.remove_listener(self._signal_input_ready)
-        self._inputs.remove(port)
-
-    def add_ports_changed_listener(self, callback: Callable[[], None]) -> None:
-        """Register a zero-argument callback fired after the input-port
-        list mutates.
-
-        Used by the UI to rebuild port-row widgets when a node grows or
-        trims a dynamic input. Listeners fire in registration order on
-        a snapshot of the list, so a callback that mutates the list
-        does not re-enter the current notification.
-        """
-        self._ports_changed_listeners.append(callback)
-
-    def remove_ports_changed_listener(self, callback: Callable[[], None]) -> None:
-        """Unregister a previously-added ports-changed listener; no-op if absent."""
-        try:
-            self._ports_changed_listeners.remove(callback)
-        except ValueError:
-            pass
-
-    def _notify_ports_changed(self) -> None:
-        """Fire every registered ports-changed listener.
-
-        Called by dynamic-port helpers after they append or trim an
-        input port so the UI (and any other observer) can resync.
-        """
-        for listener in tuple(self._ports_changed_listeners):
-            listener()
 
     def _add_output(self, port: OutputPort) -> None:
         self._outputs.append(port)

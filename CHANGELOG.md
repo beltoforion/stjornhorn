@@ -12,47 +12,31 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
-### Added (dynamic input ports on Math, JoinDatasets, Mosaic)
+### Added (variable-arity inputs on Math, JoinDatasets, Mosaic)
 
-- **Dynamic input groups.** Math, JoinDatasets and Mosaic now grow
-  their input list at runtime instead of declaring a fixed number of
-  optional ports. Each node starts with a single input
-  (`v[1]` / `dataset[1]` / `image[1]`); whenever the user wires up
-  the tail port, a fresh empty tail port appears below it, capped at
-  nine slots per node. The mechanism lives in
-  `core.dynamic_ports.DynamicInputGroup` and is reusable for other
-  nodes that need an unbounded value list.
-- **Math expression syntax.** The expression now indexes into
-  `v[i]` (1-based) instead of referencing fixed names `a`, `b`,
-  `c`, `d`. The AST whitelist allows `v[<positive int literal>]`
-  exclusively — no other subscripting, attribute access or
-  computed indexing. Existing flows referencing `a`/`b`/`c`/`d`
-  must be rebuilt; bundled demos are already migrated.
-- **Mosaic layout descriptor.** Uses digits `1`-`9` instead of
+- **Math, JoinDatasets and Mosaic** each carry a fixed pool of nine
+  optional input ports (`v[1]…v[9]`, `dataset[1]…dataset[9]`,
+  `image[1]…image[9]`). The editor hides every row past
+  `last_connected + 1` so a fresh node looks like a single-input
+  node, and the body grows one row at a time as the user wires
+  more upstreams. The opt-in is the new
+  `NodeBase.SHOW_ONLY_USED_INPUTS` class attribute; the visibility
+  logic lives in `NodeItem` and `FlowScene` triggers a relayout
+  after every connect / disconnect.
+- **Math expression syntax** indexes into `v[i]` (1-based) instead
+  of referencing fixed names `a`, `b`, `c`, `d`. The AST whitelist
+  allows `v[<positive int literal>]` exclusively — no other
+  subscripting, attribute access or computed indexing — and rejects
+  bare `v` references at parse time. Out-of-range indices
+  (`v[10]+`) are caught at expression-set time. Existing flows
+  referencing `a`/`b`/`c`/`d` must be rebuilt; bundled demos are
+  already migrated.
+- **Mosaic layout descriptor** uses digits `1`-`9` instead of
   letters `A`-`F`; cells reference inputs by digit, `.` or `0` is
-  empty. Maximum input count raised to nine in line with the
-  shared cap. The `layout` parameter is now a constant (rendered
-  italicised between the output and input port rows), matching the
-  pattern Math's `expression` already uses.
-
-### Added (framework hooks)
-
-- **Connection listeners on `InputPort`.**
-  `add_connection_listener` / `remove_connection_listener` fires
-  from `OutputPort.connect` / `disconnect` whenever the input's
-  upstream binding flips. Distinct from data-arrival listeners so
-  topology consumers aren't woken up by every frame. Used by
-  `DynamicInputGroup` to grow its tail on demand.
-- **Ports-changed signal on `NodeBase`.**
-  `add_ports_changed_listener` fires after the input list mutates.
-  `NodeItem` registers here to incrementally rebuild port-row
-  widgets when a dynamic group appends a port.
-- **`flow_io` schema.** Saved flows now carry a per-node
-  `dynamic_inputs: {<group_key>: <count>}` entry so the loader can
-  restore each group to the right width before wiring connections
-  by index. Older flows lacking the key still load — the
-  connection loop auto-grows whichever dynamic group on the target
-  node owns the requested index.
+  empty. Maximum input count raised to nine. The `layout`
+  parameter is now a constant (rendered italicised between the
+  output and input port rows), matching the pattern Math's
+  `expression` already uses; same for JoinDatasets' `column_names`.
 
 ### Changed (PolarSpectrum split into reusable building blocks)
 

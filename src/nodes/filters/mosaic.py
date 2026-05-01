@@ -7,11 +7,12 @@ can express side-by-side stacks, NxM grids, and shapes where one
 input spans multiple cells (e.g. a tall hodogram next to two stacked
 waveforms).
 
-Inputs are dynamic: ``image[1]`` is present at construction; the
-node grows ``image[2]``, ``image[3]``… each time the tail input is
-wired up, capped at nine. Layout cells reference inputs by digit
-(``1``…``9``) — ``image[i]`` is referenced as ``i`` in the
-descriptor string.
+Inputs are a fixed pool of nine optional ``image[i]`` ports. The
+editor starts with a single visible row and grows by one row each
+time the user wires up the previous tail (see
+:attr:`NodeBase.SHOW_ONLY_USED_INPUTS`). Layout cells reference
+inputs by digit (``1``…``9``); ``image[i]`` is referenced as ``i``
+in the descriptor string.
 """
 from __future__ import annotations
 
@@ -21,16 +22,16 @@ import cv2
 import numpy as np
 from typing_extensions import override
 
-from core.dynamic_ports import MAX_DYNAMIC_INPUTS, DynamicInputGroup
 from core.io_data import IMAGE_TYPES, IoData, IoDataType
 from core.node_base import NodeBase
 from core.params import StringParam
-from core.port import OutputPort
+from core.port import InputPort, OutputPort
 
-#: Digits that may appear in a layout cell. Each digit ``d`` references
-#: input port ``image[d]`` (1-indexed). The character ``"0"`` is
-#: reserved for "empty cell" along with ``"."`` so a numeric layout
-#: parser doesn't have to special-case the dot just to flag empties.
+#: Total number of ``image[i]`` input ports the node owns.
+_NUM_INPUTS: int = 9
+
+#: Digits that may appear in a layout cell. Each digit ``d``
+#: references input port ``image[d]`` (1-indexed).
 _LAYOUT_DIGITS: str = "123456789"
 
 #: Markers for an empty cell in the layout string. Both ``.`` and
@@ -40,10 +41,6 @@ _EMPTY_CELLS: frozenset[str] = frozenset({".", "0"})
 
 #: Row separator inside the layout string.
 _ROW_SEPARATOR: str = "/"
-
-#: Stable key under which Mosaic publishes its dynamic input group in
-#: the saved-flow JSON. On-disk schema — do not rename.
-_IMAGE_GROUP_KEY: str = "image"
 
 
 @dataclass(frozen=True)
@@ -180,16 +177,19 @@ class Mosaic(NodeBase):
     pasted at the top-left of its cell rectangle and padded on the
     right / bottom if smaller.
 
-    Inputs are dynamic: the node starts with ``image[1]`` and grows
-    ``image[2]``, ``image[3]``… one slot at a time as the user wires
-    up the tail input, capped at nine. The layout descriptor is a
-    plain :class:`StringParam` whose digits index into the input list
+    Inputs are a fixed pool of nine optional ``image[i]`` ports. The
+    editor starts with a single visible row and grows by one row each
+    time the user wires up the previous tail. The layout descriptor
+    is a constant parameter (rendered italicised between the output
+    and input rows) — its digits index into the input list
     independently of how many ports are currently visible on the node.
 
     Any colour input promotes the output to colour; otherwise the
     output stays greyscale. The default ``"12"`` is a horizontal
     stack of the first two inputs.
     """
+
+    SHOW_ONLY_USED_INPUTS: bool = True
 
     layout = StringParam(
         "12",
@@ -207,26 +207,20 @@ class Mosaic(NodeBase):
     def __init__(self) -> None:
         super().__init__("Mosaic", section="Composit")
         self._layout: str
-        self._image_group = DynamicInputGroup(
-            self,
-            name_template="image[{i}]",
-            accepted_types=set(IMAGE_TYPES),
-            max_count=MAX_DYNAMIC_INPUTS,
-        )
-        self._dynamic_input_groups: dict[str, DynamicInputGroup] = {
-            _IMAGE_GROUP_KEY: self._image_group,
-        }
+        for i in range(1, _NUM_INPUTS + 1):
+            self._add_input(InputPort(
+                f"image[{i}]", set(IMAGE_TYPES), optional=True,
+            ))
         self._add_output(OutputPort("image", set(IMAGE_TYPES)))
         self._apply_default_params()
 
     @override
     def process_impl(self) -> None:
         layout = MosaicLayout(self._layout)
-        ports = self._image_group.ports
+        ports = self.inputs
 
         # Map each rectangle to its IoData (skip rectangles whose
-        # referenced port doesn't exist yet, i.e. the user wrote a
-        # digit higher than the current input count).
+        # referenced port has no data — unconnected, or out of range).
         rect_data: dict[_Rect, IoData] = {}
         for rect in layout.rectangles:
             idx = rect.port_index

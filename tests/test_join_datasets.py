@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.dynamic_ports import MAX_DYNAMIC_INPUTS
 from core.io_data import IoData, IoDataType
 from core.port import OutputPort
 from nodes.filters.join_datasets import JoinDatasets
@@ -124,28 +123,17 @@ def test_single_input_does_not_emit() -> None:
     assert node.outputs[0].last_emitted is None
 
 
-# ── Dynamic input growth ──────────────────────────────────────────────────────
+# ── Topology ──────────────────────────────────────────────────────────────────
 
-def test_starts_with_one_dataset_port() -> None:
+def test_has_nine_input_ports() -> None:
+    """Backend always carries the full pool of nine ``dataset[i]``
+    ports; the editor hides the trailing unused rows."""
     node = JoinDatasets()
-    assert [p.name for p in node.inputs] == ["dataset[1]"]
+    assert [p.name for p in node.inputs] == [f"dataset[{i}]" for i in range(1, 10)]
 
 
-def test_grows_one_port_per_tail_connect() -> None:
-    node = JoinDatasets()
-    up = OutputPort("u1", {IoDataType.DATASET})
-    up.connect(node.inputs[0])
-    assert [p.name for p in node.inputs] == ["dataset[1]", "dataset[2]"]
-
-
-def test_growth_caps_at_nine() -> None:
-    node = JoinDatasets()
-    upstreams = []
-    for i in range(MAX_DYNAMIC_INPUTS):
-        up = OutputPort(f"u{i}", {IoDataType.DATASET})
-        up.connect(node.inputs[i])
-        upstreams.append(up)
-    assert len(node.inputs) == MAX_DYNAMIC_INPUTS
+def test_show_only_used_inputs_is_set() -> None:
+    assert JoinDatasets.SHOW_ONLY_USED_INPUTS is True
 
 
 # ── Input mutation guard ──────────────────────────────────────────────────────

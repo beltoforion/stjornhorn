@@ -39,9 +39,6 @@
       ],
       "port_defaults": {
         "expression": "v[1] + v[2]"
-      },
-      "dynamic_inputs": {
-        "v": 2
       }
     },
     {
