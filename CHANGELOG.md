@@ -12,20 +12,37 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (PlotSeries: multi-channel stacked panels)
+
+- **`PlotSeries` now plots every column of the input dataset as its
+  own panel, stacked top-to-bottom with a shared X (time) axis.** The
+  N-vs-E waveform pair previously needed two `PlotSeries` nodes; one
+  node with a 2-column input (e.g. from `JoinDatasets`) now produces
+  the same visual. Single-column inputs collapse to one panel and
+  render exactly like before.
+- **`y_column` (single) → `y_columns` (comma-separated list).** Empty
+  plots every column (the `JoinDatasets` case); ``"N,E"`` filters to
+  those columns; a typo loudly raises `KeyError` rather than silently
+  dropping a series. Bundled flow files updated to the new key.
+- The internal dependency on `AddIndexColumn` is gone — PlotSeries
+  computes the synthetic time axis inline so its single-responsibility
+  surface (one node = one stacked time-series plot) reads cleaner.
+- The band overlay still tracks the moving window; it now spans every
+  panel of the stack so the highlighted region lines up across
+  channels.
+
 ### Added (merged time-series demo flow)
 
 - **New `flow/data_display_time_series_merged.flowjs`.** A leaner
-  variant of the animated-hodogram demo. Both N and E channels merge
+  variant of the animated-hodogram demo: both N and E channels merge
   into a single multi-column DATASET via `JoinDatasets`, a single
-  `SlidingWindow` slices the merged stream per tick, and the same
-  three panels render as in the original — two `PlotSeries` waveforms
-  (one per channel, each with the moving band) plus a `PlotXY`
-  rendering the windowed N-vs-E ground motion. 11 nodes / 12
-  connections (vs 11 / 13 in the multi-panel original — same node
-  count but one fewer SlidingWindow, simpler topology with the
-  windowing happening once for both channels). The original
-  `data_display_time_series.flowjs` stays bundled unchanged for the
-  dedicated `Hodogram` (with time colouring + polarisation overlay).
+  `SlidingWindow` slices it per tick, and a single `PlotSeries` plots
+  N and E as stacked panels with a shared time axis and moving band.
+  A `PlotXY` adds the windowed N-vs-E motion plot alongside.
+  **10 nodes / 10 connections** (vs 11 / 13 in the original
+  multi-panel `data_display_time_series.flowjs`). The original stays
+  bundled for the dedicated `Hodogram` (time-coloured trajectory +
+  polarisation overlay).
 - `SlidingWindow` regression-tested on multi-column DataFrames so the
   merged-channel pattern is covered by CI rather than living
   implicitly in the demo.

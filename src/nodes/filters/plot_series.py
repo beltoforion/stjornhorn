@@ -1,19 +1,16 @@
 from __future__ import annotations
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeBase
 from core.params import BoolParam, FloatParam, IntParam, StringParam
 from core.port import InputPort, OutputPort
-from nodes.filters.add_index_column import AddIndexColumn
-from nodes.filters.plot_xy import AxesDescriptor, PlotXY
-
-#: Internal column name used for the synthetic time axis. Hidden from
-#: the user — PlotSeries always addresses it by this fixed name.
-_TIME_COL: str = "t"
+from nodes.filters.plot_xy import _RENDER_DPI, AxesDescriptor
 
 #: Band overlay colour (BGR) and alpha, matched to PlotXY's ``axvspan``
 #: defaults so the cv2-overlay path produces a visually-equivalent band.
@@ -22,11 +19,28 @@ _BAND_ALPHA: float = 0.20
 
 
 class PlotSeries(NodeBase):
-    """Synthesise a time axis and render a single-column trace as an XY plot.
+    """Synthesise a time axis and render every column of the input
+    :data:`IoDataType.DATASET` as an independent time-series trace,
+    stacked vertically with a shared time axis.
 
-    Combines :class:`AddIndexColumn` + :class:`PlotXY` into one node
-    for plotting a raw single-column :data:`IoDataType.DATASET`. Set
-    ``step = 1 / sample_rate`` for a seconds axis.
+    The input is interpreted as a stack of independent channels — *not*
+    as ``y = f(x)`` (the :class:`PlotXY` model). A single-column input
+    plots one trace in its own panel; an N-column input from
+    :class:`~nodes.filters.join_datasets.JoinDatasets` produces N
+    panels (top-to-bottom) sharing the X axis. Each panel's Y label
+    is the column name; the time axis is labelled only on the bottom
+    panel so the stack stays compact.
+
+    Set ``step = 1 / sample_rate`` for a seconds axis. Optional
+    ``y_columns`` filters which columns to plot when the input has
+    extra channels you don't want; empty plots every column.
+
+    Band overlay endpoints arrive as ``window_start`` / ``window_end``
+    keys on the input's :class:`~core.io_data.IoMeta` (typically
+    stamped by :class:`~nodes.filters.sliding_window.SlidingWindow` on
+    its passthrough output) and are converted internally to time
+    coordinates via ``start`` / ``step``. The band spans every panel
+    so the highlighted window lines up across channels.
     """
 
     step = FloatParam(
@@ -42,12 +56,13 @@ class PlotSeries(NodeBase):
         0.0,
         description="Time of the first sample.",
     )
-    y_column = StringParam(
+    y_columns = StringParam(
         "",
-        placeholder="(first column)",
+        placeholder="(all columns)",
         description=(
-            "Column name for the Y axis. Leave empty to use the first "
-            "column of the input dataset."
+            "Comma-separated list of column names to plot as overlaid "
+            "series. Leave empty to plot every column of the input "
+            "dataset (the typical case after a JoinDatasets merge)."
         ),
     )
     width = IntParam(
@@ -75,34 +90,26 @@ class PlotSeries(NodeBase):
     def __init__(self) -> None:
         super().__init__("Plot Series", section="Visualization")
         # Explicit annotations so pyright sees the descriptor-backed attrs.
-        self._step: float
-        self._start: float
-        self._y_column: str
-        self._width: int
-        self._height: int
-        self._title: str
-        self._grid: bool
-        # Single dataset input. Band-overlay endpoints arrive as
-        # ``window_start`` / ``window_end`` keys on the input's
-        # :class:`~core.io_data.IoMeta` — typically stamped by an
-        # upstream :class:`~nodes.filters.sliding_window.SlidingWindow`
-        # on its passthrough output. Absent keys → no band drawn
-        # (current behaviour with the input wired straight from a
-        # CsvSource).
+        self._step:      float
+        self._start:     float
+        self._y_columns: str
+        self._width:     int
+        self._height:    int
+        self._title:     str
+        self._grid:      bool
         self._add_input(InputPort("dataset", {IoDataType.DATASET}))
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
 
-        self._indexer = AddIndexColumn()
-        self._plotter = PlotXY()
         # Cached trace render so a moving band (driven by SlidingWindow
         # in the animated-hodogram demo) doesn't force matplotlib to
         # re-render the full waveform every tick. Keyed on the input
         # *DataFrame* identity (preserved across SlidingWindow's
         # passthrough re-emits — each tick wraps the same DataFrame in
-        # a fresh IoData) plus the visual params. Any upstream that
-        # emits a different DataFrame per tick (shift, resample) gets
-        # a different ``id(payload)`` and re-renders correctly.
+        # a fresh IoData) plus the visual params + selected columns.
+        # Any upstream that emits a different DataFrame per tick
+        # (shift, resample) gets a different ``id(payload)`` and
+        # re-renders correctly.
         self._cache_key:    tuple | None              = None
         self._cache_base:   np.ndarray | None         = None
         self._cache_axes:   AxesDescriptor | None     = None
@@ -110,8 +117,10 @@ class PlotSeries(NodeBase):
     @override
     def process_impl(self) -> None:
         in_io = self.inputs[0].data
+        df: pd.DataFrame = in_io.payload
+        columns = self._select_columns(df)
         cache_key = (
-            id(in_io.payload), self._step, self._start, self._y_column,
+            id(in_io.payload), self._step, self._start, tuple(columns),
             self._width, self._height, self._title, self._grid,
         )
         if (
@@ -119,7 +128,7 @@ class PlotSeries(NodeBase):
             or self._cache_base is None
             or self._cache_axes is None
         ):
-            self._refresh_cache(in_io, cache_key)
+            self._refresh_cache(df, columns, cache_key)
 
         # Read band endpoints from the input's IoMeta. SlidingWindow
         # stamps ``window_start`` / ``window_end`` (sample-row indices)
@@ -142,34 +151,127 @@ class PlotSeries(NodeBase):
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
-    def _refresh_cache(self, in_io: IoData, cache_key: tuple) -> None:
-        """Run AddIndexColumn + matplotlib once and stash the bitmap +
-        axes geometry. Subsequent ticks with the same dataset identity
-        reuse this cache and only repaint the band in cv2.
-        """
-        self._indexer.name = _TIME_COL
-        self._indexer.start = self._start
-        self._indexer.step = self._step
-        self._indexer.inputs[0].receive(in_io)
-        indexed = self._indexer.outputs[0].last_emitted
-        if indexed is None:
-            return
-        df = indexed.payload
-        x_arr = df[_TIME_COL].to_numpy()
-        y_col = self._plotter._resolve_column(df, self._y_column, default_index=1)
-        y_arr = df[y_col].to_numpy()
+    def _select_columns(self, df: pd.DataFrame) -> list[str]:
+        """Resolve ``y_columns`` against the input.
 
-        base, axes = PlotXY.render_with_axes(
-            x_arr, y_arr,
-            x_label=self._plotter._axis_label(df, _TIME_COL),
-            y_label=self._plotter._axis_label(df, y_col),
+        Empty → every column of *df* (the JoinDatasets case). Otherwise
+        a comma-separated list, validated against the input columns so
+        a typo is loud rather than silently dropping a series.
+        """
+        raw = self._y_columns.strip()
+        if not raw:
+            return [str(c) for c in df.columns]
+        wanted = [c.strip() for c in raw.split(",") if c.strip()]
+        for col in wanted:
+            if col not in df.columns:
+                raise KeyError(
+                    f"Column {col!r} not in dataset; "
+                    f"available: {list(df.columns)}",
+                )
+        return wanted
+
+    def _refresh_cache(
+        self, df: pd.DataFrame, columns: list[str], cache_key: tuple,
+    ) -> None:
+        """Render every selected column as an overlaid line on the
+        synthetic time axis and stash bitmap + axes geometry. Subsequent
+        ticks with the same DataFrame identity reuse this cache and
+        only repaint the band in cv2.
+        """
+        n = len(df)
+        x = self._start + np.arange(n, dtype=np.float64) * self._step
+        y_series = {col: df[col].to_numpy() for col in columns}
+
+        base, axes = self._render(
+            x, y_series,
+            x_label=self._x_axis_label(df),
             width=self._width, height=self._height,
             title=self._title, grid=self._grid,
-            band=None,  # band painted in cv2 below for fast per-frame redraw
         )
         self._cache_key  = cache_key
         self._cache_base = base
         self._cache_axes = axes
+
+    @staticmethod
+    def _x_axis_label(df: pd.DataFrame) -> str:
+        """Time-axis label, optionally annotated with the unit
+        ``df.attrs["units"]`` carries for the synthetic time channel
+        (e.g. ``"time [s]"``). Falls back to a bare ``"time"`` when no
+        unit is attached."""
+        units = df.attrs.get("units")
+        if isinstance(units, dict):
+            unit = units.get("time")
+            if unit:
+                return f"time [{unit}]"
+        return "time"
+
+    @staticmethod
+    def _render(
+        x: np.ndarray,
+        y_series: dict[str, np.ndarray],
+        *,
+        x_label: str,
+        width: int,
+        height: int,
+        title: str,
+        grid: bool,
+    ) -> tuple[np.ndarray, AxesDescriptor]:
+        """Render every series in *y_series* as its own panel stacked
+        top-to-bottom with a shared X (time) axis. Returns the BGR
+        bitmap plus an :class:`AxesDescriptor` covering the union of
+        every panel's plot area — the band-overlay path uses this to
+        paint a single rectangle that spans the whole stack so the
+        highlighted window lines up across channels.
+
+        A single-series input collapses to one panel and renders just
+        like the legacy single-column behaviour.
+        """
+        fig, axes = plt.subplots(
+            nrows=max(len(y_series), 1),
+            ncols=1,
+            sharex=True,
+            figsize=(width / _RENDER_DPI, height / _RENDER_DPI),
+            dpi=_RENDER_DPI,
+        )
+        try:
+            # ``plt.subplots`` returns a single Axes for nrows=1; wrap
+            # in a list so the loop below stays uniform across the
+            # single- and multi-panel cases.
+            ax_list = [axes] if len(y_series) <= 1 else list(axes)
+            items = list(y_series.items())
+            if not items:
+                # Empty selection (no columns chosen and no input
+                # columns). Render an empty plot rather than crashing.
+                ax_list[0].plot([], [])
+            for ax, (label, y) in zip(ax_list, items):
+                ax.plot(x, y)
+                ax.set_ylabel(label)
+                if grid:
+                    ax.grid(True, alpha=0.3)
+            ax_list[-1].set_xlabel(x_label)
+            if title:
+                fig.suptitle(title)
+            fig.tight_layout(pad=0.4)
+            fig.canvas.draw()
+            # Band overlay rectangle spans the whole panel tower —
+            # union of every panel's pixel-y range, with the gaps
+            # between panels included so the highlight reads as one
+            # continuous band, not discrete strips.
+            pixel_x = tuple(ax_list[0].bbox.intervalx)
+            data_xlim = tuple(ax_list[0].get_xlim())
+            y_lows  = [a.bbox.y0 for a in ax_list]
+            y_highs = [a.bbox.y1 for a in ax_list]
+            descriptor = AxesDescriptor(
+                pixel_x=pixel_x,
+                pixel_y=(min(y_lows), max(y_highs)),
+                data_xlim=data_xlim,
+                canvas_height=int(height),
+            )
+            rgba = np.asarray(fig.canvas.buffer_rgba())
+            bgr = cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGR)
+            return bgr, descriptor
+        finally:
+            plt.close(fig)
 
     @staticmethod
     def _overlay_band(
@@ -178,7 +280,7 @@ class PlotSeries(NodeBase):
         """Paint a translucent yellow rectangle over the band's x-range
         of the cached bitmap. Reverses endpoints so a wired-backwards
         band still draws as a forward span (parity with matplotlib's
-        ``axvspan`` and the existing ``_resolve_band`` normalisation)."""
+        ``axvspan``)."""
         if bs_time > be_time:
             bs_time, be_time = be_time, bs_time
         ax_x0,    ax_x1    = axes.pixel_x

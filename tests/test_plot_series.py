@@ -63,27 +63,38 @@ def test_start_offset_accepted() -> None:
     assert img is not None
 
 
-# ── y_column selection ────────────────────────────────────────────────────────
+# ── y_columns selection ──────────────────────────────────────────────────────
 
-def test_empty_y_column_picks_first_column() -> None:
-    df = pd.DataFrame({"amplitude": np.linspace(0.0, 1.0, 8)})
+def test_empty_y_columns_plots_every_input_column() -> None:
+    """The default (empty filter) plots every column of the input —
+    the JoinDatasets-merged case where the user wants all channels."""
+    df = pd.DataFrame({
+        "N": np.linspace(0.0, 1.0, 16),
+        "E": np.linspace(1.0, 0.0, 16),
+    })
     node = PlotSeries()
-    node.y_column = ""
+    node.y_columns = ""
+    node.height = 240  # tall enough to fit two stacked panels
     img = _run(node, df)
     assert img.size > 0
 
 
-def test_explicit_y_column_selected() -> None:
-    df = pd.DataFrame({"sig": np.zeros(8), "noise": np.ones(8)})
+def test_explicit_y_columns_filters() -> None:
+    df = pd.DataFrame({
+        "sig":   np.zeros(8),
+        "noise": np.ones(8),
+        "drift": np.linspace(0.0, 1.0, 8),
+    })
     node = PlotSeries()
-    node.y_column = "noise"
+    node.y_columns = "noise,drift"  # drop "sig"
+    node.height = 240
     img = _run(node, df)
     assert img.size > 0
 
 
 def test_missing_y_column_raises() -> None:
     node = PlotSeries()
-    node.y_column = "nope"
+    node.y_columns = "nope"
     with pytest.raises(KeyError):
         _run(node, _single())
 
@@ -224,19 +235,19 @@ def test_trace_cache_reuses_render_when_dataframe_identity_unchanged() -> None:
     ticks reuse the cached bitmap and just repaint the band in cv2.
     """
     from core.io_data import IoMeta
-    from nodes.filters.plot_xy import PlotXY
+    from nodes.filters.plot_series import PlotSeries as _PS
 
     node = PlotSeries()
     node.width = 200; node.height = 100; node.grid = False; node.step = 0.1
     df = pd.DataFrame({"c0": np.zeros(50)})
 
     render_count = 0
-    real = PlotXY.render_with_axes
+    real = _PS._render
     def counting(*args, **kwargs):
         nonlocal render_count
         render_count += 1
         return real(*args, **kwargs)
-    PlotXY.render_with_axes = staticmethod(counting)
+    _PS._render = staticmethod(counting)
     try:
         # Three ticks, three different band positions, same DataFrame.
         for ws, we in ((5, 10), (15, 20), (25, 30)):
@@ -244,7 +255,7 @@ def test_trace_cache_reuses_render_when_dataframe_identity_unchanged() -> None:
                 IoData.from_dataset(df, meta=IoMeta(window_start=ws, window_end=we)),
             )
     finally:
-        PlotXY.render_with_axes = staticmethod(real)
+        _PS._render = staticmethod(real)
 
     assert render_count == 1, f"expected 1 matplotlib render, got {render_count}"
 
@@ -253,18 +264,18 @@ def test_trace_cache_invalidates_when_dataframe_changes() -> None:
     """A different DataFrame (typical of an animated upstream like a
     shift filter) must invalidate the cache so the rendered trace
     stays correct."""
-    from nodes.filters.plot_xy import PlotXY
+    from nodes.filters.plot_series import PlotSeries as _PS
 
     node = PlotSeries()
     node.width = 200; node.height = 100; node.grid = False
 
     render_count = 0
-    real = PlotXY.render_with_axes
+    real = _PS._render
     def counting(*args, **kwargs):
         nonlocal render_count
         render_count += 1
         return real(*args, **kwargs)
-    PlotXY.render_with_axes = staticmethod(counting)
+    _PS._render = staticmethod(counting)
     try:
         for value in (1.0, 2.0, 3.0):
             # New DataFrame each iteration → new id(payload) → cache miss.
@@ -272,7 +283,7 @@ def test_trace_cache_invalidates_when_dataframe_changes() -> None:
                 IoData.from_dataset(pd.DataFrame({"c0": np.full(20, value)})),
             )
     finally:
-        PlotXY.render_with_axes = staticmethod(real)
+        _PS._render = staticmethod(real)
 
     assert render_count == 3
 
@@ -282,7 +293,7 @@ def test_trace_cache_invalidates_on_param_change() -> None:
     ticks must re-render even though the input DataFrame hasn't
     changed."""
     from core.io_data import IoMeta
-    from nodes.filters.plot_xy import PlotXY
+    from nodes.filters.plot_series import PlotSeries as _PS
 
     node = PlotSeries()
     node.width = 200; node.height = 100; node.grid = False
@@ -294,12 +305,12 @@ def test_trace_cache_invalidates_on_param_change() -> None:
         )
 
     render_count = 0
-    real = PlotXY.render_with_axes
+    real = _PS._render
     def counting(*args, **kwargs):
         nonlocal render_count
         render_count += 1
         return real(*args, **kwargs)
-    PlotXY.render_with_axes = staticmethod(counting)
+    _PS._render = staticmethod(counting)
     try:
         push(5, 10)   # cache miss → renders
         push(15, 20)  # cache hit
@@ -307,6 +318,6 @@ def test_trace_cache_invalidates_on_param_change() -> None:
         push(25, 30)  # param change → cache miss → renders
         push(35, 40)  # cache hit
     finally:
-        PlotXY.render_with_axes = staticmethod(real)
+        _PS._render = staticmethod(real)
 
     assert render_count == 2
