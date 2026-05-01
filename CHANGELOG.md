@@ -29,7 +29,7 @@ once a first tagged release is cut.
   the left edge of the node already disambiguates.
 - **Required / optional / held semantics moved to ring style** —
   required and outputs use a thicker solid ring, optional inputs a
-  thinner solid ring, held inputs a dashed ring. Three orthogonal
+  thinner solid ring, held inputs a dotted ring. Three orthogonal
   visual axes (type=colour, direction=glyph, semantics=stroke
   style) replace the previous overloaded colour scheme.
 

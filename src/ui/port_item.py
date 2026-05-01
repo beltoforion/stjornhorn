@@ -56,7 +56,7 @@ class PortItem(QGraphicsEllipseItem):
       from :data:`ui.theme.PORT_TYPE_COLORS`. Multi-type ports therefore
       read as multi-coloured rings without any "primary type" heuristic.
     * **Semantics** — ring style differentiates required (thick solid),
-      optional input (thin solid) and held input (dashed). Outputs are
+      optional input (thin solid) and held input (dotted). Outputs are
       always thick solid.
     * **Direction** — output ports get a small right-pointing triangle
       glyph beside the dot. Input ports stay plain — the position on the
@@ -209,7 +209,10 @@ class PortItem(QGraphicsEllipseItem):
         return self._RING_WIDTH_OPTIONAL if self._is_optional() else self._RING_WIDTH_DEFAULT
 
     def _ring_style(self) -> Qt.PenStyle:
-        return Qt.PenStyle.DashLine if self._is_held() else Qt.PenStyle.SolidLine
+        # DotLine gives ~10 fine dots around the small port ring,
+        # which reads as "intermittent" much better than the four
+        # chunky dashes DashLine produces at this radius.
+        return Qt.PenStyle.DotLine if self._is_held() else Qt.PenStyle.SolidLine
 
     # ── Painting ───────────────────────────────────────────────────────────────
 
