@@ -14,9 +14,11 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-05-01 (variable-arity inputs on Math /
-JoinDatasets / Mosaic via fixed pool + `SHOW_ONLY_USED_INPUTS`
-visibility flag — no framework lifecycle changes).
+**Last reviewed:** 2026-05-01 (Output Inspector removed —
+`ViewerPanel`, `selected_node_changed` signal, dock layout presets
+and the toolbar-mirroring entries in the Node Editor menu went
+away; the inline `Display` node already covers the inspection use
+case).
 
 ## High
 
@@ -99,9 +101,9 @@ outputs cannot override.
 
 ### OPEN — M10. NodeEditorPage mixes page-shell with run orchestration & threading
 
-SRP. `src/ui/node_editor_page.py:580-720` assembles `QThread`,
-`FlowRunner`, signal chains, status messages, viewer auto-pick
-(`_best_viewer_node`).
+SRP. `src/ui/node_editor_page.py` `_on_run_clicked` /
+`_on_run_finished` / `_on_run_failed` / `_finalize_run` assemble
+`QThread`, `FlowRunner`, signal chains and status messages.
 
 **Direction:** a `FlowRunController` `QObject` owning thread/runner
 lifecycle and exposing started / finished / failed signals; page

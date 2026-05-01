@@ -7,7 +7,8 @@
 A desktop application for building image- and video-processing
 workflows using a node-based visual editor. Drop image sources,
 filters, and sinks onto a canvas, wire them up, hit **Run**, then tweak
-parameters and watch the output update live in the built-in viewer.
+parameters and watch the output update live via inline `Display`
+nodes wired into the flow.
 
 Typical uses:
 
@@ -94,10 +95,6 @@ toolbar to drive the flow.
   resize the node (preview-bearing nodes grow in both axes, others
   in width only). Scroll to zoom; middle-mouse-drag to pan. Dropping
   a node from the palette places it at the cursor.
-- **Output Inspector** (dockable, below the Node List) — previews the
-  current output of whichever node is selected. Float it for a larger
-  view; once floating, press <kbd>F11</kbd> to toggle full-screen
-  preview.
 - **Status bar** (bottom) — shows the last successful / informational
   message, such as "Ran at 14:23:55" or "Saved to flow/x.flowjs".
   Errors pop up in a floating red banner at the top right instead,

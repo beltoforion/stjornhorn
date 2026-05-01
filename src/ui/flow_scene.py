@@ -38,13 +38,8 @@ class FlowScene(QGraphicsScene):
         underlying ``Flow.connect`` edge.
       - right-click context menu on links (Delete). Nodes are deleted
         via the ``X`` button in their header or the Delete key.
-
-    Emits :attr:`selected_node_changed` whenever the user's selection
-    settles on a different single node (None when nothing or multiple
-    things are selected).
     """
 
-    selected_node_changed = Signal(object)   # NodeBase | None
     #: Emitted when any parameter widget on any node in the scene changes value.
     param_changed = Signal()
     #: Emitted when an interactive connection attempt raises a user-actionable
@@ -63,10 +58,8 @@ class FlowScene(QGraphicsScene):
         self._backdrops: list[BackdropItem] = []
         self._pending_link: PendingLinkItem | None = None
         self._pending_src_port: PortItem | None = None
-        self._last_emitted_selected: NodeBase | None = None
         self._dirty: bool = False
 
-        self.selectionChanged.connect(self._on_selection_changed)
         # Every param-widget edit is an unsaved change. Structural edits
         # (add/remove node, add/remove link, layout stack, flow rename)
         # call _mark_dirty directly from the method that performs them.
@@ -103,7 +96,6 @@ class FlowScene(QGraphicsScene):
         self._backdrops.clear()
         self._pending_link = None
         self._pending_src_port = None
-        self._last_emitted_selected = None
 
     # ── Node operations ────────────────────────────────────────────────────────
 
@@ -503,16 +495,6 @@ class FlowScene(QGraphicsScene):
     def _recolour_backdrop(self, backdrop: BackdropItem, colour) -> None:
         backdrop.set_color(colour)
         self._mark_dirty()
-
-    # ── Selection → signal ─────────────────────────────────────────────────────
-
-    def _on_selection_changed(self) -> None:
-        selected = self.selectedItems()
-        node_items = [s for s in selected if isinstance(s, NodeItem)]
-        node = node_items[0].node if len(node_items) == 1 else None
-        if node is not self._last_emitted_selected:
-            self._last_emitted_selected = node
-            self.selected_node_changed.emit(node)
 
     # ── Iteration helpers used by flow_io ──────────────────────────────────────
 

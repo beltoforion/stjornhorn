@@ -48,7 +48,7 @@ class AxesDescriptor:
 class PlotXY(NodeBase):
     """Render two columns of a :data:`IoDataType.DATASET` as an XY line plot.
 
-    Output is a BGR image so it slots into the viewer / file-sink
+    Output is a BGR image so it slots into the Display / file-sink
     pipeline. A one-column input is rejected — insert
     :class:`AddIndexColumn` upstream to add an explicit X axis. Axis
     labels come from the column names; ``df.attrs["units"]`` is
