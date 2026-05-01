@@ -210,6 +210,42 @@ input (data-flow short-circuit). `_on_skipped_changed(skipped)` is
 a hook subclasses override to react to the toggle (PlayGate uses
 it to drain its buffered frames).
 
+### Variable-arity input pools (`SHOW_ONLY_USED_INPUTS`)
+
+`Math`, `JoinDatasets` and `Mosaic` each declare a fixed pool of
+nine optional input ports (`v[1]…v[9]`, `dataset[1]…dataset[9]`,
+`image[1]…image[9]`). The backend always carries the full pool —
+connection indices stay stable across save / load — but the editor
+hides every row past `last_connected + 1`, so a fresh node looks
+like a single-input node and the body grows one row at a time as
+the user wires more upstreams.
+
+The opt-in is a single class attribute:
+
+```python
+class Math(NodeBase):
+    SHOW_ONLY_USED_INPUTS: bool = True
+```
+
+`NodeItem._visible_input_count` reads it on every relayout pass.
+`FlowScene` triggers a relayout on the destination node after every
+successful `connect_ports` / link-delete so the body resizes in step
+with the user's wiring. Hidden `PortItem`s and their inline widgets
+are toggled with `setVisible(False)`; `LinkItem` identity is
+preserved across visibility changes since the underlying ports are
+never destroyed.
+
+Two consequences for nodes that use this:
+
+- Port names need not be Python identifiers (the bracketed forms
+  `v[1]` etc. are not). `_populate_port_driven_attributes` skips
+  ports without a backing `_<name>` slot — the owning node reads
+  them straight from `self._inputs` in `process_impl`.
+- Layout-driver parameters (Mosaic's `layout`, JoinDatasets'
+  `column_names`) should be declared `constant=True` so they render
+  in the constants block instead of as a port row, keeping the
+  input-row order purely the dynamic pool.
+
 ### Frame-index + SCALAR-port auto-stamping
 
 `OutputPort.send(data)` stamps `data.meta["frame_index"]` from a

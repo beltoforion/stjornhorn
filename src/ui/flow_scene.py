@@ -228,10 +228,16 @@ class FlowScene(QGraphicsScene):
         link = LinkItem(src, dst)
         self.addItem(link)
         self._links.append(link)
+        # A node that opts into ``SHOW_ONLY_USED_INPUTS`` (Math /
+        # JoinDatasets / Mosaic) grows its visible body by one row
+        # when a fresh tail port is wired up. Re-running the layout
+        # keeps the body in sync.
+        dst.node_item.refresh_input_visibility()
         self._mark_dirty()
         return link
 
     def _delete_link_item(self, link: LinkItem) -> None:
+        dst_node_item = link.dst_port.node_item
         if self._flow is not None:
             try:
                 self._flow.disconnect(
@@ -244,6 +250,9 @@ class FlowScene(QGraphicsScene):
         if link in self._links:
             self._links.remove(link)
         self.removeItem(link)
+        # Mirror the connect path: a node with ``SHOW_ONLY_USED_INPUTS``
+        # may shrink its body when a connection vanishes.
+        dst_node_item.refresh_input_visibility()
         self._mark_dirty()
 
     # ── Backdrops ──────────────────────────────────────────────────────────────

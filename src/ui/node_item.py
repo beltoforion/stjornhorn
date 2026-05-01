@@ -624,8 +624,13 @@ class NodeItem(QGraphicsItem):
             painter.restore()
 
         # Inputs follow below; rows with a widget truncate the label.
+        # Skip rows past the visible-input count so labels match the
+        # body geometry on nodes that opt into ``SHOW_ONLY_USED_INPUTS``.
         inputs_top = self._inputs_top()
+        n_visible_inputs = self._visible_input_count()
         for i, port in enumerate(self._input_ports):
+            if i >= n_visible_inputs:
+                break
             y = inputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT
             label_right = self._width - label_inset
             proxy = self._param_proxies_by_row.get(i)
@@ -961,6 +966,37 @@ class NodeItem(QGraphicsItem):
         else:
             self._preview_proxy = None
 
+    def _visible_input_count(self) -> int:
+        """Return how many input rows the body should render.
+
+        For nodes that opt into ``SHOW_ONLY_USED_INPUTS`` the editor
+        shows everything up to the last connected port plus one empty
+        "to-be-wired" tail (so the user sees there's another slot
+        available). Other nodes render every input port — same
+        behaviour they always had.
+        """
+        all_inputs = self._input_ports
+        if not getattr(self._node, "SHOW_ONLY_USED_INPUTS", False):
+            return len(all_inputs)
+        last_connected = -1
+        for i, port_item in enumerate(all_inputs):
+            if port_item.model.upstream is not None:
+                last_connected = i
+        # Show one row beyond the last connection — capped at the pool
+        # size — and never less than one so the node has at least one
+        # visible input row.
+        return min(len(all_inputs), max(1, last_connected + 2))
+
+    def refresh_input_visibility(self) -> None:
+        """Re-evaluate which input rows are visible.
+
+        Called by :class:`FlowScene` after a connect / disconnect
+        affecting any input on this node so the body can grow or
+        shrink. Cheap — only flips ``setVisible`` on PortItems and
+        their per-row inline widgets and re-runs :meth:`_relayout`.
+        """
+        self._relayout()
+
     def _relayout(self) -> None:
         """Recompute width / body height and place every child item.
 
@@ -990,7 +1026,12 @@ class NodeItem(QGraphicsItem):
         # dots), then input ports (left-edge sockets, with optional
         # inline widgets on each row).
         n_outputs = len(self._output_ports)
-        n_inputs  = len(self._input_ports)
+        # ``n_inputs`` is the *visible* count — for nodes that opt into
+        # ``SHOW_ONLY_USED_INPUTS`` it tracks "last connected + 1" so
+        # the body grows and shrinks with use; for everyone else it's
+        # the full input pool size. Hidden PortItems and their per-row
+        # widgets are toggled via ``setVisible`` further down.
+        n_inputs  = self._visible_input_count()
         n_consts  = len(self._constant_widgets_by_row)
         io_height = (n_outputs + n_consts + n_inputs) * self.PORT_ROW_HEIGHT
 
@@ -1043,7 +1084,14 @@ class NodeItem(QGraphicsItem):
         for i, port in enumerate(self._output_ports):
             port.setPos(self._width, outputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
         for i, port in enumerate(self._input_ports):
-            port.setPos(0.0, inputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
+            visible = i < n_inputs
+            port.setVisible(visible)
+            if visible:
+                port.setPos(0.0, inputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT)
+            # Per-row inline widget (if any) follows the same visibility.
+            proxy = self._param_proxies_by_row.get(i)
+            if proxy is not None:
+                proxy.setVisible(visible)
 
         # ── Per-row inline param widgets ───────────────────────────────────────
         self._layout_param_widgets(inputs_top)

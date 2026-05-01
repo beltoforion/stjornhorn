@@ -14,9 +14,9 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-05-01 (PolarSpectrum split into reusable
-`DirectionalProjection` + `Spectrum` + `PolarHeatmap`; subgraph
-primitive flagged high-priority — issue #268).
+**Last reviewed:** 2026-05-01 (variable-arity inputs on Math /
+JoinDatasets / Mosaic via fixed pool + `SHOW_ONLY_USED_INPUTS`
+visibility flag — no framework lifecycle changes).
 
 ## High
 

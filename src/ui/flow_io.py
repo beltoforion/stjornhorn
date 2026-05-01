@@ -64,7 +64,16 @@ def serialize_flow(scene: FlowScene, flow: Flow) -> dict:
         # loader for flow files saved before the rename.
         port_defaults: dict = {}
         for p in node.param_input_ports:
-            port_defaults[p.name] = _jsonable(getattr(node, p.name, None))
+            # Dynamic ports (e.g. Math's ``v[1]``) have no class-level
+            # descriptor / backing attribute — their canonical value
+            # lives on the port's ``default_value`` slot. Identifier
+            # names route through ``getattr`` so the descriptor's
+            # current shaped value wins; non-identifier names fall back
+            # to the port's default_value.
+            if p.name.isidentifier():
+                port_defaults[p.name] = _jsonable(getattr(node, p.name, None))
+            else:
+                port_defaults[p.name] = _jsonable(p.default_value)
         for p in node.params:
             port_defaults[p.name] = _jsonable(getattr(node, p.name, None))
         entry: dict = {
@@ -260,9 +269,18 @@ def _instantiate_node(entry: dict) -> NodeBase | None:
     defaults = entry.get("port_defaults")
     if defaults is None:
         defaults = entry.get("params") or {}
+    # Build a name → port lookup once so dynamic ports (whose names
+    # like ``v[1]`` aren't valid Python identifiers and have no
+    # descriptor) can be restored by writing to their ``default_value``
+    # slot directly.
+    port_by_name = {p.name: p for p in node.inputs}
     for name, value in defaults.items():
+        port = port_by_name.get(name)
         try:
-            setattr(node, name, value)
+            if port is not None and not name.isidentifier():
+                port.default_value = value
+            else:
+                setattr(node, name, value)
         except Exception:
             logger.warning(
                 f"Ignoring port default {name} on {module_name}.{class_name} ({value!r})"

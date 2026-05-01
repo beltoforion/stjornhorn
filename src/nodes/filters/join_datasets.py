@@ -8,12 +8,21 @@ from core.node_base import NodeBase
 from core.params import StringParam
 from core.port import InputPort, OutputPort
 
-#: Maximum number of DATASET inputs the node exposes.
-_MAX_INPUTS: int = 4
+#: Total number of optional ``DATASET`` inputs the node owns. Slots
+#: past the last connected one stay hidden in the editor (see
+#: :attr:`NodeBase.SHOW_ONLY_USED_INPUTS`) so a fresh node still looks
+#: like a single-input node despite the full pool sitting in
+#: ``self._inputs``.
+_NUM_INPUTS: int = 9
 
 
 class JoinDatasets(NodeBase):
-    """Merge up to four :data:`IoDataType.DATASET` inputs into one.
+    """Merge two or more :data:`IoDataType.DATASET` inputs into one.
+
+    Carries a fixed pool of nine optional ``dataset[i]`` ports. The
+    editor renders only the rows up to the last connected port plus
+    one empty tail, so the body grows naturally as the user wires more
+    inputs without exposing every empty slot up front.
 
     Each connected input contributes its columns to the output. The
     optional ``column_names`` is a comma-separated rename list applied
@@ -24,9 +33,12 @@ class JoinDatasets(NodeBase):
     forwarded.
     """
 
+    SHOW_ONLY_USED_INPUTS: bool = True
+
     column_names = StringParam(
         "",
         placeholder="(keep original names)",
+        constant=True,
         description=(
             "Comma-separated list of new names for the first column of each "
             "connected input. Required when multiple inputs share the same "
@@ -36,8 +48,10 @@ class JoinDatasets(NodeBase):
 
     def __init__(self) -> None:
         super().__init__("Join Datasets", section="Data")
-        for i in range(_MAX_INPUTS):
-            self._add_input(InputPort(f"dataset_{i + 1}", {IoDataType.DATASET}, optional=True))
+        for i in range(1, _NUM_INPUTS + 1):
+            self._add_input(InputPort(
+                f"dataset[{i}]", {IoDataType.DATASET}, optional=True,
+            ))
         self._add_output(OutputPort("dataset", {IoDataType.DATASET}))
         self._apply_default_params()
 
