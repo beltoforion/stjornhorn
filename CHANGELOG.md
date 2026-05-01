@@ -14,10 +14,11 @@ once a first tagged release is cut.
 
 ### Changed (PlotXY / PlotSeries config-only params)
 
-- **`title` and `grid` on `PlotXY` and `PlotSeries` are now constant
-  params** — config-only inline editors instead of wireable input
-  ports. Neither value is animated frame-to-frame in any reasonable
-  flow, so the socket dot was just visual noise.
+- **`title`, `grid`, `width`, and `height` on `PlotXY` and
+  `PlotSeries` are now constant params** — config-only inline editors
+  instead of wireable input ports. None of these get meaningfully
+  animated frame-to-frame in any reasonable flow, so the socket dots
+  were just visual noise.
 
 ### Removed (PlotXY band ports)
 

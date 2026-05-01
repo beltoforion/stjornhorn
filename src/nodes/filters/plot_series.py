@@ -69,12 +69,14 @@ class PlotSeries(NodeBase):
         640,
         min=64,
         unit="px",
+        constant=True,
         description="Output image width in pixels.",
     )
     height = IntParam(
         360,
         min=64,
         unit="px",
+        constant=True,
         description="Output image height in pixels.",
     )
     title = StringParam(
