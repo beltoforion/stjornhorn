@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsPathItem
 
-from ui.theme import LINK_COLOR, LINK_SELECTED_COLOR
+from ui.theme import GLOW_RADIUS, LINK_COLOR, LINK_SELECTED_COLOR
 
 if TYPE_CHECKING:
     from ui.port_item import PortItem
@@ -53,10 +53,28 @@ class LinkItem(QGraphicsPathItem):
         self.setPath(_bezier_path(src, dst))
 
     def paint(self, painter, option, widget=None) -> None:  # type: ignore[override]
-        pen = QPen(LINK_SELECTED_COLOR if self.isSelected() else LINK_COLOR, 2)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        painter.setPen(pen)
-        painter.drawPath(self.path())
+        base_color = LINK_SELECTED_COLOR if self.isSelected() else LINK_COLOR
+        # Two-pass paint: a wide translucent stroke fakes a neon halo
+        # around the wire, then the crisp inner stroke draws on top.
+        # Cheaper than a real drop-shadow effect on every link.
+        path = self.path()
+        for width, alpha in ((6.0, 35), (3.5, 70)):
+            glow = QColor(base_color)
+            glow.setAlpha(alpha)
+            pen = QPen(glow, width)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.drawPath(path)
+        painter.setPen(QPen(base_color, 1.6))
+        painter.drawPath(path)
+
+    def boundingRect(self):  # type: ignore[override]
+        # Account for the wide outer glow stroke painted in :meth:`paint`
+        # so the scene doesn't clip it during partial repaints.
+        return super().boundingRect().adjusted(
+            -GLOW_RADIUS, -GLOW_RADIUS, GLOW_RADIUS, GLOW_RADIUS,
+        )
 
     # ── Lifecycle ──────────────────────────────────────────────────────────────
 

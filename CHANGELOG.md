@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Changed (Neon "Stjörnhorn" UI restyle)
+
+- **Dark navy / neon-cyan theme.** The flat-grey palette has been
+  replaced with a deep navy canvas (`#0a0e1e`), neon-cyan node
+  borders, magenta selection accents, and saturated source / filter
+  / sink header colours that read against the new background. Nodes
+  and bezier links carry an outer-glow rim, painted as expanding
+  semi-transparent strokes around the body rect / wire path — no
+  `QGraphicsDropShadowEffect`, so the per-frame paint stays cheap
+  even with many wires on screen. Toolbar / dialog chrome (buttons,
+  spinboxes, combo boxes, tabs, scroll bars, the Settings page,
+  list and tree widgets, menus) picks up matching cyan-on-navy
+  styling via `theme._DARK_QSS`. Existing `*HEADER_COLOR`,
+  `LINK_COLOR`, `STATUS_*` constants in `ui/theme.py` are repointed
+  rather than renamed; downstream paint code is unchanged. New
+  `NODE_GLOW_COLOR` / `NODE_GLOW_SELECTED_COLOR` / `GLOW_RADIUS`
+  drive the neon rim.
+
 ## [0.3.0] — 2026-04-29
 
 ### Fixed (Welcome page links open in the system browser)

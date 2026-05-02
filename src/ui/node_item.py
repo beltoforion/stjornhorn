@@ -26,9 +26,12 @@ from ui.port_item import PortItem
 from ui.preview_widgets import build_preview_widget
 from ui.theme import (
     FILTER_HEADER_COLOR,
+    GLOW_RADIUS,
     NODE_BODY_COLOR,
     NODE_BORDER_COLOR,
     NODE_BORDER_SELECTED,
+    NODE_GLOW_COLOR,
+    NODE_GLOW_SELECTED_COLOR,
     NODE_PARAM_LABEL_COLOR,
     NODE_SKIPPED_HEADER_COLOR,
     NODE_TITLE_TEXT_COLOR,
@@ -499,22 +502,42 @@ class NodeItem(QGraphicsItem):
         self._relayout()
 
     def boundingRect(self) -> QRectF:  # type: ignore[override]
-        return QRectF(-2, -2, self._width + 4, self._body_height + 4)
+        # Inflated by GLOW_RADIUS so the outer-glow strokes painted in
+        # :meth:`paint` outside ``body_rect`` don't get clipped by the
+        # scene's dirty-region tracking.
+        pad = GLOW_RADIUS + 2
+        return QRectF(-pad, -pad, self._width + 2 * pad, self._body_height + 2 * pad)
 
     def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         body_rect = QRectF(0, 0, self._width, self._body_height)
-        border_pen = QPen(
-            NODE_BORDER_SELECTED if self.isSelected() else NODE_BORDER_COLOR,
-            2 if self.isSelected() else 1,
-        )
+        selected = self.isSelected()
+        border_color = NODE_BORDER_SELECTED if selected else NODE_BORDER_COLOR
+        glow_color   = NODE_GLOW_SELECTED_COLOR if selected else NODE_GLOW_COLOR
+        border_pen = QPen(border_color, 1.6 if selected else 1.2)
 
-        # Draw fill, header, and border in three passes so that the
-        # selection border is always rendered LAST — otherwise the header
-        # path (which covers the full node width) overpaints the inside
-        # half of the border along the top edges and the yellow selection
-        # marker appears chewed at the top-left / top-right.
+        # Draw glow, fill, header, and border in four passes. The glow
+        # walks outward from the body rect in a few expanding strokes
+        # at decreasing alpha to fake a neon rim against the dark
+        # canvas — cheaper than a real ``QGraphicsDropShadowEffect``
+        # and keeps the painter on the existing item-paint pipeline.
+        # Selection border is rendered LAST so the header path (which
+        # covers the full node width) doesn't overpaint the inside
+        # half of the border along the top edges.
+
+        # ── outer glow ──
+        for offset, alpha in ((1.0, 90), (3.0, 45), (5.0, 22)):
+            glow = QColor(glow_color)
+            glow.setAlpha(alpha)
+            pen = QPen(glow, 1.0)
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(
+                body_rect.adjusted(-offset, -offset, offset, offset),
+                self.CORNER_RADIUS + offset,
+                self.CORNER_RADIUS + offset,
+            )
 
         # ── body fill ──
         painter.setPen(Qt.NoPen)

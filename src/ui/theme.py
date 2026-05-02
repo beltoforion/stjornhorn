@@ -9,21 +9,37 @@ from core.io_data import IoDataType
 # ── Node header colours by category ────────────────────────────────────────────
 # RGBA tuples; kept separate from the QSS sheet so node-drawing code can
 # bind them directly to QBrush/QPen without parsing stylesheet strings.
+#
+# The palette deliberately reads as "neon" against the dark navy canvas:
+# saturated cyans/teals/magentas instead of the muted blues/greens/oranges
+# of the previous flat-grey theme. Headers stay opaque so the title text
+# keeps its contrast even on top of the glowing border.
 
-SOURCE_HEADER_COLOR = QColor(30, 100, 180)
-FILTER_HEADER_COLOR = QColor(30, 140,  60)
-SINK_HEADER_COLOR   = QColor(180, 100, 20)
+SOURCE_HEADER_COLOR = QColor( 30, 130, 200)   # neon blue
+FILTER_HEADER_COLOR = QColor( 30, 170, 160)   # teal
+SINK_HEADER_COLOR   = QColor(180,  70, 160)   # magenta-violet
 
-#: Header colour used when a node is skipped (bypassed). Muted grey so
-#: the node visually recedes and the user can see at a glance that it's
-#: no longer doing work.
-NODE_SKIPPED_HEADER_COLOR = QColor(110, 110, 115)
+#: Header colour used when a node is skipped (bypassed). Muted slate so
+#: the node visually recedes against the dark canvas and the user can
+#: see at a glance that it's no longer doing work.
+NODE_SKIPPED_HEADER_COLOR = QColor( 80,  84,  98)
 
-NODE_BODY_COLOR           = QColor(48, 48, 52)
-NODE_BORDER_COLOR         = QColor(20, 20, 22)
-NODE_BORDER_SELECTED      = QColor(240, 200,  60)
-NODE_TITLE_TEXT_COLOR     = QColor(250, 250, 250)
-NODE_PARAM_LABEL_COLOR    = QColor(210, 210, 210)
+NODE_BODY_COLOR           = QColor( 22,  28,  50)
+NODE_BORDER_COLOR         = QColor( 80, 200, 240)
+NODE_BORDER_SELECTED      = QColor(255, 110, 220)
+NODE_TITLE_TEXT_COLOR     = QColor(225, 240, 255)
+NODE_PARAM_LABEL_COLOR    = QColor(180, 205, 230)
+
+#: Outer glow colours used by node and link painters to fake a neon
+#: rim against the dark canvas. The painter walks outward from the body
+#: rect / path in a few expanding strokes at decreasing alpha — see
+#: :meth:`ui.node_item.NodeItem.paint` and
+#: :meth:`ui.link_item.LinkItem.paint`.
+NODE_GLOW_COLOR           = QColor( 80, 200, 240)
+NODE_GLOW_SELECTED_COLOR  = QColor(255, 110, 220)
+#: Outer-glow extent in scene pixels. The node and link bounding rects
+#: are inflated by this amount so the glow strokes don't get clipped.
+GLOW_RADIUS: float = 6.0
 
 PORT_INPUT_COLOR          = QColor(210, 210, 210)
 PORT_OUTPUT_COLOR         = QColor(220, 180,   0)
@@ -65,75 +81,79 @@ PORT_TYPE_DEFAULT_COLOR   = QColor(210, 210, 210)
 #: type-coloured ring.
 PORT_DIRECTION_GLYPH_COLOR = QColor(210, 210, 210)
 
-LINK_COLOR                = QColor(180, 180, 180)
-LINK_SELECTED_COLOR       = QColor(240, 200,   0)
-LINK_PENDING_COLOR        = QColor(150, 150, 150)
+LINK_COLOR                = QColor(110, 215, 255)
+LINK_SELECTED_COLOR       = QColor(255, 110, 220)
+LINK_PENDING_COLOR        = QColor(150, 200, 230)
 
-CANVAS_BACKGROUND_COLOR   = QColor(36, 36, 40)
-CANVAS_GRID_COLOR         = QColor(56, 56, 60)
+CANVAS_BACKGROUND_COLOR   = QColor( 10,  14,  30)
+CANVAS_GRID_COLOR         = QColor( 28,  38,  70)
 
-STATUS_OK_COLOR    = QColor( 90, 200, 100)
-STATUS_FAIL_COLOR  = QColor(220,  80,  80)
-STATUS_MUTED_COLOR = QColor(140, 140, 140)
+STATUS_OK_COLOR    = QColor( 80, 220, 160)
+STATUS_FAIL_COLOR  = QColor(255, 100, 130)
+STATUS_MUTED_COLOR = QColor(140, 160, 180)
 #: Amber used for transient "attention, but not an error" affordances —
 #: e.g. the unsaved-changes dot in the editor status widget.
-STATUS_WARN_COLOR  = QColor(230, 170,  50)
+STATUS_WARN_COLOR  = QColor(255, 200,  80)
 
 
 _DARK_QSS = """
 QMainWindow, QWidget {
-    background-color: #262629;
-    color: #e0e0e0;
+    background-color: #0a0e1e;
+    color: #dceaf5;
 }
 QDockWidget {
-    color: #e0e0e0;
+    color: #dceaf5;
     titlebar-close-icon: none;
 }
 QDockWidget::title {
-    background: #323236;
+    background: #121830;
     padding: 4px;
-    border-bottom: 1px solid #1a1a1d;
+    border-bottom: 1px solid #1c2646;
 }
 QToolBar {
-    background: #2a2a2d;
+    background: #0d1226;
     border: 0;
-    spacing: 4px;
-    padding: 4px;
+    spacing: 6px;
+    padding: 6px;
 }
 QToolButton, QPushButton {
-    background: #3a3a3f;
-    border: 1px solid #1a1a1d;
+    background: #141b34;
+    border: 1px solid #2a3a66;
     padding: 4px 10px;
-    border-radius: 3px;
-    color: #e0e0e0;
+    border-radius: 6px;
+    color: #dceaf5;
 }
 QToolButton:hover, QPushButton:hover {
-    background: #4a4a50;
+    background: #1c2750;
+    border-color: #50c8f0;
+    color: #e8f6ff;
 }
 QToolButton:pressed, QPushButton:pressed {
-    background: #2c2c30;
+    background: #0e1428;
 }
 QToolButton:checked {
-    background: #3a5b8a;
-    border-color: #5a7bb0;
+    background: #1a2a55;
+    border-color: #50c8f0;
+    color: #b0eaff;
 }
 QToolButton:checked:hover {
-    background: #456bac;
+    background: #20335f;
 }
 QPushButton:disabled {
-    background: #2d2d30;
-    color: #707070;
-    border-color: #1a1a1d;
+    background: #11162a;
+    color: #5a6680;
+    border-color: #1c2646;
 }
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
-    background: #1f1f22;
-    border: 1px solid #1a1a1d;
+    background: #0e1428;
+    border: 1px solid #1c2646;
     padding: 3px 6px;
-    color: #e0e0e0;
-    selection-background-color: #3a5b8a;
+    color: #dceaf5;
+    selection-background-color: #1a3a6a;
+    border-radius: 4px;
 }
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
-    border-color: #5a5a60;
+    border-color: #50c8f0;
 }
 /* Touching ``padding`` on a QSpinBox / QDoubleSpinBox above stops Qt
    from rendering the up/down arrow sub-controls in their native
@@ -154,13 +174,13 @@ QSpinBox::up-button, QDoubleSpinBox::up-button {
     subcontrol-origin: border;
     subcontrol-position: top right;
     width: 16px;
-    border-left: 1px solid #1a1a1d;
+    border-left: 1px solid #1c2646;
 }
 QSpinBox::down-button, QDoubleSpinBox::down-button {
     subcontrol-origin: border;
     subcontrol-position: bottom right;
     width: 16px;
-    border-left: 1px solid #1a1a1d;
+    border-left: 1px solid #1c2646;
 }
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
     image: url("@@SPINNER_UP@@");
@@ -174,11 +194,11 @@ QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
 }
 QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
 QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
-    background: #2d2d30;
+    background: #1a2750;
 }
 QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed,
 QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {
-    background: #3a3a3e;
+    background: #243766;
 }
 /* QComboBox sub-controls are dropped from the native render the
    moment the QComboBox gets any stylesheet rule (background /
@@ -193,7 +213,7 @@ QComboBox::drop-down {
     subcontrol-origin: border;
     subcontrol-position: top right;
     width: 16px;
-    border-left: 1px solid #1a1a1d;
+    border-left: 1px solid #1c2646;
 }
 QComboBox::down-arrow {
     image: url("@@SPINNER_DOWN@@");
@@ -201,55 +221,57 @@ QComboBox::down-arrow {
     height: 7px;
 }
 QComboBox::drop-down:hover {
-    background: #2d2d30;
+    background: #1a2750;
 }
 QListWidget, QTreeView {
-    background: #1f1f22;
-    border: 1px solid #1a1a1d;
-    color: #e0e0e0;
+    background: #0e1428;
+    border: 1px solid #1c2646;
+    color: #dceaf5;
 }
 QListWidget::item:selected, QTreeView::item:selected {
-    background: #3a5b8a;
+    background: #1a3a6a;
+    color: #e8f6ff;
 }
 QStatusBar {
-    background: #2a2a2d;
-    border-top: 1px solid #1a1a1d;
+    background: #0d1226;
+    border-top: 1px solid #1c2646;
 }
 QMenuBar {
-    background: #2a2a2d;
-    color: #e0e0e0;
+    background: #0d1226;
+    color: #dceaf5;
 }
 QMenuBar::item:selected {
-    background: #3a5b8a;
+    background: #1a3a6a;
 }
 QMenu {
-    background: #2a2a2d;
-    border: 1px solid #1a1a1d;
+    background: #0d1226;
+    border: 1px solid #1c2646;
+    color: #dceaf5;
 }
 QMenu::item:selected {
-    background: #3a5b8a;
+    background: #1a3a6a;
 }
 QLabel[muted="true"] {
-    color: #909090;
+    color: #7a90ad;
 }
 QCheckBox {
-    color: #e0e0e0;
+    color: #dceaf5;
     spacing: 6px;
     background: transparent;
 }
 QCheckBox::indicator {
     width: 14px;
     height: 14px;
-    background: #1f1f22;
-    border: 1px solid #5a5a60;
-    border-radius: 2px;
+    background: #0e1428;
+    border: 1px solid #2a3a66;
+    border-radius: 3px;
 }
 QCheckBox::indicator:hover {
-    border-color: #7a7a85;
+    border-color: #50c8f0;
 }
 QCheckBox::indicator:checked {
-    background: #3a5b8a;
-    border-color: #e0c040;
+    background: #1a3a6a;
+    border-color: #50c8f0;
     /* Without an explicit ``image`` Qt's stylesheet rendering mode
        fills the indicator's background but never draws the actual
        check glyph. The SVG is sized to 14×14 to match the indicator
@@ -257,8 +279,44 @@ QCheckBox::indicator:checked {
     image: url("@@CHECKMARK@@");
 }
 QCheckBox::indicator:disabled {
-    background: #2d2d30;
-    border-color: #1a1a1d;
+    background: #11162a;
+    border-color: #1c2646;
+}
+QScrollBar:vertical, QScrollBar:horizontal {
+    background: #0d1226;
+    border: none;
+}
+QScrollBar:vertical { width: 12px; }
+QScrollBar:horizontal { height: 12px; }
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background: #243766;
+    border-radius: 4px;
+    min-height: 24px;
+    min-width: 24px;
+}
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+    background: #2f4a85;
+}
+QScrollBar::add-line, QScrollBar::sub-line { background: transparent; height: 0; width: 0; }
+QSplitter::handle {
+    background: #1c2646;
+}
+QTabBar::tab {
+    background: #0d1226;
+    color: #b0c4d8;
+    padding: 6px 12px;
+    border: 1px solid #1c2646;
+    border-bottom: none;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+QTabBar::tab:selected {
+    background: #141b34;
+    color: #e8f6ff;
+    border-color: #2a3a66;
+}
+QTabBar::tab:hover {
+    color: #e8f6ff;
 }
 """
 
@@ -266,15 +324,15 @@ QCheckBox::indicator:disabled {
 def apply_dark_theme(app: QApplication) -> None:
     """Apply a dark palette + QSS sheet to the whole application."""
     palette = QPalette()
-    palette.setColor(QPalette.Window,          QColor(38, 38, 41))
-    palette.setColor(QPalette.WindowText,      QColor(224, 224, 224))
-    palette.setColor(QPalette.Base,            QColor(31, 31, 34))
-    palette.setColor(QPalette.AlternateBase,   QColor(38, 38, 41))
-    palette.setColor(QPalette.Text,            QColor(224, 224, 224))
-    palette.setColor(QPalette.Button,          QColor(58, 58, 63))
-    palette.setColor(QPalette.ButtonText,      QColor(224, 224, 224))
-    palette.setColor(QPalette.Highlight,       QColor(58, 91, 138))
-    palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
+    palette.setColor(QPalette.Window,          QColor( 10,  14,  30))
+    palette.setColor(QPalette.WindowText,      QColor(220, 234, 245))
+    palette.setColor(QPalette.Base,            QColor( 14,  20,  40))
+    palette.setColor(QPalette.AlternateBase,   QColor( 18,  24,  48))
+    palette.setColor(QPalette.Text,            QColor(220, 234, 245))
+    palette.setColor(QPalette.Button,          QColor( 20,  27,  52))
+    palette.setColor(QPalette.ButtonText,      QColor(220, 234, 245))
+    palette.setColor(QPalette.Highlight,       QColor( 26,  58, 106))
+    palette.setColor(QPalette.HighlightedText, QColor(232, 246, 255))
     app.setPalette(palette)
 
     # Resolve absolute paths to the SVG arrow assets so the QSS
