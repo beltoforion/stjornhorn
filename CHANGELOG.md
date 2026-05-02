@@ -10,6 +10,23 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Changed (Welcome page tracks the active theme)
+
+- **The bundled `welcome.html` now follows whichever theme the
+  user picked on the Settings page — no more grey panel sitting
+  in the middle of a navy neon UI.** Surface colours, button and
+  card chrome, accent / hover state, divider lines and the
+  per-category card headlines (`Sources` / `Filters` / `Sinks`)
+  are all driven by CSS custom properties on `:root`. After every
+  load (initial bundled file and any later swap to the remote
+  copy), `StartPage._apply_theme_to_welcome` rebinds those
+  properties from the active :class:`Theme`'s palette and
+  category accents via `runJavaScript` on the embedded
+  `QWebEngineView`. A small CSS fade-in (`@keyframes
+  welcome-reveal`) hides the un-themed flash if the page is ever
+  opened directly in a browser. Only one HTML file is maintained;
+  no per-theme variant.
+
 ### Fixed (Port-legend chrome now tracks the active theme)
 
 - **The Port Types legend overlay no longer renders in

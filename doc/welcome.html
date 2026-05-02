@@ -5,14 +5,30 @@
   <title>Welcome to Stjörnhorn</title>
   <style>
     :root {
-      --bg:            #262629;
-      --bg-panel:      #2f2f33;
-      --bg-panel-alt:  #35353a;
-      --border:        #1a1a1d;
-      --text:          #e0e0e0;
-      --text-muted:    #9a9a9f;
-      --accent:        #f0c83c;
+      --bg:                 #262629;
+      --bg-panel:           #2f2f33;
+      --bg-panel-alt:       #35353a;
+      --border:             #1a1a1d;
+      --text:               #e0e0e0;
+      --text-muted:         #9a9a9f;
+      --accent:             #f0c83c;
+      --card-source-color:  #7fb6ee;
+      --card-filter-color:  #7dd896;
+      --card-sink-color:    #e8a86b;
     }
+
+    /* Render with whatever the embedded :root defaults are, but fade in
+       briefly so a Qt-side theme injection (start_page.py overrides the
+       custom properties on document.documentElement after loadFinished)
+       can land before the user notices a colour mismatch. The CSS
+       animation is the safety net for the case where no JS runs at all
+       (the page is opened directly in a browser): the body still
+       appears, just 120 ms later. */
+    body {
+      opacity: 0;
+      animation: welcome-reveal 0s 200ms forwards;
+    }
+    @keyframes welcome-reveal { to { opacity: 1; } }
 
     * { box-sizing: border-box; }
 
@@ -170,9 +186,9 @@
       color: var(--text-muted);
       font-size: 13px;
     }
-    .card.source h3 { color: #7fb6ee; }
-    .card.filter h3 { color: #7dd896; }
-    .card.sink   h3 { color: #e8a86b; }
+    .card.source h3 { color: var(--card-source-color); }
+    .card.filter h3 { color: var(--card-filter-color); }
+    .card.sink   h3 { color: var(--card-sink-color); }
 
     kbd {
       background: var(--bg-panel-alt);

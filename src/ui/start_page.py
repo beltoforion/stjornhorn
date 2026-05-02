@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -29,6 +30,7 @@ from constants import (
 from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
 from ui.flow_layout import FlowLayout
 from ui.icons import material_icon
+from ui.theme import get_active_theme
 from typing_extensions import override
 
 from ui.page import PageBase, ToolbarSection
@@ -132,6 +134,13 @@ class StartPage(PageBase):
         self._welcome_view.settings().setAttribute(
             QWebEngineSettings.WebAttribute.ShowScrollBars, False,
         )
+        # Push the active theme's colours into the page after every load
+        # — both the initial bundled file load and a later swap to the
+        # remote URL if the probe succeeds. The page itself ships with
+        # placeholder CSS custom properties on :root; this re-binds them
+        # so the welcome page tracks whatever theme the rest of the app
+        # is wearing without requiring a parallel HTML variant per theme.
+        self._welcome_view.loadFinished.connect(self._apply_theme_to_welcome)
         self._welcome_view.setUrl(QUrl.fromLocalFile(str(WELCOME_HTML_PATH)))
         root.addWidget(self._welcome_view, 1)
         self._probe_remote_welcome()
@@ -189,6 +198,53 @@ class StartPage(PageBase):
         request.setTransferTimeout(WELCOME_PROBE_TIMEOUT_MS)
         reply = self._welcome_network.head(request)
         reply.finished.connect(lambda r=reply: self._on_remote_welcome_probed(r))
+
+    def _apply_theme_to_welcome(self, ok: bool) -> None:
+        """Push the active theme's colours into the welcome page.
+
+        ``welcome.html`` is a single static file shared between every
+        theme — its `:root` ships with placeholder CSS custom
+        properties. After each load (bundled file or remote swap) we
+        rebind those properties from the active :class:`Theme`, so
+        backgrounds, panels, buttons, borders, accent colour and the
+        per-category card headlines all track whatever the user picked
+        on the Settings page.
+
+        Issue: dynamic-theme-background
+        """
+        if not ok:
+            return
+        theme = get_active_theme()
+        # Derive the welcome page's surface palette from the active theme:
+        # use the app window colour as the page background, the button
+        # colour as the raised "panel" surface (cards, buttons, kbd
+        # chips), a slightly lightened version for hover states, and a
+        # dimmer derivative of the window for divider lines.
+        panel = theme.PALETTE_BUTTON
+        css_vars = {
+            "--bg":                theme.PALETTE_WINDOW.name(),
+            "--bg-panel":          panel.name(),
+            "--bg-panel-alt":      panel.lighter(120).name(),
+            "--border":            theme.PALETTE_WINDOW.darker(135).name(),
+            "--text":              theme.PALETTE_TEXT.name(),
+            "--text-muted":        theme.STATUS_MUTED_COLOR.name(),
+            "--accent":            theme.NODE_BORDER_SELECTED.name(),
+            "--card-source-color": theme.SOURCE_HEADER_COLOR.name(),
+            "--card-filter-color": theme.FILTER_HEADER_COLOR.name(),
+            "--card-sink-color":   theme.SINK_HEADER_COLOR.name(),
+        }
+        # ``json.dumps`` on the dict gives us a JS-safe object literal
+        # (proper string escaping, no risk of breaking the call if a
+        # colour name ever contains a quote or backslash).
+        js = (
+            "(function(){"
+            "var s=document.documentElement.style;"
+            f"var v={json.dumps(css_vars)};"
+            "for (var k in v) s.setProperty(k, v[k]);"
+            "document.body.style.opacity='1';"
+            "})();"
+        )
+        self._welcome_view.page().runJavaScript(js)
 
     def _on_remote_welcome_probed(self, reply: QNetworkReply) -> None:
         error = reply.error()
