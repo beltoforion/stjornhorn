@@ -58,7 +58,7 @@ class DirectorySource(SourceNodeBase):
 
     def __init__(self) -> None:
         super().__init__("Directory Source", section="Sources")
-        
+
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
 
