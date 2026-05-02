@@ -161,14 +161,26 @@
       font-size: 30px;
       font-weight: 600;
       letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
     header.hero h1 .version {
-      margin-left: 12px;
       font-size: 14px;
       font-weight: 400;
       color: var(--text-muted);
-      vertical-align: middle;
     }
+    header.hero h1 .site-logo-link {
+      margin-left: auto;
+      display: inline-flex;
+      line-height: 0;
+    }
+    header.hero h1 .site-logo-link img {
+      height: 40px;
+      width: auto;
+      display: block;
+    }
+    header.hero h1 .site-logo-link:hover img { opacity: 0.85; }
     header.hero .tagline {
       margin-top: 6px;
       color: var(--text-muted);
@@ -443,7 +455,13 @@
   <main>
 
     <header class="hero">
-      <h1>Stjörnhorn <span class="version">v0.3.0</span></h1>
+      <h1>
+        <span>Stjörnhorn</span>
+        <span class="version">v0.3.0</span>
+        <a class="site-logo-link" href="https://beltoforion.de" target="_blank" rel="noopener noreferrer">
+          <img src="images/site_logo.webp" alt="beltoforion.de">
+        </a>
+      </h1>
       <div class="tagline">A node-based image- and video-processing playground for the desktop.</div>
     </header>
 

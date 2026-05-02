@@ -91,15 +91,27 @@
       font-size: 26px;
       font-weight: 600;
       letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .hero h1 .version {
-      margin-left: 10px;
       font-size: 14px;
       font-weight: 400;
       color: var(--text-muted);
       letter-spacing: 0;
-      vertical-align: middle;
     }
+    .hero h1 .site-logo-link {
+      margin-left: auto;
+      display: inline-flex;
+      line-height: 0;
+    }
+    .hero h1 .site-logo-link img {
+      height: 32px;
+      width: auto;
+      display: block;
+    }
+    .hero h1 .site-logo-link:hover img { opacity: 0.85; }
     .hero .tagline {
       margin-top: 4px;
       color: var(--text-muted);
@@ -197,7 +209,13 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.3.0</span></h1>
+      <h1>
+        <span>Welcome to Stjörnhorn</span>
+        <span class="version">v0.3.0</span>
+        <a class="site-logo-link" href="https://beltoforion.de" target="_blank" rel="noopener noreferrer">
+          <img src="images/site_logo.webp" alt="beltoforion.de">
+        </a>
+      </h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
       <div class="links">
         <a class="button" href="http://stjornhorn.beltoforion.de" target="_blank" rel="noopener">Documentation</a>

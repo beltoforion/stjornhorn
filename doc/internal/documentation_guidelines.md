@@ -92,6 +92,15 @@ architectural documentation lives under `doc/internal/`.
   footer in sync with the current `M.m.r` from
   `src/constants.py` (the build digit is not displayed).
 
+## Branding
+
+- Both `doc/welcome.html` and `doc/index.html` carry a clickable
+  `images/site_logo.webp` inside the hero `<h1>`, right-aligned
+  via `margin-left: auto` on a flex `<h1>`. The link points to
+  `https://beltoforion.de` and opens in a new tab
+  (`target="_blank" rel="noopener noreferrer"`). When restyling
+  the hero, keep the logo present and clickable.
+
 ## `welcome.html`
 
 - A row of button-style links (`a.button` inside `.links`)
