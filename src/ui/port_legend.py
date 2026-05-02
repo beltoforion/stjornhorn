@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject, QRectF, Qt
+from PySide6.QtCore import QEvent, QObject, QRectF, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
     QGridLayout,
+    QHBoxLayout,
     QLabel,
+    QToolButton,
     QWidget,
 )
 
@@ -144,16 +146,34 @@ class PortLegend(QFrame):
             color: #c8c8c8;
             background: transparent;
         }
+        QToolButton#PortLegendClose {
+            color: #c8c8c8;
+            background: transparent;
+            border: none;
+            padding: 0 4px;
+            font-size: 12px;
+        }
+        QToolButton#PortLegendClose:hover {
+            color: #ffffff;
+        }
     """
+
+    #: Emitted when the user clicks the close button. The owning page
+    #: handles this by flipping ``AppSettings.port_legend_visible``,
+    #: which then propagates back to actually hide the widget — keeps
+    #: the close click and the View-menu toggle on a single source of
+    #: truth.
+    close_requested = Signal()
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
         self.setObjectName("PortLegend")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        # Pass mouse events through to the canvas so the legend doesn't
-        # eat clicks meant for nodes/links sitting underneath it.
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        # The close button needs to receive clicks, so the legend
+        # frame can no longer be globally transparent for mouse
+        # events. The footprint stays small enough at the bottom-left
+        # corner that intercepting clicks there is acceptable.
 
         opacity = QGraphicsOpacityEffect(self)
         opacity.setOpacity(self.OPACITY)
@@ -166,7 +186,9 @@ class PortLegend(QFrame):
         layout.setVerticalSpacing(4)
 
         row = 0
-        row = self._add_section(layout, row, "Port types", self._type_rows())
+        row = self._add_section(
+            layout, row, "Port types", self._type_rows(), with_close_button=True,
+        )
         row = self._add_section(layout, row, "Port roles", self._role_rows())
 
         self.adjustSize()
@@ -216,6 +238,8 @@ class PortLegend(QFrame):
         start_row: int,
         title_text: str,
         rows: list[tuple[_Swatch, str]],
+        *,
+        with_close_button: bool = False,
     ) -> int:
         # First section sits flush; subsequent ones leave a small gap by
         # adding extra vertical room on the title row.
@@ -223,7 +247,26 @@ class PortLegend(QFrame):
         title.setObjectName("PortLegendTitle")
         if start_row > 0:
             title.setContentsMargins(0, 8, 0, 0)
-        layout.addWidget(title, start_row, 0, 1, 2)
+
+        if with_close_button:
+            # Wrap title + close button in a horizontal sub-layout so
+            # the close glyph anchors to the right edge of the legend.
+            header = QHBoxLayout()
+            header.setContentsMargins(0, 0, 0, 0)
+            header.setSpacing(8)
+            header.addWidget(title)
+            header.addStretch(1)
+            close = QToolButton(self)
+            close.setObjectName("PortLegendClose")
+            close.setText("✕")  # multiplication X
+            close.setToolTip("Hide legend (View ▸ Port Legend to show)")
+            close.setCursor(Qt.CursorShape.PointingHandCursor)
+            close.clicked.connect(self.close_requested)
+            header.addWidget(close)
+            layout.addLayout(header, start_row, 0, 1, 2)
+        else:
+            layout.addWidget(title, start_row, 0, 1, 2)
+
         next_row = start_row + 1
         for swatch, text in rows:
             label = QLabel(text)

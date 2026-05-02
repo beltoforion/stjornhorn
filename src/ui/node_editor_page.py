@@ -195,6 +195,12 @@ class NodeEditorPage(PageBase):
         self._port_legend_action.setCheckable(True)
         self._port_legend_action.setChecked(settings.port_legend_visible)
         self._port_legend_action.toggled.connect(self._on_port_legend_toggled)
+        # Close glyph on the legend itself routes through the same
+        # setter so the button click and the View-menu toggle share
+        # one source of truth.
+        self._port_legend.close_requested.connect(
+            lambda: self._on_port_legend_toggled(False)
+        )
         # Two-way binding so a programmatic settings change (e.g. from
         # a future settings page) keeps the action's check state and
         # the legend visibility in sync.

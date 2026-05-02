@@ -26,7 +26,9 @@ once a first tagged release is cut.
   underneath. New widget: `ui/port_legend.py`.
 - **View → Port Legend** menu entry toggles legend visibility;
   state persists across sessions through a new
-  `port_legend_visible` flag on `AppSettings`.
+  `port_legend_visible` flag on `AppSettings`. A small ✕ button on
+  the legend's title row routes through the same setter so the
+  click and the menu entry stay on one source of truth.
 
 ### Changed (port visuals: type-coloured rings + output direction glyph)
 
