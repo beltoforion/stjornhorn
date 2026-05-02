@@ -77,6 +77,8 @@ class CsvSource(SourceNodeBase):
         ),
     )
 
+    HEADER_ICON = "table_chart"
+
     def __init__(self) -> None:
         super().__init__("CSV Source", section="Sources")
         self._add_output(OutputPort("dataset", {IoDataType.DATASET}))

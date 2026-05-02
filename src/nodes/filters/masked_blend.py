@@ -25,6 +25,8 @@ class MaskedBlend(NodeBase):
     if it differs.
     """
 
+    HEADER_ICON = "opacity"
+
     def __init__(self) -> None:
         super().__init__("Masked Blend", section="Composit")
 

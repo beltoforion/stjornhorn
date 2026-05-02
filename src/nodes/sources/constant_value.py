@@ -18,6 +18,8 @@ class ConstantValue(SourceNodeBase):
 
     value = FloatParam(0.0, constant=True)
 
+    HEADER_ICON = "looks_one"
+
     def __init__(self) -> None:
         super().__init__("Constant Value", section="Sources")
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))

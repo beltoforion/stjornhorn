@@ -29,6 +29,8 @@ class MetaInspector(NodeBase):
     is the preview widget's responsibility (queued signal).
     """
 
+    HEADER_ICON = "info"
+
     def __init__(self) -> None:
         super().__init__("Meta Inspector", section="Debug")
         self._frame_callback: Callable[[IoData], None] | None = None

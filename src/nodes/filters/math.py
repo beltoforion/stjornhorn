@@ -236,6 +236,8 @@ class Math(NodeBase):
         ),
     )
 
+    HEADER_ICON = "calculate"
+
     def __init__(self) -> None:
         super().__init__("Math", section="Math")
         self._add_output(OutputPort("result", {IoDataType.SCALAR}))

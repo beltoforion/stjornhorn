@@ -95,6 +95,8 @@ class Spectrum(NodeBase):
         ),
     )
 
+    HEADER_ICON = "graphic_eq"
+
     def __init__(self) -> None:
         super().__init__("Spectrum", section="Frequency")
         self._sample_rate: float

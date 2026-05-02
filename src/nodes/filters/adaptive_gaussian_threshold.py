@@ -35,6 +35,8 @@ class AdaptiveGaussianThreshold(NodeBase):
         ),
     )
 
+    HEADER_ICON = "exposure"
+
     def __init__(self) -> None:
         super().__init__("Adaptive Gaussian Threshold", section="Processing")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

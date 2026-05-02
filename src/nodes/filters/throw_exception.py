@@ -15,6 +15,8 @@ class ThrowException(NodeBase):
     produced because the node always raises before sending.
     """
 
+    HEADER_ICON = "error"
+
     def __init__(self) -> None:
         super().__init__("Throw Exception", section="Debug")
         self._add_input(InputPort("image", {IoDataType.IMAGE}))

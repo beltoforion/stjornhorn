@@ -17,6 +17,8 @@ class FrameDifference(NodeBase):
     rather than raising.
     """
 
+    HEADER_ICON = "compare"
+
     def __init__(self) -> None:
         super().__init__("Frame Difference", section="Temporal")
         self._prev_frame: np.ndarray | None = None

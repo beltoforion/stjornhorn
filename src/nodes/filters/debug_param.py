@@ -54,6 +54,8 @@ class DebugParam(NodeBase):
         description="Demo ENUM parameter — exercises the combo-box widget.",
     )
 
+    HEADER_ICON = "bug_report"
+
     def __init__(self) -> None:
         super().__init__("Debug Params", section="Debug")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

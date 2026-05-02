@@ -14,6 +14,8 @@ class Invert(NodeBase):
     No parameters. Accepts colour or greyscale and emits the same type.
     """
 
+    HEADER_ICON = "invert_colors"
+
     def __init__(self) -> None:
         super().__init__("Invert", section="Processing")
 

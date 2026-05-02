@@ -16,6 +16,8 @@ class Grayscale(NodeBase):
     :class:`RgbaJoin` upstream of colour-only consumers.
     """
 
+    HEADER_ICON = "filter_b_and_w"
+
     def __init__(self) -> None:
         super().__init__("Grayscale", section="Color Spaces")
         self._add_input(InputPort("image", {IoDataType.IMAGE}))

@@ -19,6 +19,8 @@ class HslSplit(NodeBase):
     is dropped (HSL has no alpha).
     """
 
+    HEADER_ICON = "call_split"
+
     def __init__(self) -> None:
         super().__init__("HSL Split", section="Color Spaces")
         self._add_input(InputPort("image", {IoDataType.IMAGE}))

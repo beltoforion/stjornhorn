@@ -58,6 +58,8 @@ class Notify(NodeBase):
         ),
     )
 
+    HEADER_ICON = "notifications"
+
     def __init__(self) -> None:
         super().__init__("Notify", section="UI")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

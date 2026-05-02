@@ -33,6 +33,8 @@ class VideoSource(SourceNodeBase):
     )
     max_num_frames = IntParam(-1, constant=True)
 
+    HEADER_ICON = "movie"
+
     def __init__(self) -> None:
         super().__init__("Video Source", section="Sources")
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))

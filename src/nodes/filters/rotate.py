@@ -36,6 +36,8 @@ class Rotate(NodeBase):
         ),
     )
 
+    HEADER_ICON = "rotate_right"
+
     def __init__(self) -> None:
         super().__init__("Rotate", section="Transform")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

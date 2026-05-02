@@ -19,6 +19,8 @@ class HsvSplit(NodeBase):
     is dropped (HSV has no alpha).
     """
 
+    HEADER_ICON = "call_split"
+
     def __init__(self) -> None:
         super().__init__("HSV Split", section="Color Spaces")
         self._add_input(InputPort("image", {IoDataType.IMAGE}))

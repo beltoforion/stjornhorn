@@ -28,6 +28,8 @@ class TemporalMedian(NodeBase):
         ),
     )
 
+    HEADER_ICON = "analytics"
+
     def __init__(self) -> None:
         super().__init__("Temporal Median", section="Temporal")
         self._buffer: list[np.ndarray] = []

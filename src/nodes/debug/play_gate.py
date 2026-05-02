@@ -38,6 +38,8 @@ class PlayGate(NodeBase):
     state on the UI thread via a queued signal.
     """
 
+    HEADER_ICON = "schedule"
+
     def __init__(self) -> None:
         super().__init__("Play Gate", section="Debug")
         self._add_input(InputPort("data", set(_ALL_TYPES)))

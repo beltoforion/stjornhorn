@@ -46,6 +46,8 @@ class Crop(NodeBase):
         description="ROI height in pixels. Same clamping as width.",
     )
 
+    HEADER_ICON = "crop"
+
     def __init__(self) -> None:
         super().__init__("Crop", section="Transform")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

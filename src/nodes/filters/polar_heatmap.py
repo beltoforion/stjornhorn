@@ -151,6 +151,8 @@ class PolarHeatmap(NodeBase):
         ),
     )
 
+    HEADER_ICON = "scatter_plot"
+
     def __init__(self) -> None:
         super().__init__("Polar Heatmap", section="Visualization")
         self._colormap:        Colormap

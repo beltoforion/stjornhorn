@@ -10,6 +10,42 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Changed (Step-over button moved to the right of the title)
+
+- **The skip / step-over button now sits to the right of the
+  caption, between the title text and the tick-count badge,
+  instead of on the left of the header.** Frees up the left
+  side for the per-class header icon to read flush with the
+  title, matching the IDE convention where step-over controls
+  cluster with the row's other actions on the right. The
+  hand-drawn double-chevron is replaced by the Material Icons
+  `redo` glyph (a curved-over arrow), drawn through
+  `paint_material_glyph` so the button shares the same font
+  cache as the rest of the chrome. `_skip_button_x()` walks the
+  position in from the right edge so the close button stays
+  flush with the right padding regardless of badge width.
+
+### Added (Per-node header icon)
+
+- **Every node now carries a Material Icons glyph in its header,
+  left of the title text.** Sources used to be the only
+  category with a header glyph (a hard-coded play-triangle on
+  every `SourceNodeBase`); the new framework promotes that into
+  a class attribute `NodeBase.HEADER_ICON` so any node — source,
+  filter, sink — can pick a glyph that hints at what it does at
+  a glance. `SourceNodeBase` defaults to `play_arrow` and
+  `SinkNodeBase` to `save`, so existing nodes keep a sensible
+  default without code changes; concrete nodes (`ImageSource`,
+  `VideoSource`, `GaussianBlur`, `Crop`, `Display`, `RGBA
+  Split`/`Join`, …) override with a more specific icon. The
+  glyph is rendered through `ui.icons.paint_material_glyph`,
+  which draws straight onto the node's `QPainter` so it shares
+  the existing Material Icons font cache; new codepoints used
+  by node headers are registered in `ui.icons._CODEPOINTS`.
+  `NodeItem._title_left` now reserves space for the icon (when
+  present) and `_header_icon_x` positions it past the optional
+  skip button.
+
 ### Changed (Welcome page tracks the active theme)
 
 - **The bundled `welcome.html` now follows whichever theme the

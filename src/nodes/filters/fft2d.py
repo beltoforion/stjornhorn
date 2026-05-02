@@ -23,6 +23,8 @@ class Fft2D(NodeBase):
     :class:`HsvSplit` / :class:`RgbaSplit` / :class:`Grayscale` first.
     """
 
+    HEADER_ICON = "graphic_eq"
+
     def __init__(self) -> None:
         super().__init__("FFT 2D", section="Frequency")
         self._add_input(InputPort("image", {IoDataType.IMAGE_GREY}))

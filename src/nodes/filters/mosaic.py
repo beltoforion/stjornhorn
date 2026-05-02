@@ -72,6 +72,8 @@ class MosaicLayout:
                          row 2 is then scaled to row 1's width
     """
 
+    HEADER_ICON = "grid_view"
+
     def __init__(self, descriptor: str) -> None:
         self._descriptor = descriptor
         self._rows: list[list[int]] = self._parse(descriptor)

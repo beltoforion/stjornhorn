@@ -97,6 +97,8 @@ class PlotXY(NodeBase):
         description="Draw a faint grid across the plot area.",
     )
 
+    HEADER_ICON = "show_chart"
+
     def __init__(self) -> None:
         super().__init__("Plot XY", section="Visualization")
         self._add_input(InputPort("dataset", {IoDataType.DATASET}))

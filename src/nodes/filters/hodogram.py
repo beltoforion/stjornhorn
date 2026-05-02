@@ -76,6 +76,8 @@ class ParticleMotion:
     a downstream renderer can colour each segment by its time index.
     """
 
+    HEADER_ICON = "polyline"
+
     def __init__(self, x: np.ndarray, y: np.ndarray) -> None:
         x_arr = np.asarray(x)
         y_arr = np.asarray(y)

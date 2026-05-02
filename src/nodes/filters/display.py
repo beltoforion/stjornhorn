@@ -33,6 +33,8 @@ class Display(NodeBase):
     # speed-up, slow enough to absorb single-frame jitter from cv2 ops.
     _FPS_EMA_ALPHA: float = 0.2
 
+    HEADER_ICON = "visibility"
+
     def __init__(self) -> None:
         super().__init__("Display", section="Output")
         self._latest_frame:    np.ndarray | None = None

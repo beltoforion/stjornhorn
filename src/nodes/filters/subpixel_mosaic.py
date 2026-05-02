@@ -39,6 +39,8 @@ class SubpixelMosaic(NodeBase):
         ),
     )
 
+    HEADER_ICON = "grid_view"
+
     def __init__(self) -> None:
         super().__init__("Subpixel Mosaic", section="Experimental")
         self._add_input(InputPort("image", {IoDataType.IMAGE}))

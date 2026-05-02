@@ -24,6 +24,8 @@ class RangeSource(SourceNodeBase):
     max_value = IntParam(99, constant=True)
     increment = FloatParam(1.0, min=0.0, min_exclusive=True, constant=True)
 
+    HEADER_ICON = "linear_scale"
+
     def __init__(self) -> None:
         super().__init__("Range Source", section="Sources")
         self._add_output(OutputPort("value", {IoDataType.SCALAR}))

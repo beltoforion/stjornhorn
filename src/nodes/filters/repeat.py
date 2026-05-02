@@ -32,6 +32,8 @@ class Repeat(NodeBase):
       ``data``  — same payload, with ``meta["tick"]`` stamped.
     """
 
+    HEADER_ICON = "repeat"
+
     def __init__(self) -> None:
         super().__init__("Repeat", section="Streaming")
         # ``data`` is held so one-shot sources don't go stale on

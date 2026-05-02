@@ -30,6 +30,8 @@ class Clamp(NodeBase):
         ),
     )
 
+    HEADER_ICON = "vertical_align_center"
+
     def __init__(self) -> None:
         super().__init__("Clamp", section="Math")
         self._add_input(InputPort("value", {IoDataType.SCALAR}))

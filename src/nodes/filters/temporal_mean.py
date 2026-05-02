@@ -28,6 +28,8 @@ class TemporalMean(NodeBase):
         ),
     )
 
+    HEADER_ICON = "analytics"
+
     def __init__(self) -> None:
         super().__init__("Temporal Mean", section="Temporal")
         self._buffer: list[np.ndarray] = []

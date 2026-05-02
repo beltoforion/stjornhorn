@@ -35,6 +35,8 @@ class Shift(NodeBase):
         ),
     )
 
+    HEADER_ICON = "open_with"
+
     def __init__(self) -> None:
         super().__init__("Shift", section="Transform")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

@@ -42,6 +42,8 @@ class AddIndexColumn(NodeBase):
         ),
     )
 
+    HEADER_ICON = "format_list_numbered"
+
     def __init__(self) -> None:
         super().__init__("Add Index Column", section="Data")
         self._add_input(InputPort("dataset", {IoDataType.DATASET}))
