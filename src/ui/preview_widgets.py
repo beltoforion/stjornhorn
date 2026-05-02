@@ -7,8 +7,17 @@ import numpy as np
 from typing_extensions import override
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtGui import QGuiApplication, QImage, QPixmap
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from core import notifications
 from core.io_data import IoData, IoDataType
@@ -305,13 +314,11 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         self._label.setAlignment(
             Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
         )
-        self._label.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
         self._label.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding,
         )
         self._label.setStyleSheet(
-            "QLabel { background: #111; border: 1px solid #333;"
-            "         color: #d6d6d6; padding: 4px;"
+            "QLabel { background: #111; color: #d6d6d6; padding: 4px;"
             "         font-family: 'Consolas','Menlo',monospace;"
             "         font-size: 11px; }"
         )
@@ -320,12 +327,47 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         self._label.setWordWrap(True)
         self._label.setText("(run the flow to see meta)")
 
+        # Wrap the label in a QScrollArea so meta blocks taller than
+        # the preview box scroll instead of forcing the node to grow.
+        # ``setWidgetResizable`` lets the inner label expand to the
+        # viewport width (so word-wrap kicks in at the visible width)
+        # while the vertical scrollbar appears on overflow.
+        self._scroll = QScrollArea()
+        self._scroll.setWidget(self._label)
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.Shape.Box)
+        self._scroll.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
+        self._scroll.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        self._scroll.setStyleSheet(
+            "QScrollArea { background: #111; border: 1px solid #333; }"
+        )
+
+        self._copy_button = QPushButton("Copy")
+        self._copy_button.setToolTip("Copy meta text to clipboard")
+        self._copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._copy_button.setStyleSheet(
+            "QPushButton { background: #2b6cb0; color: white;"
+            "              border: 1px solid #1a4577;"
+            "              padding: 2px 10px; font-size: 11px; }"
+            "QPushButton:hover { background: #3478c2; }"
+            "QPushButton:pressed { background: #1f5391; }"
+        )
+        self._copy_button.clicked.connect(self._on_copy_clicked)
+
+        button_row = QHBoxLayout()
+        button_row.setContentsMargins(0, 0, 0, 2)
+        button_row.addStretch(1)
+        button_row.addWidget(self._copy_button)
+
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._label)
+        layout.addLayout(button_row)
+        layout.addWidget(self._scroll)
 
         # Auto-connection delivers cross-thread emits via a queued
         # connection. Same-thread emits (e.g. when ``request_emit``
@@ -346,6 +388,11 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         # paint event until the next event-loop turn. Forcing
         # ``update`` is cheap and removes any timing ambiguity.
         self._label.update()
+
+    @Slot()
+    def _on_copy_clicked(self) -> None:
+        QGuiApplication.clipboard().setText(self._label.text())
+        notifications.info("Meta copied to clipboard")
 
 
 def _format_meta(data: IoData) -> str:
