@@ -16,6 +16,8 @@ class Normalize(NodeBase):
     same type; colour inputs are equalised per channel.
     """
 
+    HEADER_ICON = "tune"
+
     def __init__(self) -> None:
         super().__init__("Normalize", section="Processing")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

@@ -87,6 +87,8 @@ class PlotSeries(NodeBase):
         description="Draw a faint grid across the plot area.",
     )
 
+    HEADER_ICON = "show_chart"
+
     def __init__(self) -> None:
         super().__init__("Plot Series", section="Visualization")
         # Explicit annotations so pyright sees the descriptor-backed attrs.

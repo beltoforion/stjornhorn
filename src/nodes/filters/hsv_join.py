@@ -15,6 +15,8 @@ class HsvJoin(NodeBase):
     pixel-exact identity on a BGR input.
     """
 
+    HEADER_ICON = "call_merge"
+
     def __init__(self) -> None:
         super().__init__("HSV Join", section="Color Spaces")
         self._add_input(InputPort("H", {IoDataType.IMAGE_GREY}))

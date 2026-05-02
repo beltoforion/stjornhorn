@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.node_base import NodeBase, SinkNodeBase, SourceNodeBase
+from ui.icons import paint_material_glyph
 from ui.param_widgets import ParamWidgetBase, build_param_widget
 from ui.port_item import PortItem
 from ui.preview_widgets import build_preview_widget
@@ -377,11 +378,11 @@ class NodeItem(QGraphicsItem):
     SKIP_BUTTON_SIZE: float = 14.0
     HEADER_BUTTON_GAP: float = 4.0
     RESIZE_GRIP_SIZE: float = 12.0
-    # Source node header: play-triangle icon dimensions and the gap
-    # between the triangle's right edge and the title text.
-    SOURCE_ICON_H: float = 10.0
-    SOURCE_ICON_W: float = 9.0
-    SOURCE_ICON_GAP: float = 4.0
+    # Header icon: square box (Material Icons render on a square em)
+    # painted left of the title text. The gap separates the icon's
+    # right edge from the title.
+    HEADER_ICON_SIZE: float = 14.0
+    HEADER_ICON_GAP: float = 5.0
 
     # ── Port row geometry ──────────────────────────────────────────────────────
     #: Horizontal inset between a row's port label and the inline param
@@ -580,25 +581,17 @@ class NodeItem(QGraphicsItem):
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
-        # ── source node play-icon (►) ──
-        if isinstance(self._node, SourceNodeBase):
-            # Position the icon flush with the left margin, vertically centred.
-            # For source nodes that also have a skip button the icon sits between
-            # PADDING and the skip button, matching _title_left logic.
-            skip_offset = (
-                self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
-                if self._skip_button is not None else 0.0
+        # ── header icon (declared by the node class via HEADER_ICON) ──
+        icon_name = self._node.HEADER_ICON
+        if icon_name:
+            ix = self._header_icon_x()
+            iy = (self.HEADER_HEIGHT - self.HEADER_ICON_SIZE) / 2
+            paint_material_glyph(
+                painter,
+                icon_name,
+                QRectF(ix, iy, self.HEADER_ICON_SIZE, self.HEADER_ICON_SIZE),
+                color=QColor(255, 255, 255, 200),
             )
-            ix = self.PADDING + skip_offset
-            iy = (self.HEADER_HEIGHT - self.SOURCE_ICON_H) / 2
-            triangle = QPainterPath()
-            triangle.moveTo(ix, iy)
-            triangle.lineTo(ix + self.SOURCE_ICON_W, iy + self.SOURCE_ICON_H / 2)
-            triangle.lineTo(ix, iy + self.SOURCE_ICON_H)
-            triangle.closeSubpath()
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(QBrush(QColor(255, 255, 255, 160)))
-            painter.drawPath(triangle)
 
         # ── tick-count badge ──
         tick_label = self._tick_label()
@@ -778,14 +771,27 @@ class NodeItem(QGraphicsItem):
         return self.CLOSE_BUTTON_SIZE + self.PADDING + self._tick_label_width()
 
     def _title_left(self) -> float:
-        """X offset where the title text starts, accounting for the source
-        node play-icon and (when present) the left-side skip button."""
+        """X offset where the title text starts, accounting for the
+        node-class header icon and (when present) the left-side skip
+        button."""
         offset = self.PADDING
-        if isinstance(self._node, SourceNodeBase):
-            offset += self.SOURCE_ICON_W + self.SOURCE_ICON_GAP
         if self._skip_button is not None:
             offset += self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
+        if self._node.HEADER_ICON:
+            offset += self.HEADER_ICON_SIZE + self.HEADER_ICON_GAP
         return offset
+
+    def _header_icon_x(self) -> float:
+        """X offset of the header icon's left edge.
+
+        Sits flush with the left padding, slid past the skip button if
+        the node carries one. The title text follows directly via
+        :meth:`_title_left` so icon and label read as a single unit.
+        """
+        x = self.PADDING
+        if self._skip_button is not None:
+            x += self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
+        return x
 
     def _tick_label(self) -> str:
         """Badge text for source nodes whose frame count is known (e.g. ``"100×"``).

@@ -19,6 +19,8 @@ class RgbaJoin(NodeBase):
     upgrading to the RGBA-aware split/join pair.
     """
 
+    HEADER_ICON = "call_merge"
+
     def __init__(self) -> None:
         super().__init__("RGBA Join", section="Color Spaces")
 

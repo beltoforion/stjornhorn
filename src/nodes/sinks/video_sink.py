@@ -68,6 +68,8 @@ class VideoSink(SinkNodeBase):
     fps = FloatParam(30.0, min=0.0, min_exclusive=True, constant=True)
     codec = EnumParam(VideoCodec, VideoCodec.MP4V, constant=True)
 
+    HEADER_ICON = "video_file"
+
     def __init__(self) -> None:
         super().__init__("Video Sink", section="Sinks")
         self._writer: cv2.VideoWriter | None = None

@@ -62,6 +62,8 @@ class SlidingWindow(NodeBase):
         description="First sample (row index) included in the very first window.",
     )
 
+    HEADER_ICON = "timeline"
+
     def __init__(self) -> None:
         super().__init__("Sliding Window", section="Data")
         # ``dataset`` is held so a one-shot CsvSource can drive a long

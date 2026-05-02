@@ -46,6 +46,8 @@ class Ncc(NodeBase):
         ),
     )
 
+    HEADER_ICON = "compare"
+
     def __init__(self) -> None:
         super().__init__("NCC", section="Processing")
         # Loaded template image (lazy — populated by before_run /

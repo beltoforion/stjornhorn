@@ -27,6 +27,8 @@ class Median(NodeBase):
         ),
     )
 
+    HEADER_ICON = "blur_circular"
+
     def __init__(self) -> None:
         super().__init__("Median", section="Processing")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

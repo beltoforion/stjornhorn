@@ -139,6 +139,17 @@ class NodeBase(ABC):
     #: NodeList palette picks it up via AST scanning.
     DEFAULT_SECTION: str = "Filters"
 
+    #: Material Icons name rendered in the node's header (left of the
+    #: title text). ``None`` means "no icon". Subclasses override to
+    #: pick a glyph that hints at what the node does at a glance —
+    #: ``"image"`` for an image source, ``"blur_on"`` for a Gaussian
+    #: blur, ``"save"`` for a sink, etc. The base classes
+    #: :class:`SourceNodeBase` and :class:`SinkNodeBase` set sensible
+    #: category-wide defaults so a new node only needs to declare
+    #: ``HEADER_ICON`` when it wants to be more specific. The icon
+    #: name must exist in ``ui.icons._CODEPOINTS``.
+    HEADER_ICON: str | None = None
+
     #: Class-level descriptors collected by :meth:`__init_subclass__`.
     #: Populated lazily so the cycle ``params.py → node_base.py`` stays
     #: clean: the import only runs at subclass-creation time, after
@@ -657,6 +668,7 @@ class SourceNodeBase(NodeBase, ABC):
     """
 
     DEFAULT_SECTION: str = "Sources"
+    HEADER_ICON: str = "play_arrow"
 
     @property
     def is_reactive(self) -> bool:
@@ -734,6 +746,7 @@ class SinkNodeBase(NodeBase, ABC):
     """
 
     DEFAULT_SECTION: str = "Sinks"
+    HEADER_ICON: str = "save"
 
     @abstractmethod
     @override

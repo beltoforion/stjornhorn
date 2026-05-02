@@ -35,6 +35,8 @@ class GaussianBlur(NodeBase):
         ),
     )
 
+    HEADER_ICON = "blur_on"
+
     def __init__(self) -> None:
         super().__init__("Gaussian Blur", section="Processing")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

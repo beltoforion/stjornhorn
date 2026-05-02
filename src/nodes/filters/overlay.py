@@ -69,6 +69,8 @@ class Overlay(NodeBase):
         ),
     )
 
+    HEADER_ICON = "layers"
+
     def __init__(self) -> None:
         super().__init__("Overlay", section="Composit")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

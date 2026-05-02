@@ -47,6 +47,8 @@ class Scale(NodeBase):
         ),
     )
 
+    HEADER_ICON = "zoom_in"
+
     def __init__(self) -> None:
         super().__init__("Scale", section="Transform")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

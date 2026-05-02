@@ -28,6 +28,8 @@ class Delay(NodeBase):
         ),
     )
 
+    HEADER_ICON = "schedule"
+
     def __init__(self) -> None:
         super().__init__("Delay", section="UI")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

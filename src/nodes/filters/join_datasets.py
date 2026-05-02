@@ -46,6 +46,8 @@ class JoinDatasets(NodeBase):
         ),
     )
 
+    HEADER_ICON = "merge"
+
     def __init__(self) -> None:
         super().__init__("Join Datasets", section="Data")
         for i in range(1, _NUM_INPUTS + 1):

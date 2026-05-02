@@ -50,6 +50,8 @@ class GradientSource(SourceNodeBase):
     band_width = ClampedFloatParam(0.2, min=0.0, max=0.999, constant=True)
     smooth = BoolParam(True, constant=True)
 
+    HEADER_ICON = "gradient"
+
     def __init__(self) -> None:
         super().__init__("Gradient Source", section="Sources")
         self._add_output(OutputPort("image", {IoDataType.IMAGE_GREY}))

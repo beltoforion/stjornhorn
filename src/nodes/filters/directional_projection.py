@@ -67,6 +67,8 @@ class DirectionalProjection(NodeBase):
         ),
     )
 
+    HEADER_ICON = "arrow_outward"
+
     def __init__(self) -> None:
         super().__init__("Directional Projection", section="Data")
         self._x_column: str

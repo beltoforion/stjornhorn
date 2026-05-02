@@ -72,6 +72,8 @@ class Resize(NodeBase):
         ),
     )
 
+    HEADER_ICON = "photo_size_select_large"
+
     def __init__(self) -> None:
         super().__init__("Resize", section="Transform")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))

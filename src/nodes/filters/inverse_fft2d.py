@@ -17,6 +17,8 @@ class InverseFft2D(NodeBase):
     round trip with :class:`Fft2D` on a greyscale uint8 input.
     """
 
+    HEADER_ICON = "graphic_eq"
+
     def __init__(self) -> None:
         super().__init__("Inverse FFT 2D", section="Frequency")
         self._add_input(InputPort("spectrum", {IoDataType.MATRIX}))

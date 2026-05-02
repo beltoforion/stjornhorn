@@ -38,6 +38,8 @@ class ImageSource(SourceNodeBase):
         ),
     )
 
+    HEADER_ICON = "image"
+
     def __init__(self) -> None:
         super().__init__("Image Source", section="Sources")
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))

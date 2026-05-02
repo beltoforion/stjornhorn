@@ -47,6 +47,8 @@ class DirectorySource(SourceNodeBase):
     )
     include_subdirectories = BoolParam(False, constant=True)
 
+    HEADER_ICON = "folder_open"
+
     def __init__(self) -> None:
         super().__init__("Directory Source", section="Sources")
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))

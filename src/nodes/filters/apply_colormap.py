@@ -57,6 +57,8 @@ class ApplyColormap(NodeBase):
         ),
     )
 
+    HEADER_ICON = "palette"
+
     def __init__(self) -> None:
         super().__init__("Apply Colormap", section="Color Spaces")
         self._add_input(InputPort("image", {IoDataType.IMAGE_GREY}))

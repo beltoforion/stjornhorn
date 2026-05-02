@@ -56,6 +56,64 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "vertical_split":   "e949",
     "horizontal_split": "e947",
     "settings":         "e8b8",
+    # Node-header glyphs. Keep grouped by the kind of node that uses
+    # them so the table reads as a quick reference for which icons
+    # are claimed by which area.
+    # Sources / sinks
+    "image":              "e3f4",
+    "movie":              "e02c",
+    "video_file":         "eb87",
+    "table_chart":        "e265",
+    "gradient":           "e3e9",
+    "linear_scale":       "e260",
+    "looks_one":          "e3fc",
+    # Color / channels
+    "palette":            "e40a",
+    "invert_colors":      "e891",
+    "filter_b_and_w":     "e3df",
+    "color_lens":         "e3b7",
+    "call_split":         "e0b6",
+    "call_merge":         "e0b7",
+    # Geometry / transform
+    "crop":               "e3be",
+    "rotate_right":       "e41a",
+    "flip":               "e3e8",
+    "photo_size_select_large": "e3c8",
+    "zoom_in":            "e8ff",
+    "open_with":          "e89f",
+    # Filtering / processing
+    "blur_on":            "e3a5",
+    "blur_circular":      "e3a2",
+    "exposure":           "e3ca",
+    "contrast":           "eb37",
+    "tune":               "e429",
+    "grain":              "e3ec",
+    "calculate":          "ea5f",
+    "compare":            "e915",
+    # Frequency / signal
+    "graphic_eq":         "e1b8",
+    # Visualization
+    "show_chart":         "e6e1",
+    "scatter_plot":       "e268",
+    "polyline":           "ebbb",
+    "analytics":          "ef3e",
+    # Composition
+    "layers":             "e53b",
+    "opacity":            "ea5b",
+    "grid_view":          "e9b0",
+    # Control / streaming
+    "schedule":           "e8b5",
+    "repeat":             "e040",
+    "timeline":           "e922",
+    # Data / debug
+    "format_list_numbered": "e242",
+    "bug_report":         "e868",
+    "info":               "e88e",
+    "error":              "e000",
+    "notifications":      "e7f4",
+    "merge":              "eb98",
+    "arrow_outward":      "f8ce",
+    "vertical_align_center": "e240",
 }
 
 
@@ -179,3 +237,34 @@ def material_icon(name: str, *, color: QColor | None = None) -> QIcon:
     """
     glyph = _glyph_for(name)
     return QIcon(_MaterialIconEngine(glyph, color))
+
+
+def paint_material_glyph(
+    painter: QPainter,
+    name: str,
+    rect: QRect | "QRectF",
+    *,
+    color: QColor | None = None,
+) -> None:
+    """Draw a Material Icon glyph into ``rect`` using the active painter.
+
+    Centred horizontally and vertically inside ``rect``, sized so the
+    glyph's box matches ``rect.height()``. Used by widgets that paint
+    their own chrome (e.g. ``NodeItem``'s header icon) and can't go
+    through :class:`QIcon`, since a ``QIcon`` would need a separate
+    pixmap render path. Both ``QRect`` and ``QRectF`` are accepted so
+    callers can pass whichever they already have.
+    """
+    family = _ensure_font_loaded()
+    glyph = _glyph_for(name)
+    font = QFont(family)
+    font.setPixelSize(max(1, int(rect.height())))
+    painter.save()
+    painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+    painter.setFont(font)
+    if color is not None:
+        painter.setPen(color)
+    painter.drawText(
+        rect, Qt.AlignmentFlag.AlignCenter, glyph
+    )
+    painter.restore()

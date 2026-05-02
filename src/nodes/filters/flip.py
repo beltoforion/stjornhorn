@@ -34,6 +34,8 @@ class Flip(NodeBase):
         ),
     )
 
+    HEADER_ICON = "flip"
+
     def __init__(self) -> None:
         super().__init__("Flip", section="Transform")
         self._add_input(InputPort("image", set(IMAGE_TYPES)))
