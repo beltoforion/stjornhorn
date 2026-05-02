@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.56",
+  "app_version": "0.3.0.57",
   "name": "image_bulk_fft",
   "nodes": [
     {
@@ -95,8 +95,8 @@
       "module": "nodes.sinks.file_sink",
       "class": "FileSink",
       "position": [
-        -524.0550812500002,
-        -551.4701875
+        -375.860590486056,
+        -61.56960585552811
       ],
       "port_defaults": {
         "output_path": "$source_stem$_fft.png"
@@ -141,6 +141,20 @@
       "port_defaults": {
         "colormap": 16
       }
+    },
+    {
+      "id": 11,
+      "module": "nodes.debug.meta_inspector",
+      "class": "MetaInspector",
+      "position": [
+        -598.8125077070883,
+        -517.5782527855843
+      ],
+      "port_defaults": {},
+      "size": [
+        412.39438211526647,
+        345.70312692677214
+      ]
     }
   ],
   "connections": [
@@ -181,12 +195,6 @@
       "dst_input": 0
     },
     {
-      "src_node": 2,
-      "src_output": 0,
-      "dst_node": 7,
-      "dst_input": 0
-    },
-    {
       "src_node": 3,
       "src_output": 1,
       "dst_node": 8,
@@ -221,6 +229,18 @@
       "src_output": 0,
       "dst_node": 1,
       "dst_input": 3
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 11,
+      "dst_input": 0
+    },
+    {
+      "src_node": 11,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
     }
   ],
   "backdrops": []
