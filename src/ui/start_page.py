@@ -51,9 +51,28 @@ class _ExternalLinkPage(QWebEnginePage):
     Issue: #281
     """
 
+    def __init__(
+        self, parent: "QWidget | QWebEnginePage | None" = None, *, _popup: bool = False,
+    ) -> None:
+        super().__init__(parent)
+        # Popup pages exist only to catch the URL of a target="_blank"
+        # request (see ``createWindow``) and open it externally before any
+        # network load actually happens. A non-popup page is the regular
+        # welcome view, which serves the bundled / live welcome.html and
+        # only diverts explicit link clicks.
+        self._popup = _popup
+
     def acceptNavigationRequest(  # noqa: N802 — Qt override
         self, url: QUrl, nav_type: QWebEnginePage.NavigationType, is_main_frame: bool,
     ) -> bool:
+        # Popup pages: every navigation is the user's link target. Hand
+        # the URL straight to the OS — *before* any actual navigation
+        # starts, so HSTS / browser scheme upgrades on the embedded
+        # engine can't rewrite ``http://`` to ``https://`` first.
+        if self._popup:
+            QDesktopServices.openUrl(url)
+            self.deleteLater()
+            return False
         if nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
             QDesktopServices.openUrl(url)
             return False
@@ -63,14 +82,10 @@ class _ExternalLinkPage(QWebEnginePage):
         self, _type: QWebEnginePage.WebWindowType,
     ) -> QWebEnginePage:
         # target="_blank" links route through createWindow, not
-        # acceptNavigationRequest. Return a throwaway page that captures
-        # the requested URL and hands it off to the system browser.
-        popup = QWebEnginePage(self)
-        def _open_and_dispose(url: QUrl, page: QWebEnginePage = popup) -> None:
-            QDesktopServices.openUrl(url)
-            page.deleteLater()
-        popup.urlChanged.connect(_open_and_dispose)
-        return popup
+        # acceptNavigationRequest on this page. Return a throwaway page
+        # whose acceptNavigationRequest catches the requested URL and
+        # hands it to QDesktopServices.openUrl before any load occurs.
+        return _ExternalLinkPage(self, _popup=True)
 
 
 class StartPage(PageBase):

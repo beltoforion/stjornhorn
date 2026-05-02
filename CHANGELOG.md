@@ -21,7 +21,11 @@ once a first tagged release is cut.
   so the clicks were silently dropped. The start page now installs
   a `_ExternalLinkPage` subclass that intercepts link clicks and
   `target="_blank"` requests and forwards the URL to
-  `QDesktopServices.openUrl()`.
+  `QDesktopServices.openUrl()`. The popup page catches the request
+  in `acceptNavigationRequest` and returns `False`, so the URL is
+  handed to the OS unchanged — `http://stjornhorn.beltoforion.de`
+  reaches the browser as `http://`, not silently upgraded by the
+  embedded engine.
 
 ### Added (Online welcome page with offline fallback)
 
