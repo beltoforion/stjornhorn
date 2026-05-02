@@ -52,8 +52,15 @@ architectural documentation lives under `doc/internal/`.
 
 - The `Node anatomy` section explains nodes in user terms:
   output ports, input ports, parameters, port-style vs constant
-  parameters, source/filter/sink colour stripe, the floating
-  port legend (`doc/images/node_editor_legend.png`).
+  parameters, source/filter/sink colour stripe. It links to
+  the editor's port-legend section rather than repeating the
+  legend itself.
+- The port-legend screenshot (`doc/images/node_editor_legend.png`)
+  belongs in the `Node editor` section under a "Port legend"
+  sub-heading, alongside the description of how connections work.
+  Display it via the `figure.screenshot.legend` class so it
+  renders at roughly its on-canvas size, not at full content
+  width.
 - The `Frame metadata` section lists every metadata key the user
   is expected to encounter — `frame_index`, `source_path`, the
   scalar-port auto-stamp rule, plus dataset attribute conventions

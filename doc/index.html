@@ -594,16 +594,56 @@
 
       <h3>Connecting nodes</h3>
       <ul>
-        <li>Drag from an output port (top of a node) to an input port
-          (bottom of another). The connection is only accepted if the
-          port types are compatible — e.g. an
-          <span class="pill image-grey">IMAGE_GREY</span> output may
-          feed an input that accepts greyscale.</li>
+        <li>Drag from an output port (top of a node) to an input
+          port (bottom of another). The connection is only accepted
+          if the port types are compatible — e.g. an
+          <em>Image (grey)</em> output may feed an input that
+          accepts greyscale.</li>
         <li>Drag an existing link off either end to remove it.</li>
-        <li>One output can drive many inputs; each input accepts exactly
-          one upstream.</li>
-        <li>Unconnected port circles are filled black; once connected,
-          the dot fills with the type colour.</li>
+        <li>One output can drive many inputs; each input accepts
+          exactly one upstream.</li>
+        <li>Unconnected port circles are filled black; once
+          connected, the dot fills with the type colour.</li>
+      </ul>
+
+      <h3>Port legend</h3>
+      <p>
+        A floating legend in the bottom-left of the canvas explains
+        the visual language of the ports. <em>View ▸ Port Legend</em>
+        toggles it; the small <kbd>✕</kbd> on the legend hides it
+        until the menu re-enables it.
+      </p>
+      <figure class="screenshot legend">
+        <img src="images/node_editor_legend.png" alt="Port legend overlay on the canvas">
+        <figcaption>Port type and role legend, anchored to the bottom-left of the canvas.</figcaption>
+      </figure>
+      <p>The legend covers two axes:</p>
+      <ul>
+        <li><strong>Port types</strong> — each
+          <a href="#data-types">data type</a> has its own colour.
+          Connections are accepted only when the output port's type
+          and the input port's accepted types overlap. An
+          unconnected port shows the colour as a thin ring around
+          an empty centre; a connected port fills with the colour.</li>
+        <li><strong>Port roles</strong> — the ring style tells you
+          how the port behaves:
+          <ul>
+            <li><em>Required input</em> — solid ring. The node
+              waits for data on this port before it can fire.</li>
+            <li><em>Optional input</em> — thin solid ring. The
+              node fires without waiting for this port. Leave it
+              dangling and the node uses its default; connect it
+              and it counts as required.</li>
+            <li><em>Latched input</em> — dashed ring. The port
+              keeps its last received value across frames. Useful
+              for pairing a one-shot source (an image, a CSV)
+              with a streaming clock — see
+              <a href="#held-inputs">Held inputs</a>.</li>
+            <li><em>Output</em> — small triangular glyph next to
+              the dot. One output can drive any number of inputs;
+              each input can be driven by at most one output.</li>
+          </ul>
+        </li>
       </ul>
 
       <h3>Toolbar — Flow section</h3>
@@ -875,45 +915,13 @@
         left of its node body in the editor.
       </p>
 
-      <h3>The port legend</h3>
       <p>
-        A floating legend in the bottom-left of the canvas explains
-        the visual language of the ports. <em>View ▸ Port Legend</em>
-        toggles it; the small <kbd>✕</kbd> on the legend hides it
-        until the menu re-enables it.
+        Each input and output port carries a colour for its data
+        type and a ring style for its role (required, optional,
+        latched). The full visual key — together with a
+        screenshot of the on-canvas legend — is in
+        <a href="#node-editor">Node editor ▸ Port legend</a>.
       </p>
-      <figure class="screenshot legend">
-        <img src="images/node_editor_legend.png" alt="Port legend overlay on the canvas">
-        <figcaption>Port type and role legend, anchored to the bottom-left of the canvas.</figcaption>
-      </figure>
-      <p>The legend covers two axes:</p>
-      <ul>
-        <li><strong>Port types</strong> — each
-          <a href="#data-types">data type</a> has its own colour.
-          Connections are accepted only when the output port's type
-          and the input port's accepted types overlap. An
-          unconnected port shows the colour as a thin ring around an
-          empty centre; a connected port fills with the colour.</li>
-        <li><strong>Port roles</strong> — the ring style tells you
-          how the port behaves:
-          <ul>
-            <li><em>Required input</em> — solid ring. The node
-              waits for data on this port before it can fire.</li>
-            <li><em>Optional input</em> — thin solid ring. The
-              node fires without waiting for this port. Leave it
-              dangling and the node uses its default; connect it
-              and it counts as required.</li>
-            <li><em>Latched input</em> — dashed ring. The port
-              keeps its last received value across frames. Useful
-              for pairing a one-shot source (an image, a CSV) with
-              a streaming clock — see <a href="#held-inputs">Held
-              inputs</a>.</li>
-            <li><em>Output</em> — small triangular glyph next to
-              the dot. One output can drive any number of inputs;
-              each input can be driven by at most one output.</li>
-          </ul>
-        </li>
-      </ul>
 
       <h3>Parameters</h3>
       <p>
