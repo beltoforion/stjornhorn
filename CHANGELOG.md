@@ -12,6 +12,30 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (Mosaic layout descriptor: rows of comma-separated cells, no spanning)
+
+- **Mosaic's layout descriptor switched from a fixed-grid string to
+  a row-list.** Rows are separated by `;`, cells inside a row by
+  `,`; each cell is the 1-based index of an `image_<n>` input
+  (`"1,2"`, `"1;2"`, `"1,2;3,4"`, `"1,2;3"`). Multi-digit indices
+  are accepted and whitespace around tokens is ignored. A trailing
+  `;` (or fully blank rows) is tolerated; an empty cell token is a
+  parse error.
+- **No more grid solver, no more spanning, no more empty cells or
+  black-bar padding.** Each row is built by scaling every image
+  aspect-preserving to the row's max input height and `np.hstack`'ing
+  them; rows are then scaled aspect-preserving to the widest row's
+  width and `np.vstack`'ed. The flow whose Heatmap was 2400 wide
+  alongside a 800+1600 plot pair now renders at exactly 2400 px
+  wide instead of 2800 with a 400-px black band on the right
+  (issue surfaced on `data_display_time_series_merged.flowjs`).
+- **Bundled flows migrated.** All eight `flow/*.flowjs` files
+  using Mosaic switched to the new descriptor. The seismic
+  `data_display_time_series.flowjs` keeps its hodogram-beside-plots
+  visual via `"1,3;2,3"` (the hodogram is referenced from both
+  rows since spanning is gone). Saved flows from the previous
+  digit-grid era need to be rebuilt.
+
 ### Added (port-type colour legend on the canvas)
 
 - **Floating legend in the bottom-left of the node-editor canvas**

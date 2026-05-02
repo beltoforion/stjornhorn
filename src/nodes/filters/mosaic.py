@@ -2,21 +2,28 @@
 
 Single node that subsumes :class:`Merge` (2x2 grid) and
 :class:`StackVertical` / :class:`StackHorizontal` (issue #223). The
-layout is declared by a small descriptor string so a single Mosaic
-can express side-by-side stacks, NxM grids, and shapes where one
-input spans multiple cells (e.g. a tall hodogram next to two stacked
-waveforms).
+layout is declared by a small descriptor string: rows are separated
+by ``;``, cells inside a row by ``,``. Each cell is the 1-based
+index of an ``image_i`` input.
+
+Composition rules:
+  * Inside a row, every image is scaled aspect-preserving to the
+    common row height (= max input height in that row); widths
+    follow naturally and the row is built by horizontal hstack.
+  * After all rows are built, each row image is scaled
+    aspect-preserving to the widest row's width, so its height
+    grows / shrinks proportionally.
+  * Rows are stacked vertically into the final canvas.
+
+This produces no black bars: there is no fixed grid, no spanning,
+no padding. Aspect ratios are preserved everywhere.
 
 Inputs are a fixed pool of nine optional ``image_i`` ports. The
 editor starts with a single visible row and grows by one row each
 time the user wires up the previous tail (see
-:attr:`NodeBase.SHOW_ONLY_USED_INPUTS`). Layout cells reference
-inputs by digit (``1``…``9``); ``image_i`` is referenced as ``i``
-in the descriptor string.
+:attr:`NodeBase.SHOW_ONLY_USED_INPUTS`).
 """
 from __future__ import annotations
-
-from dataclasses import dataclass
 
 import cv2
 import numpy as np
@@ -30,177 +37,112 @@ from core.port import InputPort, OutputPort
 #: Total number of ``image_i`` input ports the node owns.
 _NUM_INPUTS: int = 9
 
-#: Digits that may appear in a layout cell. Each digit ``d``
-#: references input port ``image_<d>`` (1-indexed).
-_LAYOUT_DIGITS: str = "123456789"
+#: Row separator inside the layout descriptor.
+_ROW_SEPARATOR: str = ";"
 
-#: Markers for an empty cell in the layout string. Both ``.`` and
-#: ``0`` work — ``0`` keeps a fixed-width grid easy to read at a
-#: glance (every cell is exactly one character with no symbol soup).
-_EMPTY_CELLS: frozenset[str] = frozenset({".", "0"})
+#: Cell separator inside a row.
+_CELL_SEPARATOR: str = ","
 
-#: Row separator inside the layout string.
-_ROW_SEPARATOR: str = "/"
-
-
-@dataclass(frozen=True)
-class _Rect:
-    """Inclusive cell bounds for one input within the layout grid."""
-
-    digit: str
-    top: int
-    bottom: int
-    left: int
-    right: int
-
-    @property
-    def row_span(self) -> int:
-        return self.bottom - self.top + 1
-
-    @property
-    def col_span(self) -> int:
-        return self.right - self.left + 1
-
-    @property
-    def port_index(self) -> int:
-        """Zero-based index of the input port this rectangle refers to.
-
-        ``self.digit`` is the user-facing 1-based label that appears in
-        the layout descriptor; the framework's port list is 0-indexed.
-        """
-        return int(self.digit) - 1
+#: Resampling filter used for the per-row height match and for the
+#: final per-row width match. ``INTER_AREA`` gives clean downscales
+#: and acceptable upscales without the speckle of ``INTER_NEAREST``;
+#: it's the same trade-off the rest of the image filters in the
+#: codebase pick for content-agnostic resizes.
+_RESAMPLE: int = cv2.INTER_AREA
 
 
 class MosaicLayout:
-    """Parses and validates a layout descriptor string.
+    """Parses a Mosaic layout descriptor.
 
     Syntax:
-      * Rows are separated by ``/``.
-      * Inside a row, every non-whitespace character is one cell:
-        a digit ``1``–``9`` (referencing input port ``image_<d>``),
-        or ``.`` / ``0`` for an empty cell.
-      * A digit that occupies multiple adjacent cells declares a
-        spanning input — those cells must form an axis-aligned
-        rectangle (no holes, no L-shapes within a single digit).
-      * Every row must have the same column count.
+      * Rows are separated by ``;``.
+      * Inside a row, cells are separated by ``,``.
+      * Each cell is a 1-based integer that references the matching
+        ``image_<n>`` input port.
+      * Whitespace around any token is ignored.
+      * A trailing ``;`` (or fully blank rows) is tolerated; an
+        empty cell token (``"1,,2"`` or ``",1"``) is a parse error.
 
     Examples::
 
-        "12"              two inputs side by side
-        "1 / 2"           two inputs stacked vertically
-        "12 / 34"         classic 2x2 grid
-        "13 / 23"         image_1 and image_2 on the left,
-                          image_3 spans two rows on the right
-        "11 / 2."         image_1 spans the top row, image_2
-                          only bottom-left
-
-    Whitespace inside a row is ignored, so ``"1 2 / 3 4"`` and
-    ``"12 / 34"`` parse the same.
+        "1,2"            two inputs side by side (was: "12")
+        "1;2"            two inputs stacked vertically (was: "1/2")
+        "1,2;3,4"        2x2 grid (was: "12/34")
+        "1,2;3"          row 1 holds two images, row 2 holds one;
+                         row 2 is then scaled to row 1's width
     """
 
     def __init__(self, descriptor: str) -> None:
         self._descriptor = descriptor
-        self._rows: list[str] = self._parse_rows(descriptor)
-        self._n_rows: int = len(self._rows)
-        self._n_cols: int = len(self._rows[0])
-        self._rects: list[_Rect] = self._parse_rectangles()
+        self._rows: list[list[int]] = self._parse(descriptor)
 
     @staticmethod
-    def _parse_rows(descriptor: str) -> list[str]:
-        raw_rows = [r.replace(" ", "").replace("\t", "")
-                    for r in descriptor.split(_ROW_SEPARATOR)]
-        rows = [r for r in raw_rows if r]
-        if not rows:
-            raise ValueError("Mosaic layout is empty")
-        n_cols = len(rows[0])
-        for i, r in enumerate(rows):
-            if len(r) != n_cols:
-                raise ValueError(
-                    f"Mosaic row {i} has {len(r)} cells, expected {n_cols}: "
-                    f"{descriptor!r}"
-                )
-            for ch in r:
-                if ch in _EMPTY_CELLS:
-                    continue
-                if ch not in _LAYOUT_DIGITS:
+    def _parse(descriptor: str) -> list[list[int]]:
+        rows: list[list[int]] = []
+        for raw_row in descriptor.split(_ROW_SEPARATOR):
+            if not raw_row.strip():
+                continue  # trailing ';' or blank row → skip silently
+            row: list[int] = []
+            for raw_cell in raw_row.split(_CELL_SEPARATOR):
+                token = raw_cell.strip()
+                if not token:
                     raise ValueError(
-                        f"Mosaic cell {ch!r} is not a digit 1-9 or empty "
-                        f"({sorted(_EMPTY_CELLS)}): {descriptor!r}"
+                        f"Mosaic layout has an empty cell in row "
+                        f"{raw_row!r}: {descriptor!r}"
                     )
+                try:
+                    n = int(token)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Mosaic cell {token!r} is not an integer: "
+                        f"{descriptor!r}"
+                    ) from exc
+                if n < 1:
+                    raise ValueError(
+                        f"Mosaic cell {n} must be 1-based (>=1): "
+                        f"{descriptor!r}"
+                    )
+                row.append(n - 1)
+            rows.append(row)
+        if not rows:
+            raise ValueError(f"Mosaic layout is empty: {descriptor!r}")
         return rows
 
-    def _parse_rectangles(self) -> list[_Rect]:
-        seen_digits: dict[str, list[tuple[int, int]]] = {}
-        for i, row in enumerate(self._rows):
-            for j, ch in enumerate(row):
-                if ch in _EMPTY_CELLS:
-                    continue
-                seen_digits.setdefault(ch, []).append((i, j))
-
-        rects: list[_Rect] = []
-        for digit, cells in seen_digits.items():
-            top = min(i for i, _ in cells)
-            bottom = max(i for i, _ in cells)
-            left = min(j for _, j in cells)
-            right = max(j for _, j in cells)
-            expected = {(i, j)
-                        for i in range(top, bottom + 1)
-                        for j in range(left, right + 1)}
-            if set(cells) != expected:
-                raise ValueError(
-                    f"Mosaic digit {digit!r} does not form a rectangle "
-                    f"in layout {self._descriptor!r}"
-                )
-            rects.append(_Rect(digit, top, bottom, left, right))
-        return rects
-
     @property
-    def rows(self) -> int:
-        return self._n_rows
-
-    @property
-    def cols(self) -> int:
-        return self._n_cols
-
-    @property
-    def rectangles(self) -> list[_Rect]:
-        return list(self._rects)
+    def rows(self) -> list[list[int]]:
+        """Per-row lists of zero-based input port indices."""
+        return [list(r) for r in self._rows]
 
 
 class Mosaic(NodeBase):
-    """Composite up to nine images into a flexible grid layout.
+    """Composite up to nine images into a flexible row/column layout.
 
-    The ``layout`` string describes the cell arrangement (see
-    :class:`MosaicLayout` for syntax). Digits ``1``–``9`` map to the
-    nine optional inputs ``image_1``…``image_9`` in order; ``.`` or
-    ``0`` and unconnected cells are black padding. Each input is
-    pasted at the top-left of its cell rectangle and padded on the
-    right / bottom if smaller.
+    The ``layout`` descriptor is a list of rows separated by ``;``;
+    inside a row, image-input indices are separated by ``,`` (1-based).
+    Aspect ratios are preserved at every step:
 
-    Inputs are a fixed pool of nine optional ``image_i`` ports. The
-    editor starts with a single visible row and grows by one row each
-    time the user wires up the previous tail. The layout descriptor
-    is a constant parameter (rendered italicised between the output
-    and input rows) — its digits index into the input list
-    independently of how many ports are currently visible on the node.
+      * Per row: every image is scaled to the row's common height
+        (the max input height) and laid out left-to-right.
+      * After all rows are built, each row is scaled to the widest
+        row's width; the row's height grows / shrinks proportionally.
+      * Rows are stacked vertically into the output image.
 
     Any colour input promotes the output to colour; otherwise the
-    output stays greyscale. The default ``"12"`` is a horizontal
-    stack of the first two inputs.
+    output stays greyscale. The default ``"1,2"`` is a horizontal
+    pair of the first two inputs.
     """
 
     SHOW_ONLY_USED_INPUTS: bool = True
 
     layout = StringParam(
-        "12",
-        placeholder="12",
+        "1,2",
+        placeholder="1,2",
         constant=True,
         description=(
-            "Layout descriptor. Rows separated by '/', each digit "
-            "(1-9) references the matching image_<digit> input, '.' or "
-            "'0' is empty. Repeat a digit across adjacent cells to "
-            "span a rectangle. Examples: '12', '1 / 2', '12 / 34', "
-            "'13 / 23'."
+            "Layout descriptor. Rows separated by ';', cells inside "
+            "a row separated by ','. Each cell is the 1-based index "
+            "of an image_<n> input. Examples: '1,2', '1;2', "
+            "'1,2;3,4', '1,2;3'."
         ),
     )
 
@@ -219,93 +161,68 @@ class Mosaic(NodeBase):
         layout = MosaicLayout(self._layout)
         ports = self.inputs
 
-        # Map each rectangle to its IoData (skip rectangles whose
-        # referenced port has no data — unconnected, or out of range).
-        rect_data: dict[_Rect, IoData] = {}
-        for rect in layout.rectangles:
-            idx = rect.port_index
-            if idx >= len(ports):
-                continue
-            port = ports[idx]
-            if port.has_data:
-                rect_data[rect] = port.data
+        # Gather IoData per row, dropping cells whose referenced
+        # port is out of range or has no data. A row that ends up
+        # entirely empty is dropped from the output.
+        rows_data: list[list[IoData]] = []
+        for row in layout.rows:
+            row_data: list[IoData] = []
+            for idx in row:
+                if idx >= len(ports):
+                    continue
+                port = ports[idx]
+                if port.has_data:
+                    row_data.append(port.data)
+            if row_data:
+                rows_data.append(row_data)
 
-        if not rect_data:
-            return  # nothing to emit — every referenced cell was empty
-
-        any_color = any(d.type == IoDataType.IMAGE for d in rect_data.values())
-
-        # Pre-promote greyscale → BGR if mixing channel counts.
-        rect_imgs: dict[_Rect, np.ndarray] = {}
-        for rect, data in rect_data.items():
-            img = data.image
-            if any_color and data.type == IoDataType.IMAGE_GREY:
-                img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-            rect_imgs[rect] = img
-
-        col_widths = self._solve_track_sizes(
-            rect_imgs, layout.cols, axis="col"
-        )
-        row_heights = self._solve_track_sizes(
-            rect_imgs, layout.rows, axis="row"
-        )
-
-        total_w = sum(col_widths)
-        total_h = sum(row_heights)
-        if total_w == 0 or total_h == 0:
+        if not rows_data:
             return
 
-        if any_color:
-            canvas = np.zeros((total_h, total_w, 3), dtype=np.uint8)
-        else:
-            canvas = np.zeros((total_h, total_w), dtype=np.uint8)
+        any_color = any(
+            d.type == IoDataType.IMAGE
+            for row in rows_data for d in row
+        )
 
-        col_starts = self._cumulative_starts(col_widths)
-        row_starts = self._cumulative_starts(row_heights)
-
-        for rect, img in rect_imgs.items():
-            y0 = row_starts[rect.top]
-            x0 = col_starts[rect.left]
-            h, w = img.shape[:2]
-            canvas[y0:y0 + h, x0:x0 + w] = img
+        row_imgs = [self._build_row(row, any_color) for row in rows_data]
+        target_w = max(img.shape[1] for img in row_imgs)
+        scaled = [self._scale_to_width(img, target_w) for img in row_imgs]
+        canvas = np.vstack(scaled)
 
         if any_color:
             self.outputs[0].send(IoData.from_image(canvas))
         else:
             self.outputs[0].send(IoData.from_greyscale(canvas))
 
-    @staticmethod
-    def _solve_track_sizes(
-        rect_imgs: dict[_Rect, np.ndarray], n_tracks: int, *, axis: str,
-    ) -> list[int]:
-        """Compute per-row or per-column sizes.
-
-        Each track's size is ``max(input_extent / span)`` over every
-        input whose rectangle includes that track. Spanning inputs
-        contribute their averaged dimension so a tall rectangle's
-        budget is split evenly across the rows it covers.
-        """
-        sizes = [0] * n_tracks
-        for rect, img in rect_imgs.items():
-            if axis == "col":
-                extent = img.shape[1]
-                span = rect.col_span
-                start, stop = rect.left, rect.right
-            else:
-                extent = img.shape[0]
-                span = rect.row_span
-                start, stop = rect.top, rect.bottom
-            per_track = (extent + span - 1) // span  # ceil so spans cover input
-            for t in range(start, stop + 1):
-                if per_track > sizes[t]:
-                    sizes[t] = per_track
-        return sizes
+    @classmethod
+    def _build_row(
+        cls, row: list[IoData], any_color: bool,
+    ) -> np.ndarray:
+        """Assemble one row by aspect-preserving height match + hstack."""
+        imgs = [cls._promote(d, any_color) for d in row]
+        target_h = max(im.shape[0] for im in imgs)
+        scaled = [cls._scale_to_height(im, target_h) for im in imgs]
+        return np.hstack(scaled)
 
     @staticmethod
-    def _cumulative_starts(sizes: list[int]) -> list[int]:
-        starts = [0] * len(sizes)
-        running = 0
-        for i, s in enumerate(sizes):
-            starts[i] = running
-            running += s
-        return starts
+    def _promote(data: IoData, to_color: bool) -> np.ndarray:
+        img = data.image
+        if to_color and data.type == IoDataType.IMAGE_GREY:
+            return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        return img
+
+    @staticmethod
+    def _scale_to_height(img: np.ndarray, target_h: int) -> np.ndarray:
+        h, w = img.shape[:2]
+        if h == target_h:
+            return img
+        new_w = max(1, round(w * target_h / h))
+        return cv2.resize(img, (new_w, target_h), interpolation=_RESAMPLE)
+
+    @staticmethod
+    def _scale_to_width(img: np.ndarray, target_w: int) -> np.ndarray:
+        h, w = img.shape[:2]
+        if w == target_w:
+            return img
+        new_h = max(1, round(h * target_w / w))
+        return cv2.resize(img, (target_w, new_h), interpolation=_RESAMPLE)

@@ -180,7 +180,7 @@ def test_flow_latches_reactive_source_across_streaming_frames(tmp_path: Path) ->
     streaming_src = _GreyFrameListSource(frames)
     reactive_src = _ReactiveImageSource(fixed)
     merge = Mosaic()
-    merge.layout = "12"
+    merge.layout = "1,2"
     sink = VideoSink()
     sink.output_path = tmp_path / "latched.mp4"
     sink.fps = 30.0

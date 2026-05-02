@@ -14,76 +14,77 @@ from nodes.filters.mosaic import Mosaic, MosaicLayout
 
 
 def test_layout_horizontal_pair() -> None:
-    layout = MosaicLayout("12")
-    assert (layout.rows, layout.cols) == (1, 2)
-    rects = {r.digit: r for r in layout.rectangles}
-    assert rects["1"].col_span == 1 and rects["1"].row_span == 1
-    assert rects["2"].left == 1
+    layout = MosaicLayout("1,2")
+    assert layout.rows == [[0, 1]]
 
 
 def test_layout_vertical_pair() -> None:
-    layout = MosaicLayout("1 / 2")
-    assert (layout.rows, layout.cols) == (2, 1)
-    rects = {r.digit: r for r in layout.rectangles}
-    assert rects["2"].top == 1
+    layout = MosaicLayout("1;2")
+    assert layout.rows == [[0], [1]]
 
 
 def test_layout_2x2_grid() -> None:
-    layout = MosaicLayout("12 / 34")
-    assert (layout.rows, layout.cols) == (2, 2)
-    assert {r.digit for r in layout.rectangles} == {"1", "2", "3", "4"}
+    layout = MosaicLayout("1,2;3,4")
+    assert layout.rows == [[0, 1], [2, 3]]
 
 
-def test_layout_l_shape_with_span() -> None:
-    """``"13 / 23"`` — 1 and 2 on the left, 3 spans two rows on right."""
-    layout = MosaicLayout("13 / 23")
-    rects = {r.digit: r for r in layout.rectangles}
-    assert rects["3"].row_span == 2
-    assert rects["3"].col_span == 1
-    assert rects["1"].row_span == 1
+def test_layout_uneven_rows_are_allowed() -> None:
+    """No grid → rows can have different cell counts.
+    Row 2 will be scaled to row 1's width at render time."""
+    layout = MosaicLayout("1,2;3")
+    assert layout.rows == [[0, 1], [2]]
 
 
-def test_layout_empty_cell_with_dot() -> None:
-    layout = MosaicLayout("12 / .2")
-    rects = {r.digit: r for r in layout.rectangles}
-    assert "1" in rects and "2" in rects
-    assert rects["2"].row_span == 2
+def test_layout_whitespace_around_tokens_is_ignored() -> None:
+    a = MosaicLayout("1, 2 ; 3 ,4")
+    b = MosaicLayout("1,2;3,4")
+    assert a.rows == b.rows
 
 
-def test_layout_empty_cell_with_zero() -> None:
-    """``0`` is also accepted as an empty-cell marker so a numeric
-    layout reads cleanly without a stray ``.`` character."""
-    layout = MosaicLayout("12 / 02")
-    rects = {r.digit: r for r in layout.rectangles}
-    assert rects["2"].row_span == 2
+def test_layout_trailing_semicolon_is_tolerated() -> None:
+    assert MosaicLayout("1,2;3;").rows == [[0, 1], [2]]
+    assert MosaicLayout("1,2;").rows == [[0, 1]]
 
 
-def test_layout_whitespace_inside_row_is_ignored() -> None:
-    a = MosaicLayout("1 2 / 3 4")
-    b = MosaicLayout("12 / 34")
-    assert (a.rows, a.cols) == (b.rows, b.cols)
-    assert {r.digit for r in a.rectangles} == {r.digit for r in b.rectangles}
+def test_layout_blank_rows_are_skipped() -> None:
+    """A run of ``;`` collapses to a single row break."""
+    assert MosaicLayout("1;;2").rows == [[0], [1]]
 
 
-def test_layout_rejects_non_rectangle() -> None:
-    """``"12 / 21"`` — digit 1 appears at (0,0) and (1,1), not a rectangle."""
-    with pytest.raises(ValueError, match="does not form a rectangle"):
-        MosaicLayout("12 / 21")
+def test_layout_multi_digit_indices() -> None:
+    """Syntax has no upper bound — only the input pool does.
+    Parser accepts large indices; render time skips out-of-range."""
+    layout = MosaicLayout("10,11;12")
+    assert layout.rows == [[9, 10], [11]]
 
 
-def test_layout_rejects_uneven_rows() -> None:
-    with pytest.raises(ValueError, match="cells, expected"):
-        MosaicLayout("12 / 345")
+def test_layout_rejects_empty_cell_token() -> None:
+    with pytest.raises(ValueError, match="empty cell"):
+        MosaicLayout("1,,2")
 
 
-def test_layout_rejects_invalid_character() -> None:
-    with pytest.raises(ValueError, match="not a digit"):
-        MosaicLayout("1A")
+def test_layout_rejects_trailing_comma() -> None:
+    with pytest.raises(ValueError, match="empty cell"):
+        MosaicLayout("1,2,")
+
+
+def test_layout_rejects_non_integer_token() -> None:
+    with pytest.raises(ValueError, match="not an integer"):
+        MosaicLayout("1,A")
+
+
+def test_layout_rejects_zero_or_negative() -> None:
+    with pytest.raises(ValueError, match="1-based"):
+        MosaicLayout("1,0")
+    with pytest.raises(ValueError, match="1-based"):
+        MosaicLayout("-1,2")
 
 
 def test_layout_rejects_empty_descriptor() -> None:
     with pytest.raises(ValueError, match="empty"):
         MosaicLayout("")
+    with pytest.raises(ValueError, match="empty"):
+        MosaicLayout("   ;  ;")
 
 
 # ── Topology ──────────────────────────────────────────────────────────────────
@@ -111,27 +112,26 @@ def _grey(h: int, w: int, value: int) -> np.ndarray:
     return np.full((h, w), value, dtype=np.uint8)
 
 
-def _wire(node: Mosaic, digit_to_data: dict[str, IoData]) -> None:
-    """Connect a fake upstream per used digit, then send all the data.
+def _wire(node: Mosaic, idx_to_data: dict[int, IoData]) -> None:
+    """Connect a fake upstream per used 1-based index, then send all data.
 
     Mosaic only fires once every connected input has data, so every
     upstream must be connected before any send() runs.
     """
     upstreams: list[tuple[OutputPort, IoData]] = []
-    for digit, data in digit_to_data.items():
-        idx = int(digit) - 1
-        up = OutputPort(digit, {data.type})
-        up.connect(node.inputs[idx])
+    for one_based, data in idx_to_data.items():
+        up = OutputPort(str(one_based), {data.type})
+        up.connect(node.inputs[one_based - 1])
         upstreams.append((up, data))
     for up, data in upstreams:
         up.send(data)
 
 
-def test_mosaic_default_layout_is_horizontal_pair() -> None:
+def test_default_layout_is_horizontal_pair() -> None:
     node = Mosaic()
     _wire(node, {
-        "1": IoData.from_image(_bgr(4, 6, 10)),
-        "2": IoData.from_image(_bgr(4, 6, 20)),
+        1: IoData.from_image(_bgr(4, 6, 10)),
+        2: IoData.from_image(_bgr(4, 6, 20)),
     })
     out = node.outputs[0].last_emitted
     assert out is not None
@@ -140,12 +140,12 @@ def test_mosaic_default_layout_is_horizontal_pair() -> None:
     assert out.image[0, 6, 0] == 20
 
 
-def test_mosaic_vertical_stack() -> None:
+def test_vertical_stack_same_width() -> None:
     node = Mosaic()
-    node.layout = "1 / 2"
+    node.layout = "1;2"
     _wire(node, {
-        "1": IoData.from_image(_bgr(4, 6, 10)),
-        "2": IoData.from_image(_bgr(4, 6, 20)),
+        1: IoData.from_image(_bgr(4, 6, 10)),
+        2: IoData.from_image(_bgr(4, 6, 20)),
     })
     out = node.outputs[0].last_emitted
     assert out is not None
@@ -154,15 +154,14 @@ def test_mosaic_vertical_stack() -> None:
     assert out.image[4, 0, 0] == 20
 
 
-def test_mosaic_2x2_grid_color_inputs() -> None:
-    """Replaces the canonical Merge 2x2 use case."""
+def test_2x2_grid_color_inputs() -> None:
     node = Mosaic()
-    node.layout = "12 / 34"
+    node.layout = "1,2;3,4"
     _wire(node, {
-        "1": IoData.from_image(_bgr(4, 6, 10)),
-        "2": IoData.from_image(_bgr(4, 6, 20)),
-        "3": IoData.from_image(_bgr(4, 6, 30)),
-        "4": IoData.from_image(_bgr(4, 6, 40)),
+        1: IoData.from_image(_bgr(4, 6, 10)),
+        2: IoData.from_image(_bgr(4, 6, 20)),
+        3: IoData.from_image(_bgr(4, 6, 30)),
+        4: IoData.from_image(_bgr(4, 6, 40)),
     })
     out = node.outputs[0].last_emitted
     assert out is not None
@@ -173,46 +172,79 @@ def test_mosaic_2x2_grid_color_inputs() -> None:
     assert out.image[4, 6, 0] == 40
 
 
-def test_mosaic_l_shape_with_spanning_input() -> None:
-    """``"13 / 23"`` — image_1 / image_2 on left (1600x400 each),
-    image_3 spans both rows on the right (800x800)."""
+def test_row_height_match_preserves_aspect() -> None:
+    """Row 1 has image_1 4x4 and image_2 8x8 → both scaled to height 8.
+    image_1's width grows proportionally from 4 to 8."""
     node = Mosaic()
-    node.layout = "13 / 23"
+    node.layout = "1,2"
     _wire(node, {
-        "1": IoData.from_image(_bgr(400, 1600, 10)),
-        "2": IoData.from_image(_bgr(400, 1600, 20)),
-        "3": IoData.from_image(_bgr(800, 800, 30)),
+        1: IoData.from_image(_bgr(4, 4, 10)),
+        2: IoData.from_image(_bgr(8, 8, 20)),
     })
     out = node.outputs[0].last_emitted
     assert out is not None
-    assert out.image.shape == (800, 2400, 3)
-    assert out.image[0, 0, 0] == 10
-    assert out.image[400, 0, 0] == 20
-    assert out.image[0, 1600, 0] == 30
-    assert out.image[799, 1600, 0] == 30
+    # row height = 8, image_1 scales to 8x8, image_2 stays 8x8 → 8x16
+    assert out.image.shape == (8, 16, 3)
 
 
-def test_mosaic_all_greyscale_inputs_emit_greyscale() -> None:
+def test_row_width_match_preserves_aspect() -> None:
+    """Row 1 is 16 wide (8+8), row 2 is 8 wide → row 2 scales to 16
+    wide, height doubles too. No black bars."""
     node = Mosaic()
-    node.layout = "12 / 34"
+    node.layout = "1,2;3"
     _wire(node, {
-        "1": IoData.from_greyscale(_grey(3, 5, 10)),
-        "2": IoData.from_greyscale(_grey(3, 5, 20)),
-        "3": IoData.from_greyscale(_grey(3, 5, 30)),
-        "4": IoData.from_greyscale(_grey(3, 5, 40)),
+        1: IoData.from_image(_bgr(8, 8, 10)),
+        2: IoData.from_image(_bgr(8, 8, 20)),
+        3: IoData.from_image(_bgr(8, 8, 30)),
+    })
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    # row 1: 8 high, 16 wide. row 2: image_3 8x8 scaled to 16 wide → 16x16.
+    # vstack → 24 high, 16 wide.
+    assert out.image.shape == (24, 16, 3)
+
+
+def test_uneven_row_widths_no_black_bars() -> None:
+    """Reproduces the data_display_time_series_merged.flowjs scenario:
+    PlotXY (800x800) + PlotSeries (1600x800) in row 1 → naturally 2400
+    wide; PolarHeatmap (2400x2400) in row 2 → 2400 wide. Both rows
+    already match the widest row width, so no scaling is needed and
+    the canvas is exactly 2400 pixels wide."""
+    node = Mosaic()
+    node.layout = "1,2;3"
+    _wire(node, {
+        1: IoData.from_image(_bgr(800, 800, 10)),
+        2: IoData.from_image(_bgr(800, 1600, 20)),
+        3: IoData.from_image(_bgr(2400, 2400, 30)),
+    })
+    out = node.outputs[0].last_emitted
+    assert out is not None
+    assert out.image.shape[1] == 2400
+    # row 1 = 800 high, row 2 = 2400 high → total 3200
+    assert out.image.shape == (3200, 2400, 3)
+
+
+def test_all_greyscale_inputs_emit_greyscale() -> None:
+    node = Mosaic()
+    node.layout = "1,2;3,4"
+    _wire(node, {
+        1: IoData.from_greyscale(_grey(3, 3, 10)),
+        2: IoData.from_greyscale(_grey(3, 3, 20)),
+        3: IoData.from_greyscale(_grey(3, 3, 30)),
+        4: IoData.from_greyscale(_grey(3, 3, 40)),
     })
     out = node.outputs[0].last_emitted
     assert out is not None
     assert out.type == IoDataType.IMAGE_GREY
-    assert out.image.shape == (6, 10)
+    assert out.image.shape == (6, 6)
 
 
-def test_mosaic_mixed_types_promote_to_color() -> None:
+def test_mixed_types_promote_to_color() -> None:
     node = Mosaic()
-    node.layout = "12"
+    node.layout = "1,2"
     _wire(node, {
-        "1": IoData.from_greyscale(_grey(2, 2, 77)),
-        "2": IoData.from_image(_bgr(2, 2, 200)),
+        1: IoData.from_greyscale(_grey(2, 2, 77)),
+        2: IoData.from_image(_bgr(2, 2, 200)),
     })
     out = node.outputs[0].last_emitted
     assert out is not None
@@ -221,43 +253,38 @@ def test_mosaic_mixed_types_promote_to_color() -> None:
     np.testing.assert_array_equal(out.image[0:2, 2:4], _bgr(2, 2, 200))
 
 
-def test_mosaic_unconnected_digit_renders_as_black_padding() -> None:
-    """Layout ``"12 / 34"`` but only image_1 and image_4 wired —
-    image_2 and image_3 cells stay zero."""
+def test_unconnected_cells_are_dropped_from_their_row() -> None:
+    """``"1,2;3,4"`` but only image_1 and image_4 wired — image_2 is
+    silently dropped from row 1, image_3 from row 2. Row 1 then holds
+    just image_1, row 2 just image_4. No black padding cells."""
     node = Mosaic()
-    node.layout = "12 / 34"
+    node.layout = "1,2;3,4"
     _wire(node, {
-        "1": IoData.from_image(_bgr(4, 5, 111)),
-        "4": IoData.from_image(_bgr(6, 7, 222)),
+        1: IoData.from_image(_bgr(4, 5, 111)),
+        4: IoData.from_image(_bgr(4, 5, 222)),
     })
     out = node.outputs[0].last_emitted
     assert out is not None
-    assert out.image.shape == (10, 12, 3)
+    # row 1: image_1 4x5; row 2: image_4 4x5; both already 5 wide.
+    assert out.image.shape == (8, 5, 3)
     np.testing.assert_array_equal(out.image[0:4, 0:5], _bgr(4, 5, 111))
-    np.testing.assert_array_equal(out.image[4:10, 5:12], _bgr(6, 7, 222))
-    assert out.image[0:4, 5:12].sum() == 0
-    assert out.image[4:10, 0:5].sum() == 0
+    np.testing.assert_array_equal(out.image[4:8, 0:5], _bgr(4, 5, 222))
 
 
-def test_mosaic_explicit_dot_cell_is_black_padding() -> None:
-    """Layout ``"12 / .2"`` — bottom-left explicitly empty; image_2 spans rows."""
+def test_row_with_only_unconnected_cells_is_dropped() -> None:
+    """``"1;2"`` but image_2 unwired → output is just image_1."""
     node = Mosaic()
-    node.layout = "12 / .2"
-    _wire(node, {
-        "1": IoData.from_image(_bgr(4, 5, 100)),
-        "2": IoData.from_image(_bgr(8, 6, 200)),
-    })
+    node.layout = "1;2"
+    _wire(node, {1: IoData.from_image(_bgr(4, 6, 111))})
     out = node.outputs[0].last_emitted
     assert out is not None
-    assert out.image.shape == (8, 11, 3)
-    np.testing.assert_array_equal(out.image[0:4, 0:5], _bgr(4, 5, 100))
-    assert out.image[4:8, 0:5].sum() == 0
+    assert out.image.shape == (4, 6, 3)
 
 
-def test_mosaic_does_not_fire_until_every_connected_input_has_data() -> None:
+def test_does_not_fire_until_every_connected_input_has_data() -> None:
     """Connected upstreams gate the dispatch."""
     node = Mosaic()
-    node.layout = "12 / 34"
+    node.layout = "1,2;3,4"
     up_1 = OutputPort("1", {IoDataType.IMAGE})
     up_2 = OutputPort("2", {IoDataType.IMAGE})
     up_3 = OutputPort("3", {IoDataType.IMAGE})
@@ -273,11 +300,8 @@ def test_mosaic_does_not_fire_until_every_connected_input_has_data() -> None:
     assert node.outputs[0].last_emitted is not None
 
 
-def test_mosaic_invalid_layout_raises_at_process_time() -> None:
+def test_invalid_layout_raises_at_process_time() -> None:
     node = Mosaic()
-    node.layout = "12 / 21"
-    with pytest.raises(ValueError, match="rectangle"):
-        _wire(node, {
-            "1": IoData.from_image(_bgr(2, 2, 10)),
-            "2": IoData.from_image(_bgr(2, 2, 20)),
-        })
+    node.layout = "1,,2"
+    with pytest.raises(ValueError, match="empty cell"):
+        _wire(node, {1: IoData.from_image(_bgr(2, 2, 10))})
