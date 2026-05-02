@@ -94,10 +94,11 @@ architectural documentation lives under `doc/internal/`.
 
 ## `welcome.html`
 
-- The bottom of the welcome page is a row of button-style
-  links (`a.button` inside `.links`) pointing at the hosted
-  documentation (`http://stjornhorn.beltoforion.de`), the
-  GitHub repository, the Issues tracker
+- A row of button-style links (`a.button` inside `.links`)
+  sits inside the hero header, immediately under the tagline,
+  pointing at the hosted documentation
+  (`http://stjornhorn.beltoforion.de`), the GitHub repository,
+  the Issues tracker
   (`https://github.com/beltoforion/stjornhorn/issues`) and the
   Releases page
   (`https://github.com/beltoforion/stjornhorn/releases`). Open
