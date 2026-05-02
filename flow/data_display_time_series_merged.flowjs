@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.30",
+  "app_version": "0.3.0.34",
   "name": "data_display_time_series_merged",
   "nodes": [
     {
@@ -124,7 +124,7 @@
         -416.036930689539
       ],
       "port_defaults": {
-        "layout": "12"
+        "layout": "12/33"
       }
     },
     {
@@ -132,8 +132,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -509.44512981608955,
-        -223.09001240277166
+        -519.6499516506973,
+        -267.73610792918055
       ],
       "port_defaults": {},
       "size": [
@@ -175,20 +175,6 @@
     },
     {
       "id": 11,
-      "module": "nodes.filters.display",
-      "class": "Display",
-      "position": [
-        -495.94326239732686,
-        247.52919827893743
-      ],
-      "port_defaults": {},
-      "size": [
-        529.3320753961349,
-        485.83643704897383
-      ]
-    },
-    {
-      "id": 12,
       "module": "nodes.filters.spectrum",
       "class": "Spectrum",
       "position": [
@@ -203,7 +189,7 @@
       }
     },
     {
-      "id": 13,
+      "id": 12,
       "module": "nodes.filters.polar_heatmap",
       "class": "PolarHeatmap",
       "position": [
@@ -214,8 +200,8 @@
         "colormap": 0,
         "theta_zero": 1,
         "theta_direction": 1,
-        "width": 640,
-        "height": 640,
+        "width": 2400,
+        "height": 2400,
         "title": "",
         "colorbar_label": ""
       }
@@ -291,20 +277,20 @@
     {
       "src_node": 10,
       "src_output": 0,
+      "dst_node": 11,
+      "dst_input": 0
+    },
+    {
+      "src_node": 11,
+      "src_output": 0,
       "dst_node": 12,
       "dst_input": 0
     },
     {
       "src_node": 12,
       "src_output": 0,
-      "dst_node": 13,
-      "dst_input": 0
-    },
-    {
-      "src_node": 13,
-      "src_output": 0,
-      "dst_node": 11,
-      "dst_input": 0
+      "dst_node": 7,
+      "dst_input": 2
     }
   ],
   "backdrops": [
