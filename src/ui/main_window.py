@@ -79,8 +79,8 @@ class MainWindow(QMainWindow):
 
         self._start_page    = StartPage(self._recent_flows)
         self._editor_page   = NodeEditorPage(self._registry, self._recent_flows)
-        self._log_page      = LogPage()
         self._settings_page = SettingsPage()
+        self._log_page      = LogPage()
 
         # Single source of truth for the set of pages. Adding a new page
         # means: construct it, append it here, and every loop below —
@@ -89,8 +89,8 @@ class MainWindow(QMainWindow):
         self._pages_list: list[PageBase] = [
             self._start_page,
             self._editor_page,
-            self._log_page,
             self._settings_page,
+            self._log_page,
         ]
 
         # Apply persisted debug-logging flag to the live file handler and

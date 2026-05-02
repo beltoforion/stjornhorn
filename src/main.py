@@ -356,6 +356,7 @@ def main(argv: list[str]) -> int:
     # with the program name so QApplication.arguments() behaves normally.
     app = QApplication([sys.argv[0], *qt_args])
     app.setApplicationName(APP_NAME)
+
     # Qt and some window managers auto-append applicationDisplayName to
     # every window caption, which would duplicate the prefix MainWindow
     # already renders (e.g. "Sparklehoof — flow — Sparklehoof"). We
@@ -363,6 +364,7 @@ def main(argv: list[str]) -> int:
     app.setApplicationDisplayName("")
     app.setApplicationVersion(APP_VERSION)
     app.setWindowIcon(_load_app_icon())
+    
     apply_dark_theme(app)
 
     # Decide which monitor we're launching on before creating any
