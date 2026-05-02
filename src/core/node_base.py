@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
+from dataclasses import dataclass
 
 from enum import Enum
 from typing import Callable, final
@@ -112,6 +113,30 @@ NODE_PARAM_TYPE_TO_PORT_TYPE: dict[NodeParamType, IoDataType] = {
 }
 
 
+@dataclass(frozen=True)
+class HeaderAction:
+    """Declarative spec for a clickable button in a node's header.
+
+    A node populates ``self.header_actions`` with these so the editor
+    can render small Material-glyph buttons in the title bar without
+    the node module having to depend on Qt. The handler runs on the
+    UI thread when the user clicks; if it returns a non-empty string,
+    the editor copies that string to the system clipboard.
+
+    Keeping the contract this narrow (glyph + tooltip + handler) means
+    every node-specific affordance — copy meta, reset cache, dump
+    matrix — can live alongside the rest of the node's logic, and the
+    editor stays a generic renderer.
+    """
+
+    #: Material Icons name (must exist in ``ui.icons._CODEPOINTS``).
+    glyph: str
+    tooltip: str
+    #: Invoked on click. Return a string to push to the clipboard, or
+    #: ``None`` for a side-effect-only action.
+    handler: Callable[[], str | None]
+
+
 class NodeBase(ABC):
     """Abstract base class for all processing nodes.
 
@@ -185,6 +210,11 @@ class NodeBase(ABC):
         self._outputs: list[OutputPort] = []
         self._params: list[NodeParam] = []
         self._skipped: bool = False
+        # Per-instance list of header buttons. Subclasses append
+        # :class:`HeaderAction` entries in their own ``__init__`` to add
+        # node-specific affordances (e.g. MetaInspector's "copy meta"
+        # button) without the editor needing class-by-class knowledge.
+        self.header_actions: list[HeaderAction] = []
         # Initialise every descriptor's backing slot to its declared
         # default before subclass ``__init__`` runs, so ``self._<name>``
         # exists from the first line after ``super().__init__()``. The

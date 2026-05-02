@@ -7,10 +7,9 @@ import numpy as np
 from typing_extensions import override
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QGuiApplication, QImage, QPixmap
+from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
-    QHBoxLayout,
     QLabel,
     QPushButton,
     QScrollArea,
@@ -22,7 +21,7 @@ from PySide6.QtWidgets import (
 from core import notifications
 from core.io_data import IoData, IoDataType
 from core.node_base import NodeBase
-from nodes.debug.meta_inspector import MetaInspector
+from nodes.debug.meta_inspector import MetaInspector, format_meta
 from nodes.debug.play_gate import PlayGate
 from nodes.filters.display import Display
 
@@ -344,29 +343,11 @@ class MetaInspectorPreview(_PreviewWidgetBase):
             "QScrollArea { background: #111; border: 1px solid #333; }"
         )
 
-        self._copy_button = QPushButton("Copy")
-        self._copy_button.setToolTip("Copy meta text to clipboard")
-        self._copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._copy_button.setStyleSheet(
-            "QPushButton { background: #2b6cb0; color: white;"
-            "              border: 1px solid #1a4577;"
-            "              padding: 2px 10px; font-size: 11px; }"
-            "QPushButton:hover { background: #3478c2; }"
-            "QPushButton:pressed { background: #1f5391; }"
-        )
-        self._copy_button.clicked.connect(self._on_copy_clicked)
-
-        button_row = QHBoxLayout()
-        button_row.setContentsMargins(0, 0, 0, 2)
-        button_row.addStretch(1)
-        button_row.addWidget(self._copy_button)
-
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addLayout(button_row)
         layout.addWidget(self._scroll)
 
         # Auto-connection delivers cross-thread emits via a queued
@@ -377,7 +358,7 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         node.set_frame_callback(self._emit_from_worker)
 
     def _emit_from_worker(self, data: IoData) -> None:
-        self._text_ready.emit(_format_meta(data))
+        self._text_ready.emit(format_meta(data))
 
     @Slot(str)
     def _on_text_ready(self, text: str) -> None:
@@ -388,37 +369,6 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         # paint event until the next event-loop turn. Forcing
         # ``update`` is cheap and removes any timing ambiguity.
         self._label.update()
-
-    @Slot()
-    def _on_copy_clicked(self) -> None:
-        QGuiApplication.clipboard().setText(self._label.text())
-        notifications.info("Meta copied to clipboard")
-
-
-def _format_meta(data: IoData) -> str:
-    """Render an :class:`IoData` envelope's meta + payload summary as
-    readable text for the inspector preview.
-
-    The meta bag is open-ended; we render every key in sorted order
-    so the inspector reflects whatever the upstream nodes stamped,
-    without hard-coding which keys exist.
-    """
-    shape = getattr(data.payload, "shape", None)
-    payload_line = (
-        f"payload: {data.type.name} shape={shape}"
-        if shape is not None
-        else f"payload: {data.type.name} value={data.payload!r}"
-    )
-    if not data.meta:
-        return f"meta: (empty)\n{payload_line}"
-
-    # Right-pad keys to a common width so values line up vertically.
-    key_width = max(len(k) for k in data.meta)
-    meta_lines = [
-        f"{key.ljust(key_width)}  {data.meta[key]}"
-        for key in sorted(data.meta)
-    ]
-    return "\n".join(meta_lines + [payload_line])
 
 
 # ── PlayGate preview ──────────────────────────────────────────────────────────
