@@ -25,11 +25,14 @@ from ui.param_widgets import ParamWidgetBase, build_param_widget
 from ui.port_item import PortItem
 from ui.preview_widgets import build_preview_widget
 from ui.theme import (
+    BORDER_FROM_CATEGORY,
     FILTER_HEADER_COLOR,
-    GLOW_RADIUS,
+    HEADER_AS_STRIP,
     NODE_BODY_COLOR,
+    NODE_BORDER_COLOR,
     NODE_BORDER_SELECTED,
     NODE_GLOW_SELECTED_COLOR,
+    NODE_GLOW_STROKES,
     NODE_PARAM_LABEL_COLOR,
     NODE_SKIPPED_HEADER_COLOR,
     NODE_TITLE_TEXT_COLOR,
@@ -499,11 +502,15 @@ class NodeItem(QGraphicsItem):
         self._user_height = None
         self._relayout()
 
+    #: Worst-case outer-glow extent in scene pixels. Sized to cover
+    #: any registered theme's :attr:`Theme.NODE_GLOW_STROKES` so
+    #: ``boundingRect`` stays theme-independent (Qt's dirty-region
+    #: tracking caches the rect; recomputing it on a theme swap would
+    #: need a ``prepareGeometryChange`` we don't want to plumb).
+    _BOUNDING_PAD: float = 8.0
+
     def boundingRect(self) -> QRectF:  # type: ignore[override]
-        # Inflated by GLOW_RADIUS so the outer-glow strokes painted in
-        # :meth:`paint` outside ``body_rect`` don't get clipped by the
-        # scene's dirty-region tracking.
-        pad = GLOW_RADIUS + 2
+        pad = self._BOUNDING_PAD
         return QRectF(-pad, -pad, self._width + 2 * pad, self._body_height + 2 * pad)
 
     def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
@@ -512,28 +519,29 @@ class NodeItem(QGraphicsItem):
         body_rect = QRectF(0, 0, self._width, self._body_height)
         selected = self.isSelected()
         accent = self._header_color()
-        # Selection swaps the per-category accent for a single high-
-        # contrast colour so a selected sink (magenta) is still
-        # distinguishable from an unselected one. Glow follows.
-        border_color = NODE_BORDER_SELECTED if selected else accent
-        glow_color   = NODE_GLOW_SELECTED_COLOR if selected else accent
+        # The per-category accent drives the border + glow on themes
+        # that opted into :attr:`Theme.BORDER_FROM_CATEGORY` (neon
+        # look). Themes with a solid coloured header strip (classic)
+        # use a flat dark border instead — the strip already carries
+        # the category. Selection always swaps to the single high-
+        # contrast :data:`NODE_BORDER_SELECTED` so a selected node
+        # stands out regardless of category.
+        if selected:
+            border_color = NODE_BORDER_SELECTED
+            glow_color   = NODE_GLOW_SELECTED_COLOR
+        elif BORDER_FROM_CATEGORY:
+            border_color = accent
+            glow_color   = accent
+        else:
+            border_color = NODE_BORDER_COLOR
+            glow_color   = accent
         border_pen = QPen(border_color, 1.6 if selected else 1.2)
 
-        # Draw glow, body fill, header divider, and border. The header
-        # is no longer a solid coloured strip — the per-category accent
-        # lives on the border and outer glow instead, matching the
-        # mockup's cleaner "neon rim around a dark body" look. The
-        # outer glow walks outward from the body rect in a few
-        # expanding strokes at decreasing alpha to fake a neon rim;
-        # cheaper than a real ``QGraphicsDropShadowEffect`` and keeps
-        # the painter on the existing item-paint pipeline.
-
-        # ── outer glow ──
-        for offset, alpha in ((1.0, 110), (3.0, 55), (5.0, 26)):
+        # ── outer glow (themes opt in via NODE_GLOW_STROKES) ──
+        for offset, alpha in NODE_GLOW_STROKES:
             glow = QColor(glow_color)
             glow.setAlpha(alpha)
-            pen = QPen(glow, 1.0)
-            painter.setPen(pen)
+            painter.setPen(QPen(glow, 1.0))
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(
                 body_rect.adjusted(-offset, -offset, offset, offset),
@@ -546,16 +554,26 @@ class NodeItem(QGraphicsItem):
         painter.setBrush(QBrush(NODE_BODY_COLOR))
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
-        # ── thin divider under the title row ──
-        # Picks up the category accent at low alpha so each node
-        # signals its kind even with the colour strip gone.
-        divider_color = QColor(accent)
-        divider_color.setAlpha(140)
-        painter.setPen(QPen(divider_color, 1.0))
-        painter.drawLine(
-            QPointF(self.PADDING, self.HEADER_HEIGHT),
-            QPointF(self._width - self.PADDING, self.HEADER_HEIGHT),
-        )
+        # ── header band ──
+        if HEADER_AS_STRIP:
+            # Solid coloured header strip (classic). Rendered as a
+            # path with rounded top corners only so it tucks under
+            # the body's rounded outline. Drawn before the border so
+            # the border's stroke clips the strip's edges cleanly.
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QBrush(accent))
+            painter.drawPath(self._header_path())
+        else:
+            # Thin category-accent divider under the title row
+            # (neon). Keeps the kind readable when the rim flips to
+            # the selection accent.
+            divider_color = QColor(accent)
+            divider_color.setAlpha(140)
+            painter.setPen(QPen(divider_color, 1.0))
+            painter.drawLine(
+                QPointF(self.PADDING, self.HEADER_HEIGHT),
+                QPointF(self._width - self.PADDING, self.HEADER_HEIGHT),
+            )
 
         # ── border (stroked last so nothing covers it) ──
         painter.setPen(border_pen)
@@ -794,6 +812,23 @@ class NodeItem(QGraphicsItem):
         # perspective (they change what the flow does on the next run),
         # so piggy-back on param_changed to drive auto-run + dirty.
         self._signals.param_changed.emit()
+
+    def _header_path(self) -> QPainterPath:
+        """Path for the header strip: top corners rounded, bottom
+        corners square. Used by themes that opt into the classic
+        solid coloured header (``Theme.HEADER_AS_STRIP``)."""
+        w = self._width
+        h = self.HEADER_HEIGHT
+        r = self.CORNER_RADIUS
+        path = QPainterPath()
+        path.moveTo(0, h)
+        path.lineTo(0, r)
+        path.quadTo(0, 0, r, 0)
+        path.lineTo(w - r, 0)
+        path.quadTo(w, 0, w, r)
+        path.lineTo(w, h)
+        path.closeSubpath()
+        return path
 
     def _outputs_top(self) -> float:
         """Y of the first output row — output sockets are stacked at

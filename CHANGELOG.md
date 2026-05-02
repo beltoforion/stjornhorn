@@ -10,6 +10,26 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Added (Selectable theme on the Settings page)
+
+- **Two themes ship side by side: "Neon" (the new look) and
+  "Classic" (the pre-restyle flat-grey palette with solid
+  coloured node header strips, no glow).** A new combo on the
+  Settings page picks between them; the choice is persisted to
+  `settings.json` (`theme_name`) and locked in at next launch.
+  The active theme is resolved at `ui.theme` import time by
+  reading the settings file directly, so consumer modules can
+  keep caching tokens via `from ui.theme import …` and a
+  divergent picker selection just shows a "Takes effect on next
+  launch" hint. The node painter now branches on
+  `Theme.HEADER_AS_STRIP` (classic) vs. the thin category divider
+  (neon), `Theme.BORDER_FROM_CATEGORY` decides whether the border
+  carries the category, and the outer-glow walk is data-driven
+  via `Theme.NODE_GLOW_STROKES` / `Theme.LINK_GLOW_STROKES` —
+  empty tuples disable the halos for the classic look. Node and
+  link bounding rects use a fixed worst-case pad so neither
+  caches need invalidation across themes.
+
 ### Changed (Theme as a swappable value)
 
 - **`ui.theme` is now a thin re-export layer over a `Theme`

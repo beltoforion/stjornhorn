@@ -246,6 +246,7 @@ QTabBar::tab:hover {
 
 NEON_THEME = Theme(
     name="neon",
+    display_name="Neon",
 
     # ── Node category accents ──
     SOURCE_HEADER_COLOR=QColor( 60, 175, 240),
@@ -260,11 +261,15 @@ NEON_THEME = Theme(
     NODE_BORDER_SELECTED     =QColor(255, 220,  80),
     NODE_TITLE_TEXT_COLOR    =QColor(225, 240, 255),
     NODE_PARAM_LABEL_COLOR   =QColor(180, 205, 230),
+    HEADER_AS_STRIP=False,
+    BORDER_FROM_CATEGORY=True,
 
     # ── Outer glow ──
     NODE_GLOW_COLOR         =QColor( 80, 200, 240),
     NODE_GLOW_SELECTED_COLOR=QColor(255, 220,  80),
-    GLOW_RADIUS=6.0,
+    NODE_GLOW_STROKES=((1.0, 110), (3.0, 55), (5.0, 26)),
+    LINK_GLOW_STROKES=((6.0,  35), (3.5, 70)),
+    LINK_STROKE_WIDTH=1.6,
 
     # ── Ports ──
     PORT_INPUT_COLOR =QColor(210, 210, 210),

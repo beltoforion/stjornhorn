@@ -7,21 +7,22 @@ swappable, every token now lives on a :class:`Theme` instance, and
 this module:
 
 1. picks one of the registered themes as the **active theme** at
-   import time (default: :data:`NEON_THEME`),
+   import time, choosing based on the ``theme_name`` field of the
+   persisted settings file (default: :data:`NEON_THEME`),
 2. flattens its dataclass fields into module-level globals so legacy
    ``from ui.theme import NODE_BODY_COLOR`` keeps working unchanged,
-3. exposes :func:`apply_theme` to set the active theme and apply its
-   palette / QSS to a running :class:`QApplication`.
+3. exposes :func:`apply_theme` to push the current active theme's
+   palette / QSS onto a running :class:`QApplication`.
 
 Adding a new theme is "drop ``ui/themes/<name>.py``, build a
 ``Theme`` with the values you want, register it in
 :data:`AVAILABLE_THEMES`". Consumer modules don't need to change.
 
-Switching themes at runtime (after UI modules have already cached
-the previous values) is **not** supported — call
-:func:`apply_theme` once during app startup, before any
-node/link/widget is constructed. ``main.apply_dark_theme(app)``
-already does this in the right place.
+Theme switching is **startup-only** — the active theme is locked in
+the moment ``ui.theme`` is imported, well before any
+node/link/widget caches its values via ``from ui.theme import …``.
+:class:`AppSettings.theme_name` writes the selection to disk; the
+next launch picks it up here.
 """
 from __future__ import annotations
 
@@ -40,23 +41,16 @@ class Theme:
     """All design tokens that drive the editor's look.
 
     A theme is a self-contained value: it carries every colour, the
-    glow extent, the QSS stylesheet template (with ``@@…@@``
-    placeholders for absolute asset paths) and the palette entries.
-    The application owns one *active* :class:`Theme` at a time.
-
-    Colour fields use :class:`QColor` so they can be passed to
-    :class:`QBrush` / :class:`QPen` without conversion. Floats like
-    :attr:`GLOW_RADIUS` are in scene pixels.
+    glow strokes that the node / link painters should walk through,
+    booleans that branch the painter (``HEADER_AS_STRIP``), the QSS
+    stylesheet template (with ``@@…@@`` placeholders for absolute
+    asset paths) and the palette entries.
     """
 
     name: str
+    display_name: str
 
     # ── Node category accents ──
-    #
-    # Drive both the node border and its outer glow. The names still
-    # read ``*_HEADER_COLOR`` because the dispatch in
-    # :meth:`ui.node_item.NodeItem._header_color` keys off Source/
-    # Filter/Sink and downstream callers expect those identifiers.
     SOURCE_HEADER_COLOR: QColor
     FILTER_HEADER_COLOR: QColor
     SINK_HEADER_COLOR: QColor
@@ -70,10 +64,31 @@ class Theme:
     NODE_TITLE_TEXT_COLOR: QColor
     NODE_PARAM_LABEL_COLOR: QColor
 
+    #: Whether to render a solid coloured header strip at the top of
+    #: each node (classic look) or drop the strip in favour of a thin
+    #: category-coloured divider under the title row (neon look —
+    #: the per-category identity then lives on the border + glow).
+    HEADER_AS_STRIP: bool
+
+    #: Whether the node border picks up the per-category accent
+    #: (neon) or always uses :attr:`NODE_BORDER_COLOR` (classic, where
+    #: the strip carries the category and the border is just a frame).
+    BORDER_FROM_CATEGORY: bool
+
     # ── Outer glow (nodes + links) ──
     NODE_GLOW_COLOR: QColor
     NODE_GLOW_SELECTED_COLOR: QColor
-    GLOW_RADIUS: float
+    #: Glow passes drawn around each node body rect, ``(offset, alpha)``
+    #: tuples walked from outermost-faintest to innermost-strongest.
+    #: Empty disables the node glow entirely (classic theme).
+    NODE_GLOW_STROKES: tuple[tuple[float, int], ...]
+    #: Glow passes drawn under each bezier link path,
+    #: ``(stroke_width, alpha)`` tuples. Empty disables the link halo
+    #: (classic theme — wire stays a single hairline).
+    LINK_GLOW_STROKES: tuple[tuple[float, int], ...]
+    #: Width of the inner solid stroke painted on top of the link
+    #: glow halo.
+    LINK_STROKE_WIDTH: float
 
     # ── Ports ──
     PORT_INPUT_COLOR: QColor
@@ -110,33 +125,49 @@ class Theme:
     PALETTE_HIGHLIGHTED_TEXT: QColor
 
     # ── Stylesheet ──
-    #
-    # Asset-path placeholders (``@@SPINNER_UP@@`` etc.) are filled in
-    # by :func:`apply_theme`; colours are baked in as hex literals so
-    # a theme is fully self-contained.
     QSS_TEMPLATE: str = field(repr=False)
 
 
 # Importing the bundled theme modules has to happen after :class:`Theme`
 # is defined — they construct a :class:`Theme` instance at module load.
-# Locked at import time; new themes added to ``ui/themes/`` should be
-# appended here.
-from ui.themes.neon import NEON_THEME  # noqa: E402
+from ui.themes.classic import CLASSIC_THEME  # noqa: E402
+from ui.themes.neon import NEON_THEME        # noqa: E402
 
 #: Registered themes by name. Add an entry here when introducing a
 #: new theme module so callers can look it up by name (e.g. from a
 #: persisted settings value).
 AVAILABLE_THEMES: dict[str, Theme] = {
-    NEON_THEME.name: NEON_THEME,
+    NEON_THEME.name:    NEON_THEME,
+    CLASSIC_THEME.name: CLASSIC_THEME,
 }
 
 #: Default theme used when no explicit theme is selected.
 DEFAULT_THEME: Theme = NEON_THEME
 
-# The currently active theme. Mutated by :func:`apply_theme`; consumer
-# modules read its fields via the module-level globals re-exported
-# below.
-_active_theme: Theme = DEFAULT_THEME
+
+def _persisted_theme() -> Theme:
+    """Look up the persisted ``theme_name`` from the settings file
+    and return the matching :class:`Theme`, or :data:`DEFAULT_THEME`
+    if the setting is absent or names an unknown theme.
+
+    Read directly from the JSON file rather than via
+    :class:`ui.settings.AppSettings` because :class:`AppSettings`
+    needs a :class:`QApplication`, and we run during module import —
+    well before ``main()`` has constructed one.
+    """
+    # Local import to avoid a circular dependency: ``ui.settings``
+    # imports nothing from ``ui.theme`` and we want to keep it that
+    # way, but the converse path is fine.
+    from ui.settings import SETTINGS_FILE, _read_settings_file
+    name = _read_settings_file(SETTINGS_FILE).get("theme_name")
+    if isinstance(name, str) and name in AVAILABLE_THEMES:
+        return AVAILABLE_THEMES[name]
+    return DEFAULT_THEME
+
+
+# The currently active theme. Locked at module-import time based on
+# the persisted setting. Not mutated thereafter.
+_active_theme: Theme = _persisted_theme()
 
 
 def get_active_theme() -> Theme:
@@ -146,16 +177,14 @@ def get_active_theme() -> Theme:
 
 # Names re-exported as module-level globals for backwards-compat with
 # the ``from ui.theme import X`` pattern that pre-dates the Theme
-# abstraction. Asset-path placeholders are filled at apply time.
+# abstraction.
 _REEXPORTED_FIELDS: tuple[str, ...] = tuple(
-    f.name for f in Theme.__dataclass_fields__.values() if f.name != "QSS_TEMPLATE"
+    f.name for f in Theme.__dataclass_fields__.values()
+    if f.name not in {"QSS_TEMPLATE", "name", "display_name"}
 )
 
 
 def _reexport(theme: Theme) -> None:
-    """Copy the theme's fields into this module's globals so the
-    legacy ``from ui.theme import NODE_BODY_COLOR`` keeps resolving
-    against the active theme."""
     for name in _REEXPORTED_FIELDS:
         globals()[name] = getattr(theme, name)
 
@@ -181,20 +210,25 @@ def _resolve_qss(theme: Theme) -> str:
 
 
 def apply_theme(app: QApplication, theme: Theme | None = None) -> None:
-    """Set the active theme and apply its palette + QSS to ``app``.
+    """Apply ``theme`` (or the active one if ``None``) to ``app``.
 
-    Pass ``None`` to apply :data:`DEFAULT_THEME`. The active theme's
-    fields are re-published as module-level globals so any code that
-    reads ``ui.theme.NODE_BODY_COLOR`` (via attribute lookup, not a
-    cached ``from ... import``) sees the new values.
+    Sets :class:`QPalette` and the application stylesheet. Re-exports
+    the theme's fields into this module's globals so that a swap
+    invoked before any UI module has imported is fully effective.
 
-    Call once early in startup, before any node / link / widget is
-    constructed — those modules cache the values via
-    ``from ui.theme import …`` and won't observe a later swap.
+    Switching themes after node / link / widget modules have already
+    cached values via ``from ui.theme import …`` is **not**
+    supported. The intended flow is:
+
+      1. user picks a theme on the Settings page,
+      2. :class:`AppSettings.theme_name` writes it to the settings
+         file,
+      3. on next launch, :func:`_persisted_theme` reads it back at
+         ``ui.theme`` import time and locks it in.
     """
     global _active_theme
     if theme is None:
-        theme = DEFAULT_THEME
+        theme = _active_theme
     _active_theme = theme
     _reexport(theme)
 
@@ -214,10 +248,9 @@ def apply_theme(app: QApplication, theme: Theme | None = None) -> None:
 
 
 def apply_dark_theme(app: QApplication) -> None:
-    """Backwards-compat shim — applies :data:`DEFAULT_THEME`.
+    """Backwards-compat shim — applies whichever theme is currently
+    active (loaded from settings at module import).
 
-    Kept so existing callers (``main.py``) don't have to change. New
-    code should call :func:`apply_theme` directly with an explicit
-    :class:`Theme`.
+    Kept so existing callers (``main.py``) don't have to change.
     """
-    apply_theme(app, DEFAULT_THEME)
+    apply_theme(app)

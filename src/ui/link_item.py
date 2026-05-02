@@ -6,7 +6,18 @@ from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsPathItem
 
-from ui.theme import GLOW_RADIUS, LINK_COLOR, LINK_SELECTED_COLOR
+from ui.theme import (
+    LINK_COLOR,
+    LINK_GLOW_STROKES,
+    LINK_SELECTED_COLOR,
+    LINK_STROKE_WIDTH,
+)
+
+#: Worst-case outer-glow extent in scene pixels around the wire
+#: path. Sized to cover any registered theme's
+#: ``Theme.LINK_GLOW_STROKES`` so ``boundingRect`` stays
+#: theme-independent.
+_LINK_BOUNDING_PAD: float = 6.0
 
 if TYPE_CHECKING:
     from ui.port_item import PortItem
@@ -55,25 +66,28 @@ class LinkItem(QGraphicsPathItem):
     def paint(self, painter, option, widget=None) -> None:  # type: ignore[override]
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         base_color = LINK_SELECTED_COLOR if self.isSelected() else LINK_COLOR
-        # Two-pass paint: a wide translucent stroke fakes a neon halo
-        # around the wire, then the crisp inner stroke draws on top.
-        # Cheaper than a real drop-shadow effect on every link.
         path = self.path()
-        for width, alpha in ((6.0, 35), (3.5, 70)):
+        # Themes opt into a wire halo via ``LINK_GLOW_STROKES``: each
+        # entry is ``(stroke_width, alpha)`` and is painted before the
+        # crisp inner stroke. Empty disables the halo entirely
+        # (classic theme stays a single hairline).
+        for width, alpha in LINK_GLOW_STROKES:
             glow = QColor(base_color)
             glow.setAlpha(alpha)
             pen = QPen(glow, width)
             pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             painter.setPen(pen)
             painter.drawPath(path)
-        painter.setPen(QPen(base_color, 1.6))
+        painter.setPen(QPen(base_color, LINK_STROKE_WIDTH))
         painter.drawPath(path)
 
     def boundingRect(self):  # type: ignore[override]
-        # Account for the wide outer glow stroke painted in :meth:`paint`
-        # so the scene doesn't clip it during partial repaints.
+        # Padded by the worst-case glow extent across all registered
+        # themes so the scene doesn't clip the halo during partial
+        # repaints.
         return super().boundingRect().adjusted(
-            -GLOW_RADIUS, -GLOW_RADIUS, GLOW_RADIUS, GLOW_RADIUS,
+            -_LINK_BOUNDING_PAD, -_LINK_BOUNDING_PAD,
+             _LINK_BOUNDING_PAD,  _LINK_BOUNDING_PAD,
         )
 
     # ── Lifecycle ──────────────────────────────────────────────────────────────
