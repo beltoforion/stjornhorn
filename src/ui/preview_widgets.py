@@ -8,7 +8,15 @@ from typing_extensions import override
 
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QFrame,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from core import notifications
 from core.io_data import IoData, IoDataType
@@ -305,13 +313,11 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         self._label.setAlignment(
             Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
         )
-        self._label.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
         self._label.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding,
         )
         self._label.setStyleSheet(
-            "QLabel { background: #111; border: 1px solid #333;"
-            "         color: #d6d6d6; padding: 4px;"
+            "QLabel { background: #111; color: #d6d6d6; padding: 4px;"
             "         font-family: 'Consolas','Menlo',monospace;"
             "         font-size: 11px; }"
         )
@@ -320,12 +326,29 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         self._label.setWordWrap(True)
         self._label.setText("(run the flow to see meta)")
 
+        # Wrap the label in a QScrollArea so meta blocks taller than
+        # the preview box scroll instead of forcing the node to grow.
+        # ``setWidgetResizable`` lets the inner label expand to the
+        # viewport width (so word-wrap kicks in at the visible width)
+        # while the vertical scrollbar appears on overflow.
+        self._scroll = QScrollArea()
+        self._scroll.setWidget(self._label)
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.Shape.Box)
+        self._scroll.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
+        self._scroll.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        self._scroll.setStyleSheet(
+            "QScrollArea { background: #111; border: 1px solid #333; }"
+        )
+
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._label)
+        layout.addWidget(self._scroll)
 
         # Auto-connection delivers cross-thread emits via a queued
         # connection. Same-thread emits (e.g. when ``request_emit``
