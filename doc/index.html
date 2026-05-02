@@ -228,6 +228,9 @@
       border-top: 1px solid var(--border);
       background: var(--bg-panel-alt);
     }
+    figure.screenshot.legend {
+      max-width: 280px;
+    }
 
     /* ── Tables ─────────────────────────────────────────────────────── */
 
@@ -252,44 +255,65 @@
     }
     tr:last-child td { border-bottom: 0; }
 
-    /* ── Node cards ─────────────────────────────────────────────────── */
+    /* ── Node sections ──────────────────────────────────────────────── */
 
-    .node-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 12px;
-      margin-top: 12px;
-    }
-    .node-card {
+    .node {
       background: var(--bg-panel);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 12px 14px;
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin: 18px 0;
     }
-    .node-card h4 {
-      margin: 0 0 4px;
-      font-size: 13.5px;
+    .node h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
       font-weight: 600;
-      text-transform: none;
-      letter-spacing: 0;
       color: var(--text);
     }
-    .node-card p {
-      margin: 0;
-      font-size: 12.5px;
+    .node h4 {
+      margin: 12px 0 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
       color: var(--text-muted);
-      line-height: 1.45;
     }
-    .node-card .params {
+    .node p {
+      margin: 0 0 6px;
+      color: var(--text);
+    }
+    .node ul {
+      margin: 0 0 6px;
+      padding-left: 18px;
+    }
+    .node ul li {
+      margin-bottom: 3px;
+    }
+    .node.source { border-left: 3px solid var(--source); }
+    .node.filter { border-left: 3px solid var(--filter); }
+    .node.sink   { border-left: 3px solid var(--sink); }
+    .node.output { border-left: 3px solid var(--output); }
+
+    .port-name { font-family: "Consolas", "Menlo", monospace; color: var(--text); }
+    .param-name { font-family: "Consolas", "Menlo", monospace; color: var(--text); font-weight: 600; }
+
+    figure.diagram {
+      margin: 14px 0 18px;
+      padding: 10px 12px 6px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    figure.diagram svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    figure.diagram figcaption {
       margin-top: 6px;
-      font-size: 11.5px;
       color: var(--text-muted);
-      font-family: "Consolas", "Menlo", monospace;
+      font-size: 12px;
     }
-    .node-card.source { border-left: 3px solid var(--source); }
-    .node-card.filter { border-left: 3px solid var(--filter); }
-    .node-card.sink   { border-left: 3px solid var(--sink); }
-    .node-card.output { border-left: 3px solid var(--output); }
 
     /* ── Callouts ────────────────────────────────────────────────────── */
 
@@ -356,7 +380,7 @@
       <img src="images/stjörnhorn.png" alt="Stjörnhorn mascot">
       <div class="brand-text">
         <span class="brand-name">Stjörnhorn</span>
-        <span class="brand-version">v0.2.4 · Documentation</span>
+        <span class="brand-version">v0.3.0 · Documentation</span>
       </div>
     </div>
 
@@ -378,8 +402,11 @@
     <h3>Concepts</h3>
     <ul>
       <li><a href="#execution-model">Execution model</a></li>
+      <li><a href="#node-anatomy">Node anatomy</a></li>
       <li><a href="#data-types">Data types</a></li>
+      <li><a href="#io-meta">Frame metadata</a></li>
       <li><a href="#param-as-port">Param-as-port</a></li>
+      <li><a href="#held-inputs">Held inputs</a></li>
       <li><a href="#skipping">Skipping nodes</a></li>
     </ul>
 
@@ -392,8 +419,14 @@
       <li><a href="#nodes-transform">Transform</a></li>
       <li><a href="#nodes-processing">Processing</a></li>
       <li><a href="#nodes-temporal">Temporal</a></li>
+      <li><a href="#nodes-frequency">Frequency</a></li>
       <li><a href="#nodes-math">Math</a></li>
       <li><a href="#nodes-composit">Composit</a></li>
+      <li><a href="#nodes-data">Data</a></li>
+      <li><a href="#nodes-visualization">Visualization</a></li>
+      <li><a href="#nodes-streaming">Streaming</a></li>
+      <li><a href="#nodes-ui">UI</a></li>
+      <li><a href="#nodes-experimental">Experimental</a></li>
       <li><a href="#nodes-debug">Debug</a></li>
     </ul>
 
@@ -402,6 +435,7 @@
       <li><a href="#paths">File locations</a></li>
       <li><a href="#user-nodes">User-defined nodes</a></li>
       <li><a href="#shortcuts">Shortcuts</a></li>
+      <li><a href="https://github.com/beltoforion/stjornhorn">GitHub repository</a></li>
       <li><a href="#license">License</a></li>
     </ul>
   </nav>
@@ -409,7 +443,7 @@
   <main>
 
     <header class="hero">
-      <h1>Stjörnhorn <span class="version">v0.2.4</span></h1>
+      <h1>Stjörnhorn <span class="version">v0.3.0</span></h1>
       <div class="tagline">A node-based image- and video-processing playground for the desktop.</div>
     </header>
 
@@ -560,16 +594,56 @@
 
       <h3>Connecting nodes</h3>
       <ul>
-        <li>Drag from an output port (top of a node) to an input port
-          (bottom of another). The connection is only accepted if the
-          port types are compatible — e.g. an
-          <span class="pill image-grey">IMAGE_GREY</span> output may
-          feed an input that accepts greyscale.</li>
+        <li>Drag from an output port (top of a node) to an input
+          port (bottom of another). The connection is only accepted
+          if the port types are compatible — e.g. an
+          <em>Image (grey)</em> output may feed an input that
+          accepts greyscale.</li>
         <li>Drag an existing link off either end to remove it.</li>
-        <li>One output can drive many inputs; each input accepts exactly
-          one upstream.</li>
-        <li>Unconnected port circles are filled black; once connected,
-          the dot fills with the type colour.</li>
+        <li>One output can drive many inputs; each input accepts
+          exactly one upstream.</li>
+        <li>Unconnected port circles are filled black; once
+          connected, the dot fills with the type colour.</li>
+      </ul>
+
+      <h3>Port legend</h3>
+      <p>
+        A floating legend in the bottom-left of the canvas explains
+        the visual language of the ports. <em>View ▸ Port Legend</em>
+        toggles it; the small <kbd>✕</kbd> on the legend hides it
+        until the menu re-enables it.
+      </p>
+      <figure class="screenshot legend">
+        <img src="images/node_editor_legend.png" alt="Port legend overlay on the canvas">
+        <figcaption>Port type and role legend, anchored to the bottom-left of the canvas.</figcaption>
+      </figure>
+      <p>The legend covers two axes:</p>
+      <ul>
+        <li><strong>Port types</strong> — each
+          <a href="#data-types">data type</a> has its own colour.
+          Connections are accepted only when the output port's type
+          and the input port's accepted types overlap. An
+          unconnected port shows the colour as a thin ring around
+          an empty centre; a connected port fills with the colour.</li>
+        <li><strong>Port roles</strong> — the ring style tells you
+          how the port behaves:
+          <ul>
+            <li><em>Required input</em> — solid ring. The node
+              waits for data on this port before it can fire.</li>
+            <li><em>Optional input</em> — thin solid ring. The
+              node fires without waiting for this port. Leave it
+              dangling and the node uses its default; connect it
+              and it counts as required.</li>
+            <li><em>Latched input</em> — dashed ring. The port
+              keeps its last received value across frames. Useful
+              for pairing a one-shot source (an image, a CSV)
+              with a streaming clock — see
+              <a href="#held-inputs">Held inputs</a>.</li>
+            <li><em>Output</em> — small triangular glyph next to
+              the dot. One output can drive any number of inputs;
+              each input can be driven by at most one output.</li>
+          </ul>
+        </li>
       </ul>
 
       <h3>Toolbar — Flow section</h3>
@@ -667,133 +741,428 @@
     <section id="execution-model">
       <h2>Execution model</h2>
       <p>
-        Stjörnhorn uses a <strong>push-based dispatcher</strong>. There
-        is no central scheduler walking the graph — each port forwards
-        data to the next as soon as it has it.
+        Stjörnhorn is <strong>push-based</strong>. Sources produce
+        frames and push them downstream; each node fires as soon as
+        every input it needs has data. There is no central scheduler
+        walking the graph and no buffered queues between nodes — a
+        frame moves from source to sink in a single chain of calls.
       </p>
+
+      <h3>A linear flow</h3>
+      <p>
+        The simplest flow has one source, a few filters and a sink
+        in a straight line:
+      </p>
+      <figure class="diagram">
+        <svg viewBox="0 0 700 90" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Linear flow: Image Source through Grayscale and Invert into File Sink">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#9a9a9f"/>
+            </marker>
+          </defs>
+          <g font-family="Segoe UI, sans-serif" font-size="13" fill="#e0e0e0">
+            <rect x="10"  y="25" width="120" height="40" rx="6" fill="#2f2f33" stroke="#7fb6ee" stroke-width="2"/>
+            <text x="70"  y="50" text-anchor="middle">Image Source</text>
+            <rect x="170" y="25" width="120" height="40" rx="6" fill="#2f2f33" stroke="#7dd896" stroke-width="2"/>
+            <text x="230" y="50" text-anchor="middle">Grayscale</text>
+            <rect x="330" y="25" width="120" height="40" rx="6" fill="#2f2f33" stroke="#7dd896" stroke-width="2"/>
+            <text x="390" y="50" text-anchor="middle">Invert</text>
+            <rect x="490" y="25" width="120" height="40" rx="6" fill="#2f2f33" stroke="#e8a86b" stroke-width="2"/>
+            <text x="550" y="50" text-anchor="middle">File Sink</text>
+            <line x1="130" y1="45" x2="170" y2="45" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <line x1="290" y1="45" x2="330" y2="45" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <line x1="450" y1="45" x2="490" y2="45" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow)"/>
+          </g>
+        </svg>
+        <figcaption>Image Source → Grayscale → Invert → File Sink. Each frame walks the chain in order.</figcaption>
+      </figure>
+
+      <h3>Many inputs, one trigger</h3>
+      <p>
+        A node with several inputs (e.g. <em>Mosaic</em>,
+        <em>Masked Blend</em>, <em>RGBA Join</em>) only fires once
+        every required input has received data for the current
+        frame:
+      </p>
+      <figure class="diagram">
+        <svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Multi-input flow: two sources fan into Masked Blend">
+          <defs>
+            <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#9a9a9f"/>
+            </marker>
+          </defs>
+          <g font-family="Segoe UI, sans-serif" font-size="13" fill="#e0e0e0">
+            <rect x="10"  y="20"  width="140" height="40" rx="6" fill="#2f2f33" stroke="#7fb6ee" stroke-width="2"/>
+            <text x="80"  y="45" text-anchor="middle">Image Source A</text>
+            <rect x="10"  y="70"  width="140" height="40" rx="6" fill="#2f2f33" stroke="#7fb6ee" stroke-width="2"/>
+            <text x="80"  y="95" text-anchor="middle">Image Source B</text>
+            <rect x="10"  y="120" width="140" height="40" rx="6" fill="#2f2f33" stroke="#7fb6ee" stroke-width="2"/>
+            <text x="80"  y="145" text-anchor="middle">Gradient Source</text>
+            <rect x="240" y="65"  width="160" height="40" rx="6" fill="#2f2f33" stroke="#7dd896" stroke-width="2"/>
+            <text x="320" y="90" text-anchor="middle">Masked Blend</text>
+            <rect x="450" y="65"  width="120" height="40" rx="6" fill="#2f2f33" stroke="#d39ee8" stroke-width="2"/>
+            <text x="510" y="90" text-anchor="middle">Display</text>
+            <line x1="150" y1="40"  x2="240" y2="80" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow2)"/>
+            <line x1="150" y1="90"  x2="240" y2="85" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow2)"/>
+            <line x1="150" y1="140" x2="240" y2="100" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow2)"/>
+            <line x1="400" y1="85"  x2="450" y2="85" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow2)"/>
+          </g>
+        </svg>
+        <figcaption>Masked Blend fires once per frame, after all three inputs (base, overlay, mask) have arrived.</figcaption>
+      </figure>
+
+      <h3>One source, many consumers</h3>
+      <p>
+        An output can drive any number of inputs (fan-out). Each
+        downstream consumer gets the same frame and runs
+        independently:
+      </p>
+      <figure class="diagram">
+        <svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fan-out: one source feeds three different filters">
+          <defs>
+            <marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#9a9a9f"/>
+            </marker>
+          </defs>
+          <g font-family="Segoe UI, sans-serif" font-size="13" fill="#e0e0e0">
+            <rect x="10"  y="65" width="140" height="40" rx="6" fill="#2f2f33" stroke="#7fb6ee" stroke-width="2"/>
+            <text x="80"  y="90" text-anchor="middle">Video Source</text>
+            <rect x="240" y="20"  width="120" height="40" rx="6" fill="#2f2f33" stroke="#7dd896" stroke-width="2"/>
+            <text x="300" y="45" text-anchor="middle">Grayscale</text>
+            <rect x="240" y="70"  width="120" height="40" rx="6" fill="#2f2f33" stroke="#7dd896" stroke-width="2"/>
+            <text x="300" y="95" text-anchor="middle">Gaussian Blur</text>
+            <rect x="240" y="120" width="120" height="40" rx="6" fill="#2f2f33" stroke="#7dd896" stroke-width="2"/>
+            <text x="300" y="145" text-anchor="middle">Invert</text>
+            <rect x="430" y="65"  width="120" height="40" rx="6" fill="#2f2f33" stroke="#d39ee8" stroke-width="2"/>
+            <text x="490" y="90" text-anchor="middle">Mosaic</text>
+            <line x1="150" y1="85" x2="240" y2="40" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow3)"/>
+            <line x1="150" y1="85" x2="240" y2="90" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow3)"/>
+            <line x1="150" y1="85" x2="240" y2="140" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow3)"/>
+            <line x1="360" y1="40" x2="430" y2="80" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow3)"/>
+            <line x1="360" y1="90" x2="430" y2="85" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow3)"/>
+            <line x1="360" y1="140" x2="430" y2="90" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow3)"/>
+          </g>
+        </svg>
+        <figcaption>Fan-out from one Video Source into three filters, recombined by Mosaic.</figcaption>
+      </figure>
+
+      <h3>Streaming clocks and held inputs</h3>
+      <p>
+        When a one-shot source (an image, a CSV) feeds into a node
+        alongside a streaming source (a Range Source counter, a
+        Video Source), the one-shot input can be marked
+        <em>held</em> — it remembers its single value and reuses it
+        across every tick of the clock:
+      </p>
+      <figure class="diagram">
+        <svg viewBox="0 0 700 130" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Held image plus Range Source clock drives Repeat into a per-tick File Sink">
+          <defs>
+            <marker id="arrow4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#9a9a9f"/>
+            </marker>
+          </defs>
+          <g font-family="Segoe UI, sans-serif" font-size="13" fill="#e0e0e0">
+            <rect x="10"  y="15" width="140" height="40" rx="6" fill="#2f2f33" stroke="#7fb6ee" stroke-width="2"/>
+            <text x="80"  y="40" text-anchor="middle">Image Source</text>
+            <rect x="10"  y="75" width="140" height="40" rx="6" fill="#2f2f33" stroke="#7fb6ee" stroke-width="2"/>
+            <text x="80"  y="100" text-anchor="middle">Range Source</text>
+            <rect x="240" y="45" width="120" height="40" rx="6" fill="#2f2f33" stroke="#7dd896" stroke-width="2"/>
+            <text x="300" y="70" text-anchor="middle">Repeat</text>
+            <rect x="430" y="45" width="120" height="40" rx="6" fill="#2f2f33" stroke="#e8a86b" stroke-width="2"/>
+            <text x="490" y="70" text-anchor="middle">File Sink</text>
+            <line x1="150" y1="35"  x2="240" y2="60" stroke="#9a9a9f" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow4)"/>
+            <line x1="150" y1="95"  x2="240" y2="70" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow4)"/>
+            <line x1="360" y1="65"  x2="430" y2="65" stroke="#9a9a9f" stroke-width="1.5" marker-end="url(#arrow4)"/>
+            <text x="160" y="22" font-size="11" fill="#9a9a9f">held</text>
+            <text x="160" y="115" font-size="11" fill="#9a9a9f">clock</text>
+          </g>
+        </svg>
+        <figcaption>One image, many writes. The dashed wire is the held input — the same image fires once per tick, with the counter value stamped onto each output frame so File Sink's <code>$value$</code> template writes <code>frame_001.png</code>, <code>frame_002.png</code>, …</figcaption>
+      </figure>
+
+      <p>
+        The flow runs on a background thread so the UI stays
+        responsive; the currently-executing node is highlighted
+        live in the editor as the data marches through the graph.
+      </p>
+    </section>
+
+    <section id="node-anatomy">
+      <h2>Node anatomy</h2>
+      <p>
+        A node is a coloured box on the canvas with three kinds of
+        slots: outputs at the top, inputs at the bottom, and
+        parameters between them. Outputs produce values, inputs
+        consume values, parameters configure how the node behaves
+        each frame. Connections are made by dragging from an output
+        socket on one node to an input socket on another.
+      </p>
+
+      <h3>Three kinds of node</h3>
       <ul>
-        <li>A source's <code>start()</code> calls
-          <code>process_impl()</code>, which pushes
-          <code>IoData</code> onto its output ports.</li>
-        <li>Each <code>OutputPort.send()</code> forwards the payload to
-          every connected input port.</li>
-        <li>An input port notifies its owner node via an internal
-          <code>_signal_input_ready()</code> hook.</li>
-        <li>Once every waited-on input has data, the node's
-          <code>process()</code> fires and the inputs are cleared so
-          the node is ready for the next frame.</li>
-        <li>Stream lifetime is a separate signal:
-          <code>OutputPort.finish()</code> marks an output as done and
-          propagates downstream, so sinks know when to flush and
-          close.</li>
+        <li><strong>Sources</strong> have outputs but no inputs.
+          They feed data into the flow — load an image, decode a
+          video file, walk a directory, generate a numeric ramp.</li>
+        <li><strong>Filters</strong> have both inputs and outputs.
+          They transform data — blur a frame, project a dataset,
+          plot a curve, blend two images.</li>
+        <li><strong>Sinks</strong> have inputs but no outputs. They
+          consume data as a side effect — write a file, encode a
+          video.</li>
       </ul>
       <p>
-        Flow runs execute on a Qt worker thread (<code>FlowRunner</code>)
-        so the UI stays responsive. The currently-executing node is
-        surfaced live in the editor via a queued signal, so you can
-        see processing march through the graph.
+        Each kind is colour-coded with a coloured stripe on the
+        left of its node body in the editor.
+      </p>
+
+      <p>
+        Each input and output port carries a colour for its data
+        type and a ring style for its role (required, optional,
+        latched). The full visual key — together with a
+        screenshot of the on-canvas legend — is in
+        <a href="#node-editor">Node editor ▸ Port legend</a>.
+      </p>
+
+      <h3>Parameters</h3>
+      <p>
+        Each parameter on a node is rendered as an inline widget on
+        the node body — a spin box, slider, checkbox, drop-down or
+        path picker — and comes in one of two flavours:
+      </p>
+      <ul>
+        <li><strong>Port parameters</strong> sit on an input row
+          with a socket dot next to the widget. Type a value into
+          the widget to use it as a literal; or wire any compatible
+          source into the socket and the streamed value drives the
+          parameter per frame. When the port is driven, the inline
+          widget is greyed out — the upstream wins until you
+          disconnect it. See <a href="#param-as-port">Param-as-port</a>.</li>
+        <li><strong>Constant parameters</strong> sit between the
+          output and input rows with no socket dot, rendered with
+          an italic caption. They configure the node once and are
+          not drivable from upstream — file paths on sources, the
+          codec on a video sink, the layout descriptor on Mosaic.</li>
+      </ul>
+
+      <h3>Reading the node body</h3>
+      <p>
+        Reading a node from top to bottom: name and the small
+        <kbd>×</kbd> close button at the top, then output sockets
+        (with the type colour and the output glyph), then any
+        constant parameters in italic, then input sockets with their
+        inline parameter widgets at the bottom. A diagonal grip in
+        the bottom-right resizes the node — drag wider and every
+        inline widget grows along with the body.
       </p>
     </section>
 
     <section id="data-types">
       <h2>Data types</h2>
-      <p>Every value flowing across a port is wrapped in an
-      <code>IoData</code> envelope discriminated by an
-      <code>IoDataType</code>:</p>
+      <p>
+        Every connection in a flow carries one of nine data types.
+        The legend on the canvas shows the colour for each. A
+        connection is accepted only when the output's type matches
+        one of the input's accepted types.
+      </p>
       <table>
         <thead>
-          <tr><th>Type</th><th>Payload</th><th>Used for</th></tr>
+          <tr><th>Type</th><th>Carries</th><th>Used for</th></tr>
         </thead>
         <tbody>
           <tr>
-            <td><span class="pill image">IMAGE</span></td>
-            <td>3-D <code>uint8</code> array (H × W × 3, BGR)</td>
-            <td>Colour frames.</td>
+            <td><span class="pill image">Image</span></td>
+            <td>A colour frame (BGR).</td>
+            <td>Photos, video frames, colour output of filters.</td>
           </tr>
           <tr>
-            <td><span class="pill image-grey">IMAGE_GREY</span></td>
-            <td>2-D <code>uint8</code> array (H × W)</td>
-            <td>Single-channel images, masks, binary output.</td>
+            <td><span class="pill image-grey">Image (grey)</span></td>
+            <td>A single-channel image.</td>
+            <td>Masks, FFT magnitudes, NCC scores, dither output, individual colour channels.</td>
           </tr>
           <tr>
-            <td><span class="pill scalar">SCALAR</span></td>
-            <td>0-d numpy array</td>
-            <td>Numeric streams that drive parameters (counters, ramps).</td>
+            <td><span class="pill scalar">Scalar</span></td>
+            <td>A single numeric value.</td>
+            <td>Counters, ramps, expression results — anything that drives a numeric parameter.</td>
           </tr>
           <tr>
-            <td><span class="pill matrix">MATRIX</span></td>
-            <td>2-D numpy array, arbitrary dtype</td>
-            <td>Transformations, kernels, intermediate stats.</td>
+            <td><span class="pill matrix">Matrix</span></td>
+            <td>A 2-D numerical array of arbitrary type.</td>
+            <td>Complex FFT spectra, transformation matrices, intermediate analytics that aren't images.</td>
           </tr>
           <tr>
-            <td><span class="pill bool">BOOL</span></td>
-            <td>Python <code>bool</code></td>
-            <td>Switches and toggles on params.</td>
+            <td><span class="pill matrix">Dataset</span></td>
+            <td>Labeled tabular data (rows × named columns).</td>
+            <td>Seismic traces, CV curves, I-V sweeps, spectra — anything you'd plot with a plotter or feed through CSV.</td>
           </tr>
           <tr>
-            <td><span class="pill string">STRING</span></td>
-            <td>Python <code>str</code></td>
-            <td>Text-valued params.</td>
+            <td><span class="pill bool">Bool</span></td>
+            <td>True / false.</td>
+            <td>Drives boolean parameters.</td>
           </tr>
           <tr>
-            <td><span class="pill enum">ENUM</span></td>
-            <td><code>IntEnum</code> member or <code>int</code></td>
-            <td>Selectors (interpolation, codec, dither method).</td>
+            <td><span class="pill string">String</span></td>
+            <td>Text.</td>
+            <td>Drives text-valued parameters (notification messages, column-name lists).</td>
           </tr>
           <tr>
-            <td><span class="pill path">PATH</span></td>
-            <td><code>pathlib.Path</code></td>
-            <td>File / folder params.</td>
+            <td><span class="pill enum">Enum</span></td>
+            <td>A selection from a fixed list.</td>
+            <td>Interpolation methods, dither algorithms, video codecs.</td>
+          </tr>
+          <tr>
+            <td><span class="pill path">Path</span></td>
+            <td>A file or folder path.</td>
+            <td>Drives file-path parameters.</td>
           </tr>
         </tbody>
       </table>
       <p>
-        <code>IMAGE</code> and <code>IMAGE_GREY</code> together make up
-        the <em>image-typed</em> set: filters that work on either (e.g.
-        Median, Scale, Shift) declare their input as accepting both,
-        and pass-through helpers preserve the type with
-        <code>IoData.with_image()</code>.
+        Many filters accept either <em>Image</em> or
+        <em>Image (grey)</em> on the same input — Median, Scale,
+        Shift, Rotate, Flip, Invert, Normalize, etc. — and
+        emit whichever they received, preserving the colour space.
+      </p>
+    </section>
+
+    <section id="io-meta">
+      <h2>Frame metadata</h2>
+      <p>
+        Each value travelling between nodes carries a small bag of
+        side metadata along with the payload. You don't usually see
+        it, but two surfaces let you read it: the
+        <em>Meta Inspector</em> debug node prints every key for the
+        frame it sees, and the <em>File Sink</em> /
+        <em>Video Sink</em> filename templates can reference any
+        metadata key as <code>$key$</code> to build per-frame
+        output paths.
+      </p>
+      <p>
+        Some keys are stamped automatically — you don't need to
+        wire anything up:
+      </p>
+      <table>
+        <thead><tr><th>Key</th><th>Stamped by</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>frame_index</code></td>
+            <td>Every output port</td>
+            <td>Per-output frame counter, starting at 0 on each run.</td>
+          </tr>
+          <tr>
+            <td><code>source_path</code></td>
+            <td><em>Image Source</em>, <em>CSV Source</em>, <em>Directory Source</em></td>
+            <td>Path the frame was loaded from. Filename templates also expand <code>$source_stem$</code>, <code>$source_name$</code> and <code>$source_ext$</code> from this.</td>
+          </tr>
+          <tr>
+            <td><em>(scalar input names)</em></td>
+            <td>Any node with a Scalar input port</td>
+            <td>The current value of every Scalar input on the emitting node is stamped under its port name. So if a filter has a Scalar input called <code>tick</code>, every frame it emits carries <code>tick</code> in its metadata, and a downstream sink can use <code>$tick$</code> in its filename template.</td>
+          </tr>
+          <tr>
+            <td><code>window_start</code> / <code>window_end</code></td>
+            <td><em>Sliding Window</em></td>
+            <td>Row indices of the current window. <em>Plot Series</em> reads these to draw a moving band overlay across panels.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Dataset-side metadata</h3>
+      <p>
+        Dataset payloads also carry a parallel set of named
+        attributes alongside the data table itself. Source nodes
+        and analytic filters use these conventions; visualisation
+        nodes read them when present.
+      </p>
+      <table>
+        <thead><tr><th>Attribute</th><th>Set / read by</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>source_path</code></td>
+            <td><em>CSV Source</em> sets it; plotters read it.</td>
+            <td>The CSV file the dataset was loaded from.</td>
+          </tr>
+          <tr>
+            <td><code>units</code></td>
+            <td><em>Directional Projection</em> sets it; <em>Plot XY</em>, <em>Plot Series</em> and <em>Hodogram</em> read it.</td>
+            <td>A per-column unit string used as an axis label suffix.</td>
+          </tr>
+          <tr>
+            <td><code>sample_rate</code></td>
+            <td>Carried forward through every dataset filter.</td>
+            <td>Sample rate in Hz. Set <code>step = 1 / sample_rate</code> on <em>Add Index Column</em> or <em>Plot Series</em> for a seconds axis.</td>
+          </tr>
+          <tr>
+            <td><code>thetas_rad</code></td>
+            <td><em>Directional Projection</em> sets it; <em>Polar Heatmap</em> reads it.</td>
+            <td>The radial angle each column corresponds to, so polar visualisers don't have to parse column names.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        See the <em>File Sink</em> entry for the full filename
+        template syntax, including width-padding (<code>$frame_index:4$</code>
+        produces <code>0001</code>, <code>0002</code>, …).
       </p>
     </section>
 
     <section id="param-as-port">
       <h2>Param-as-port</h2>
       <p>
-        Every editable property on a node is a <strong>socket</strong>
-        (Blender-style). Numeric, boolean, enum, and path params have
-        inline widgets right next to their socket dots. Wire any
-        compatible value source into a param port and the streamed
-        value drives that param per frame; leave it unconnected and
-        the inline widget acts as the literal value.
+        Every numeric, boolean, enum, string and path parameter on a
+        node is also a port. Type a value into the inline widget to
+        use it as a literal; or wire any source of the matching type
+        into the port's socket and the streamed value drives the
+        parameter once per frame.
       </p>
       <p>
-        On every <code>process()</code> call, the framework writes any
-        connected input port's current value into the matching
-        <code>self._&lt;port_name&gt;</code> attribute and restores the
-        user-set value afterwards. As a result, a node's
-        <code>process_impl()</code> can read its parameters uniformly
-        with no per-port "is this connected?" branch.
+        While the port is connected, the inline widget is greyed
+        out — the upstream wins. Disconnect the wire and the widget
+        becomes editable again, retaining whatever value you last
+        typed.
       </p>
       <p>
-        When a port is driven, the inline widget for that param is
-        greyed out — the upstream wins until you disconnect it.
+        Typical use: connect a <em>Range Source</em> to the
+        <em>Overlay</em> node's <em>angle</em> port to animate a
+        rotation over a video, or to the <em>xpos</em> port to
+        slide an overlay across the frame.
+      </p>
+    </section>
+
+    <section id="held-inputs">
+      <h2>Held inputs</h2>
+      <p>
+        Some inputs keep the last value they received and reuse it
+        across later frames. They render with a <strong>dashed
+        ring</strong> around the socket dot.
+      </p>
+      <p>
+        The pattern is "one piece of reference data plus a streaming
+        clock". <em>Repeat</em> uses it on its <em>data</em> input so
+        a single still image or CSV survives across every tick of
+        its <em>tick</em> clock. <em>Sliding Window</em> uses it on
+        its <em>dataset</em> input so a one-shot dataset stays alive
+        while a streaming counter walks the window across it.
+      </p>
+      <p>
+        A held input does not by itself end the run when its source
+        finishes — only the streaming (non-held) inputs drive the
+        end of the flow.
       </p>
     </section>
 
     <section id="skipping">
       <h2>Skipping nodes</h2>
       <p>
-        Nodes have a Blender-style <em>mute</em> mode: a skipped node
-        forwards each output from the first type-compatible input,
-        bypassing its own logic. Useful for A/B-comparing a flow with
-        and without a filter without rewiring.
+        Right-click a filter and choose <em>Skip</em> to bypass it
+        without removing the connections: the node's input is
+        forwarded straight to its output, as if the node were
+        replaced by a wire. Useful for A/B-comparing a flow with
+        and without a filter.
       </p>
       <p>
-        A node is <code>is_skippable</code> if at least one of its
-        inputs has a type-compatible match among its outputs. Sources
-        (no inputs) and sinks (no outputs) are never skippable.
-        Param-style ports are naturally invisible to skip detection,
-        so adding more of them never breaks a node's skippability.
+        Skip is only available when at least one input and one
+        output of the node share a compatible type. Sources (no
+        inputs) and sinks (no outputs) cannot be skipped.
       </p>
     </section>
 
@@ -802,328 +1171,1165 @@
     <section id="nodes-sources">
       <h2>Sources</h2>
       <p>
-        Sources have outputs only — they produce data and drive the
-        graph. <em>Reactive</em> sources emit a single value, so the
-        editor latches their output across runs (handy for still
-        images that stay constant while a video stream pumps frames).
+        Sources have outputs only — they feed data into the flow.
+        <strong>Reactive</strong> sources emit once per run and
+        re-fire automatically when any parameter changes, so still
+        images and constants update live as you tweak knobs.
+        <strong>Streaming</strong> sources push one frame at a time
+        and only run when you press <strong>Run</strong>.
       </p>
-      <div class="node-grid">
-        <div class="node-card source">
-          <h4>Image Source</h4>
-          <p>Reads a single still image (JPEG, PNG, WebP, CR2 RAW)
-            from disk and pushes it into the flow. Reactive.</p>
-          <div class="params">file_path</div>
-        </div>
-        <div class="node-card source">
-          <h4>Video Source</h4>
-          <p>Decodes frames from a video file (MP4, AVI, MOV, MKV)
-            and streams them through the graph. Triggered only by
-            <strong>Run</strong>.</p>
-          <div class="params">file_path · max_num_frames</div>
-        </div>
-        <div class="node-card source">
-          <h4>Directory Source</h4>
-          <p>Streams every image in a folder as frames, sorted
-            lexicographically. Optional recursive walk.</p>
-          <div class="params">directory · include_subdirectories</div>
-        </div>
-        <div class="node-card source">
-          <h4>Range Source</h4>
-          <p>Numeric range source emitting one
-            <span class="pill scalar">SCALAR</span> per frame.
-            Wire into a Display to watch the value live, or into a
-            param port to ramp it across a stream.</p>
-          <div class="params">min_value · max_value · increment · loop</div>
-        </div>
-        <div class="node-card source">
-          <h4>Constant Value</h4>
-          <p>Emits a single <span class="pill scalar">SCALAR</span>
-            (latched on streaming consumers). Use as a fixed factor
-            or offset feeding into <em>Math</em> without spinning up
-            a second Range Source.</p>
-          <div class="params">value</div>
-        </div>
+
+      <div class="node source">
+        <h3 id="node-image-source">Image Source</h3>
+        <p>
+          Reads a single still image from disk and pushes it into
+          the flow. Reactive: any parameter change re-runs the
+          flow. The path the image came from is stamped on each
+          frame's metadata under <code>source_path</code>, so
+          downstream sinks can use <code>$source_stem$</code> in
+          their filename templates.
+        </p>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">image</span> — <em>Image</em>. The decoded picture.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">file_path</span> — path to a JPEG, PNG, WebP or CR2 (RAW) file. Paths inside the app's input folder are stored relative to it so saved flows port across machines.</li>
+        </ul>
+      </div>
+
+      <div class="node source">
+        <h3 id="node-video-source">Video Source</h3>
+        <p>
+          Decodes frames from a video file and streams them through
+          the graph. Not reactive — runs only when you press Run,
+          to avoid restarting long decodes on every keystroke.
+          Frame count is shown as a badge in the node header once
+          the file has been probed.
+        </p>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">image</span> — <em>Image</em>. One BGR frame at a time.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">file_path</span> — path to an MP4, AVI, MOV or MKV file.</li>
+          <li><span class="param-name">max_num_frames</span> — cap on the number of frames decoded. <code>-1</code> means the whole stream.</li>
+        </ul>
+      </div>
+
+      <div class="node source">
+        <h3 id="node-directory-source">Directory Source</h3>
+        <p>
+          Streams every readable image in a folder as a sequence of
+          frames, sorted by file name. Useful as a "video out of a
+          folder of stills" fixture. Each emitted frame carries the
+          originating file's <code>source_path</code> in its
+          metadata, so a downstream File Sink template can
+          reference <code>$source_stem$</code> to write
+          per-input-image output paths.
+        </p>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">image</span> — <em>Image</em>. One file per frame.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">directory</span> — folder to walk.</li>
+          <li><span class="param-name">include_subdirectories</span> — when on, walks the folder recursively. When off, only the top level is read.</li>
+        </ul>
+      </div>
+
+      <div class="node source">
+        <h3 id="node-csv-source">CSV Source</h3>
+        <p>
+          Reads a CSV file as a <em>Dataset</em>. Lines starting with
+          <code>#</code> are skipped automatically, so files with a
+          metadata header (seismic ASCII traces, gnuplot output,
+          instrument logs) load without extra setup. Reactive: any
+          parameter change re-runs the flow. The originating file
+          is stamped both on the frame metadata and on the
+          dataset's own attribute table under <code>source_path</code>.
+        </p>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">dataset</span> — <em>Dataset</em>. Each CSV column becomes a column in the dataset.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">file_path</span> — path to the CSV / TXT file.</li>
+          <li><span class="param-name">has_header</span> — when on, the first non-comment line names the columns; when off, columns are auto-named <code>c0</code>, <code>c1</code>, …</li>
+          <li><span class="param-name">delimiter</span> — column separator. Use <code>\t</code> to mean a tab character.</li>
+        </ul>
+      </div>
+
+      <div class="node source">
+        <h3 id="node-gradient-source">Gradient Source</h3>
+        <p>
+          Generates a single-channel greyscale gradient image. Use
+          as a procedural mask for <em>Masked Blend</em> —
+          tilt-shift, vignette, cross-fade — without shipping a
+          hand-painted PNG. Reactive.
+        </p>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">image</span> — <em>Image (grey)</em>. Width × height greyscale image.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">width</span> / <span class="param-name">height</span> — output image size in pixels.</li>
+          <li><span class="param-name">direction</span> — <em>Vertical</em>, <em>Horizontal</em> or <em>Radial</em> (centre-outward).</li>
+          <li><span class="param-name">mode</span> — <em>Symmetric</em> (0 in the middle, 255 at both ends — vignette, tilt-shift) or <em>Linear</em> (0 → 255, one-sided cross-fade). Ignored for radial direction.</li>
+          <li><span class="param-name">band_width</span> — width of the central plateau, 0..1. Higher values keep more of the image at the maximum.</li>
+        </ul>
+      </div>
+
+      <div class="node source">
+        <h3 id="node-range-source">Range Source</h3>
+        <p>
+          Emits a numeric range, one value per frame. Drives
+          downstream parameters — animate an Overlay angle, a Math
+          expression input, a counter for File Sink templating.
+          Whole-number increments emit integers; fractional
+          increments emit floats. Streaming.
+        </p>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">value</span> — <em>Scalar</em>. One number per frame.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">min_value</span> / <span class="param-name">max_value</span> — inclusive bounds of the emitted sequence.</li>
+          <li><span class="param-name">increment</span> — step between consecutive values. Must be positive.</li>
+        </ul>
+      </div>
+
+      <div class="node source">
+        <h3 id="node-constant-value">Constant Value</h3>
+        <p>
+          Emits a single number. Reactive. Use as a fixed factor or
+          offset feeding into <em>Math</em>, or to drive any
+          numeric parameter from a single editable knob without
+          spinning up a Range Source.
+        </p>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">value</span> — <em>Scalar</em>.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">value</span> — the number to emit.</li>
+        </ul>
       </div>
     </section>
 
     <section id="nodes-output">
       <h2>Output</h2>
-      <div class="node-grid">
-        <div class="node-card output">
-          <h4>Display</h4>
-          <p>Pass-through node that renders each frame inline in its
-            own node body via a live preview. Drop it anywhere in a
-            flow to watch frames flow through. Resize the node to
-            grow the preview. Renders SCALAR / MATRIX payloads as
-            text — the inline preview <em>is</em> the result, no
-            sink required. Image previews show an
-            exponentially-smoothed FPS read-out in the corner.</p>
-        </div>
+
+      <div class="node output">
+        <h3 id="node-display">Display</h3>
+        <p>
+          A pass-through node that shows each frame inline inside
+          its own body via a live preview. Drop it anywhere in a
+          flow to watch the data flow through; resize the node body
+          to grow the preview. Accepts images, scalars and
+          matrices — scalars and matrices render as text, so the
+          inline preview <em>is</em> the result for those payload
+          kinds. Image previews show a smoothed FPS read-out in
+          the corner.
+        </p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">image</span> — <em>Image</em>, <em>Image (grey)</em>, <em>Scalar</em> or <em>Matrix</em>.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">image</span> — same payload, passed through unchanged.</li>
+        </ul>
       </div>
     </section>
 
     <section id="nodes-sinks">
       <h2>Sinks</h2>
       <p>
-        Sinks have inputs only — they consume data as a side effect
-        (writing to a file, encoding a video) and don't propagate
-        further. Sinks are <strong>optional</strong>: a flow that ends
-        at a Display node runs without one.
+        Sinks consume data as a side effect — writing a file,
+        encoding a video — and do not propagate further. A flow
+        that ends at a <em>Display</em> node runs fine without one.
       </p>
-      <div class="node-grid">
-        <div class="node-card sink">
-          <h4>File Sink</h4>
-          <p>Writes the incoming frame to disk at a configurable
-            path. Paths under the app's output folder are stored
-            relative to it so saved flows stay portable. An eye
-            button next to the path opens the written file in the OS
-            default image viewer.</p>
-          <div class="params">file_path</div>
-        </div>
-        <div class="node-card sink">
-          <h4>Video Sink</h4>
-          <p>Encodes incoming frames to a video file via
-            <code>cv2.VideoWriter</code>. The writer opens lazily on
-            the first frame (dimensions inferred from the data),
-            frames are written as they arrive, and the container is
-            finalised when the runner signals end-of-stream.
-            Greyscale inputs are promoted to BGR automatically.</p>
-          <div class="params">output_path · fps · codec (MP4V / XVID)</div>
-        </div>
+
+      <div class="node sink">
+        <h3 id="node-file-sink">File Sink</h3>
+        <p>
+          Writes each incoming frame to disk. The path is a filename
+          template that expands placeholders against the frame's
+          metadata, so a single sink can write a whole sequence of
+          numbered files.
+        </p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">output_path</span> — destination path. May contain <code>$token$</code> placeholders that expand at write time:
+            <ul>
+              <li><code>$frame_index$</code> — the per-frame counter.</li>
+              <li><code>$source_stem$</code>, <code>$source_name$</code>, <code>$source_ext$</code> — the originating file (when the frame came from <em>Image Source</em>, <em>Directory Source</em> or <em>CSV Source</em>).</li>
+              <li><code>$flow_name$</code> — the saved name of the flow.</li>
+              <li>Any <em>Scalar</em> port value that an upstream filter stamped — see <a href="#io-meta">Frame metadata</a>.</li>
+            </ul>
+            Width syntax <code>$tok:N$</code> zero-pads numeric values, e.g. <code>frame_$frame_index:4$.png</code> writes <code>frame_0001.png</code>, <code>frame_0002.png</code>, … With no placeholders the file is overwritten on every frame.</li>
+        </ul>
+        <p>
+          An eye button next to the path opens the most recently
+          written file in the OS default image viewer.
+        </p>
+      </div>
+
+      <div class="node sink">
+        <h3 id="node-video-sink">Video Sink</h3>
+        <p>
+          Encodes incoming frames into a video file. The encoder
+          opens on the first frame (dimensions are taken from the
+          data), every later frame must match its shape, and the
+          container is finalised when the upstream stream ends.
+          Greyscale inputs are promoted to BGR automatically.
+        </p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">output_path</span> — destination path. Filename tokens are resolved from the first frame's metadata (per-frame tokens like <code>$frame_index$</code> aren't useful here — for per-frame paths, use <em>File Sink</em> instead).</li>
+          <li><span class="param-name">fps</span> — frame rate written into the container header.</li>
+          <li><span class="param-name">codec</span> — <em>MP4V</em> (default) or <em>XVID</em>.</li>
+        </ul>
       </div>
     </section>
 
     <section id="nodes-color">
       <h2>Color Spaces</h2>
-      <div class="node-grid">
-        <div class="node-card filter">
-          <h4>Grayscale</h4>
-          <p>Converts a BGR colour image to a single-channel
-            greyscale image
-            (<code>cv2.cvtColor(..., COLOR_BGR2GRAY)</code>).</p>
-        </div>
-        <div class="node-card filter">
-          <h4>RGBA Split</h4>
-          <p>Splits an image into its single-channel components
-            (<strong>B</strong>, <strong>G</strong>,
-            <strong>R</strong>, optional <strong>A</strong>) so each
-            channel can be processed independently.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>RGBA Join</h4>
-          <p>Merges single-channel inputs back into a single
-            multi-channel image. The alpha input is optional —
-            connect it for an RGBA output, leave it open for BGR.</p>
-        </div>
+      <p>
+        Convert images between colour spaces or split them into
+        per-channel greyscale planes for independent processing,
+        then merge back.
+      </p>
+
+      <div class="node filter">
+        <h3 id="node-grayscale">Grayscale</h3>
+        <p>Converts a colour image to single-channel greyscale.</p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image (grey)</em>.</li></ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-rgba-split">RGBA Split</h3>
+        <p>
+          Splits a colour image into its four channels. Plain
+          (non-alpha) inputs produce a fully-opaque alpha plane so
+          downstream nodes always see a well-defined alpha output.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">B</span> / <span class="port-name">G</span> / <span class="port-name">R</span> / <span class="port-name">A</span> — <em>Image (grey)</em>, one per channel.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-rgba-join">RGBA Join</h3>
+        <p>
+          Merges single-channel inputs into a colour image. The
+          alpha input is optional: connect it for a BGRA output;
+          leave it open for plain BGR. Pixel-exact inverse of
+          <em>RGBA Split</em>.
+        </p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">B</span> / <span class="port-name">G</span> / <span class="port-name">R</span> — <em>Image (grey)</em>, required.</li>
+          <li><span class="port-name">A</span> — <em>Image (grey)</em>, optional. When connected, the output carries the alpha channel.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-hsv-split">HSV Split</h3>
+        <p>
+          Splits a colour image into its HSV components. Hue uses
+          the full 0..255 range so <em>HSV Join</em> round-trips
+          back exactly. BGRA inputs drop the alpha channel; HSV has
+          no alpha.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">H</span> / <span class="port-name">S</span> / <span class="port-name">V</span> — <em>Image (grey)</em>, one per channel.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-hsv-join">HSV Join</h3>
+        <p>Inverse of <em>HSV Split</em>. Merges H, S, V planes back into a colour image.</p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">H</span> / <span class="port-name">S</span> / <span class="port-name">V</span> — <em>Image (grey)</em>.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-hsl-split">HSL Split</h3>
+        <p>Same as HSV Split, but using the HSL colour model.</p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">H</span> / <span class="port-name">S</span> / <span class="port-name">L</span> — <em>Image (grey)</em>.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-hsl-join">HSL Join</h3>
+        <p>Inverse of <em>HSL Split</em>.</p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">H</span> / <span class="port-name">S</span> / <span class="port-name">L</span> — <em>Image (grey)</em>.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
       </div>
     </section>
 
     <section id="nodes-transform">
       <h2>Transform</h2>
-      <div class="node-grid">
-        <div class="node-card filter">
-          <h4>Scale</h4>
-          <p>Resizes by a percentage factor (<code>scale_percent</code>,
-            100 = no change). Interpolation is selectable: Nearest,
-            Linear, Cubic, Area, Lanczos4.</p>
-          <div class="params">scale_percent · interpolation</div>
-        </div>
-        <div class="node-card filter">
-          <h4>Shift</h4>
-          <p>Translates by integer pixel offsets. Output keeps the
-            original canvas size; pixels that move off-frame are
-            dropped, newly exposed areas are black.</p>
-          <div class="params">offset_x · offset_y</div>
-        </div>
-        <div class="node-card filter">
-          <h4>Crop</h4>
-          <p>Cuts a rectangular region out of the input image. Both
-            offsets and the new size are configurable.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>Rotate</h4>
-          <p>Rotates an image by an arbitrary angle (in degrees) with
-            optional auto-resize so the result frame fits the rotated
-            content. Works on colour or greyscale.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>Flip</h4>
-          <p>Mirrors the image horizontally, vertically, or both.</p>
-        </div>
+
+      <div class="node filter">
+        <h3 id="node-scale">Scale</h3>
+        <p>Resizes the input by a percentage factor — 100 leaves it unchanged, 50 halves it, 200 doubles it.</p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>; output type matches input.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">scale_percent</span> — scale factor in percent.</li>
+          <li><span class="param-name">interpolation</span> — resampling method. <em>Nearest</em> is fast and pixelated; <em>Linear</em>, <em>Cubic</em> and <em>Lanczos4</em> are progressively smoother and slower; <em>Area</em> is the right choice when downsampling.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-resize">Resize</h3>
+        <p>
+          Resizes the input to an explicit width and height using
+          one of three layout strategies. Black is used for fills;
+          for BGRA inputs that means transparent black.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>; output type matches input.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">width</span> / <span class="param-name">height</span> — target dimensions in pixels.</li>
+          <li><span class="param-name">method</span> — <em>Scale</em> stretches the source on each axis independently (aspect ratio not preserved); <em>Crop or Fill</em> centres the source at native scale on a target-sized canvas (overflow is cropped, uncovered area is black); <em>Best Fit</em> scales uniformly to the largest size that fits inside the target, then centres on a black canvas (letterbox / pillarbox).</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-shift">Shift</h3>
+        <p>
+          Translates an image by integer pixel offsets. The canvas
+          stays the same size; pixels that move out of frame are
+          dropped, newly exposed areas are black.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">offset_x</span> — horizontal shift in pixels. Positive moves right.</li>
+          <li><span class="param-name">offset_y</span> — vertical shift in pixels. Positive moves down.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-crop">Crop</h3>
+        <p>
+          Cuts a rectangular region out of the input. The
+          rectangle is clamped to the input bounds, so the node
+          always emits a positive-area image even if the requested
+          rectangle extends beyond the source.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">x</span> / <span class="param-name">y</span> — top-left corner of the rectangle in input-pixel coordinates.</li>
+          <li><span class="param-name">width</span> / <span class="param-name">height</span> — rectangle size in pixels.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-rotate">Rotate</h3>
+        <p>
+          Rotates the image around its centre by an arbitrary angle.
+          Positive angles are counter-clockwise.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">angle</span> — rotation in degrees.</li>
+          <li><span class="param-name">expand</span> — when on, the output canvas grows so no pixel is clipped. When off, the canvas keeps the input dimensions and corners may fall outside.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-flip">Flip</h3>
+        <p>Mirrors the image. <em>Both</em> is equivalent to a 180° rotation.</p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">mode</span> — <em>Horizontal</em>, <em>Vertical</em> or <em>Both</em>.</li>
+        </ul>
       </div>
     </section>
 
     <section id="nodes-processing">
       <h2>Processing</h2>
-      <div class="node-grid">
-        <div class="node-card filter">
-          <h4>Adaptive Gaussian Threshold</h4>
-          <p>Adaptive binary thresholding using a Gaussian-weighted
-            local mean (<code>cv2.adaptiveThreshold</code>). Always
-            emits a greyscale binary image.</p>
-          <div class="params">block_size (odd, &gt; 1) · c</div>
-        </div>
-        <div class="node-card filter">
-          <h4>Dither</h4>
-          <p>Reduces the image to two levels using a selectable
-            algorithm: Bayer 2/4/8, random noise, Floyd–Steinberg,
-            Stucki, Atkinson, Burkes, Sierra, Diffusion-X, or
-            Diffusion-XY. Error-diffusion kernels are JIT-compiled
-            via numba for interactive speed. Colour inputs are
-            auto-converted to grey; output is always greyscale.</p>
-          <div class="params">method</div>
-        </div>
-        <div class="node-card filter">
-          <h4>Median</h4>
-          <p>Square-kernel median blur
-            (<code>cv2.medianBlur</code>). Works on colour or
-            greyscale; output type matches input.</p>
-          <div class="params">size (odd ≥ 1)</div>
-        </div>
-        <div class="node-card filter">
-          <h4>Gaussian Blur</h4>
-          <p>Configurable Gaussian smoothing
-            (<code>cv2.GaussianBlur</code>). Independent kernel
-            radius and sigma; works on colour or greyscale.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>Normalize</h4>
-          <p>Histogram equalisation
-            (<code>cv2.equalizeHist</code>). Colour inputs are
-            equalised per channel; greyscale inputs are equalised
-            directly. Output type matches input.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>Invert</h4>
-          <p>Inverts the pixel values
-            (<code>255 - x</code>). Works on colour or greyscale;
-            type-preserving.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>NCC</h4>
-          <p>Normalised cross-correlation template matching
-            (<code>cv2.matchTemplate</code> with
-            <code>TM_CCORR_NORMED</code>). Both
-            <code>image</code> and <code>template</code> inputs
-            must be greyscale; the output is an 8-bit score map.
-            <code>retain_size=True</code> (default) pads the score
-            map back to the input size and centres each response on
-            its corresponding template-centre pixel.</p>
-        </div>
+
+      <div class="node filter">
+        <h3 id="node-adaptive-gaussian-threshold">Adaptive Gaussian Threshold</h3>
+        <p>
+          Adaptive binary thresholding using a local Gaussian-weighted
+          mean. Each output pixel is white or black depending on
+          whether the source pixel was above or below the local
+          mean of its neighbourhood, minus a constant. Useful for
+          binarising photos with uneven lighting.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>. Colour inputs are reduced to greyscale first.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image (grey)</em>. Always single-channel binary.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">block_size</span> — side length of the neighbourhood used to compute the local threshold, in pixels. Must be odd and ≥ 3.</li>
+          <li><span class="param-name">c</span> — constant subtracted from the local mean. Negative values bias toward white; positive toward black.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-dither">Dither</h3>
+        <p>
+          Reduces the image to two levels using a chosen dithering
+          algorithm — Bayer ordered patterns, random noise, or
+          various error-diffusion kernels. Colour inputs are
+          auto-converted to greyscale; output is always greyscale.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">method</span> — one of <em>Bayer 2 / 4 / 8</em> (ordered patterns; deterministic, no neighbour artefacts), <em>Noise</em> (random threshold), <em>Floyd–Steinberg</em>, <em>Stucki</em>, <em>Atkinson</em>, <em>Burkes</em>, <em>Sierra</em>, <em>Diffusion X</em>, <em>Diffusion XY</em> (error-diffusion kernels of varying spread).</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-median">Median</h3>
+        <p>Square-kernel median blur. Effective at removing salt-and-pepper noise without smearing edges.</p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>; output type matches input.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">size</span> — kernel side length in pixels. Must be odd and ≥ 3. Larger kernels remove more noise at the cost of fine detail.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-gaussian-blur">Gaussian Blur</h3>
+        <p>Smooths the image with an isotropic Gaussian kernel.</p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">ksize</span> — kernel side length in pixels. Must be odd and ≥ 3. Larger kernels blur more strongly and run more slowly.</li>
+          <li><span class="param-name">sigma</span> — standard deviation of the Gaussian. Set to 0 to derive it automatically from the kernel size.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-normalize">Normalize</h3>
+        <p>Histogram equalisation. Stretches the dynamic range so dim images use the full 0..255 scale. Colour inputs are equalised per channel.</p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>; output type matches input.</li></ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-invert">Invert</h3>
+        <p>Per-channel image inversion (255 − pixel). Type-preserving.</p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-apply-colormap">Apply Colormap</h3>
+        <p>
+          Colorises a greyscale image through a chosen lookup table
+          and emits a colour image. Expects the input to already be
+          tonemapped into 0..255; for HDR sources (raw FFT
+          magnitudes, depth maps) apply log compression upstream.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image (grey)</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">colormap</span> — perceptually-uniform palettes (<em>Viridis</em>, <em>Plasma</em>, <em>Magma</em>, <em>Inferno</em>), classic spectrogram palettes (<em>Jet</em>, <em>Turbo</em>) and utility palettes (<em>Hot</em>, <em>Bone</em>, <em>Parula</em>, <em>Ocean</em>, <em>Cool</em>).</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-ncc">NCC</h3>
+        <p>
+          Normalised cross-correlation template matching: searches
+          for a small reference image inside the input and emits a
+          score map showing how strongly each location matches.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image (grey)</em>. The picture to search.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image (grey)</em>. The score map.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">template</span> — path to the reference image. Colour templates are reduced to greyscale on load.</li>
+          <li><span class="param-name">retain_size</span> — when on (default), the score map is padded to the input size and each response is centred on its corresponding template-centre pixel. When off, the raw response is emitted, smaller than the input.</li>
+        </ul>
       </div>
     </section>
 
     <section id="nodes-temporal">
       <h2>Temporal</h2>
       <p>
-        Temporal nodes operate across consecutive frames of a video
-        stream. They hold internal state across frames and reset at
-        the start of each run.
+        Temporal nodes accumulate state across frames of a video
+        stream. The state is reset at the start of every run.
       </p>
-      <div class="node-grid">
-        <div class="node-card filter">
-          <h4>Frame Difference</h4>
-          <p>Per-pixel absolute difference between the current frame
-            and the previous one. The first frame produces a black
-            output; subsequent frames produce the diff.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>Temporal Mean</h4>
-          <p>Running mean over a configurable window of recent
-            frames. Useful for low-frequency noise reduction on
-            steady scenes.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>Temporal Median</h4>
-          <p>Running median over a window of recent frames. Robust
-            against outlier frames (passing cars, sparkles) where
-            mean averaging would smear them in.</p>
-        </div>
+
+      <div class="node filter">
+        <h3 id="node-frame-difference">Frame Difference</h3>
+        <p>
+          Per-pixel absolute difference between the current frame
+          and the previous one. The first frame in a stream
+          produces a black output (no prior frame to diff against).
+          A mid-stream resolution change resets the buffer rather
+          than raising.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-temporal-mean">Temporal Mean</h3>
+        <p>
+          Rolling per-pixel arithmetic mean over the last few
+          frames. Reduces additive Gaussian-style noise on a static
+          scene at the cost of smearing motion. While the buffer
+          fills, the mean of however many frames have arrived so
+          far is emitted.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">window</span> — number of recent frames averaged per output. Larger values denoise more aggressively but blur motion.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-temporal-median">Temporal Median</h3>
+        <p>
+          Rolling per-pixel median over the last few frames. Strong
+          against transient outliers — single-frame spikes,
+          flicker, salt-and-pepper noise — without the smearing a
+          mean would produce.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">window</span> — number of recent frames whose per-pixel median is emitted.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="nodes-frequency">
+      <h2>Frequency</h2>
+      <p>Frequency-domain operations on greyscale images and on datasets.</p>
+
+      <div class="node filter">
+        <h3 id="node-fft2d">FFT 2D</h3>
+        <p>
+          Computes the 2-D discrete Fourier transform of a greyscale
+          image. Pair with <em>Inverse FFT 2D</em> for a pixel-exact
+          round trip; pair with <em>Apply Colormap</em> on the
+          magnitude output for a coloured spectrum preview.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image (grey)</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">spectrum</span> — <em>Matrix</em>. The complex spectrum, fftshifted so DC is at the centre. Wire into <em>Inverse FFT 2D</em> to round-trip.</li>
+          <li><span class="port-name">magnitude</span> — <em>Image (grey)</em>. Log-scaled magnitude normalised to 0..255 for direct preview.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-inverse-fft2d">Inverse FFT 2D</h3>
+        <p>The inverse of <em>FFT 2D</em>. Expects the fftshifted complex spectrum and emits a greyscale image.</p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">spectrum</span> — <em>Matrix</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image (grey)</em>.</li></ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-spectrum">Spectrum</h3>
+        <p>
+          Per-column magnitude FFT of a dataset. Each column of the
+          input becomes a column of the output, indexed by
+          frequency in Hz. Feed the result to <em>Plot Series</em>
+          for stacked spectra, or to <em>Polar Heatmap</em> when
+          combined with <em>Directional Projection</em>.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">dataset</span> — <em>Dataset</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">sample_rate</span> — sample rate of the input in Hz; sets the frequency axis.</li>
+          <li><span class="param-name">freq_max</span> — clip the radial axis to this frequency. <code>0</code> keeps the full Nyquist range.</li>
+          <li><span class="param-name">window</span> — taper applied per column before the FFT. <em>Hann</em> suppresses spectral leakage on short windows; <em>None</em> uses the raw rectangular window.</li>
+          <li><span class="param-name">db_scale</span> — when on, emits 20·log₁₀|F| (dB); when off, raw magnitude.</li>
+        </ul>
       </div>
     </section>
 
     <section id="nodes-math">
       <h2>Math</h2>
       <p>
-        The math nodes operate on
-        <span class="pill scalar">SCALAR</span> streams. Combine them
-        with Range Source / Constant Value to drive any numeric param
-        on any node from a computed value.
+        Math nodes operate on numeric streams. Combine them with
+        <em>Range Source</em> and <em>Constant Value</em> to drive
+        any numeric parameter on any node from a computed value.
       </p>
-      <div class="node-grid">
-        <div class="node-card filter">
-          <h4>Math</h4>
-          <p>Two-input scalar operator: ADD, SUB, MUL, DIV, MIN,
-            MAX. Wire two scalar producers in and route the result
-            wherever a SCALAR is accepted.</p>
-          <div class="params">op</div>
-        </div>
-        <div class="node-card filter">
-          <h4>Clamp</h4>
-          <p>Clamps a scalar input to <code>[min_value,
-            max_value]</code>. Use as a guard before driving a
-            slider whose receiver has a stricter range.</p>
-          <div class="params">min_value · max_value</div>
-        </div>
+
+      <div class="node filter">
+        <h3 id="node-math">Math</h3>
+        <p>
+          Evaluates a small expression over up to nine numeric
+          inputs. The expression is plain Python-style arithmetic
+          using the input names <code>v_1</code>, <code>v_2</code>,
+          … <code>v_9</code>; <code>min</code>, <code>max</code>,
+          <code>abs</code>; and a curated set of trigonometry and
+          basic math functions (<code>sin</code>, <code>cos</code>,
+          <code>sqrt</code>, <code>log</code>, …). The node body
+          starts with one input row and grows by one as you wire
+          up the previous tail.
+        </p>
+        <p>Examples: <code>v_1 + v_2</code>, <code>min(v_1, v_2)</code>, <code>v_1 * sin(v_2)</code>.</p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">v_1</span> … <span class="port-name">v_9</span> — <em>Scalar</em>, all optional. Disconnected slots are simply absent from the expression's namespace.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">value</span> — <em>Scalar</em>. The expression result.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">expression</span> — the formula to evaluate.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-clamp">Clamp</h3>
+        <p>
+          Clamps a numeric input into a bounded range. If the upper
+          bound is below the lower bound the two are swapped before
+          clamping, so a transiently-inverted range during editing
+          is tolerated.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">value</span> — <em>Scalar</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">min_value</span> — lower bound.</li>
+          <li><span class="param-name">max_value</span> — upper bound.</li>
+        </ul>
       </div>
     </section>
 
     <section id="nodes-composit">
       <h2>Composit</h2>
-      <div class="node-grid">
-        <div class="node-card filter">
-          <h4>Merge</h4>
-          <p>Pastes up to four images into a 2 × 2 grid with inputs
-            <code>top_left</code>, <code>top_right</code>,
-            <code>bottom_left</code>,
-            <code>bottom_right</code>. Unconnected quadrants are
-            black; cell sizes are taken per row / per column so
-            mismatched inputs don't distort; mixed colour /
-            greyscale inputs are promoted to colour so nothing is
-            lost.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>Overlay</h4>
-          <p>Pastes a foreground image onto a background with
-            per-pixel alpha. Every numeric param
-            (<em>scale</em>, <em>angle</em>, <em>xpos</em>,
-            <em>ypos</em>, <em>alpha</em>) is drivable through its
-            socket — wire ramps in for sliding, zooming, fading or
-            rotating animations.</p>
-          <div class="params">scale · angle · xpos · ypos · alpha</div>
-        </div>
+      <p>Combine two or more images into a single output frame.</p>
+
+      <div class="node filter">
+        <h3 id="node-mosaic">Mosaic</h3>
+        <p>
+          Variable-layout image composer. The layout is a tiny
+          string: rows separated by <code>;</code>, cells inside a
+          row by <code>,</code>, each cell the 1-based index of an
+          <code>image_i</code> input. For example
+          <code>1,2;3</code> places images 1 and 2 side-by-side on
+          the top row and image 3 below.
+        </p>
+        <p>
+          Within a row, images are scaled aspect-preserving to the
+          row's tallest input, then placed side-by-side. Rows are
+          then scaled aspect-preserving to the widest row's width
+          and stacked vertically. No black bars, no forced grid —
+          aspect ratios are preserved everywhere. Mixed colour /
+          greyscale inputs are promoted to colour so detail isn't
+          lost.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image_1</span> … <span class="port-name">image_9</span> — <em>Image</em> or <em>Image (grey)</em>. Body grows as you wire them up.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — composed picture.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">layout</span> — the layout descriptor string.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-overlay">Overlay</h3>
+        <p>
+          Composites an overlay image onto a base. The overlay is
+          optionally rotated and scaled, then blended so its
+          <em>centre</em> lands at the configured position. Every
+          numeric parameter is a port — wire a <em>Range Source</em>
+          into <em>angle</em> for spinning, into <em>xpos</em> for
+          sliding, into <em>alpha</em> for fading.
+        </p>
+        <p>
+          A BGRA overlay's alpha channel acts as a per-pixel mask;
+          the <em>alpha</em> parameter is then a global multiplier
+          on top. The output canvas matches the base; the output
+          is colour if either input is colour.
+        </p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">base</span> — <em>Image</em> or <em>Image (grey)</em>.</li>
+          <li><span class="port-name">overlay</span> — <em>Image</em> or <em>Image (grey)</em>.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — composited result.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">scale</span> — overlay scale factor. 1.0 = unchanged. Strictly positive.</li>
+          <li><span class="param-name">angle</span> — overlay rotation in degrees, counter-clockwise around its centre. The bounding box is expanded so no pixels are lost.</li>
+          <li><span class="param-name">xpos</span> / <span class="param-name">ypos</span> — base-image coordinates of the overlay's centre.</li>
+          <li><span class="param-name">alpha</span> — opacity, 0..1. 0 hides the overlay entirely, 1 makes it fully opaque.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-masked-blend">Masked Blend</h3>
+        <p>
+          Per-pixel cross-fade of two images driven by a greyscale
+          mask. Black mask emits the base, white mask emits the
+          overlay, intermediate values cross-fade. Unlike
+          <em>Overlay</em>'s uniform alpha, here the mask is a
+          full input — wire any greyscale producer in to drive it
+          (a <em>Gradient Source</em>, an FFT magnitude, a
+          threshold result).
+        </p>
+        <p>
+          The output is colour if either input is colour. The mask
+          is reduced to a single channel and resized to match the
+          base if its shape differs.
+        </p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">base</span> — <em>Image</em> or <em>Image (grey)</em>.</li>
+          <li><span class="port-name">overlay</span> — <em>Image</em> or <em>Image (grey)</em>. Must share the base's H × W.</li>
+          <li><span class="port-name">mask</span> — <em>Image</em> or <em>Image (grey)</em>.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — blended result.</li></ul>
+      </div>
+    </section>
+
+    <section id="nodes-data">
+      <h2>Data</h2>
+      <p>
+        Data nodes operate on <em>Dataset</em> values — the
+        labeled tabular payload kind. Source datasets typically
+        come from <em>CSV Source</em>; results feed into a
+        visualisation node or back to disk.
+      </p>
+
+      <div class="node filter">
+        <h3 id="node-add-index-column">Add Index Column</h3>
+        <p>
+          Prepend a synthetic numeric column to the input dataset
+          at position 0, so it becomes the default X axis
+          downstream. Useful when a renderer needs an explicit X
+          axis but the dataset has no natural one — e.g. a
+          one-column trace from <em>CSV Source</em>. Set
+          <em>step</em> to <code>1 / sample_rate</code> for a
+          seconds axis.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">dataset</span> — <em>Dataset</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">name</span> — name of the new column.</li>
+          <li><span class="param-name">start</span> — value of the first row.</li>
+          <li><span class="param-name">step</span> — increment per row. Use 1.0 for sample numbers, 1 / sample_rate for seconds.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-join-datasets">Join Datasets</h3>
+        <p>
+          Merges several datasets column-by-column into a single
+          one. The body grows as you wire more inputs.
+        </p>
+        <p>
+          <em>column_names</em> renames the first column of each
+          input before joining — required when several
+          single-column sources all carry the same generic name
+          (e.g. <code>c0</code> from <em>CSV Source</em>). Empty
+          keeps the original names, which must then be distinct.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">dataset_1</span> … <span class="port-name">dataset_9</span> — <em>Dataset</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">dataset</span> — joined dataset.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">column_names</span> — comma-separated rename list, applied to the first column of each connected input.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-directional-projection">Directional Projection</h3>
+        <p>
+          Projects a two-component vector signal onto a fan of
+          directions. For each angle around the circle, emits one
+          column equal to <em>x · cos θ + y · sin θ</em> — i.e.
+          the component of the vector along that direction. The
+          building block for directional analyses (polar spectra,
+          polarisation sweeps, beam-forming on two-channel data).
+        </p>
+        <p>
+          Output columns are named in degrees (e.g.
+          <code>5.0°</code>) so a <em>Plot Series</em> reads
+          naturally; the exact angles are also placed on the
+          dataset's attribute table so <em>Polar Heatmap</em> can
+          read them directly.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">dataset</span> — <em>Dataset</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">x_column</span> / <span class="param-name">y_column</span> — names of the two component columns. Empty defaults to the first two columns.</li>
+          <li><span class="param-name">n_angles</span> — number of directions to emit, equally spaced around the full circle.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-sliding-window">Sliding Window</h3>
+        <p>
+          Walks a sliding window across a dataset, driven by a
+          numeric clock. Each tick of the clock re-emits two
+          datasets: the current window slice, and the unmodified
+          full dataset (with the current window bounds stamped on
+          its metadata, so a downstream plotter can draw a moving
+          band without a separate wire).
+        </p>
+        <p>
+          The <em>dataset</em> input is <strong>held</strong> —
+          one upstream emit (e.g. one CSV) keeps it alive across
+          all ticks of the clock.
+        </p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">dataset</span> — <em>Dataset</em>, latched. The data to walk.</li>
+          <li><span class="port-name">window_index</span> — <em>Scalar</em>. The clock — typically a <em>Range Source</em>.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul>
+          <li><span class="port-name">dataset_windowed</span> — <em>Dataset</em>. The current slice.</li>
+          <li><span class="port-name">dataset_full</span> — <em>Dataset</em>. The unmodified input, with <code>window_start</code> / <code>window_end</code> stamped on its metadata.</li>
+        </ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">window_size</span> — number of rows in each emitted slice. The window is clamped at the end of the dataset, so the last slice may be shorter.</li>
+          <li><span class="param-name">step</span> — number of rows between consecutive windows.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="nodes-visualization">
+      <h2>Visualization</h2>
+      <p>
+        Visualization nodes render datasets as images, suitable for
+        chaining into <em>Display</em>, a <em>Mosaic</em>, or a
+        <em>File Sink</em>.
+      </p>
+
+      <div class="node filter">
+        <h3 id="node-plot-xy">Plot XY</h3>
+        <p>
+          Renders two columns of a dataset as an XY line plot.
+          Axis labels come from the column names; if the dataset
+          carries a <code>units</code> attribute it is added as a
+          suffix to each axis label.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">dataset</span> — <em>Dataset</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>. The rendered plot.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">x_column</span> / <span class="param-name">y_column</span> — names of the columns to plot.</li>
+          <li><span class="param-name">width</span> / <span class="param-name">height</span> — output canvas size in pixels.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-plot-series">Plot Series</h3>
+        <p>
+          Renders every column of the input dataset as an
+          independent time-series trace stacked vertically with a
+          shared time axis. The X axis is synthesised from a
+          per-row step.
+        </p>
+        <p>
+          When the dataset carries window-bound metadata (typically
+          stamped by <em>Sliding Window</em>), a moving band is
+          overlaid spanning every panel — the highlighted window
+          lines up across channels.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">dataset</span> — <em>Dataset</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">step</span> — increment per row on the X axis. Use 1 / sample_rate for a seconds axis.</li>
+          <li><span class="param-name">y_columns</span> — comma-separated list of columns to plot. Empty plots every column.</li>
+          <li><span class="param-name">width</span> / <span class="param-name">height</span> — output canvas size.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-hodogram">Hodogram</h3>
+        <p>
+          Plots a two-channel signal as a time-coloured 2-D
+          trajectory: one channel feeds the X axis, another feeds
+          Y, and the line colour walks through a perceptual
+          colormap so the time direction reads correctly. An
+          optional fitted principal axis overlays the dominant
+          direction. Useful for polarisation analysis on seismic
+          and geophone data.
+        </p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">x</span> — <em>Dataset</em>. Provides the X channel.</li>
+          <li><span class="port-name">y</span> — <em>Dataset</em>. Provides the Y channel.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">width</span> / <span class="param-name">height</span> — output canvas size.</li>
+          <li><span class="param-name">principal_axis</span> — when on, a fitted line overlays the dominant direction of motion.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-polar-heatmap">Polar Heatmap</h3>
+        <p>
+          Renders a dataset of N directional channels as a polar
+          heatmap. Each column corresponds to one direction; rows
+          map to radius. Typically fed by <em>Directional
+          Projection</em> or <em>Spectrum</em>. When the input
+          carries the <code>thetas_rad</code> attribute, those
+          angles drive the layout; otherwise degrees are parsed
+          from the column names.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">dataset</span> — <em>Dataset</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">width</span> / <span class="param-name">height</span> — output canvas size.</li>
+          <li><span class="param-name">colormap</span> — palette for the heatmap (Viridis, Plasma, Inferno, Magma, Turbo, Jet, Hot).</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="nodes-streaming">
+      <h2>Streaming</h2>
+      <p>Bridge between one-shot data and a streaming clock.</p>
+
+      <div class="node filter">
+        <h3 id="node-repeat">Repeat</h3>
+        <p>
+          Re-emits a held payload once per tick of a clock. Pairs a
+          one-shot source (an image, a CSV) with a streaming clock
+          so the held payload fires once per tick, with the clock
+          value stamped onto each output frame's metadata.
+          Downstream sinks can then use <code>$tick$</code> in
+          their filename templates without needing an extra
+          input.
+        </p>
+        <h4>Inputs</h4>
+        <ul>
+          <li><span class="port-name">data</span> — any payload kind, latched. The reference data — typically a single image or dataset.</li>
+          <li><span class="port-name">tick</span> — <em>Scalar</em>. The clock.</li>
+        </ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">data</span> — same payload as the input, re-emitted once per tick. Carries <code>tick</code> on its metadata.</li></ul>
+      </div>
+    </section>
+
+    <section id="nodes-ui">
+      <h2>UI</h2>
+      <p>Pass-through nodes that produce a UI side-effect alongside the frame.</p>
+
+      <div class="node filter">
+        <h3 id="node-delay">Delay</h3>
+        <p>
+          Sleeps for a configurable number of seconds between
+          frames before forwarding each one. Useful as a slideshow
+          knob, or to make per-frame status updates visible during
+          development.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">delay_seconds</span> — how long to sleep between frames. Set to 0 to disable pacing entirely.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-notify">Notify</h3>
+        <p>
+          Surfaces a status message in the floating banner.
+          <em>Info</em> (blue) and <em>Warning</em> (amber) let
+          the run continue; <em>Error</em> (red) aborts the run.
+          The message is a port — wire any text source in to drive
+          it per frame.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>. Pass-through.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">message</span> — text shown in the banner.</li>
+          <li><span class="param-name">severity</span> — <em>Info</em>, <em>Warning</em>, or <em>Error</em>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="nodes-experimental">
+      <h2>Experimental</h2>
+      <p>Effects-style nodes that aren't part of the standard pipeline but are interesting on their own.</p>
+
+      <div class="node filter">
+        <h3 id="node-subpixel-mosaic">Subpixel Mosaic</h3>
+        <p>
+          Renders a colour image as a stylised RGB sub-pixel
+          mosaic: each source pixel is scattered across three
+          mono-channel sub-pixels arranged like a physical
+          display's shadow mask. The raw mosaic distorts the
+          source aspect ratio; an option rescales it back.
+        </p>
+        <h4>Inputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+        <h4>Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em> depending on parameters.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">keep_aspect</span> — when on, the mosaic is resampled to match the source aspect ratio. When off, the raw mosaic is emitted (vertical stretch of 4/3).</li>
+          <li><span class="param-name">output_grayscale</span> — when on, drops the colour and emits the per-pixel sample intensity as a single-channel image.</li>
+        </ul>
       </div>
     </section>
 
     <section id="nodes-debug">
       <h2>Debug</h2>
       <p>
-        Debug nodes are utilities for testing the framework itself —
-        confirming param wiring, simulating slow nodes, exercising
-        the error banner. They live in the palette under their own
-        section so they're out of the way for normal use.
+        Debug nodes are utilities for poking at the application
+        itself — testing parameter wiring, simulating slow nodes,
+        exercising the error banner. They live in their own
+        palette section so they stay out of the way during normal
+        use.
       </p>
-      <div class="node-grid">
-        <div class="node-card filter">
-          <h4>Delay</h4>
-          <p>Pass-through that sleeps for a configurable number of
-            milliseconds before forwarding each frame. Useful for
-            simulating a slow node and watching how the dispatcher
-            behaves on a multi-source flow.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>Debug Params</h4>
-          <p>Exhaustive node exposing one input port for every
-            <code>IoDataType</code>. Wire whatever you want
-            into it to confirm the param-as-port and inline-widget
-            machinery handles every combination.</p>
-        </div>
-        <div class="node-card filter">
-          <h4>Throw Exception</h4>
-          <p>Raises on every <code>process_impl</code> call. Use to
-            confirm the error banner pops up and that flows
-            recover cleanly when a node blows up mid-graph.</p>
-        </div>
+
+      <div class="node filter">
+        <h3 id="node-debug-params">Debug Params</h3>
+        <p>
+          Exhaustive node exposing one parameter of every kind, so
+          every widget can be rendered, edited, saved and loaded
+          through a single node. Image is passed through
+          unchanged.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em> or <em>Image (grey)</em>.</li></ul>
+        <h4>Parameters</h4>
+        <ul>
+          <li><span class="param-name">file_path</span> — exercises the path widget.</li>
+          <li><span class="param-name">count</span> — exercises the integer spin box.</li>
+          <li><span class="param-name">factor</span> — exercises the float spin box.</li>
+          <li><span class="param-name">label</span> — exercises the line edit.</li>
+          <li><span class="param-name">enabled</span> — exercises the checkbox.</li>
+          <li><span class="param-name">mode</span> — exercises the combo box.</li>
+        </ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-throw-exception">Throw Exception</h3>
+        <p>Raises on every frame. Use it to confirm that the error banner pops up and that flows recover cleanly when a node fails mid-graph.</p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">image</span> — <em>Image</em>.</li></ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-meta-inspector">Meta Inspector</h3>
+        <p>
+          Surfaces each frame's metadata to an inline preview
+          inside the node body. Accepts every payload kind so it
+          can sit anywhere as a debug probe. Use it to inspect
+          what <code>source_path</code>, <code>frame_index</code>,
+          stamp keys etc. look like at a given point in your
+          flow — handy when wiring up a filename template.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">data</span> — any payload kind.</li></ul>
+      </div>
+
+      <div class="node filter">
+        <h3 id="node-play-gate">Play Gate</h3>
+        <p>
+          Buffers frames until you click the inline Play button.
+          Each click releases <strong>one</strong> frame
+          downstream — the oldest in the queue, so you step
+          through the stream in arrival order. The queue is
+          unbounded, so it trades memory for honesty rather than
+          silently dropping; keep the upstream stream short.
+          Drains its buffer when toggled into skip mode.
+        </p>
+        <h4>Inputs / Outputs</h4>
+        <ul><li><span class="port-name">data</span> — any payload kind.</li></ul>
       </div>
     </section>
 
@@ -1252,9 +2458,10 @@
     </section>
 
     <footer class="page-foot">
-      Stjörnhorn v0.2.4 — generated documentation.
+      Stjörnhorn v0.3.0 — generated documentation.
       Source: <a href="../README.md">README.md</a> ·
-      <a href="../CHANGELOG.md">CHANGELOG.md</a>.
+      <a href="../CHANGELOG.md">CHANGELOG.md</a> ·
+      <a href="https://github.com/beltoforion/stjornhorn">GitHub repository</a>.
     </footer>
 
   </main>
