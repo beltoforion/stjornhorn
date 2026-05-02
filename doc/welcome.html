@@ -85,7 +85,11 @@
       padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 16px;
+      display: flex;
+      align-items: stretch;
+      gap: 16px;
     }
+    .hero-text { flex: 1 1 auto; min-width: 0; }
     .hero h1 {
       margin: 0;
       font-size: 26px;
@@ -100,18 +104,19 @@
       letter-spacing: 0;
       vertical-align: middle;
     }
-    .links .site-logo-link {
-      display: inline-flex;
-      align-items: center;
+    .hero .site-logo-link {
+      flex: 0 0 auto;
+      align-self: stretch;
+      display: flex;
+      align-items: stretch;
       line-height: 0;
-      margin-left: 8px;
     }
-    .links .site-logo-link img {
-      height: 64px;
+    .hero .site-logo-link img {
+      height: 100%;
       width: auto;
       display: block;
     }
-    .links .site-logo-link:hover img { opacity: 0.85; }
+    .hero .site-logo-link:hover img { opacity: 0.85; }
 
     footer.page-foot {
       margin-top: 16px;
@@ -217,17 +222,19 @@
   <main class="content-col">
 
     <header class="hero">
-      <h1>Welcome to Stjörnhorn <span class="version">v0.3.0</span></h1>
-      <div class="tagline">A node-based image- and video-processing playground.</div>
-      <div class="links">
-        <a class="button" href="http://stjornhorn.beltoforion.de" target="_blank" rel="noopener">Documentation</a>
-        <a class="button" href="https://github.com/beltoforion/stjornhorn" target="_blank" rel="noopener">GitHub repository</a>
-        <a class="button" href="https://github.com/beltoforion/stjornhorn/issues" target="_blank" rel="noopener">Issues</a>
-        <a class="button" href="https://github.com/beltoforion/stjornhorn/releases" target="_blank" rel="noopener">Releases</a>
-        <a class="site-logo-link" href="https://beltoforion.de" target="_blank" rel="noopener noreferrer">
-          <img src="images/site_logo.webp" alt="beltoforion.de">
-        </a>
+      <div class="hero-text">
+        <h1>Welcome to Stjörnhorn <span class="version">v0.3.0</span></h1>
+        <div class="tagline">A node-based image- and video-processing playground.</div>
+        <div class="links">
+          <a class="button" href="http://stjornhorn.beltoforion.de" target="_blank" rel="noopener">Documentation</a>
+          <a class="button" href="https://github.com/beltoforion/stjornhorn" target="_blank" rel="noopener">GitHub repository</a>
+          <a class="button" href="https://github.com/beltoforion/stjornhorn/issues" target="_blank" rel="noopener">Issues</a>
+          <a class="button" href="https://github.com/beltoforion/stjornhorn/releases" target="_blank" rel="noopener">Releases</a>
+        </div>
       </div>
+      <a class="site-logo-link" href="https://beltoforion.de" target="_blank" rel="noopener noreferrer">
+        <img src="images/site_logo.webp" alt="beltoforion.de">
+      </a>
     </header>
 
     <section>

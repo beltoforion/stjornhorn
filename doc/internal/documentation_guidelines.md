@@ -96,14 +96,15 @@ architectural documentation lives under `doc/internal/`.
 
 - Both `doc/welcome.html` and `doc/index.html` carry a clickable
   `images/site_logo.webp` linking to `https://beltoforion.de`
-  (`target="_blank" rel="noopener noreferrer"`). It must be
-  visually prominent, not a small badge — height ~64 px in the
-  welcome links row, ~72 px next to the index hero title.
-- In `welcome.html` the logo sits at the **end of the `.links`
-  button row**, immediately after the last button, not inside
-  the `<h1>`.
-- In `index.html` the logo sits **inline next to the hero title
-  text** (no `margin-left: auto` push to the far right).
+  (`target="_blank" rel="noopener noreferrer"`).
+- Layout: `header.hero` is a flex row with two children — a
+  `.hero-text` block on the left (title, tagline, and on
+  welcome the `.links` button row) and the `.site-logo-link`
+  on the right. The logo image uses `height: 100%` so it
+  spans the full hero height (caption + subcaption + buttons
+  on welcome, caption + subcaption on index). Do not size the
+  logo with a fixed pixel height — let the hero block dictate
+  it.
 
 ## Footers / Impressum
 

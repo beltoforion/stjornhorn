@@ -155,31 +155,37 @@
       padding: 24px 0 28px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 32px;
+      display: flex;
+      align-items: stretch;
+      gap: 20px;
     }
+    header.hero .hero-text { flex: 1 1 auto; min-width: 0; }
     header.hero h1 {
       margin: 0;
       font-size: 30px;
       font-weight: 600;
       letter-spacing: 0.5px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
     }
     header.hero h1 .version {
+      margin-left: 12px;
       font-size: 14px;
       font-weight: 400;
       color: var(--text-muted);
+      vertical-align: middle;
     }
-    header.hero h1 .site-logo-link {
-      display: inline-flex;
+    header.hero .site-logo-link {
+      flex: 0 0 auto;
+      align-self: stretch;
+      display: flex;
+      align-items: stretch;
       line-height: 0;
     }
-    header.hero h1 .site-logo-link img {
-      height: 72px;
+    header.hero .site-logo-link img {
+      height: 100%;
       width: auto;
       display: block;
     }
-    header.hero h1 .site-logo-link:hover img { opacity: 0.85; }
+    header.hero .site-logo-link:hover img { opacity: 0.85; }
     header.hero .tagline {
       margin-top: 6px;
       color: var(--text-muted);
@@ -454,14 +460,13 @@
   <main>
 
     <header class="hero">
-      <h1>
-        <span>Stjörnhorn</span>
-        <span class="version">v0.3.0</span>
-        <a class="site-logo-link" href="https://beltoforion.de" target="_blank" rel="noopener noreferrer">
-          <img src="images/site_logo.webp" alt="beltoforion.de">
-        </a>
-      </h1>
-      <div class="tagline">A node-based image- and video-processing playground for the desktop.</div>
+      <div class="hero-text">
+        <h1>Stjörnhorn <span class="version">v0.3.0</span></h1>
+        <div class="tagline">A node-based image- and video-processing playground for the desktop.</div>
+      </div>
+      <a class="site-logo-link" href="https://beltoforion.de" target="_blank" rel="noopener noreferrer">
+        <img src="images/site_logo.webp" alt="beltoforion.de">
+      </a>
     </header>
 
     <section id="overview">
