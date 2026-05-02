@@ -47,7 +47,7 @@ Optional command-line arguments:
 ### Start page
 
 <p align="center">
-  <img src="doc/images/start_page.png" alt="Start page" width="720"/>
+  <img src="doc/images/start_page.png" alt="Start page"/>
 </p>
 
 The start page is the landing screen when the app opens. It is the
@@ -74,7 +74,7 @@ Options:
 ### Node editor
 
 <p align="center">
-  <img src="doc/images/node_editor.png" alt="Node editor" width="720"/>
+  <img src="doc/images/node_editor.png" alt="Node editor"/>
 </p>
 
 The node editor is where flows are built and run. A flow is a graph
