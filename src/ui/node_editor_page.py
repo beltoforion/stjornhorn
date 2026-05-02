@@ -37,6 +37,7 @@ from ui.node_list import NodeList
 from ui.node_list_state import restore_node_list_state, save_node_list_state
 from ui.recent_flows import RecentFlowsManager
 from ui.message_banner import MessageBanner
+from ui.port_legend import PortLegend
 from ui.flow_status_widget import FlowStatusWidget
 from ui.theme import STATUS_MUTED_COLOR, STATUS_OK_COLOR
 
@@ -179,6 +180,13 @@ class NodeEditorPage(PageBase):
         # that can be long and multi-line — supports info / warning / error
         # severities (see :class:`MessageBanner`).
         self._message_banner = MessageBanner(self._inner)
+
+        # Port-type colour legend anchored to the bottom-left of the
+        # canvas viewport. Parented to the viewport (not the page or
+        # the QGraphicsView itself) so the legend tracks the canvas
+        # area through pan/resize without sliding under docks.
+        self._port_legend = PortLegend(self._view.viewport())
+        self._port_legend.show()
 
         # Bridge core.notifications → banner. Producers fire on worker
         # threads; the signal carries the payload back to the UI thread
