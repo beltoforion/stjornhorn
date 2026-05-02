@@ -49,9 +49,16 @@ class DirectorySource(SourceNodeBase):
 
     HEADER_ICON = "folder_open"
 
+    # ``_ParamBase.__set_name__`` annotates these private backing attrs at
+    # runtime, but static type-checkers don't execute that — declare them
+    # in source so ``self._directory`` / ``self._include_subdirectories``
+    # resolve.
+    _directory: Path
+    _include_subdirectories: bool
+
     def __init__(self) -> None:
         super().__init__("Directory Source", section="Sources")
-        
+
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
 
