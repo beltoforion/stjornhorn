@@ -97,19 +97,19 @@ architectural documentation lives under `doc/internal/`.
 - Both `doc/welcome.html` and `doc/index.html` carry a clickable
   `images/site_logo.webp` linking to `https://beltoforion.de`
   (`target="_blank" rel="noopener noreferrer"`).
-- Layout: `header.hero` is a flex row with two children — a
-  `.hero-text` block on the left (title, tagline, and on
-  welcome the `.links` button row) and the `.site-logo-link`
-  on the right. The anchor uses `align-self: stretch` plus
-  the source `aspect-ratio: 660 / 652` so its **width** is
-  derived from the hero's stretched height; the `<img>`
-  inside fills it with `object-fit: contain`. This way the
-  logo height equals caption + subcaption + buttons on
-  welcome (caption + subcaption on index) without inflating
-  the hero (the naive `height: 100%` on a raw `<img>`
-  creates a circular sizing loop and the logo blows up to
-  intrinsic size). Do not give the logo a fixed pixel
-  height.
+- Layout: `header.hero` is a flex row, `align-items: center`,
+  with two children — a `.hero-text` block on the left (title,
+  tagline, and on welcome the `.links` button row) and the
+  `.site-logo-link` on the right. The `<img>` uses a fixed
+  pixel height (96 px on welcome, 80 px on index) chosen to
+  visually span caption + subcaption (+ buttons on welcome).
+  Do **not** try `height: 100%` / `align-self: stretch` /
+  `aspect-ratio` tricks to compute the height from the text
+  column — they produce circular sizing loops in
+  QtWebEngine/Chromium and the logo blows up to its
+  intrinsic 660×652. If the rows ever change height,
+  re-tune the pixel value rather than reintroducing the
+  stretch logic.
 
 ## Footers / Impressum
 
