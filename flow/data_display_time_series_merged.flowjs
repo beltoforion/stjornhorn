@@ -58,8 +58,8 @@
       "module": "nodes.sources.range_source",
       "class": "RangeSource",
       "position": [
-        -1635.0753230131995,
-        -180.7033721356379
+        -1610.1551793849221,
+        -171.90802732565774
       ],
       "port_defaults": {
         "min_value": 0,
@@ -197,7 +197,7 @@
         83.29660337318566
       ],
       "port_defaults": {
-        "colormap": 1,
+        "colormap": 2,
         "theta_zero": 1,
         "theta_direction": 1,
         "width": 2400,
