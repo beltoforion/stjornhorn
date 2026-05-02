@@ -25,6 +25,7 @@ SETTINGS_FILE: Path = USER_CONFIG_DIR / "settings.json"
 _SETTINGS_VERSION: int = 1
 
 _DEFAULT_DEBUG_LOGGING: bool = False
+_DEFAULT_PORT_LEGEND_VISIBLE: bool = True
 
 
 def _read_settings_file(path: Path) -> dict:
@@ -58,6 +59,7 @@ class AppSettings(QObject):
     """
 
     debug_logging_changed = Signal(bool)
+    port_legend_visible_changed = Signal(bool)
 
     def __init__(self, path: Path = SETTINGS_FILE) -> None:
         super().__init__()
@@ -65,6 +67,9 @@ class AppSettings(QObject):
         data = _read_settings_file(path)
         self._debug_logging: bool = bool(
             data.get("debug_logging", _DEFAULT_DEBUG_LOGGING)
+        )
+        self._port_legend_visible: bool = bool(
+            data.get("port_legend_visible", _DEFAULT_PORT_LEGEND_VISIBLE)
         )
 
     # ── Access ────────────────────────────────────────────────────────────────
@@ -82,12 +87,26 @@ class AppSettings(QObject):
         self._save()
         self.debug_logging_changed.emit(value)
 
+    @property
+    def port_legend_visible(self) -> bool:
+        return self._port_legend_visible
+
+    @port_legend_visible.setter
+    def port_legend_visible(self, value: bool) -> None:
+        value = bool(value)
+        if value == self._port_legend_visible:
+            return
+        self._port_legend_visible = value
+        self._save()
+        self.port_legend_visible_changed.emit(value)
+
     # ── Persistence ───────────────────────────────────────────────────────────
 
     def _save(self) -> None:
         payload = {
             "version": _SETTINGS_VERSION,
             "debug_logging": self._debug_logging,
+            "port_legend_visible": self._port_legend_visible,
         }
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,37 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Added (port-type colour legend on the canvas)
+
+- **Floating legend in the bottom-left of the node-editor canvas**
+  with two sections — *Port types* (one row per `IoDataType` with
+  its swatch colour) and *Port roles* (required / optional /
+  latched input variants and the output direction glyph).
+  Mounted on the FlowView viewport so it tracks the canvas through
+  pan/resize without sliding under docks. The swatches reuse the
+  same darker-fill + bright-ring rendering as the actual port dots
+  for a one-glance match between legend and ports. Mouse events
+  pass through so the legend never eats clicks meant for nodes
+  underneath. New widget: `ui/port_legend.py`.
+- **View → Port Legend** menu entry toggles legend visibility;
+  state persists across sessions through a new
+  `port_legend_visible` flag on `AppSettings`. A small ✕ button on
+  the legend's title row routes through the same setter so the
+  click and the menu entry stay on one source of truth.
+
+### Fixed (port legend disappearing after Fit / scroll)
+
+- **The legend now sits on `FlowView` directly, not on its
+  `viewport()`.** As a sibling of the viewport widget it is
+  composited normally on top of the canvas and is unaffected by
+  the scene blit that previously made it vanish after Fit, pan or
+  zoom. Pan and zoom only repaint the viewport, so no
+  per-interaction repositioning is needed — only window resizes
+  fire a Resize on the parent and reposition the legend.
+  `QGraphicsOpacityEffect` is gone too: the translucency lives in
+  the stylesheet's `rgba()` fill so the legend is a plain widget
+  with no separate compositing layer.
+
 ### Changed (port visuals: type-coloured rings + output direction glyph)
 
 - **Ports now encode their `IoDataType` set as colour.** Each port

@@ -37,6 +37,8 @@ from ui.node_list import NodeList
 from ui.node_list_state import restore_node_list_state, save_node_list_state
 from ui.recent_flows import RecentFlowsManager
 from ui.message_banner import MessageBanner
+from ui.port_legend import PortLegend
+from ui.settings import get_settings
 from ui.flow_status_widget import FlowStatusWidget
 from ui.theme import STATUS_MUTED_COLOR, STATUS_OK_COLOR
 
@@ -180,6 +182,35 @@ class NodeEditorPage(PageBase):
         # severities (see :class:`MessageBanner`).
         self._message_banner = MessageBanner(self._inner)
 
+        # Port-type colour legend pinned to the bottom-left corner of
+        # the canvas. Parented to the FlowView (not its ``viewport()``)
+        # so the legend is a sibling of the viewport widget rather
+        # than a child of it — pan and zoom only repaint the viewport,
+        # leaving the legend untouched. ``raise_()`` once at the end
+        # of construction puts it on top of the viewport and Qt's
+        # normal child-widget compositing keeps it there.
+        # Visibility is owned by ``AppSettings.port_legend_visible``,
+        # surfaced through the View menu and persisted across sessions.
+        self._port_legend = PortLegend(self._view)
+        self._port_legend.raise_()
+        settings = get_settings()
+        self._port_legend.setVisible(settings.port_legend_visible)
+        self._port_legend_action = QAction("Port Legend", self)
+        self._port_legend_action.setCheckable(True)
+        self._port_legend_action.setChecked(settings.port_legend_visible)
+        self._port_legend_action.toggled.connect(self._on_port_legend_toggled)
+        # Close glyph on the legend itself routes through the same
+        # setter so the button click and the View-menu toggle share
+        # one source of truth.
+        self._port_legend.close_requested.connect(
+            lambda: self._on_port_legend_toggled(False)
+        )
+        # Two-way binding so a programmatic settings change (e.g. from
+        # a future settings page) keeps the action's check state and
+        # the legend visibility in sync.
+        settings.port_legend_visible_changed.connect(self._port_legend_action.setChecked)
+        settings.port_legend_visible_changed.connect(self._port_legend.setVisible)
+
         # Bridge core.notifications → banner. Producers fire on worker
         # threads; the signal carries the payload back to the UI thread
         # via Qt's auto-queued connection.
@@ -260,6 +291,8 @@ class NodeEditorPage(PageBase):
         view_menu = menu.addMenu("View")
         view_menu.addAction(self._node_list_dock.toggleViewAction())
         view_menu.addAction(self._node_doc_dock.toggleViewAction())
+        view_menu.addSeparator()
+        view_menu.addAction(self._port_legend_action)
         return [menu]
 
     def on_activated(self) -> None:
@@ -394,6 +427,13 @@ class NodeEditorPage(PageBase):
 
     def _on_group_clicked(self) -> None:
         self._scene.create_group_around_selection()
+
+    def _on_port_legend_toggled(self, checked: bool) -> None:
+        # Push the new value into AppSettings; the singleton's signal
+        # then propagates back to both the action's check state and
+        # the legend's visibility, so any future binding (e.g. another
+        # editor page or a settings dialog) stays consistent.
+        get_settings().port_legend_visible = checked
 
     def _on_stack_vertical_clicked(self) -> None:
         """Align selected nodes on a shared X axis and stack them vertically."""
