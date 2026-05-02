@@ -22,6 +22,7 @@ _faulthandler_file = None
 
 
 _STARTUP_BANNER = r"""
+
 ###########################################################################
 #                                                                         #
 # Stjörnhorn — a node-based image, video and data processing editor       #
@@ -112,8 +113,7 @@ def setup_logging(log_dir: Path, level: int = logging.DEBUG) -> None:
     # format stays consistent. INFO is below the console handler's
     # threshold, so the banner lands in the file only.
     for line in _STARTUP_BANNER.splitlines():
-        if line:
-            logger.info(line)
+        logger.info(line)
 
     logger.info("Logging initialised → %s", log_file)
     if _faulthandler_file is not None:
