@@ -49,6 +49,5 @@
 
 ## Meta
 - Änderungen an `CLAUDE.md` darf Claude direkt committen und pushen, ohne vorher Rückfrage zu stellen.
-- Änderungen an `doc/welcome.html` darf Claude ebenfalls direkt committen und pushen (Offline-Welcome-Seite, keine Sourcecode-Auswirkung).
 - Änderungen an `README.md` darf Claude ebenfalls direkt committen und pushen (Repo-Dokumentation, keine Sourcecode-Auswirkung).
-- Änderungen unter `doc/internal/` (Architektur-Doku, Refactoring-Backlog, Diagramme) darf Claude ebenfalls direkt committen und pushen.
+- Änderungen unterhalb von `doc/` (Public-Docs `index.html`/`welcome.html`, Bilder, interne Architektur-Doku, Refactoring-Backlog, Diagramme — alles unterhalb von `doc/`) darf Claude direkt auf `main` committen und pushen, ohne PR.
