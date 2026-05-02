@@ -100,11 +100,16 @@ architectural documentation lives under `doc/internal/`.
 - Layout: `header.hero` is a flex row with two children — a
   `.hero-text` block on the left (title, tagline, and on
   welcome the `.links` button row) and the `.site-logo-link`
-  on the right. The logo image uses `height: 100%` so it
-  spans the full hero height (caption + subcaption + buttons
-  on welcome, caption + subcaption on index). Do not size the
-  logo with a fixed pixel height — let the hero block dictate
-  it.
+  on the right. The anchor uses `align-self: stretch` plus
+  the source `aspect-ratio: 660 / 652` so its **width** is
+  derived from the hero's stretched height; the `<img>`
+  inside fills it with `object-fit: contain`. This way the
+  logo height equals caption + subcaption + buttons on
+  welcome (caption + subcaption on index) without inflating
+  the hero (the naive `height: 100%` on a raw `<img>`
+  creates a circular sizing loop and the logo blows up to
+  intrinsic size). Do not give the logo a fixed pixel
+  height.
 
 ## Footers / Impressum
 

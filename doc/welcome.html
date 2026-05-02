@@ -107,14 +107,15 @@
     .hero .site-logo-link {
       flex: 0 0 auto;
       align-self: stretch;
-      display: flex;
-      align-items: stretch;
+      aspect-ratio: 660 / 652;
+      display: block;
       line-height: 0;
     }
     .hero .site-logo-link img {
+      width: 100%;
       height: 100%;
-      width: auto;
       display: block;
+      object-fit: contain;
     }
     .hero .site-logo-link:hover img { opacity: 0.85; }
 
