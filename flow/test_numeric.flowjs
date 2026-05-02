@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.35",
+  "app_version": "0.3.0.54",
   "name": "test_numeric",
   "nodes": [
     {
@@ -34,10 +34,19 @@
       "module": "nodes.filters.math",
       "class": "Math",
       "position": [
-        -1220.9569072561362,
-        -1381.7413559483023
+        -1330.5377678769867,
+        -1480.0679660189028
       ],
       "port_defaults": {
+        "v_1": 0.0,
+        "v_2": 0.0,
+        "v_3": 0.0,
+        "v_4": 0.0,
+        "v_5": 0.0,
+        "v_6": 0.0,
+        "v_7": 0.0,
+        "v_8": 0.0,
+        "v_9": 0.0,
         "expression": "v_1 + v_2"
       }
     },
@@ -46,8 +55,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1001.8880959130598,
-        -1351.594271818521
+        -1053.420716853676,
+        -1464.136777321016
       ],
       "port_defaults": {}
     }

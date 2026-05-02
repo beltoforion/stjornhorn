@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.2.23",
+  "app_version": "0.3.0.54",
   "name": "video_tiltshift",
   "nodes": [
     {
@@ -69,8 +69,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -870.8018994605613,
-        -725.3743453537172
+        -902.9512005296739,
+        -645.3592011112753
       ],
       "port_defaults": {},
       "size": [

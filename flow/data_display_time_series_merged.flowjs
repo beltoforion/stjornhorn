@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.41",
+  "app_version": "0.3.0.54",
   "name": "data_display_time_series_merged",
   "nodes": [
     {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.35",
+  "app_version": "0.3.0.54",
   "name": "sample_transform",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
       "position": [
-        -1799.7637512894696,
-        -1048.4540960876052
+        -1850.3737144428803,
+        -1078.5465066112547
       ],
       "port_defaults": {
         "file_path": "ship.jpg"
@@ -32,8 +32,8 @@
       "module": "nodes.filters.scale",
       "class": "Scale",
       "position": [
-        -1334.3353372563045,
-        -1099.5975963210933
+        -1323.392642520432,
+        -1098.2297594791094
       ],
       "port_defaults": {
         "scale_percent": 50,
@@ -59,8 +59,8 @@
       "module": "nodes.filters.median",
       "class": "Median",
       "position": [
-        -1514.644745450176,
-        -1051.0329153234893
+        -1551.5763401837462,
+        -1098.9072047929315
       ],
       "port_defaults": {
         "size": 33
