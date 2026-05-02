@@ -145,6 +145,7 @@ class FlowView(QGraphicsView):
             return
         self.scale(factor, factor)
 
+
     def fit_to_contents(self) -> None:
         """Resize the canvas to the node layout plus 5% padding on each
         side, then zoom and scroll so the whole canvas fills the viewport.
