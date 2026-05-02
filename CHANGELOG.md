@@ -10,6 +10,17 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Fixed (Port-legend chrome now tracks the active theme)
+
+- **The Port Types legend overlay no longer renders in
+  hard-coded grey under the neon theme.** Its stylesheet is
+  composed at construction time from the active
+  :class:`Theme`'s `PALETTE_BASE` (semi-transparent panel
+  background), `PALETTE_HIGHLIGHT` (border) and `PALETTE_TEXT`
+  / `NODE_TITLE_TEXT_COLOR` (labels). Reads navy-on-navy under
+  neon, grey-on-grey under classic — no per-theme branching in
+  the legend itself.
+
 ### Added (Selectable theme on the Settings page)
 
 - **Two themes ship side by side: "Neon" (the new look) and

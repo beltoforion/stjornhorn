@@ -16,6 +16,7 @@ from ui.theme import (
     PORT_DIRECTION_GLYPH_COLOR,
     PORT_TYPE_COLORS,
     PORT_TYPE_DEFAULT_COLOR,
+    get_active_theme,
 )
 
 # Display label per IoDataType. Decoupled from the enum's ``value``
@@ -131,37 +132,50 @@ class PortLegend(QFrame):
 
     MARGIN: int = 12
 
-    # Background opacity is baked into the stylesheet's rgba() rather
-    # than applied via :class:`QGraphicsOpacityEffect`. The effect-based
-    # path interacts badly with :class:`~PySide6.QtWidgets.QGraphicsView`'s
-    # incremental update modes; the rgba fill bypasses the effect
-    # pipeline entirely.
-    _STYLE: str = """
-        QFrame#PortLegend {
-            background: rgba(31, 31, 34, 220);
-            border: 1px solid #3a3a3f;
+    #: Background opacity for the legend panel. Baked into the
+    #: stylesheet's rgba() rather than applied via
+    #: :class:`QGraphicsOpacityEffect`; the effect-based path interacts
+    #: badly with :class:`~PySide6.QtWidgets.QGraphicsView`'s
+    #: incremental update modes.
+    _BG_ALPHA: int = 220
+
+    @staticmethod
+    def _build_style() -> str:
+        """Compose the legend's stylesheet from the active theme so
+        the panel chrome (background, border, text) tracks the rest
+        of the app — navy-on-navy under neon, grey-on-grey under
+        classic."""
+        theme = get_active_theme()
+        bg = theme.PALETTE_BASE
+        border = theme.PALETTE_HIGHLIGHT
+        text = theme.PALETTE_TEXT
+        title_text = theme.NODE_TITLE_TEXT_COLOR
+        return f"""
+        QFrame#PortLegend {{
+            background: rgba({bg.red()}, {bg.green()}, {bg.blue()}, {PortLegend._BG_ALPHA});
+            border: 1px solid {border.name()};
             border-radius: 4px;
-        }
-        QLabel#PortLegendTitle {
-            color: #d0d0d0;
+        }}
+        QLabel#PortLegendTitle {{
+            color: {title_text.name()};
             font-weight: bold;
             background: transparent;
-        }
-        QLabel.PortLegendItem {
-            color: #c8c8c8;
+        }}
+        QLabel.PortLegendItem {{
+            color: {text.name()};
             background: transparent;
-        }
-        QToolButton#PortLegendClose {
-            color: #c8c8c8;
+        }}
+        QToolButton#PortLegendClose {{
+            color: {text.name()};
             background: transparent;
             border: none;
             padding: 0 4px;
             font-size: 12px;
-        }
-        QToolButton#PortLegendClose:hover {
-            color: #ffffff;
-        }
-    """
+        }}
+        QToolButton#PortLegendClose:hover {{
+            color: {title_text.name()};
+        }}
+        """
 
     #: Emitted when the user clicks the close button. The owning page
     #: handles this by flipping ``AppSettings.port_legend_visible``,
@@ -175,7 +189,7 @@ class PortLegend(QFrame):
         self.setObjectName("PortLegend")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.setStyleSheet(self._STYLE)
+        self.setStyleSheet(self._build_style())
 
         layout = QGridLayout(self)
         layout.setContentsMargins(10, 8, 12, 8)
