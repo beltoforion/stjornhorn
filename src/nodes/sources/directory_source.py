@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
@@ -48,6 +49,14 @@ class DirectorySource(SourceNodeBase):
     include_subdirectories = BoolParam(False, constant=True)
 
     HEADER_ICON = "folder_open"
+
+    # The descriptor protocol annotates these private backing attrs on the
+    # owner class via ``_ParamBase.__set_name__`` at runtime, but static
+    # type-checkers don't execute that — declare them explicitly so
+    # ``self._directory`` / ``self._include_subdirectories`` resolve.
+    if TYPE_CHECKING:
+        _directory: Path
+        _include_subdirectories: bool
 
     def __init__(self) -> None:
         super().__init__("Directory Source", section="Sources")
