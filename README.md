@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="assets/title.png" alt="Stjörnhorn" width="640"/>
+  <img src="assets/title.png" alt="Stjörnhorn"/>
 </p>
 
 [![Github All Releases](https://img.shields.io/github/downloads/beltoforion/stjornhorn/total.svg)](https://github.com/beltoforion/stjornhorn/releases/tag/v.0.2.16)
