@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.34",
+  "app_version": "0.3.0.41",
   "name": "data_display_time_series_merged",
   "nodes": [
     {
@@ -58,8 +58,8 @@
       "module": "nodes.sources.range_source",
       "class": "RangeSource",
       "position": [
-        -1635.0753230131995,
-        -180.7033721356379
+        -1610.1551793849221,
+        -171.90802732565774
       ],
       "port_defaults": {
         "min_value": 0,
@@ -132,13 +132,13 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -529.2953409083607,
-        -426.88503068062465
+        -490.5703428727003,
+        -845.4510023187204
       ],
       "port_defaults": {},
       "size": [
-        627.9362021738332,
-        773.0
+        684.342775645877,
+        995.0
       ]
     },
     {
@@ -178,13 +178,13 @@
       "module": "nodes.filters.spectrum",
       "class": "Spectrum",
       "position": [
-        -1100.0,
-        98.38290419683369
+        -1096.647488705856,
+        125.20299454998575
       ],
       "port_defaults": {
         "sample_rate": 8.0,
         "freq_max": 0.0,
-        "db_scale": true,
+        "db_scale": false,
         "window": 1
       }
     },
@@ -193,11 +193,11 @@
       "module": "nodes.filters.polar_heatmap",
       "class": "PolarHeatmap",
       "position": [
-        -800.0,
-        98.38290419683369
+        -828.496346000224,
+        83.29660337318566
       ],
       "port_defaults": {
-        "colormap": 0,
+        "colormap": 2,
         "theta_zero": 1,
         "theta_direction": 1,
         "width": 2400,
