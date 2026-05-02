@@ -10,6 +10,21 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Changed (Step-over button moved to the right of the title)
+
+- **The skip / step-over button now sits to the right of the
+  caption, between the title text and the tick-count badge,
+  instead of on the left of the header.** Frees up the left
+  side for the per-class header icon to read flush with the
+  title, matching the IDE convention where step-over controls
+  cluster with the row's other actions on the right. The
+  hand-drawn double-chevron is replaced by the Material Icons
+  `redo` glyph (a curved-over arrow), drawn through
+  `paint_material_glyph` so the button shares the same font
+  cache as the rest of the chrome. `_skip_button_x()` walks the
+  position in from the right edge so the close button stays
+  flush with the right padding regardless of badge width.
+
 ### Added (Per-node header icon)
 
 - **Every node now carries a Material Icons glyph in its header,

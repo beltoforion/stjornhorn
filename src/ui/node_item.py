@@ -245,7 +245,8 @@ class _CloseButtonItem(QGraphicsItem):
 
 
 class _SkipButtonItem(QGraphicsItem):
-    """Toggle button rendered on the left of the close button in a node header.
+    """Toggle button rendered on the right side of the node header,
+    between the title text and the tick badge / close button.
 
     Only attached to nodes whose :attr:`NodeBase.is_skippable` is True.
     Clicking it toggles :attr:`NodeBase.skipped`; while skipped, the
@@ -253,13 +254,16 @@ class _SkipButtonItem(QGraphicsItem):
     its normal ``process_impl``, the header is painted grey and the
     title is struck through.
 
-    Draws a simple double-chevron (``»``) glyph so the affordance reads
-    as "pass through / skip forward" without needing a separate icon
-    font.
+    Renders the Material Icons ``redo`` glyph (a curved-over arrow),
+    visually echoing the IDE "Step Over" affordance: the input value
+    arcs over the node's processing and lands on the output.
     """
 
     SIZE: float = 14.0
     Z_VALUE = 2
+
+    #: Material Icons glyph drawn as the button's pictogram.
+    _GLYPH: str = "redo"
 
     def __init__(self, node_item: "NodeItem") -> None:
         super().__init__(parent=node_item)
@@ -270,7 +274,7 @@ class _SkipButtonItem(QGraphicsItem):
         self.setAcceptHoverEvents(True)
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         self.setCursor(Qt.CursorShape.ArrowCursor)
-        self.setToolTip("Skip this node (pass inputs straight through)")
+        self.setToolTip("Step over this node (pass inputs straight through)")
 
     def boundingRect(self) -> QRectF:  # type: ignore[override]
         return QRectF(0, 0, self.SIZE, self.SIZE)
@@ -284,25 +288,12 @@ class _SkipButtonItem(QGraphicsItem):
             painter.setBrush(QBrush(QColor(255, 255, 255, alpha)))
             painter.drawRoundedRect(self.boundingRect(), 2, 2)
 
-        pen = QPen(NODE_TITLE_TEXT_COLOR, 1.6)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        s = self.SIZE
-        # Two right-pointing chevrons, rendered as thin V shapes, echoing
-        # the ``»`` symbol.
-        mid_y = s / 2
-        tip_dx = 3.0
-        half_h = 3.0
-        for x_tip in (s * 0.58, s * 0.86):
-            painter.drawLine(
-                QPointF(x_tip - tip_dx, mid_y - half_h),
-                QPointF(x_tip, mid_y),
-            )
-            painter.drawLine(
-                QPointF(x_tip, mid_y),
-                QPointF(x_tip - tip_dx, mid_y + half_h),
-            )
+        paint_material_glyph(
+            painter,
+            self._GLYPH,
+            self.boundingRect(),
+            color=NODE_TITLE_TEXT_COLOR,
+        )
 
     def hoverEnterEvent(self, event) -> None:  # type: ignore[override]
         self._hovered = True
@@ -766,32 +757,44 @@ class NodeItem(QGraphicsItem):
         return FILTER_HEADER_COLOR
 
     def _title_right_reserve(self) -> float:
-        """Horizontal space reserved on the header's right edge for buttons
-        and (for source nodes) the tick-count badge."""
-        return self.CLOSE_BUTTON_SIZE + self.PADDING + self._tick_label_width()
+        """Horizontal space reserved on the header's right edge for the
+        close button, the (source-only) tick-count badge, and the
+        (skippable-only) step-over button — which sits between the
+        title text and the tick badge."""
+        reserve = self.CLOSE_BUTTON_SIZE + self.PADDING + self._tick_label_width()
+        if self._skip_button is not None:
+            reserve += self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
+        return reserve
 
     def _title_left(self) -> float:
-        """X offset where the title text starts, accounting for the
-        node-class header icon and (when present) the left-side skip
-        button."""
+        """X offset where the title text starts, just past the
+        node-class header icon (when present)."""
         offset = self.PADDING
-        if self._skip_button is not None:
-            offset += self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
         if self._node.HEADER_ICON:
             offset += self.HEADER_ICON_SIZE + self.HEADER_ICON_GAP
         return offset
 
     def _header_icon_x(self) -> float:
-        """X offset of the header icon's left edge.
+        """X offset of the header icon's left edge — flush with
+        :attr:`PADDING`, with the title text directly to its right."""
+        return self.PADDING
 
-        Sits flush with the left padding, slid past the skip button if
-        the node carries one. The title text follows directly via
-        :meth:`_title_left` so icon and label read as a single unit.
+    def _skip_button_x(self) -> float:
+        """X offset of the step-over button's left edge.
+
+        The button sits between the title text and the tick-count
+        badge (or, when there's no badge, between the title and the
+        close button). Walked in from the right edge so the close
+        button is always flush with the right padding.
         """
-        x = self.PADDING
-        if self._skip_button is not None:
-            x += self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
-        return x
+        return (
+            self._width
+            - self.PADDING
+            - self.CLOSE_BUTTON_SIZE
+            - self._tick_label_width()
+            - self.HEADER_BUTTON_GAP
+            - self.SKIP_BUTTON_SIZE
+        )
 
     def _tick_label(self) -> str:
         """Badge text for source nodes whose frame count is known (e.g. ``"100×"``).
@@ -1128,7 +1131,7 @@ class NodeItem(QGraphicsItem):
         )
         if self._skip_button is not None:
             self._skip_button.setPos(
-                self.PADDING,
+                self._skip_button_x(),
                 (self.HEADER_HEIGHT - self.SKIP_BUTTON_SIZE) / 2,
             )
         self._resize_grip.setPos(

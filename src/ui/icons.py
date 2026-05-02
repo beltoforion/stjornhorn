@@ -56,6 +56,8 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "vertical_split":   "e949",
     "horizontal_split": "e947",
     "settings":         "e8b8",
+    # Step-over toggle on every skippable node's header.
+    "redo":             "e15a",
     # Node-header glyphs. Keep grouped by the kind of node that uses
     # them so the table reads as a quick reference for which icons
     # are claimed by which area.
