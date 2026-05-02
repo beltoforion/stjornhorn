@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSize, Qt, QUrl, Signal
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QAction, QDesktopServices, QIcon
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -37,6 +37,40 @@ if TYPE_CHECKING:
     from ui.recent_flows import RecentFlowsManager
 
 _FLOW_FILE_FILTER = "Flow (*.flowjs);;All files (*)"
+
+
+class _ExternalLinkPage(QWebEnginePage):
+    """QWebEnginePage that routes link clicks out to the system browser.
+
+    The welcome page lives inside a QWebEngineView but its buttons all
+    point at external URLs (documentation site, GitHub). Without this
+    indirection, regular link clicks would replace the welcome page in
+    the embedded view, and ``target="_blank"`` clicks would silently no-op
+    because the default ``createWindow`` returns a null page.
+
+    Issue: #281
+    """
+
+    def acceptNavigationRequest(  # noqa: N802 — Qt override
+        self, url: QUrl, nav_type: QWebEnginePage.NavigationType, is_main_frame: bool,
+    ) -> bool:
+        if nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
+            QDesktopServices.openUrl(url)
+            return False
+        return super().acceptNavigationRequest(url, nav_type, is_main_frame)
+
+    def createWindow(  # noqa: N802 — Qt override
+        self, _type: QWebEnginePage.WebWindowType,
+    ) -> QWebEnginePage:
+        # target="_blank" links route through createWindow, not
+        # acceptNavigationRequest. Return a throwaway page that captures
+        # the requested URL and hands it off to the system browser.
+        popup = QWebEnginePage(self)
+        def _open_and_dispose(url: QUrl, page: QWebEnginePage = popup) -> None:
+            QDesktopServices.openUrl(url)
+            page.deleteLater()
+        popup.urlChanged.connect(_open_and_dispose)
+        return popup
 
 
 class StartPage(PageBase):
@@ -79,6 +113,7 @@ class StartPage(PageBase):
 
         # Row 1: welcome web view — soaks up all remaining vertical space.
         self._welcome_view = QWebEngineView()
+        self._welcome_view.setPage(_ExternalLinkPage(self._welcome_view))
         self._welcome_view.settings().setAttribute(
             QWebEngineSettings.WebAttribute.ShowScrollBars, False,
         )

@@ -12,6 +12,17 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Fixed (Welcome page links open in the system browser)
+
+- **Welcome page link buttons (`Documentation`, `GitHub`, `Issues`,
+  `Releases`, `Impressum`, site logo) work again.** They are all
+  `target="_blank"` anchors, which `QWebEngineView` routes through
+  `QWebEnginePage.createWindow()`. The default returns a null page,
+  so the clicks were silently dropped. The start page now installs
+  a `_ExternalLinkPage` subclass that intercepts link clicks and
+  `target="_blank"` requests and forwards the URL to
+  `QDesktopServices.openUrl()`.
+
 ### Added (Online welcome page with offline fallback)
 
 - **Start page tries the live welcome page first.** The bundled
