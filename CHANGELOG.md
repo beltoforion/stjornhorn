@@ -17,7 +17,7 @@ once a first tagged release is cut.
 - **`FlowView.fit_to_contents` now uses two padding ratios.** The
   view zoom still fits the layout with a tight 5% margin so the
   graph reads as filling the viewport, but the scene rect is set
-  20% wider than the layout instead of matching the view rect.
+  33% wider than the layout instead of matching the view rect.
   Without that wider scene rect, the scroll-bars hit their
   end-stop right at the visible layout border, so middle-mouse
   panning had nowhere to go after a Fit. With the wider scene
@@ -29,7 +29,7 @@ once a first tagged release is cut.
   so a wide layout in a wide viewport ended up with a vertical
   visible area larger than the layout — eating into the 20%
   scene padding and locking vertical panning. The scene rect is
-  now sized so the 20% pan margin sits *beyond the post-fit
+  now sized so the 33% pan margin sits *beyond the post-fit
   visible area* on each axis (`scene_rect = max(layout, visible) + pan`),
   not just beyond the layout bounds.
 

@@ -37,7 +37,7 @@ class FlowView(QGraphicsView):
     # scene rect is set wider so the user has room to pan past the
     # layout edges without hitting the scroll-bar end-stop.
     _FIT_VIEW_PADDING:  float = 0.05
-    _FIT_SCENE_PADDING: float = 0.20
+    _FIT_SCENE_PADDING: float = 0.33
 
     def __init__(self, scene: FlowScene) -> None:
         super().__init__(scene)
