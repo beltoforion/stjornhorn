@@ -6,7 +6,7 @@
 [![Github All Releases](https://img.shields.io/github/downloads/beltoforion/stjornhorn/total.svg)](https://github.com/beltoforion/stjornhorn/releases/tag/v.0.2.16)
 # Stjörnhorn
 
-A desktop application for building image- and video-processing
+A desktop application for building image-, video- and data-processing
 workflows using a node-based visual editor. Drop image sources,
 filters, and sinks onto a canvas, wire them up, hit **Run**, then tweak
 parameters and watch the output update live via inline `Display`
