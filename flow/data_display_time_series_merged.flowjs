@@ -132,13 +132,13 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -519.6499516506973,
-        -267.73610792918055
+        -529.2953409083607,
+        -426.88503068062465
       ],
       "port_defaults": {},
       "size": [
-        1007.0,
-        434.0
+        627.9362021738332,
+        773.0
       ]
     },
     {
@@ -146,8 +146,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        177.32826782003391,
-        247.78166406342254
+        135.23337775227697,
+        208.23797945431755
       ],
       "port_defaults": {
         "output_path": "ground_motion_merged.mp4",
