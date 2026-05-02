@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, QRectF, Qt
-from PySide6.QtGui import QBrush, QColor, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from core.io_data import IoDataType
 from ui.theme import (
+    PORT_DIRECTION_GLYPH_COLOR,
     PORT_TYPE_COLORS,
     PORT_TYPE_DEFAULT_COLOR,
 )
@@ -33,51 +34,96 @@ _TYPE_LABELS: dict[IoDataType, str] = {
 
 
 class _Swatch(QWidget):
-    """Tiny coloured circle that mirrors a single-type port's appearance.
+    """Tiny port-shaped widget used for legend rows.
 
-    Painted (rather than CSS-styled) so the legend swatch and the port
-    dot use exactly the same shape — a darker fill ringed by the full
-    type colour — keeping the visual story consistent. See
-    :class:`ui.port_item.PortItem` for the matching port-side rendering.
+    Renders the same darker-fill + bright-ring shape as
+    :class:`ui.port_item.PortItem` so the legend reads as a 1:1
+    miniature of an actual port. Optional knobs let the caller pick
+    the ring stroke style (solid/dotted), ring thickness (mirroring
+    required vs. optional ports), and whether to draw the small
+    right-pointing glyph (mirroring outputs).
     """
 
-    SIZE: int = 12
-    _RING_WIDTH: float = 1.4
+    DOT_SIZE: int = 12
+    _RING_WIDTH_DEFAULT: float = 1.4
+    _RING_WIDTH_THIN: float = 1.0
     _FILL_DARKEN: int = 200
 
-    def __init__(self, color: QColor, parent: QWidget | None = None) -> None:
+    # Glyph geometry — kept in sync with PortItem's output triangle so
+    # the legend mirrors the canvas without numeric drift.
+    _GLYPH_BASE_OFFSET: float = 1.0
+    _GLYPH_LENGTH: float = 4.5
+    _GLYPH_HALF_HEIGHT: float = 3.0
+
+    def __init__(
+        self,
+        color: QColor,
+        *,
+        ring_width: float = _RING_WIDTH_DEFAULT,
+        ring_style: Qt.PenStyle = Qt.PenStyle.SolidLine,
+        show_glyph: bool = False,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self._color = color
-        self.setFixedSize(self.SIZE, self.SIZE)
+        self._ring_width = ring_width
+        self._ring_style = ring_style
+        self._show_glyph = show_glyph
+        # Reserve glyph space on the right side so the dot stays
+        # left-aligned with neighbouring (glyph-less) swatches in the
+        # grid.
+        extra = (self._GLYPH_BASE_OFFSET + self._GLYPH_LENGTH + 1.0) if show_glyph else 0.0
+        self.setFixedSize(int(self.DOT_SIZE + extra), self.DOT_SIZE)
 
     def paintEvent(self, event) -> None:  # type: ignore[override]
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         # Inset the rect by half the pen width so the ring sits inside
         # the widget bounds and isn't clipped on either side.
-        inset = self._RING_WIDTH / 2
-        rect = QRectF(inset, inset, self.SIZE - 2 * inset, self.SIZE - 2 * inset)
+        inset = self._ring_width / 2
+        rect = QRectF(inset, inset, self.DOT_SIZE - 2 * inset, self.DOT_SIZE - 2 * inset)
+
         painter.setPen(QPen(Qt.PenStyle.NoPen))
         painter.setBrush(QBrush(self._color.darker(self._FILL_DARKEN)))
         painter.drawEllipse(rect)
+
         painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-        painter.setPen(QPen(self._color, self._RING_WIDTH))
+        painter.setPen(QPen(self._color, self._ring_width, self._ring_style))
         painter.drawEllipse(rect)
+
+        if self._show_glyph:
+            cy = self.DOT_SIZE / 2
+            base_x = self.DOT_SIZE - inset + self._GLYPH_BASE_OFFSET
+            tip_x = base_x + self._GLYPH_LENGTH
+            h = self._GLYPH_HALF_HEIGHT
+            path = QPainterPath()
+            path.moveTo(base_x, cy - h)
+            path.lineTo(tip_x, cy)
+            path.lineTo(base_x, cy + h)
+            path.closeSubpath()
+            painter.setPen(QPen(Qt.PenStyle.NoPen))
+            painter.setBrush(QBrush(PORT_DIRECTION_GLYPH_COLOR))
+            painter.drawPath(path)
 
 
 class PortLegend(QFrame):
-    """Floating legend listing port colour → :class:`IoDataType` mappings.
+    """Floating legend explaining the port visual language.
 
     Mounted on the :class:`~ui.flow_view.FlowView` viewport and anchored
     to its bottom-left corner. Tracks viewport resizes through an
     event filter so the legend stays glued to the corner without the
     enclosing layout having to manage it.
 
-    Stateless and read-only — the palette is taken from
-    :data:`ui.theme.PORT_TYPE_COLORS` at construction time. Adding a
-    new :class:`IoDataType` shows up here automatically as long as the
-    new entry is also present in :data:`_TYPE_LABELS`; otherwise the
-    legend falls back to the enum's display name.
+    Two sections:
+      * **Port types** — one row per :class:`IoDataType` showing the
+        colour used for that type's ring and (darker) fill.
+      * **Port roles** — required / optional / latched input
+        variants and the output glyph, all rendered in the neutral
+        default colour so the variation is purely about ring stroke
+        and direction marker rather than type colour.
+
+    Visibility is owned by the caller (the View-menu toggle); the
+    legend itself is just a stateless display widget.
     """
 
     MARGIN: int = 12
@@ -119,21 +165,73 @@ class PortLegend(QFrame):
         layout.setHorizontalSpacing(8)
         layout.setVerticalSpacing(4)
 
-        title = QLabel("Port types")
-        title.setObjectName("PortLegendTitle")
-        # Span both columns so the title sits above swatch + label.
-        layout.addWidget(title, 0, 0, 1, 2)
-
-        for row, t in enumerate(IoDataType, start=1):
-            color = PORT_TYPE_COLORS.get(t, PORT_TYPE_DEFAULT_COLOR)
-            label = QLabel(_TYPE_LABELS.get(t, t.value))
-            label.setProperty("class", "PortLegendItem")
-            layout.addWidget(_Swatch(color, self), row, 0)
-            layout.addWidget(label, row, 1)
+        row = 0
+        row = self._add_section(layout, row, "Port types", self._type_rows())
+        row = self._add_section(layout, row, "Port roles", self._role_rows())
 
         self.adjustSize()
         parent.installEventFilter(self)
         self._reposition()
+
+    # ── Row builders ───────────────────────────────────────────────────────────
+
+    def _type_rows(self) -> list[tuple[_Swatch, str]]:
+        rows: list[tuple[_Swatch, str]] = []
+        for t in IoDataType:
+            color = PORT_TYPE_COLORS.get(t, PORT_TYPE_DEFAULT_COLOR)
+            rows.append((_Swatch(color, parent=self), _TYPE_LABELS.get(t, t.value)))
+        return rows
+
+    def _role_rows(self) -> list[tuple[_Swatch, str]]:
+        # Neutral colour so the variation reads as ring-style only —
+        # the type-colour story stays in the upper section.
+        c = PORT_TYPE_DEFAULT_COLOR
+        return [
+            (
+                _Swatch(c, ring_width=_Swatch._RING_WIDTH_DEFAULT, parent=self),
+                "Required input",
+            ),
+            (
+                _Swatch(c, ring_width=_Swatch._RING_WIDTH_THIN, parent=self),
+                "Optional input",
+            ),
+            (
+                _Swatch(
+                    c,
+                    ring_width=_Swatch._RING_WIDTH_DEFAULT,
+                    ring_style=Qt.PenStyle.DotLine,
+                    parent=self,
+                ),
+                "Latched input (holds last value)",
+            ),
+            (
+                _Swatch(c, show_glyph=True, parent=self),
+                "Output",
+            ),
+        ]
+
+    def _add_section(
+        self,
+        layout: QGridLayout,
+        start_row: int,
+        title_text: str,
+        rows: list[tuple[_Swatch, str]],
+    ) -> int:
+        # First section sits flush; subsequent ones leave a small gap by
+        # adding extra vertical room on the title row.
+        title = QLabel(title_text)
+        title.setObjectName("PortLegendTitle")
+        if start_row > 0:
+            title.setContentsMargins(0, 8, 0, 0)
+        layout.addWidget(title, start_row, 0, 1, 2)
+        next_row = start_row + 1
+        for swatch, text in rows:
+            label = QLabel(text)
+            label.setProperty("class", "PortLegendItem")
+            layout.addWidget(swatch, next_row, 0)
+            layout.addWidget(label, next_row, 1)
+            next_row += 1
+        return next_row
 
     # ── Parent resize tracking ─────────────────────────────────────────────────
 

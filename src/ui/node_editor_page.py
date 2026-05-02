@@ -38,6 +38,7 @@ from ui.node_list_state import restore_node_list_state, save_node_list_state
 from ui.recent_flows import RecentFlowsManager
 from ui.message_banner import MessageBanner
 from ui.port_legend import PortLegend
+from ui.settings import get_settings
 from ui.flow_status_widget import FlowStatusWidget
 from ui.theme import STATUS_MUTED_COLOR, STATUS_OK_COLOR
 
@@ -185,8 +186,20 @@ class NodeEditorPage(PageBase):
         # canvas viewport. Parented to the viewport (not the page or
         # the QGraphicsView itself) so the legend tracks the canvas
         # area through pan/resize without sliding under docks.
+        # Visibility is owned by ``AppSettings.port_legend_visible``,
+        # surfaced through the View menu and persisted across sessions.
         self._port_legend = PortLegend(self._view.viewport())
-        self._port_legend.show()
+        settings = get_settings()
+        self._port_legend.setVisible(settings.port_legend_visible)
+        self._port_legend_action = QAction("Port Legend", self)
+        self._port_legend_action.setCheckable(True)
+        self._port_legend_action.setChecked(settings.port_legend_visible)
+        self._port_legend_action.toggled.connect(self._on_port_legend_toggled)
+        # Two-way binding so a programmatic settings change (e.g. from
+        # a future settings page) keeps the action's check state and
+        # the legend visibility in sync.
+        settings.port_legend_visible_changed.connect(self._port_legend_action.setChecked)
+        settings.port_legend_visible_changed.connect(self._port_legend.setVisible)
 
         # Bridge core.notifications → banner. Producers fire on worker
         # threads; the signal carries the payload back to the UI thread
@@ -268,6 +281,8 @@ class NodeEditorPage(PageBase):
         view_menu = menu.addMenu("View")
         view_menu.addAction(self._node_list_dock.toggleViewAction())
         view_menu.addAction(self._node_doc_dock.toggleViewAction())
+        view_menu.addSeparator()
+        view_menu.addAction(self._port_legend_action)
         return [menu]
 
     def on_activated(self) -> None:
@@ -402,6 +417,13 @@ class NodeEditorPage(PageBase):
 
     def _on_group_clicked(self) -> None:
         self._scene.create_group_around_selection()
+
+    def _on_port_legend_toggled(self, checked: bool) -> None:
+        # Push the new value into AppSettings; the singleton's signal
+        # then propagates back to both the action's check state and
+        # the legend's visibility, so any future binding (e.g. another
+        # editor page or a settings dialog) stays consistent.
+        get_settings().port_legend_visible = checked
 
     def _on_stack_vertical_clicked(self) -> None:
         """Align selected nodes on a shared X axis and stack them vertically."""

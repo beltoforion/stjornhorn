@@ -15,14 +15,18 @@ once a first tagged release is cut.
 ### Added (port-type colour legend on the canvas)
 
 - **Floating legend in the bottom-left of the node-editor canvas**
-  showing each `IoDataType` with its swatch colour (image/blue,
-  scalar/orange, dataset/green, …). Mounted on the FlowView
-  viewport so it tracks the canvas through pan/resize without
-  sliding under docks. The swatch reuses the same darker-fill +
-  bright-ring rendering as the actual port dot for a one-glance
-  match between legend and ports. Mouse events pass through so the
-  legend never eats clicks meant for nodes underneath. New widget:
-  `ui/port_legend.py`.
+  with two sections — *Port types* (one row per `IoDataType` with
+  its swatch colour) and *Port roles* (required / optional /
+  latched input variants and the output direction glyph).
+  Mounted on the FlowView viewport so it tracks the canvas through
+  pan/resize without sliding under docks. The swatches reuse the
+  same darker-fill + bright-ring rendering as the actual port dots
+  for a one-glance match between legend and ports. Mouse events
+  pass through so the legend never eats clicks meant for nodes
+  underneath. New widget: `ui/port_legend.py`.
+- **View → Port Legend** menu entry toggles legend visibility;
+  state persists across sessions through a new
+  `port_legend_visible` flag on `AppSettings`.
 
 ### Changed (port visuals: type-coloured rings + output direction glyph)
 
