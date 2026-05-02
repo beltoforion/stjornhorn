@@ -92,6 +92,22 @@ architectural documentation lives under `doc/internal/`.
   footer in sync with the current `M.m.r` from
   `src/constants.py` (the build digit is not displayed).
 
+## `welcome.html`
+
+- A row of button-style links (`a.button` inside `.links`)
+  sits inside the hero header, immediately under the tagline,
+  pointing at the hosted documentation
+  (`http://stjornhorn.beltoforion.de`), the GitHub repository,
+  the Issues tracker
+  (`https://github.com/beltoforion/stjornhorn/issues`) and the
+  Releases page
+  (`https://github.com/beltoforion/stjornhorn/releases`). Open
+  in a new tab (`target="_blank" rel="noopener"`).
+- Do **not** put a "Offline welcome page — shown because the
+  online start page could not be reached" footer at the bottom.
+  The page is the welcome page in its own right; that
+  fallback caption was removed.
+
 ## When in doubt
 
 - If a piece of information is genuinely useful to a user

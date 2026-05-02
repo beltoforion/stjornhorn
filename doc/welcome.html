@@ -162,12 +162,29 @@
       color: var(--text);
     }
 
-    footer {
-      margin-top: auto;
-      padding-top: 8px;
-      border-top: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 11px;
+    .links {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    a.button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    a.button:hover {
+      background: var(--bg-panel-alt);
+      border-color: var(--accent);
+      color: var(--accent);
+      text-decoration: none;
     }
   </style>
 </head>
@@ -182,6 +199,12 @@
     <header class="hero">
       <h1>Welcome to Stjörnhorn <span class="version">v0.3.0</span></h1>
       <div class="tagline">A node-based image- and video-processing playground.</div>
+      <div class="links">
+        <a class="button" href="http://stjornhorn.beltoforion.de" target="_blank" rel="noopener">Documentation</a>
+        <a class="button" href="https://github.com/beltoforion/stjornhorn" target="_blank" rel="noopener">GitHub repository</a>
+        <a class="button" href="https://github.com/beltoforion/stjornhorn/issues" target="_blank" rel="noopener">Issues</a>
+        <a class="button" href="https://github.com/beltoforion/stjornhorn/releases" target="_blank" rel="noopener">Releases</a>
+      </div>
     </header>
 
     <section>
@@ -236,10 +259,6 @@
         <li>Press <kbd>F11</kbd> with the output inspector focused to toggle fullscreen preview.</li>
       </ul>
     </section>
-
-    <footer>
-      Offline welcome page — shown because the online start page could not be reached.
-    </footer>
 
   </main>
 
