@@ -189,6 +189,10 @@ class NodeEditorPage(PageBase):
         # Visibility is owned by ``AppSettings.port_legend_visible``,
         # surfaced through the View menu and persisted across sessions.
         self._port_legend = PortLegend(self._view.viewport())
+        # Keep the legend on top of any viewport scroll/zoom repaint —
+        # without this, fit-to-contents and friends leave it covered
+        # by the freshly-blitted scene area.
+        self._view.register_viewport_overlay(self._port_legend)
         settings = get_settings()
         self._port_legend.setVisible(settings.port_legend_visible)
         self._port_legend_action = QAction("Port Legend", self)

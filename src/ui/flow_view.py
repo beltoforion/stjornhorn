@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QEvent, QPoint, QRectF, Qt
 from PySide6.QtGui import QGuiApplication, QPainter, QPen
-from PySide6.QtWidgets import QGraphicsView
+from PySide6.QtWidgets import QGraphicsView, QWidget
 
 from ui.node_list import NODE_LIST_MIME_TYPE
 from ui.theme import CANVAS_BACKGROUND_COLOR, CANVAS_GRID_COLOR
@@ -45,6 +45,16 @@ class FlowView(QGraphicsView):
 
         self._panning: bool = False
         self._pan_last: QPoint | None = None
+
+        # Child widgets parented to ``viewport()`` (e.g. the floating
+        # port-type legend) need to be re-raised after every viewport
+        # scroll/repaint or Qt's BoundingRectViewportUpdate optimisation
+        # leaves them obscured by the freshly-blitted scene area.
+        # Callers register their overlay with
+        # :meth:`register_viewport_overlay`; the view then raises and
+        # repaints them after every ``scrollContentsBy`` and after
+        # :meth:`fit_to_contents`.
+        self._viewport_overlays: list[QWidget] = []
 
         self._screen_hooks_connected: bool = False
         self._connect_screen_hooks()
@@ -145,6 +155,29 @@ class FlowView(QGraphicsView):
             return
         self.scale(factor, factor)
 
+    def register_viewport_overlay(self, widget: QWidget) -> None:
+        """Track *widget* so it stays on top of viewport repaints.
+
+        Children of ``viewport()`` get visually clipped by the scene
+        blit performed during scroll/zoom under
+        :attr:`BoundingRectViewportUpdate`. Registering them here
+        causes :meth:`scrollContentsBy` and :meth:`fit_to_contents` to
+        re-raise and repaint them once the viewport finishes its own
+        update.
+        """
+        if widget not in self._viewport_overlays:
+            self._viewport_overlays.append(widget)
+
+    def _refresh_viewport_overlays(self) -> None:
+        for widget in self._viewport_overlays:
+            if widget.isVisible():
+                widget.raise_()
+                widget.update()
+
+    def scrollContentsBy(self, dx: int, dy: int) -> None:  # type: ignore[override]
+        super().scrollContentsBy(dx, dy)
+        self._refresh_viewport_overlays()
+
     def fit_to_contents(self) -> None:
         """Resize the canvas to the node layout plus 5% padding on each
         side, then zoom and scroll so the whole canvas fills the viewport.
@@ -187,6 +220,7 @@ class FlowView(QGraphicsView):
             self.resetTransform()
             self.scale(self._ZOOM_MAX, self._ZOOM_MAX)
         self.centerOn(canvas.center())
+        self._refresh_viewport_overlays()
 
     def reset_zoom(self) -> None:
         """Reset the view transform to the default 1:1 scale."""

@@ -30,6 +30,17 @@ once a first tagged release is cut.
   the legend's title row routes through the same setter so the
   click and the menu entry stay on one source of truth.
 
+### Fixed (port legend disappearing after Fit / scroll)
+
+- **The legend stays on top after Fit, pan and zoom.** Children of
+  `FlowView.viewport()` were being clipped by the scene blit
+  performed under `BoundingRectViewportUpdate` whenever the
+  viewport scrolled, so pressing Fit (or any pan/zoom that
+  triggered `scrollContentsBy`) left the legend covered. `FlowView`
+  now exposes `register_viewport_overlay(widget)` and re-raises +
+  repaints registered overlays after every `scrollContentsBy` and
+  after `fit_to_contents`.
+
 ### Changed (port visuals: type-coloured rings + output direction glyph)
 
 - **Ports now encode their `IoDataType` set as colour.** Each port
