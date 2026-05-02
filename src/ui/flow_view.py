@@ -160,11 +160,13 @@ class FlowView(QGraphicsView):
         Two rects, two purposes:
           * **view rect** (layout + ``_FIT_VIEW_PADDING``) — passed to
             ``fitInView`` so the graph reads as "filling" the viewport.
-          * **scene rect** (layout + ``_FIT_SCENE_PADDING``) — set on
-            the scene so the user has empty canvas to pan into past
-            the layout edges. Without this, scroll-bars hit their
-            end-stop right at the visible layout border and panning
-            feels locked.
+          * **scene rect** — sized so that on each axis there's at
+            least ``_FIT_SCENE_PADDING`` of layout-relative pan
+            margin *beyond the post-fit visible area*. Naively
+            taking ``layout + 20%`` collapses to "no pan room" on
+            the non-fit axis when the viewport aspect mismatches
+            the layout, because KeepAspectRatio leaves slack there
+            that already exceeds the layout bounds.
 
         The bounding rect is computed from structural items only — node
         bodies and backdrops — *not* from wires. ``LinkItem`` is a cubic
@@ -194,9 +196,31 @@ class FlowView(QGraphicsView):
         view_pad_y = rect.height() * self._FIT_VIEW_PADDING
         view_rect = rect.adjusted(-view_pad_x, -view_pad_y, view_pad_x, view_pad_y)
 
-        scene_pad_x = rect.width() * self._FIT_SCENE_PADDING
-        scene_pad_y = rect.height() * self._FIT_SCENE_PADDING
-        scene_rect = rect.adjusted(-scene_pad_x, -scene_pad_y, scene_pad_x, scene_pad_y)
+        # Derive the post-fit scale up front so we know the visible
+        # scene area. With KeepAspectRatio, fitInView fills one axis
+        # exactly and leaves slack on the other — that slack inflates
+        # the visible scene rect on the non-fit axis well past
+        # ``view_rect``. If we sized ``scene_rect`` only relative to
+        # the layout, the slack would eat into the pan margin on that
+        # axis (typically: wide layout in a wide viewport → almost no
+        # vertical pan room). Compute the visible rect explicitly and
+        # ensure ``scene_rect`` extends ``_FIT_SCENE_PADDING`` *beyond
+        # the visible area* on each axis.
+        viewport_size = self.viewport().size()
+        sx = viewport_size.width() / view_rect.width()
+        sy = viewport_size.height() / view_rect.height()
+        fit_scale = min(min(sx, sy), self._ZOOM_MAX)
+        visible_w = viewport_size.width() / fit_scale
+        visible_h = viewport_size.height() / fit_scale
+
+        pan_x = rect.width() * self._FIT_SCENE_PADDING
+        pan_y = rect.height() * self._FIT_SCENE_PADDING
+        half_w = max(rect.width(), visible_w) / 2 + pan_x
+        half_h = max(rect.height(), visible_h) / 2 + pan_y
+        center = rect.center()
+        scene_rect = QRectF(
+            center.x() - half_w, center.y() - half_h, 2 * half_w, 2 * half_h,
+        )
 
         scene.setSceneRect(scene_rect)
         self.fitInView(view_rect, Qt.AspectRatioMode.KeepAspectRatio)

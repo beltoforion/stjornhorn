@@ -24,6 +24,14 @@ once a first tagged release is cut.
   rect there's empty canvas to pan into on every side.
   Constants `_FIT_VIEW_PADDING` / `_FIT_SCENE_PADDING` live next
   to the existing zoom limits in `ui/flow_view.py`.
+- **Pan margin guaranteed on both axes regardless of viewport
+  aspect.** `KeepAspectRatio` leaves slack on the non-fit axis,
+  so a wide layout in a wide viewport ended up with a vertical
+  visible area larger than the layout — eating into the 20%
+  scene padding and locking vertical panning. The scene rect is
+  now sized so the 20% pan margin sits *beyond the post-fit
+  visible area* on each axis (`scene_rect = max(layout, visible) + pan`),
+  not just beyond the layout bounds.
 
 ### Changed (Mosaic layout descriptor: rows of comma-separated cells, no spanning)
 
