@@ -3,10 +3,21 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsPathItem
 
-from ui.theme import LINK_COLOR, LINK_SELECTED_COLOR
+from ui.theme import (
+    LINK_COLOR,
+    LINK_GLOW_STROKES,
+    LINK_SELECTED_COLOR,
+    LINK_STROKE_WIDTH,
+)
+
+#: Worst-case outer-glow extent in scene pixels around the wire
+#: path. Sized to cover any registered theme's
+#: ``Theme.LINK_GLOW_STROKES`` so ``boundingRect`` stays
+#: theme-independent.
+_LINK_BOUNDING_PAD: float = 6.0
 
 if TYPE_CHECKING:
     from ui.port_item import PortItem
@@ -53,10 +64,31 @@ class LinkItem(QGraphicsPathItem):
         self.setPath(_bezier_path(src, dst))
 
     def paint(self, painter, option, widget=None) -> None:  # type: ignore[override]
-        pen = QPen(LINK_SELECTED_COLOR if self.isSelected() else LINK_COLOR, 2)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        painter.setPen(pen)
-        painter.drawPath(self.path())
+        base_color = LINK_SELECTED_COLOR if self.isSelected() else LINK_COLOR
+        path = self.path()
+        # Themes opt into a wire halo via ``LINK_GLOW_STROKES``: each
+        # entry is ``(stroke_width, alpha)`` and is painted before the
+        # crisp inner stroke. Empty disables the halo entirely
+        # (classic theme stays a single hairline).
+        for width, alpha in LINK_GLOW_STROKES:
+            glow = QColor(base_color)
+            glow.setAlpha(alpha)
+            pen = QPen(glow, width)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.drawPath(path)
+        painter.setPen(QPen(base_color, LINK_STROKE_WIDTH))
+        painter.drawPath(path)
+
+    def boundingRect(self):  # type: ignore[override]
+        # Padded by the worst-case glow extent across all registered
+        # themes so the scene doesn't clip the halo during partial
+        # repaints.
+        return super().boundingRect().adjusted(
+            -_LINK_BOUNDING_PAD, -_LINK_BOUNDING_PAD,
+             _LINK_BOUNDING_PAD,  _LINK_BOUNDING_PAD,
+        )
 
     # ── Lifecycle ──────────────────────────────────────────────────────────────
 

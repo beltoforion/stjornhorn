@@ -10,6 +10,85 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Fixed (Port-legend chrome now tracks the active theme)
+
+- **The Port Types legend overlay no longer renders in
+  hard-coded grey under the neon theme.** Its stylesheet is
+  composed at construction time from the active
+  :class:`Theme`'s `PALETTE_BASE` (semi-transparent panel
+  background), `PALETTE_HIGHLIGHT` (border) and `PALETTE_TEXT`
+  / `NODE_TITLE_TEXT_COLOR` (labels). Reads navy-on-navy under
+  neon, grey-on-grey under classic — no per-theme branching in
+  the legend itself.
+
+### Added (Selectable theme on the Settings page)
+
+- **Two themes ship side by side: "Neon" (the new look) and
+  "Classic" (the pre-restyle flat-grey palette with solid
+  coloured node header strips, no glow).** A new combo on the
+  Settings page picks between them; the choice is persisted to
+  `settings.json` (`theme_name`) and locked in at next launch.
+  The active theme is resolved at `ui.theme` import time by
+  reading the settings file directly, so consumer modules can
+  keep caching tokens via `from ui.theme import …` and a
+  divergent picker selection just shows a "Takes effect on next
+  launch" hint. The node painter now branches on
+  `Theme.HEADER_AS_STRIP` (classic) vs. the thin category divider
+  (neon), `Theme.BORDER_FROM_CATEGORY` decides whether the border
+  carries the category, and the outer-glow walk is data-driven
+  via `Theme.NODE_GLOW_STROKES` / `Theme.LINK_GLOW_STROKES` —
+  empty tuples disable the halos for the classic look. Node and
+  link bounding rects use a fixed worst-case pad so neither
+  caches need invalidation across themes.
+
+### Changed (Theme as a swappable value)
+
+- **`ui.theme` is now a thin re-export layer over a `Theme`
+  dataclass.** Every design token (node body / border / glow
+  colours, link colours, status colours, palette entries, the QSS
+  template) lives on a single frozen :class:`Theme` instance under
+  `ui/themes/`. ``ui.theme`` picks one as the active theme at
+  import time, flattens its fields into module-level globals, and
+  publishes :func:`apply_theme(app, theme)` to swap the palette /
+  QSS at startup. Adding a new theme is now "drop a file in
+  `ui/themes/`, build a `Theme`, register it in
+  `AVAILABLE_THEMES`" — no edits to consumer modules. Existing
+  ``from ui.theme import NODE_BODY_COLOR`` imports keep working
+  unchanged. ``apply_dark_theme`` survives as a backwards-compat
+  shim around `apply_theme(DEFAULT_THEME)` so `main.py` stays as
+  is.
+
+### Changed (Neon node style)
+
+- **Coloured header strip dropped.** Per-category identity (Source /
+  Filter / Sink) now lives on the node *border* and outer glow,
+  matching the mockup's cleaner "neon rim around a dark body" look.
+  A thin divider in the same accent at low alpha sits under the
+  title row so the kind is still readable when the body is
+  selected (which swaps the rim to the high-contrast yellow
+  selection accent). The unused `_header_path()` helper is gone.
+  Source-blue, filter-cyan and sink-magenta accents bumped a touch
+  brighter so they stay legible as a 1.2-px stroke + glow rather
+  than a fat coloured strip.
+
+### Changed (Neon "Stjörnhorn" UI restyle)
+
+- **Dark navy / neon-cyan theme.** The flat-grey palette has been
+  replaced with a deep navy canvas (`#0a0e1e`), neon-cyan node
+  borders, magenta selection accents, and saturated source / filter
+  / sink header colours that read against the new background. Nodes
+  and bezier links carry an outer-glow rim, painted as expanding
+  semi-transparent strokes around the body rect / wire path — no
+  `QGraphicsDropShadowEffect`, so the per-frame paint stays cheap
+  even with many wires on screen. Toolbar / dialog chrome (buttons,
+  spinboxes, combo boxes, tabs, scroll bars, the Settings page,
+  list and tree widgets, menus) picks up matching cyan-on-navy
+  styling via `theme._DARK_QSS`. Existing `*HEADER_COLOR`,
+  `LINK_COLOR`, `STATUS_*` constants in `ui/theme.py` are repointed
+  rather than renamed; downstream paint code is unchanged. New
+  `NODE_GLOW_COLOR` / `NODE_GLOW_SELECTED_COLOR` / `GLOW_RADIUS`
+  drive the neon rim.
+
 ## [0.3.0] — 2026-04-29
 
 ### Fixed (Welcome page links open in the system browser)

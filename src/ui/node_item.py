@@ -25,10 +25,14 @@ from ui.param_widgets import ParamWidgetBase, build_param_widget
 from ui.port_item import PortItem
 from ui.preview_widgets import build_preview_widget
 from ui.theme import (
+    BORDER_FROM_CATEGORY,
     FILTER_HEADER_COLOR,
+    HEADER_AS_STRIP,
     NODE_BODY_COLOR,
     NODE_BORDER_COLOR,
     NODE_BORDER_SELECTED,
+    NODE_GLOW_SELECTED_COLOR,
+    NODE_GLOW_STROKES,
     NODE_PARAM_LABEL_COLOR,
     NODE_SKIPPED_HEADER_COLOR,
     NODE_TITLE_TEXT_COLOR,
@@ -498,35 +502,80 @@ class NodeItem(QGraphicsItem):
         self._user_height = None
         self._relayout()
 
+    #: Worst-case outer-glow extent in scene pixels. Sized to cover
+    #: any registered theme's :attr:`Theme.NODE_GLOW_STROKES` so
+    #: ``boundingRect`` stays theme-independent (Qt's dirty-region
+    #: tracking caches the rect; recomputing it on a theme swap would
+    #: need a ``prepareGeometryChange`` we don't want to plumb).
+    _BOUNDING_PAD: float = 8.0
+
     def boundingRect(self) -> QRectF:  # type: ignore[override]
-        return QRectF(-2, -2, self._width + 4, self._body_height + 4)
+        pad = self._BOUNDING_PAD
+        return QRectF(-pad, -pad, self._width + 2 * pad, self._body_height + 2 * pad)
 
     def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         body_rect = QRectF(0, 0, self._width, self._body_height)
-        border_pen = QPen(
-            NODE_BORDER_SELECTED if self.isSelected() else NODE_BORDER_COLOR,
-            2 if self.isSelected() else 1,
-        )
+        selected = self.isSelected()
+        accent = self._header_color()
+        # The per-category accent drives the border + glow on themes
+        # that opted into :attr:`Theme.BORDER_FROM_CATEGORY` (neon
+        # look). Themes with a solid coloured header strip (classic)
+        # use a flat dark border instead — the strip already carries
+        # the category. Selection always swaps to the single high-
+        # contrast :data:`NODE_BORDER_SELECTED` so a selected node
+        # stands out regardless of category.
+        if selected:
+            border_color = NODE_BORDER_SELECTED
+            glow_color   = NODE_GLOW_SELECTED_COLOR
+        elif BORDER_FROM_CATEGORY:
+            border_color = accent
+            glow_color   = accent
+        else:
+            border_color = NODE_BORDER_COLOR
+            glow_color   = accent
+        border_pen = QPen(border_color, 1.6 if selected else 1.2)
 
-        # Draw fill, header, and border in three passes so that the
-        # selection border is always rendered LAST — otherwise the header
-        # path (which covers the full node width) overpaints the inside
-        # half of the border along the top edges and the yellow selection
-        # marker appears chewed at the top-left / top-right.
+        # ── outer glow (themes opt in via NODE_GLOW_STROKES) ──
+        for offset, alpha in NODE_GLOW_STROKES:
+            glow = QColor(glow_color)
+            glow.setAlpha(alpha)
+            painter.setPen(QPen(glow, 1.0))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(
+                body_rect.adjusted(-offset, -offset, offset, offset),
+                self.CORNER_RADIUS + offset,
+                self.CORNER_RADIUS + offset,
+            )
 
         # ── body fill ──
         painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(NODE_BODY_COLOR))
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
-        # ── header (rounded top corners only) ──
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QBrush(self._header_color()))
-        painter.drawPath(self._header_path())
+        # ── header band ──
+        if HEADER_AS_STRIP:
+            # Solid coloured header strip (classic). Rendered as a
+            # path with rounded top corners only so it tucks under
+            # the body's rounded outline. Drawn before the border so
+            # the border's stroke clips the strip's edges cleanly.
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QBrush(accent))
+            painter.drawPath(self._header_path())
+        else:
+            # Thin category-accent divider under the title row
+            # (neon). Keeps the kind readable when the rim flips to
+            # the selection accent.
+            divider_color = QColor(accent)
+            divider_color.setAlpha(140)
+            painter.setPen(QPen(divider_color, 1.0))
+            painter.drawLine(
+                QPointF(self.PADDING, self.HEADER_HEIGHT),
+                QPointF(self._width - self.PADDING, self.HEADER_HEIGHT),
+            )
 
-        # ── border (stroked on top so nothing covers it) ──
+        # ── border (stroked last so nothing covers it) ──
         painter.setPen(border_pen)
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
@@ -765,7 +814,9 @@ class NodeItem(QGraphicsItem):
         self._signals.param_changed.emit()
 
     def _header_path(self) -> QPainterPath:
-        """Path for the header: top corners rounded, bottom corners square."""
+        """Path for the header strip: top corners rounded, bottom
+        corners square. Used by themes that opt into the classic
+        solid coloured header (``Theme.HEADER_AS_STRIP``)."""
         w = self._width
         h = self.HEADER_HEIGHT
         r = self.CORNER_RADIUS

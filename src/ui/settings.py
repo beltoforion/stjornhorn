@@ -26,6 +26,12 @@ _SETTINGS_VERSION: int = 1
 
 _DEFAULT_DEBUG_LOGGING: bool = False
 _DEFAULT_PORT_LEGEND_VISIBLE: bool = True
+#: Default theme key. ``ui.theme`` resolves the name against
+#: :data:`ui.theme.AVAILABLE_THEMES` at module-import time, so an
+#: unrecognised value silently falls back to the registered default.
+#: The string lives here (rather than as a ``ui.theme`` import) to
+#: keep ``ui.settings`` independent of the Qt-aware theme module.
+_DEFAULT_THEME_NAME: str = "neon"
 
 
 def _read_settings_file(path: Path) -> dict:
@@ -60,6 +66,12 @@ class AppSettings(QObject):
 
     debug_logging_changed = Signal(bool)
     port_legend_visible_changed = Signal(bool)
+    #: Emitted when the user picks a different theme on the Settings
+    #: page. The change only takes visual effect on next launch — the
+    #: theme is locked at ``ui.theme`` import time, so consumers
+    #: don't need to react beyond optionally surfacing a "restart to
+    #: apply" hint.
+    theme_name_changed = Signal(str)
 
     def __init__(self, path: Path = SETTINGS_FILE) -> None:
         super().__init__()
@@ -70,6 +82,10 @@ class AppSettings(QObject):
         )
         self._port_legend_visible: bool = bool(
             data.get("port_legend_visible", _DEFAULT_PORT_LEGEND_VISIBLE)
+        )
+        raw_theme = data.get("theme_name", _DEFAULT_THEME_NAME)
+        self._theme_name: str = (
+            raw_theme if isinstance(raw_theme, str) else _DEFAULT_THEME_NAME
         )
 
     # ── Access ────────────────────────────────────────────────────────────────
@@ -100,6 +116,18 @@ class AppSettings(QObject):
         self._save()
         self.port_legend_visible_changed.emit(value)
 
+    @property
+    def theme_name(self) -> str:
+        return self._theme_name
+
+    @theme_name.setter
+    def theme_name(self, value: str) -> None:
+        if not isinstance(value, str) or value == self._theme_name:
+            return
+        self._theme_name = value
+        self._save()
+        self.theme_name_changed.emit(value)
+
     # ── Persistence ───────────────────────────────────────────────────────────
 
     def _save(self) -> None:
@@ -107,6 +135,7 @@ class AppSettings(QObject):
             "version": _SETTINGS_VERSION,
             "debug_logging": self._debug_logging,
             "port_legend_visible": self._port_legend_visible,
+            "theme_name": self._theme_name,
         }
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)

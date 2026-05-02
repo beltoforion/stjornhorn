@@ -3,22 +3,40 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QCheckBox, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QVBoxLayout,
+    QWidget,
+)
 from typing_extensions import override
 
 from ui.icons import material_icon
 from ui.page import PageBase, ToolbarSection
 from ui.settings import get_settings
+from ui.theme import AVAILABLE_THEMES, get_active_theme
 
 
 class SettingsPage(PageBase):
     """Page exposing the user-facing application settings.
 
-    The only setting today is "Enable debug logging", which controls
-    whether the file log handler captures DEBUG records. Toggling the
-    checkbox writes the new value to ``~/.image-inquest/settings.json``
-    and applies it to the running logger immediately.
+    Currently surfaces:
+      * **Theme** — picks the active visual theme. The selection is
+        persisted to ``settings.json`` and applied on next launch
+        (the theme is locked at module-import time, so a running
+        process keeps using the previous theme until a restart).
+      * **Enable debug logging** — toggles DEBUG-level capture in
+        the file log handler.
     """
+
+    #: Note appended next to the theme picker so the user knows the
+    #: change won't take effect until the app is restarted. Themes
+    #: are locked at ``ui.theme`` import time so widget code can
+    #: rely on stable token values via ``from ui.theme import …``.
+    _RESTART_HINT: str = "Takes effect on next launch."
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -36,6 +54,39 @@ class SettingsPage(PageBase):
         font.setBold(True)
         heading.setFont(font)
         root.addWidget(heading)
+
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(8)
+
+        # ── Theme picker ──
+        self._theme_combo = QComboBox()
+        for key, theme in AVAILABLE_THEMES.items():
+            self._theme_combo.addItem(theme.display_name, userData=key)
+        # Pre-select the persisted theme. Falls back to whatever the
+        # active theme is (which already accounts for unknown names
+        # in the file) so the combo never shows a missing entry.
+        target = self._settings.theme_name
+        idx = self._theme_combo.findData(target)
+        if idx < 0:
+            idx = self._theme_combo.findData(get_active_theme().name)
+        self._theme_combo.setCurrentIndex(max(0, idx))
+        self._theme_combo.currentIndexChanged.connect(self._on_theme_changed)
+
+        theme_row = QHBoxLayout()
+        theme_row.setSpacing(12)
+        theme_row.addWidget(self._theme_combo)
+        self._theme_hint = QLabel(self._RESTART_HINT)
+        self._theme_hint.setProperty("muted", True)
+        self._theme_hint.setVisible(False)
+        theme_row.addWidget(self._theme_hint)
+        theme_row.addStretch(1)
+        theme_widget = QWidget()
+        theme_widget.setLayout(theme_row)
+        form.addRow("Theme:", theme_widget)
+
+        root.addLayout(form)
 
         self._debug_logging_check = QCheckBox("Enable debug logging")
         self._debug_logging_check.setToolTip(
@@ -68,3 +119,13 @@ class SettingsPage(PageBase):
 
     def _on_debug_logging_toggled(self, checked: bool) -> None:
         self._settings.debug_logging = checked
+
+    def _on_theme_changed(self, _index: int) -> None:
+        key = self._theme_combo.currentData()
+        if not isinstance(key, str):
+            return
+        self._settings.theme_name = key
+        # Show the restart hint only once the user diverges from
+        # whatever the currently-running app is rendering.
+        diverges = key != get_active_theme().name
+        self._theme_hint.setVisible(diverges)
