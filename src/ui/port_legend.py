@@ -110,10 +110,15 @@ class _Swatch(QWidget):
 class PortLegend(QFrame):
     """Floating legend explaining the port visual language.
 
-    Mounted on the :class:`~ui.flow_view.FlowView` viewport and anchored
-    to its bottom-left corner. Tracks viewport resizes through an
-    event filter so the legend stays glued to the corner without the
-    enclosing layout having to manage it.
+    Parented to :class:`~ui.flow_view.FlowView` (the
+    :class:`QAbstractScrollArea`, *not* its ``viewport()``) and pinned
+    to the bottom-left corner of that widget. The view's viewport is
+    just one of FlowView's children, so the legend sits as a sibling
+    that overlays the canvas through normal Qt widget compositing —
+    no scene item, no proxy, no per-frame repositioning. Pan and zoom
+    only repaint the viewport, so the legend stays put automatically;
+    only window resizes need a reposition (handled via an event
+    filter on the parent).
 
     Two sections:
       * **Port types** — one row per :class:`IoDataType` showing the
@@ -122,20 +127,15 @@ class PortLegend(QFrame):
         variants and the output glyph, all rendered in the neutral
         default colour so the variation is purely about ring stroke
         and direction marker rather than type colour.
-
-    Visibility is owned by the caller (the View-menu toggle); the
-    legend itself is just a stateless display widget.
     """
 
     MARGIN: int = 12
 
     # Background opacity is baked into the stylesheet's rgba() rather
     # than applied via :class:`QGraphicsOpacityEffect`. The effect-based
-    # path interacts badly with :class:`~PySide6.QtWidgets.QGraphicsView`
-    # under ``BoundingRectViewportUpdate``: child widgets of the
-    # viewport that carry a graphics effect get clipped by the scene
-    # blit during scroll/zoom and "vanish" until the next interaction.
-    # rgba in the stylesheet bypasses the effect pipeline entirely.
+    # path interacts badly with :class:`~PySide6.QtWidgets.QGraphicsView`'s
+    # incremental update modes; the rgba fill bypasses the effect
+    # pipeline entirely.
     _STYLE: str = """
         QFrame#PortLegend {
             background: rgba(31, 31, 34, 220);
@@ -175,10 +175,6 @@ class PortLegend(QFrame):
         self.setObjectName("PortLegend")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        # The close button needs to receive clicks, so the legend
-        # frame can no longer be globally transparent for mouse
-        # events. The footprint stays small enough at the bottom-left
-        # corner that intercepting clicks there is acceptable.
         self.setStyleSheet(self._STYLE)
 
         layout = QGridLayout(self)
@@ -193,6 +189,10 @@ class PortLegend(QFrame):
         row = self._add_section(layout, row, "Port roles", self._role_rows())
 
         self.adjustSize()
+        # Stay anchored to the parent's bottom-left edge through window
+        # resizes. Pan and zoom don't fire a Resize on the parent
+        # (only on its viewport child), so this filter keeps the
+        # legend completely still during canvas interaction.
         parent.installEventFilter(self)
         self._reposition()
 

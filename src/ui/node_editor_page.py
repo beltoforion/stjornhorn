@@ -182,17 +182,17 @@ class NodeEditorPage(PageBase):
         # severities (see :class:`MessageBanner`).
         self._message_banner = MessageBanner(self._inner)
 
-        # Port-type colour legend anchored to the bottom-left of the
-        # canvas viewport. Parented to the viewport (not the page or
-        # the QGraphicsView itself) so the legend tracks the canvas
-        # area through pan/resize without sliding under docks.
+        # Port-type colour legend pinned to the bottom-left corner of
+        # the canvas. Parented to the FlowView (not its ``viewport()``)
+        # so the legend is a sibling of the viewport widget rather
+        # than a child of it — pan and zoom only repaint the viewport,
+        # leaving the legend untouched. ``raise_()`` once at the end
+        # of construction puts it on top of the viewport and Qt's
+        # normal child-widget compositing keeps it there.
         # Visibility is owned by ``AppSettings.port_legend_visible``,
         # surfaced through the View menu and persisted across sessions.
-        self._port_legend = PortLegend(self._view.viewport())
-        # Keep the legend on top of any viewport scroll/zoom repaint —
-        # without this, fit-to-contents and friends leave it covered
-        # by the freshly-blitted scene area.
-        self._view.register_viewport_overlay(self._port_legend)
+        self._port_legend = PortLegend(self._view)
+        self._port_legend.raise_()
         settings = get_settings()
         self._port_legend.setVisible(settings.port_legend_visible)
         self._port_legend_action = QAction("Port Legend", self)

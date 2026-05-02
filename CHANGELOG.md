@@ -32,22 +32,16 @@ once a first tagged release is cut.
 
 ### Fixed (port legend disappearing after Fit / scroll)
 
-- **The legend stays on top after Fit, pan and zoom.** Children of
-  `FlowView.viewport()` were being clipped by the scene blit
-  performed under `BoundingRectViewportUpdate` whenever the
-  viewport scrolled, so pressing Fit (or any pan/zoom that
-  triggered `scrollContentsBy`) left the legend covered. `FlowView`
-  now exposes `register_viewport_overlay(widget)` and re-raises +
-  repaints registered overlays after every `scrollContentsBy` and
-  after `fit_to_contents`. The refresh fires both immediately and
-  again on the next event-loop tick so a deferred scene blit
-  triggered by `setSceneRect` / `fitInView` can't sneak in
-  afterwards. The legend's translucent background also moved from
-  `QGraphicsOpacityEffect` to a stylesheet `rgba()` fill — the
-  effect-based path was the actual root cause: viewport children
-  carrying a graphics effect get treated as a separate layer that
-  the scene blit happily overwrites under
-  `BoundingRectViewportUpdate`.
+- **The legend now sits on `FlowView` directly, not on its
+  `viewport()`.** As a sibling of the viewport widget it is
+  composited normally on top of the canvas and is unaffected by
+  the scene blit that previously made it vanish after Fit, pan or
+  zoom. Pan and zoom only repaint the viewport, so no
+  per-interaction repositioning is needed — only window resizes
+  fire a Resize on the parent and reposition the legend.
+  `QGraphicsOpacityEffect` is gone too: the translucency lives in
+  the stylesheet's `rgba()` fill so the legend is a plain widget
+  with no separate compositing layer.
 
 ### Changed (port visuals: type-coloured rings + output direction glyph)
 
