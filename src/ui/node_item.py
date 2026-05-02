@@ -28,9 +28,7 @@ from ui.theme import (
     FILTER_HEADER_COLOR,
     GLOW_RADIUS,
     NODE_BODY_COLOR,
-    NODE_BORDER_COLOR,
     NODE_BORDER_SELECTED,
-    NODE_GLOW_COLOR,
     NODE_GLOW_SELECTED_COLOR,
     NODE_PARAM_LABEL_COLOR,
     NODE_SKIPPED_HEADER_COLOR,
@@ -513,21 +511,25 @@ class NodeItem(QGraphicsItem):
 
         body_rect = QRectF(0, 0, self._width, self._body_height)
         selected = self.isSelected()
-        border_color = NODE_BORDER_SELECTED if selected else NODE_BORDER_COLOR
-        glow_color   = NODE_GLOW_SELECTED_COLOR if selected else NODE_GLOW_COLOR
+        accent = self._header_color()
+        # Selection swaps the per-category accent for a single high-
+        # contrast colour so a selected sink (magenta) is still
+        # distinguishable from an unselected one. Glow follows.
+        border_color = NODE_BORDER_SELECTED if selected else accent
+        glow_color   = NODE_GLOW_SELECTED_COLOR if selected else accent
         border_pen = QPen(border_color, 1.6 if selected else 1.2)
 
-        # Draw glow, fill, header, and border in four passes. The glow
-        # walks outward from the body rect in a few expanding strokes
-        # at decreasing alpha to fake a neon rim against the dark
-        # canvas — cheaper than a real ``QGraphicsDropShadowEffect``
-        # and keeps the painter on the existing item-paint pipeline.
-        # Selection border is rendered LAST so the header path (which
-        # covers the full node width) doesn't overpaint the inside
-        # half of the border along the top edges.
+        # Draw glow, body fill, header divider, and border. The header
+        # is no longer a solid coloured strip — the per-category accent
+        # lives on the border and outer glow instead, matching the
+        # mockup's cleaner "neon rim around a dark body" look. The
+        # outer glow walks outward from the body rect in a few
+        # expanding strokes at decreasing alpha to fake a neon rim;
+        # cheaper than a real ``QGraphicsDropShadowEffect`` and keeps
+        # the painter on the existing item-paint pipeline.
 
         # ── outer glow ──
-        for offset, alpha in ((1.0, 90), (3.0, 45), (5.0, 22)):
+        for offset, alpha in ((1.0, 110), (3.0, 55), (5.0, 26)):
             glow = QColor(glow_color)
             glow.setAlpha(alpha)
             pen = QPen(glow, 1.0)
@@ -544,12 +546,18 @@ class NodeItem(QGraphicsItem):
         painter.setBrush(QBrush(NODE_BODY_COLOR))
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
-        # ── header (rounded top corners only) ──
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QBrush(self._header_color()))
-        painter.drawPath(self._header_path())
+        # ── thin divider under the title row ──
+        # Picks up the category accent at low alpha so each node
+        # signals its kind even with the colour strip gone.
+        divider_color = QColor(accent)
+        divider_color.setAlpha(140)
+        painter.setPen(QPen(divider_color, 1.0))
+        painter.drawLine(
+            QPointF(self.PADDING, self.HEADER_HEIGHT),
+            QPointF(self._width - self.PADDING, self.HEADER_HEIGHT),
+        )
 
-        # ── border (stroked on top so nothing covers it) ──
+        # ── border (stroked last so nothing covers it) ──
         painter.setPen(border_pen)
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
@@ -786,21 +794,6 @@ class NodeItem(QGraphicsItem):
         # perspective (they change what the flow does on the next run),
         # so piggy-back on param_changed to drive auto-run + dirty.
         self._signals.param_changed.emit()
-
-    def _header_path(self) -> QPainterPath:
-        """Path for the header: top corners rounded, bottom corners square."""
-        w = self._width
-        h = self.HEADER_HEIGHT
-        r = self.CORNER_RADIUS
-        path = QPainterPath()
-        path.moveTo(0, h)
-        path.lineTo(0, r)
-        path.quadTo(0, 0, r, 0)
-        path.lineTo(w - r, 0)
-        path.quadTo(w, 0, w, r)
-        path.lineTo(w, h)
-        path.closeSubpath()
-        return path
 
     def _outputs_top(self) -> float:
         """Y of the first output row — output sockets are stacked at

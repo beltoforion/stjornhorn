@@ -10,6 +10,19 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Changed (Neon node style)
+
+- **Coloured header strip dropped.** Per-category identity (Source /
+  Filter / Sink) now lives on the node *border* and outer glow,
+  matching the mockup's cleaner "neon rim around a dark body" look.
+  A thin divider in the same accent at low alpha sits under the
+  title row so the kind is still readable when the body is
+  selected (which swaps the rim to the high-contrast yellow
+  selection accent). The unused `_header_path()` helper is gone.
+  Source-blue, filter-cyan and sink-magenta accents bumped a touch
+  brighter so they stay legible as a 1.2-px stroke + glow rather
+  than a fat coloured strip.
+
 ### Changed (Neon "Stjörnhorn" UI restyle)
 
 - **Dark navy / neon-cyan theme.** The flat-grey palette has been

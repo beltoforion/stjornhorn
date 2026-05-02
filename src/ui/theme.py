@@ -6,27 +6,31 @@ from PySide6.QtWidgets import QApplication
 from constants import ASSETS_DIR
 from core.io_data import IoDataType
 
-# ── Node header colours by category ────────────────────────────────────────────
-# RGBA tuples; kept separate from the QSS sheet so node-drawing code can
-# bind them directly to QBrush/QPen without parsing stylesheet strings.
-#
-# The palette deliberately reads as "neon" against the dark navy canvas:
-# saturated cyans/teals/magentas instead of the muted blues/greens/oranges
-# of the previous flat-grey theme. Headers stay opaque so the title text
-# keeps its contrast even on top of the glowing border.
+# ── Node accent colours by category ────────────────────────────────────────────
+# These drive both the border and the outer glow on a node — the per-
+# category neon hue is the only thing carrying "what kind of node is
+# this" in the new style (the solid coloured header strip is gone). The
+# names still read ``*_HEADER_COLOR`` because ``NodeItem._header_color()``
+# already dispatches on Source/Filter/Sink and downstream callers
+# expect the same identifiers; treat them as "category accent" colours.
 
-SOURCE_HEADER_COLOR = QColor( 30, 130, 200)   # neon blue
-FILTER_HEADER_COLOR = QColor( 30, 170, 160)   # teal
-SINK_HEADER_COLOR   = QColor(180,  70, 160)   # magenta-violet
+SOURCE_HEADER_COLOR = QColor( 60, 175, 240)   # neon cyan-blue
+FILTER_HEADER_COLOR = QColor( 60, 220, 220)   # neon cyan/teal
+SINK_HEADER_COLOR   = QColor(230, 100, 200)   # neon magenta
 
-#: Header colour used when a node is skipped (bypassed). Muted slate so
+#: Accent colour used when a node is skipped (bypassed). Muted slate so
 #: the node visually recedes against the dark canvas and the user can
 #: see at a glance that it's no longer doing work.
-NODE_SKIPPED_HEADER_COLOR = QColor( 80,  84,  98)
+NODE_SKIPPED_HEADER_COLOR = QColor(110, 120, 140)
 
-NODE_BODY_COLOR           = QColor( 22,  28,  50)
+NODE_BODY_COLOR           = QColor( 18,  24,  44)
+#: Subtle separator drawn under the title row to echo the inset panels
+#: in the mockup. Picks the category accent at low alpha at paint time;
+#: this constant is just the fallback line colour for non-categorised
+#: paths.
+NODE_HEADER_DIVIDER_COLOR = QColor( 80, 110, 150, 110)
 NODE_BORDER_COLOR         = QColor( 80, 200, 240)
-NODE_BORDER_SELECTED      = QColor(255, 110, 220)
+NODE_BORDER_SELECTED      = QColor(255, 220,  80)
 NODE_TITLE_TEXT_COLOR     = QColor(225, 240, 255)
 NODE_PARAM_LABEL_COLOR    = QColor(180, 205, 230)
 
@@ -36,7 +40,7 @@ NODE_PARAM_LABEL_COLOR    = QColor(180, 205, 230)
 #: :meth:`ui.node_item.NodeItem.paint` and
 #: :meth:`ui.link_item.LinkItem.paint`.
 NODE_GLOW_COLOR           = QColor( 80, 200, 240)
-NODE_GLOW_SELECTED_COLOR  = QColor(255, 110, 220)
+NODE_GLOW_SELECTED_COLOR  = QColor(255, 220,  80)
 #: Outer-glow extent in scene pixels. The node and link bounding rects
 #: are inflated by this amount so the glow strokes don't get clipped.
 GLOW_RADIUS: float = 6.0
