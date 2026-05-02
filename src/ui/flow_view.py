@@ -4,7 +4,7 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, QPoint, QRectF, Qt
+from PySide6.QtCore import QEvent, QPoint, QRectF, Qt, QTimer
 from PySide6.QtGui import QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QGraphicsView, QWidget
 
@@ -169,6 +169,14 @@ class FlowView(QGraphicsView):
             self._viewport_overlays.append(widget)
 
     def _refresh_viewport_overlays(self) -> None:
+        # Refresh both immediately (so the next paint includes the
+        # overlay) and once more on the next event-loop tick (so any
+        # deferred scene blit triggered by setSceneRect / fitInView
+        # can't sneak in afterwards and overwrite the overlay area).
+        self._raise_viewport_overlays()
+        QTimer.singleShot(0, self._raise_viewport_overlays)
+
+    def _raise_viewport_overlays(self) -> None:
         for widget in self._viewport_overlays:
             if widget.isVisible():
                 widget.raise_()

@@ -39,7 +39,15 @@ once a first tagged release is cut.
   triggered `scrollContentsBy`) left the legend covered. `FlowView`
   now exposes `register_viewport_overlay(widget)` and re-raises +
   repaints registered overlays after every `scrollContentsBy` and
-  after `fit_to_contents`.
+  after `fit_to_contents`. The refresh fires both immediately and
+  again on the next event-loop tick so a deferred scene blit
+  triggered by `setSceneRect` / `fitInView` can't sneak in
+  afterwards. The legend's translucent background also moved from
+  `QGraphicsOpacityEffect` to a stylesheet `rgba()` fill — the
+  effect-based path was the actual root cause: viewport children
+  carrying a graphics effect get treated as a separate layer that
+  the scene blit happily overwrites under
+  `BoundingRectViewportUpdate`.
 
 ### Changed (port visuals: type-coloured rings + output direction glyph)
 

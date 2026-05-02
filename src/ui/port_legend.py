@@ -4,7 +4,6 @@ from PySide6.QtCore import QEvent, QObject, QRectF, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QFrame,
-    QGraphicsOpacityEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -129,11 +128,17 @@ class PortLegend(QFrame):
     """
 
     MARGIN: int = 12
-    OPACITY: float = 0.85
 
+    # Background opacity is baked into the stylesheet's rgba() rather
+    # than applied via :class:`QGraphicsOpacityEffect`. The effect-based
+    # path interacts badly with :class:`~PySide6.QtWidgets.QGraphicsView`
+    # under ``BoundingRectViewportUpdate``: child widgets of the
+    # viewport that carry a graphics effect get clipped by the scene
+    # blit during scroll/zoom and "vanish" until the next interaction.
+    # rgba in the stylesheet bypasses the effect pipeline entirely.
     _STYLE: str = """
         QFrame#PortLegend {
-            background: #1f1f22;
+            background: rgba(31, 31, 34, 220);
             border: 1px solid #3a3a3f;
             border-radius: 4px;
         }
@@ -174,10 +179,6 @@ class PortLegend(QFrame):
         # frame can no longer be globally transparent for mouse
         # events. The footprint stays small enough at the bottom-left
         # corner that intercepting clicks there is acceptable.
-
-        opacity = QGraphicsOpacityEffect(self)
-        opacity.setOpacity(self.OPACITY)
-        self.setGraphicsEffect(opacity)
         self.setStyleSheet(self._STYLE)
 
         layout = QGridLayout(self)
