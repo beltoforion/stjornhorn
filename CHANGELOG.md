@@ -12,6 +12,18 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Added (Online welcome page with offline fallback)
+
+- **Start page tries the live welcome page first.** The bundled
+  `doc/welcome.html` is loaded synchronously so the user always sees
+  content immediately. In parallel, a short HEAD probe (timeout
+  `WELCOME_PROBE_TIMEOUT_MS` = 3 s) is fired against
+  `WELCOME_URL_ONLINE` (`http://stjornhorn.beltoforion.de`); on a
+  successful response the `QWebEngineView` swaps to the online URL.
+  When offline, DNS-blocked, timed out, or the server returns a
+  non-2xx status, the local copy stays put and no further network
+  attempt is made for the session.
+
 ### Changed (Fit-to-window leaves panning room around the layout)
 
 - **`FlowView.fit_to_contents` now uses two padding ratios.** The

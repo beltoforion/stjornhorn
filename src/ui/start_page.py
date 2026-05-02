@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QAction, QIcon
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
@@ -19,7 +20,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from constants import FLOW_DIR, WELCOME_HTML_PATH
+from constants import (
+    FLOW_DIR,
+    WELCOME_HTML_PATH,
+    WELCOME_PROBE_TIMEOUT_MS,
+    WELCOME_URL_ONLINE,
+)
 from core.flow import DEFAULT_FLOW_NAME, is_valid_flow_name
 from ui.flow_layout import FlowLayout
 from ui.icons import material_icon
@@ -78,6 +84,7 @@ class StartPage(PageBase):
         )
         self._welcome_view.setUrl(QUrl.fromLocalFile(str(WELCOME_HTML_PATH)))
         root.addWidget(self._welcome_view, 1)
+        self._probe_remote_welcome()
 
         # Row 2: create + recent flows, sized to content.
         row = QHBoxLayout()
@@ -115,6 +122,33 @@ class StartPage(PageBase):
         self._rebuild_recent_tiles()
         if self._recent_flows is not None:
             self._recent_flows.changed.connect(self._rebuild_recent_tiles)
+
+    # ── Welcome content ────────────────────────────────────────────────────────
+
+    def _probe_remote_welcome(self) -> None:
+        """Fire a short HEAD request to the public welcome URL and, on
+        success, swap the view from the bundled file to the live page.
+
+        The local file is loaded synchronously in ``__init__`` so the user
+        always sees something immediately. When the host is unreachable
+        (no internet, DNS failure, timeout, non-2xx response) we keep the
+        local copy and never hit the network again for this session.
+        """
+        self._welcome_network = QNetworkAccessManager(self)
+        request = QNetworkRequest(QUrl(WELCOME_URL_ONLINE))
+        request.setTransferTimeout(WELCOME_PROBE_TIMEOUT_MS)
+        reply = self._welcome_network.head(request)
+        reply.finished.connect(lambda r=reply: self._on_remote_welcome_probed(r))
+
+    def _on_remote_welcome_probed(self, reply: QNetworkReply) -> None:
+        error = reply.error()
+        status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+        reply.deleteLater()
+        if error != QNetworkReply.NetworkError.NoError:
+            return
+        if not isinstance(status, int) or not 200 <= status < 400:
+            return
+        self._welcome_view.setUrl(QUrl(WELCOME_URL_ONLINE))
 
     # ── Page hooks ─────────────────────────────────────────────────────────────
 
