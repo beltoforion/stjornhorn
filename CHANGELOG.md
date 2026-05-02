@@ -10,6 +10,23 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Changed (Theme as a swappable value)
+
+- **`ui.theme` is now a thin re-export layer over a `Theme`
+  dataclass.** Every design token (node body / border / glow
+  colours, link colours, status colours, palette entries, the QSS
+  template) lives on a single frozen :class:`Theme` instance under
+  `ui/themes/`. ``ui.theme`` picks one as the active theme at
+  import time, flattens its fields into module-level globals, and
+  publishes :func:`apply_theme(app, theme)` to swap the palette /
+  QSS at startup. Adding a new theme is now "drop a file in
+  `ui/themes/`, build a `Theme`, register it in
+  `AVAILABLE_THEMES`" — no edits to consumer modules. Existing
+  ``from ui.theme import NODE_BODY_COLOR`` imports keep working
+  unchanged. ``apply_dark_theme`` survives as a backwards-compat
+  shim around `apply_theme(DEFAULT_THEME)` so `main.py` stays as
+  is.
+
 ### Changed (Neon node style)
 
 - **Coloured header strip dropped.** Per-category identity (Source /
