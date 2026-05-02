@@ -95,11 +95,25 @@ architectural documentation lives under `doc/internal/`.
 ## Branding
 
 - Both `doc/welcome.html` and `doc/index.html` carry a clickable
-  `images/site_logo.webp` inside the hero `<h1>`, right-aligned
-  via `margin-left: auto` on a flex `<h1>`. The link points to
-  `https://beltoforion.de` and opens in a new tab
-  (`target="_blank" rel="noopener noreferrer"`). When restyling
-  the hero, keep the logo present and clickable.
+  `images/site_logo.webp` linking to `https://beltoforion.de`
+  (`target="_blank" rel="noopener noreferrer"`). It must be
+  visually prominent, not a small badge — height ~64 px in the
+  welcome links row, ~72 px next to the index hero title.
+- In `welcome.html` the logo sits at the **end of the `.links`
+  button row**, immediately after the last button, not inside
+  the `<h1>`.
+- In `index.html` the logo sits **inline next to the hero title
+  text** (no `margin-left: auto` push to the far right).
+
+## Footers / Impressum
+
+- Both `doc/welcome.html` and `doc/index.html` have a
+  `footer.page-foot` at the bottom of the content column with
+  an **Impressum** link to
+  `https://beltoforion.de/de/contact/`
+  (`target="_blank" rel="noopener noreferrer"`). On
+  `index.html` it joins the existing repo/source links; on
+  `welcome.html` it's the sole footer entry.
 
 ## `welcome.html`
 
