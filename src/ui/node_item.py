@@ -9,6 +9,7 @@ from PySide6.QtGui import (
     QColor,
     QFont,
     QFontMetricsF,
+    QGuiApplication,
     QPainter,
     QPainterPath,
     QPen,
@@ -20,7 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.node_base import NodeBase, SinkNodeBase, SourceNodeBase
+from core import notifications
+from core.node_base import HeaderAction, NodeBase, SinkNodeBase, SourceNodeBase
 from ui.icons import paint_material_glyph
 from ui.param_widgets import ParamWidgetBase, build_param_widget
 from ui.port_item import PortItem
@@ -324,6 +326,83 @@ class _SkipButtonItem(QGraphicsItem):
         super().mouseReleaseEvent(event)
 
 
+class _HeaderActionButtonItem(QGraphicsItem):
+    """Generic header button rendered for a :class:`HeaderAction`.
+
+    The button paints a Material Icons glyph in the node header and,
+    on click, runs the action's handler. If the handler returns a
+    non-empty string, it's pushed to the system clipboard and a brief
+    notification surfaces as feedback. Returning ``None`` makes the
+    click a pure side-effect.
+
+    One instance is created per entry in the owning node's
+    ``header_actions`` list; positioning and width-reservation are the
+    parent :class:`NodeItem`'s responsibility.
+    """
+
+    SIZE: float = 14.0
+    Z_VALUE = 2
+
+    def __init__(self, node_item: "NodeItem", action: HeaderAction) -> None:
+        super().__init__(parent=node_item)
+        self._node_item = node_item
+        self._action = action
+        self._hovered = False
+        self._pressed = False
+        self.setZValue(self.Z_VALUE)
+        self.setAcceptHoverEvents(True)
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setToolTip(action.tooltip)
+
+    def boundingRect(self) -> QRectF:  # type: ignore[override]
+        return QRectF(0, 0, self.SIZE, self.SIZE)
+
+    def paint(self, painter: QPainter, option, widget=None) -> None:  # type: ignore[override]
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        if self._hovered or self._pressed:
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QBrush(QColor(255, 255, 255, 70)))
+            painter.drawRoundedRect(self.boundingRect(), 2, 2)
+        paint_material_glyph(
+            painter,
+            self._action.glyph,
+            self.boundingRect(),
+            color=NODE_TITLE_TEXT_COLOR,
+        )
+
+    def hoverEnterEvent(self, event) -> None:  # type: ignore[override]
+        self._hovered = True
+        self.update()
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event) -> None:  # type: ignore[override]
+        self._hovered = False
+        self.update()
+        super().hoverLeaveEvent(event)
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = True
+            self.update()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton and self._pressed:
+            self._pressed = False
+            self.update()
+            if self.boundingRect().contains(event.pos()):
+                result = self._action.handler()
+                if result:
+                    QGuiApplication.clipboard().setText(result)
+                    notifications.info("Copied to clipboard")
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+
 class NodeItem(QGraphicsItem):
     """A single node drawn on the flow canvas.
 
@@ -417,6 +496,13 @@ class NodeItem(QGraphicsItem):
         self._skip_button: _SkipButtonItem | None = (
             _SkipButtonItem(self) if node.is_skippable else None
         )
+        # Per-instance header buttons declared by the node (e.g.
+        # MetaInspector's "copy meta" action). One QGraphicsItem per
+        # ``HeaderAction``; positioning is handled in ``_relayout``.
+        self._header_action_buttons: list[_HeaderActionButtonItem] = [
+            _HeaderActionButtonItem(self, action)
+            for action in node.header_actions
+        ]
         self._resize_grip = _ResizeGripItem(self)
 
         self._build_ports()
@@ -758,12 +844,18 @@ class NodeItem(QGraphicsItem):
 
     def _title_right_reserve(self) -> float:
         """Horizontal space reserved on the header's right edge for the
-        close button, the (source-only) tick-count badge, and the
-        (skippable-only) step-over button — which sits between the
-        title text and the tick badge."""
+        close button, the (source-only) tick-count badge, the
+        (skippable-only) step-over button, and any node-declared
+        header-action buttons. All cluster between the title text and
+        the right edge in that order."""
         reserve = self.CLOSE_BUTTON_SIZE + self.PADDING + self._tick_label_width()
         if self._skip_button is not None:
             reserve += self.SKIP_BUTTON_SIZE + self.HEADER_BUTTON_GAP
+        n_actions = len(self._header_action_buttons)
+        if n_actions:
+            reserve += n_actions * (
+                _HeaderActionButtonItem.SIZE + self.HEADER_BUTTON_GAP
+            )
         return reserve
 
     def _title_left(self) -> float:
@@ -1134,6 +1226,26 @@ class NodeItem(QGraphicsItem):
                 self._skip_button_x(),
                 (self.HEADER_HEIGHT - self.SKIP_BUTTON_SIZE) / 2,
             )
+        # Header-action buttons sit just left of the skip button (or, if
+        # the node isn't skippable, just left of the tick badge / close
+        # button). Walked in from the right so the close button stays
+        # flush with the right padding regardless of how many actions
+        # are declared.
+        if self._header_action_buttons:
+            if self._skip_button is not None:
+                cluster_right = self._skip_button_x()
+            else:
+                cluster_right = (
+                    self._width
+                    - self.PADDING
+                    - self.CLOSE_BUTTON_SIZE
+                    - self._tick_label_width()
+                )
+            x = cluster_right - self.HEADER_BUTTON_GAP
+            for btn in reversed(self._header_action_buttons):
+                x -= btn.SIZE
+                btn.setPos(x, (self.HEADER_HEIGHT - btn.SIZE) / 2)
+                x -= self.HEADER_BUTTON_GAP
         self._resize_grip.setPos(
             self._width - self.RESIZE_GRIP_SIZE - 1,
             self._body_height - self.RESIZE_GRIP_SIZE - 1,
