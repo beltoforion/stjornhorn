@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.4",
+  "app_version": "0.3.0.48",
   "name": "test_ranged_2",
   "nodes": [
     {
@@ -8,8 +8,8 @@
       "module": "nodes.debug.meta_inspector",
       "class": "MetaInspector",
       "position": [
-        -820.7267326113265,
-        -832.6352527723149
+        -797.1893328823041,
+        -879.1216172371343
       ],
       "port_defaults": {},
       "size": [
@@ -22,8 +22,8 @@
       "module": "nodes.debug.play_gate",
       "class": "PlayGate",
       "position": [
-        -1032.3910209992757,
-        -844.1947411296163
+        -1032.3910209992755,
+        -853.0212660279997
       ],
       "port_defaults": {}
     },
@@ -32,8 +32,8 @@
       "module": "nodes.sources.range_source",
       "class": "RangeSource",
       "position": [
-        -1314.2162641879734,
-        -691.4840102317003
+        -1304.2128693031384,
+        -824.4703187006776
       ],
       "port_defaults": {
         "min_value": 0,

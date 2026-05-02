@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "app_version": "0.3.0.18",
-  "name": "data_display_time_series",
+  "app_version": "0.3.0.48",
+  "name": "data_quake_ground_motion",
   "nodes": [
     {
       "id": 0,
@@ -51,11 +51,11 @@
       ],
       "port_defaults": {
         "step": 0.125,
+        "y_columns": "c0",
         "width": 1600,
         "height": 400,
         "title": "N-Component",
-        "grid": true,
-        "y_columns": "c0"
+        "grid": true
       }
     },
     {
@@ -68,11 +68,11 @@
       ],
       "port_defaults": {
         "step": 0.125,
+        "y_columns": "c0",
         "width": 1600,
         "height": 400,
         "title": "E-Component",
-        "grid": true,
-        "y_columns": "c0"
+        "grid": true
       }
     },
     {
@@ -111,13 +111,13 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -533.2761396390098,
-        -306.07653310817557
+        -722.501811606651,
+        -330.49274884593575
       ],
       "port_defaults": {},
       "size": [
-        1007.2973913043478,
-        433.7056521739131
+        1316.5694573159767,
+        645.3128552345013
       ]
     },
     {
@@ -167,8 +167,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        215.51795271252254,
-        207.6809362502491
+        215.51795271252257,
+        354.17823067681013
       ],
       "port_defaults": {
         "output_path": "out.mp4",
