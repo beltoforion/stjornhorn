@@ -51,8 +51,10 @@ class DirectorySource(SourceNodeBase):
 
     def __init__(self) -> None:
         super().__init__("Directory Source", section="Sources")
+        
         self._add_output(OutputPort("image", {IoDataType.IMAGE}))
         self._apply_default_params()
+
         # File-count cache for the header badge, keyed by
         # ``(path, include_subdirectories)`` so a toggle invalidates it.
         # Warmed by :meth:`on_flow_loaded`; refreshed lazily by
@@ -82,6 +84,9 @@ class DirectorySource(SourceNodeBase):
             image = self._load_image(path)
             if image is None:
                 continue
+
+            logger.debug(f"DirectorySource: emitting {path} ({image.shape})")
+
             # Stamp source_path so per-frame filename templating
             # (FileSink output_path = "$source_stem$.png", etc.) gets
             # one output file per input file. Without this, each
@@ -115,8 +120,10 @@ class DirectorySource(SourceNodeBase):
             path = self._resolved_path()
         except (TypeError, ValueError):
             return None
+        
         if not path.is_dir():
             return None
+        
         cache_key = (str(path), bool(self._include_subdirectories))
         if self._count_cache is not None and self._count_cache[0] == cache_key:
             return self._count_cache[1]
@@ -124,6 +131,7 @@ class DirectorySource(SourceNodeBase):
             count = len(self._iter_image_files(path))
         except OSError:
             return None
+        
         self._count_cache = (cache_key, count)
         return count
 
@@ -158,13 +166,13 @@ class DirectorySource(SourceNodeBase):
             img_array = np.fromfile(path, dtype=np.uint8)
             image = cv2.imdecode(img_array, cv2.IMREAD_UNCHANGED)
             if image is None:
-                logger.warning("DirectorySource: could not decode %s", path)
+                logger.warning(f"DirectorySource: could not decode {path}")
                 return None
             if image.ndim == 2:
                 image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
             return image
         except (OSError, ValueError, RuntimeError) as exc:
             logger.warning(
-                "DirectorySource: skipping unreadable file %s (%s)", path, exc,
+                f"DirectorySource: skipping unreadable file {path} ({exc})"
             )
             return None
