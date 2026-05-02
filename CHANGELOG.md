@@ -12,13 +12,28 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Fixed (Welcome page links open in the system browser)
+
+- **Welcome page link buttons (`Documentation`, `GitHub`, `Issues`,
+  `Releases`, `Impressum`, site logo) work again.** They are all
+  `target="_blank"` anchors, which `QWebEngineView` routes through
+  `QWebEnginePage.createWindow()`. The default returns a null page,
+  so the clicks were silently dropped. The start page now installs
+  a `_ExternalLinkPage` subclass that intercepts link clicks and
+  `target="_blank"` requests and forwards the URL to
+  `QDesktopServices.openUrl()`. The popup page catches the request
+  in `acceptNavigationRequest` and returns `False`, so the URL is
+  handed to the OS unchanged — `http://stjornhorn.beltoforion.de`
+  reaches the browser as `http://`, not silently upgraded by the
+  embedded engine.
+
 ### Added (Online welcome page with offline fallback)
 
 - **Start page tries the live welcome page first.** The bundled
   `doc/welcome.html` is loaded synchronously so the user always sees
   content immediately. In parallel, a short HEAD probe (timeout
   `WELCOME_PROBE_TIMEOUT_MS` = 3 s) is fired against
-  `WELCOME_URL_ONLINE` (`http://stjornhorn.beltoforion.de/welcome.html`); on a
+  `WELCOME_URL_ONLINE` (`https://beltoforion.de/stjornhorn/welcome.txt`); on a
   successful response the `QWebEngineView` swaps to the online URL.
   When offline, DNS-blocked, timed out, or the server returns a
   non-2xx status, the local copy stays put and no further network

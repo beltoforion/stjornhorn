@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSize, Qt, QUrl, Signal
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QAction, QDesktopServices, QIcon
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -37,6 +37,55 @@ if TYPE_CHECKING:
     from ui.recent_flows import RecentFlowsManager
 
 _FLOW_FILE_FILTER = "Flow (*.flowjs);;All files (*)"
+
+
+class _ExternalLinkPage(QWebEnginePage):
+    """QWebEnginePage that routes link clicks out to the system browser.
+
+    The welcome page lives inside a QWebEngineView but its buttons all
+    point at external URLs (documentation site, GitHub). Without this
+    indirection, regular link clicks would replace the welcome page in
+    the embedded view, and ``target="_blank"`` clicks would silently no-op
+    because the default ``createWindow`` returns a null page.
+
+    Issue: #281
+    """
+
+    def __init__(
+        self, parent: "QWidget | QWebEnginePage | None" = None, *, _popup: bool = False,
+    ) -> None:
+        super().__init__(parent)
+        # Popup pages exist only to catch the URL of a target="_blank"
+        # request (see ``createWindow``) and open it externally before any
+        # network load actually happens. A non-popup page is the regular
+        # welcome view, which serves the bundled / live welcome.html and
+        # only diverts explicit link clicks.
+        self._popup = _popup
+
+    def acceptNavigationRequest(  # noqa: N802 — Qt override
+        self, url: QUrl, nav_type: QWebEnginePage.NavigationType, is_main_frame: bool,
+    ) -> bool:
+        # Popup pages: every navigation is the user's link target. Hand
+        # the URL straight to the OS — *before* any actual navigation
+        # starts, so HSTS / browser scheme upgrades on the embedded
+        # engine can't rewrite ``http://`` to ``https://`` first.
+        if self._popup:
+            QDesktopServices.openUrl(url)
+            self.deleteLater()
+            return False
+        if nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
+            QDesktopServices.openUrl(url)
+            return False
+        return super().acceptNavigationRequest(url, nav_type, is_main_frame)
+
+    def createWindow(  # noqa: N802 — Qt override
+        self, _type: QWebEnginePage.WebWindowType,
+    ) -> QWebEnginePage:
+        # target="_blank" links route through createWindow, not
+        # acceptNavigationRequest on this page. Return a throwaway page
+        # whose acceptNavigationRequest catches the requested URL and
+        # hands it to QDesktopServices.openUrl before any load occurs.
+        return _ExternalLinkPage(self, _popup=True)
 
 
 class StartPage(PageBase):
@@ -79,6 +128,7 @@ class StartPage(PageBase):
 
         # Row 1: welcome web view — soaks up all remaining vertical space.
         self._welcome_view = QWebEngineView()
+        self._welcome_view.setPage(_ExternalLinkPage(self._welcome_view))
         self._welcome_view.settings().setAttribute(
             QWebEngineSettings.WebAttribute.ShowScrollBars, False,
         )
