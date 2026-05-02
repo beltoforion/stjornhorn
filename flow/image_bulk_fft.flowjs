@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "app_version": "0.3.0.56",
+  "name": "image_bulk_fft",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.directory_source",
+      "class": "DirectorySource",
+      "position": [
+        -1900.0,
+        -768.0
+      ],
+      "port_defaults": {
+        "directory": "/media/drive_d/Fotos/Ai Generated",
+        "include_subdirectories": false
+      },
+      "size": [
+        470.625,
+        120.0
+      ]
+    },
+    {
+      "id": 1,
+      "module": "nodes.filters.mosaic",
+      "class": "Mosaic",
+      "position": [
+        -628.7154238384871,
+        -863.8056560850505
+      ],
+      "port_defaults": {
+        "layout": "1,2;3,4"
+      },
+      "size": [
+        307.421875,
+        232.0
+      ]
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [
+        -1893.5278624999999,
+        -542.8792187499998
+      ],
+      "port_defaults": {},
+      "size": [
+        1227.6024999999997,
+        944.4548562499997
+      ]
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        -1165.001757391753,
+        -1024.000585797251
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.hsv_split",
+      "class": "HsvSplit",
+      "position": [
+        -1359.0,
+        -909.0
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        -1165.001757391753,
+        -872.000585797251
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        -1165.001757391753,
+        -720.000585797251
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 7,
+      "module": "nodes.sinks.file_sink",
+      "class": "FileSink",
+      "position": [
+        -524.0550812500002,
+        -551.4701875
+      ],
+      "port_defaults": {
+        "output_path": "$source_stem$_fft.png"
+      },
+      "size": [
+        390.375,
+        92.0
+      ]
+    },
+    {
+      "id": 8,
+      "module": "nodes.filters.apply_colormap",
+      "class": "ApplyColormap",
+      "position": [
+        -965.1413235867849,
+        -1052.154064676993
+      ],
+      "port_defaults": {
+        "colormap": 16
+      }
+    },
+    {
+      "id": 9,
+      "module": "nodes.filters.apply_colormap",
+      "class": "ApplyColormap",
+      "position": [
+        -965.1413235867849,
+        -900.1540646769927
+      ],
+      "port_defaults": {
+        "colormap": 16
+      }
+    },
+    {
+      "id": 10,
+      "module": "nodes.filters.apply_colormap",
+      "class": "ApplyColormap",
+      "position": [
+        -965.1413235867849,
+        -748.1540646769927
+      ],
+      "port_defaults": {
+        "colormap": 16
+      }
+    }
+  ],
+  "connections": [
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 1,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 2,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 0
+    },
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 1,
+      "dst_node": 8,
+      "dst_input": 0
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 1
+    },
+    {
+      "src_node": 5,
+      "src_output": 1,
+      "dst_node": 9,
+      "dst_input": 0
+    },
+    {
+      "src_node": 9,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 2
+    },
+    {
+      "src_node": 6,
+      "src_output": 1,
+      "dst_node": 10,
+      "dst_input": 0
+    },
+    {
+      "src_node": 10,
+      "src_output": 0,
+      "dst_node": 1,
+      "dst_input": 3
+    }
+  ],
+  "backdrops": []
+}
