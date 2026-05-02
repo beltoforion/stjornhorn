@@ -3,7 +3,7 @@
   <img src="assets/title.png" alt="Stjörnhorn" width="640"/>
 </p>
 
-[![Github All Releases](https://img.shields.io/github/downloads/beltoforion/stjornhorn/total.svg)](https://github.com/beltoforion/stjornhorn/releases/tag/v0.2.16)
+[![Github All Releases](https://img.shields.io/github/downloads/beltoforion/stjornhorn/total.svg)](https://github.com/beltoforion/stjornhorn/releases/tag/v.0.2.16)
 # Stjörnhorn
 
 A desktop application for building image- and video-processing
