@@ -12,6 +12,19 @@ once a first tagged release is cut.
 
 ## [0.3.0] — 2026-04-29
 
+### Changed (Fit-to-window leaves panning room around the layout)
+
+- **`FlowView.fit_to_contents` now uses two padding ratios.** The
+  view zoom still fits the layout with a tight 5% margin so the
+  graph reads as filling the viewport, but the scene rect is set
+  20% wider than the layout instead of matching the view rect.
+  Without that wider scene rect, the scroll-bars hit their
+  end-stop right at the visible layout border, so middle-mouse
+  panning had nowhere to go after a Fit. With the wider scene
+  rect there's empty canvas to pan into on every side.
+  Constants `_FIT_VIEW_PADDING` / `_FIT_SCENE_PADDING` live next
+  to the existing zoom limits in `ui/flow_view.py`.
+
 ### Changed (Mosaic layout descriptor: rows of comma-separated cells, no spanning)
 
 - **Mosaic's layout descriptor switched from a fixed-grid string to

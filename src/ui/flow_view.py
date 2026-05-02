@@ -32,6 +32,13 @@ class FlowView(QGraphicsView):
     _ZOOM_MIN:  float = 0.2
     _ZOOM_MAX:  float = 5.0
 
+    # Fit-to-contents padding ratios. The view zooms to a tight rect
+    # around the layout (so the graph fills the viewport), but the
+    # scene rect is set wider so the user has room to pan past the
+    # layout edges without hitting the scroll-bar end-stop.
+    _FIT_VIEW_PADDING:  float = 0.05
+    _FIT_SCENE_PADDING: float = 0.20
+
     def __init__(self, scene: FlowScene) -> None:
         super().__init__(scene)
         self.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -147,8 +154,17 @@ class FlowView(QGraphicsView):
 
 
     def fit_to_contents(self) -> None:
-        """Resize the canvas to the node layout plus 5% padding on each
-        side, then zoom and scroll so the whole canvas fills the viewport.
+        """Zoom the view so the layout fills the viewport with a small
+        margin, while leaving a wider scene rect around it for panning.
+
+        Two rects, two purposes:
+          * **view rect** (layout + ``_FIT_VIEW_PADDING``) — passed to
+            ``fitInView`` so the graph reads as "filling" the viewport.
+          * **scene rect** (layout + ``_FIT_SCENE_PADDING``) — set on
+            the scene so the user has empty canvas to pan into past
+            the layout edges. Without this, scroll-bars hit their
+            end-stop right at the visible layout border and panning
+            feels locked.
 
         The bounding rect is computed from structural items only — node
         bodies and backdrops — *not* from wires. ``LinkItem`` is a cubic
@@ -173,11 +189,17 @@ class FlowView(QGraphicsView):
                 rect = item_rect if rect is None else rect.united(item_rect)
         if rect is None or rect.isEmpty():
             return
-        pad_x = rect.width() * 0.05
-        pad_y = rect.height() * 0.05
-        canvas = rect.adjusted(-pad_x, -pad_y, pad_x, pad_y)
-        scene.setSceneRect(canvas)
-        self.fitInView(canvas, Qt.AspectRatioMode.KeepAspectRatio)
+
+        view_pad_x = rect.width() * self._FIT_VIEW_PADDING
+        view_pad_y = rect.height() * self._FIT_VIEW_PADDING
+        view_rect = rect.adjusted(-view_pad_x, -view_pad_y, view_pad_x, view_pad_y)
+
+        scene_pad_x = rect.width() * self._FIT_SCENE_PADDING
+        scene_pad_y = rect.height() * self._FIT_SCENE_PADDING
+        scene_rect = rect.adjusted(-scene_pad_x, -scene_pad_y, scene_pad_x, scene_pad_y)
+
+        scene.setSceneRect(scene_rect)
+        self.fitInView(view_rect, Qt.AspectRatioMode.KeepAspectRatio)
         # If the layout is small enough that fitInView zoomed past our
         # max, clamp the scale — but keep the layout centered. The old
         # implementation called resetTransform() here, which dropped the
@@ -187,7 +209,7 @@ class FlowView(QGraphicsView):
         if scale > self._ZOOM_MAX:
             self.resetTransform()
             self.scale(self._ZOOM_MAX, self._ZOOM_MAX)
-        self.centerOn(canvas.center())
+        self.centerOn(view_rect.center())
 
     def reset_zoom(self) -> None:
         """Reset the view transform to the default 1:1 scale."""
