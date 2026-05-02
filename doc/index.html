@@ -356,7 +356,7 @@
       <img src="images/stjörnhorn.png" alt="Stjörnhorn mascot">
       <div class="brand-text">
         <span class="brand-name">Stjörnhorn</span>
-        <span class="brand-version">v0.2.4 · Documentation</span>
+        <span class="brand-version">v0.3.0 · Documentation</span>
       </div>
     </div>
 
@@ -378,8 +378,11 @@
     <h3>Concepts</h3>
     <ul>
       <li><a href="#execution-model">Execution model</a></li>
+      <li><a href="#node-anatomy">Node anatomy</a></li>
       <li><a href="#data-types">Data types</a></li>
+      <li><a href="#io-meta">Frame metadata</a></li>
       <li><a href="#param-as-port">Param-as-port</a></li>
+      <li><a href="#held-inputs">Held inputs</a></li>
       <li><a href="#skipping">Skipping nodes</a></li>
     </ul>
 
@@ -392,8 +395,14 @@
       <li><a href="#nodes-transform">Transform</a></li>
       <li><a href="#nodes-processing">Processing</a></li>
       <li><a href="#nodes-temporal">Temporal</a></li>
+      <li><a href="#nodes-frequency">Frequency</a></li>
       <li><a href="#nodes-math">Math</a></li>
       <li><a href="#nodes-composit">Composit</a></li>
+      <li><a href="#nodes-data">Data</a></li>
+      <li><a href="#nodes-visualization">Visualization</a></li>
+      <li><a href="#nodes-streaming">Streaming</a></li>
+      <li><a href="#nodes-ui">UI</a></li>
+      <li><a href="#nodes-experimental">Experimental</a></li>
       <li><a href="#nodes-debug">Debug</a></li>
     </ul>
 
@@ -402,6 +411,7 @@
       <li><a href="#paths">File locations</a></li>
       <li><a href="#user-nodes">User-defined nodes</a></li>
       <li><a href="#shortcuts">Shortcuts</a></li>
+      <li><a href="https://github.com/beltoforion/stjornhorn">GitHub repository</a></li>
       <li><a href="#license">License</a></li>
     </ul>
   </nav>
@@ -409,7 +419,7 @@
   <main>
 
     <header class="hero">
-      <h1>Stjörnhorn <span class="version">v0.2.4</span></h1>
+      <h1>Stjörnhorn <span class="version">v0.3.0</span></h1>
       <div class="tagline">A node-based image- and video-processing playground for the desktop.</div>
     </header>
 
@@ -695,6 +705,228 @@
       </p>
     </section>
 
+    <section id="node-anatomy">
+      <h2>Node anatomy</h2>
+      <p>
+        Every node is an instance of a Python class derived from
+        <code>NodeBase</code>, <code>SourceNodeBase</code> or
+        <code>SinkNodeBase</code>. A node has three observable surfaces:
+      </p>
+      <ul>
+        <li><strong>Output ports</strong> — typed sockets the node
+          emits values on. An output may fan out to many downstream
+          inputs; an output's <em>emits</em> set declares which
+          <code>IoDataType</code>s it produces.</li>
+        <li><strong>Input ports</strong> — typed sockets the node
+          consumes values from. An input has at most one upstream
+          connection (no fan-in); its <em>accepted_types</em> set
+          declares which <code>IoDataType</code>s it can receive.
+          A connection is allowed only when the output's
+          <em>emits</em> and the input's <em>accepted_types</em>
+          intersect.</li>
+        <li><strong>Parameters</strong> — editable knobs (numeric,
+          boolean, enum, string, path, …) that configure how the
+          node processes each frame. Parameters come in two flavours
+          (see below); both render as inline widgets on the node body.</li>
+      </ul>
+
+      <h3>Output ports</h3>
+      <p>
+        Declared in the node's constructor with
+        <code>OutputPort(name, emits)</code>, e.g.
+        <code>OutputPort("image", {IoDataType.IMAGE})</code>. A node
+        with several outputs (<em>RGBA Split</em>, <em>HSV Split</em>,
+        <em>FFT 2D</em>, <em>Sliding Window</em>) sends to each one
+        independently per dispatch. Each <code>send()</code>
+        auto-stamps a per-port <code>frame_index</code> counter and
+        the current values of the node's SCALAR input ports onto
+        the outgoing <code>IoMeta</code> — see
+        <a href="#io-meta">Frame metadata</a>.
+      </p>
+
+      <h3>Input ports</h3>
+      <p>
+        Declared with <code>InputPort(name, accepted_types, …)</code>.
+        Two important flags shape an input's behaviour:
+      </p>
+      <ul>
+        <li><code>optional=True</code> — the dispatcher does not wait
+          for this input. If unconnected, the node fires once every
+          required input has data; if connected, the optional input
+          is treated as required (so a producer that emits
+          matching-frame data isn't raced). Used for, e.g., the
+          alpha plane on <em>RGBA Join</em>.</li>
+        <li><code>hold_last=True</code> — the input retains its last
+          received value across <code>clear()</code> and across the
+          upstream's <code>finish()</code>. Used to pair a one-shot
+          source (an image, a CSV) with a streaming clock — the
+          held input stays alive while the clock keeps ticking. See
+          <a href="#held-inputs">Held inputs</a>.</li>
+      </ul>
+      <p>
+        Held ports render with a dashed coloured ring around the
+        socket dot in the editor.
+      </p>
+
+      <h3>Parameters</h3>
+      <p>
+        Parameters are declared at class level as descriptor objects
+        from <code>core.params</code>. Every descriptor type maps to
+        an <code>IoDataType</code> and a default widget:
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Descriptor</th>
+            <th>Backs port type</th>
+            <th>Widget</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>IntParam</code></td>
+            <td><span class="pill scalar">SCALAR</span></td>
+            <td>Integer spin box</td>
+            <td>Optional <code>min</code> / <code>max</code> raise on out-of-range writes.</td>
+          </tr>
+          <tr>
+            <td><code>OddIntParam</code></td>
+            <td><span class="pill scalar">SCALAR</span></td>
+            <td>Odd-only integer spin box</td>
+            <td>Steps in twos and rounds even values up. For OpenCV-style kernel sizes.</td>
+          </tr>
+          <tr>
+            <td><code>FloatParam</code></td>
+            <td><span class="pill scalar">SCALAR</span></td>
+            <td>Float spin box</td>
+            <td>Optional <code>min</code> / <code>max</code>, with <code>min_exclusive</code> / <code>max_exclusive</code> for strict bounds. Carries <code>step</code> / <code>decimals</code> hints.</td>
+          </tr>
+          <tr>
+            <td><code>ClampedFloatParam</code></td>
+            <td><span class="pill scalar">SCALAR</span></td>
+            <td>Float spin box</td>
+            <td>Out-of-range writes are silently clamped instead of raising. For sliders where overshoot is just saturation.</td>
+          </tr>
+          <tr>
+            <td><code>BoolParam</code></td>
+            <td><span class="pill bool">BOOL</span></td>
+            <td>Checkbox</td>
+            <td>Coerces with <code>bool(value)</code>.</td>
+          </tr>
+          <tr>
+            <td><code>EnumParam</code></td>
+            <td><span class="pill enum">ENUM</span></td>
+            <td>Combo box</td>
+            <td>Takes an <code>IntEnum</code> class; member name, value, or instance all coerce to the right member.</td>
+          </tr>
+          <tr>
+            <td><code>StringParam</code></td>
+            <td><span class="pill string">STRING</span></td>
+            <td>Line edit</td>
+            <td>Optional <code>placeholder</code> and <code>max_length</code>.</td>
+          </tr>
+          <tr>
+            <td><code>FilePathParam</code></td>
+            <td><span class="pill path">PATH</span></td>
+            <td>Path widget (line edit + browse + open)</td>
+            <td><code>mode = "open" / "save" / "directory"</code>; <code>filter</code> for the file dialog; <code>base_dir</code> stashes paths inside the app folder as relative.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>Port-style vs. constant parameters</h4>
+      <p>
+        Each parameter is one of two flavours, controlled by the
+        descriptor's <code>constant=</code> flag:
+      </p>
+      <ul>
+        <li><strong>Port-style</strong> (default,
+          <code>constant=False</code>) — the framework auto-creates
+          an <code>InputPort</code> for the parameter. The widget
+          sits on the input row alongside a socket dot, and any
+          compatible upstream value can drive the parameter
+          per-frame. The framework writes the upstream value into
+          <code>self._&lt;name&gt;</code> on every
+          <code>process()</code> call, so node code reads its
+          parameters uniformly with no
+          <em>"is this connected?"</em> branch (see
+          <a href="#param-as-port">Param-as-port</a>).</li>
+        <li><strong>Constant</strong> (<code>constant=True</code>)
+          — the parameter is registered on
+          <code>node.params</code> instead of becoming an input
+          port. The widget renders between the output and input rows
+          with an italic caption and no socket dot. Used for config
+          that's set once by the user (file paths on sources, codecs
+          on sinks, layout strings on Mosaic / JoinDatasets).</li>
+      </ul>
+
+      <h3>Lifecycle hooks</h3>
+      <p>
+        A node sees a small set of hooks during a flow run; subclasses
+        override these rather than the <code>@final</code> public
+        wrappers:
+      </p>
+      <table>
+        <thead>
+          <tr><th>Hook</th><th>When</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>_before_run_impl()</code></td>
+            <td>Once before each run. Reset per-run state (frame buffers, video writers, …).</td>
+          </tr>
+          <tr>
+            <td><code>process_impl()</code></td>
+            <td>Once per dispatch when every required input has data. Read inputs, compute, send to outputs.</td>
+          </tr>
+          <tr>
+            <td><code>iter_frames()</code></td>
+            <td>Source-only. Yields once per emitted frame. Default: one-shot. Streaming sources override to a true generator.</td>
+          </tr>
+          <tr>
+            <td><code>_on_finish()</code></td>
+            <td>Once every clock input has finished. Default forwards <code>finish()</code> to all outputs; sinks override to flush.</td>
+          </tr>
+          <tr>
+            <td><code>_on_skipped_changed(b)</code></td>
+            <td>Whenever the node's mute state flips. Default: no-op.</td>
+          </tr>
+          <tr>
+            <td><code>_after_run_impl(success)</code></td>
+            <td>Once after each run. Tear down per-run state.</td>
+          </tr>
+          <tr>
+            <td><code>on_flow_loaded()</code></td>
+            <td>After deserialisation, before any UI repaint. Cache-warm work that would otherwise stall first paint.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Sources additionally override the read-only
+        <code>is_reactive</code> property — <code>True</code> for
+        one-shot sources (image, CSV, constant value) so the editor
+        re-runs on any parameter edit; <code>False</code> for
+        streaming sources (video, directory, range) so the run only
+        starts on Run.
+      </p>
+
+      <h3>Source / Filter / Sink</h3>
+      <ul>
+        <li><strong>Source</strong>
+          (<code>SourceNodeBase</code>) — outputs only, no inputs.
+          Drives the flow.</li>
+        <li><strong>Filter</strong>
+          (<code>NodeBase</code>) — both inputs and outputs.
+          Transforms data.</li>
+        <li><strong>Sink</strong>
+          (<code>SinkNodeBase</code>) — inputs only, no outputs.
+          Side-effects (writing to disk, encoding video). Sinks
+          override <code>_on_finish()</code> so the lifecycle
+          signal terminates rather than propagating further.</li>
+      </ul>
+    </section>
+
     <section id="data-types">
       <h2>Data types</h2>
       <p>Every value flowing across a port is wrapped in an
@@ -723,7 +955,12 @@
           <tr>
             <td><span class="pill matrix">MATRIX</span></td>
             <td>2-D numpy array, arbitrary dtype</td>
-            <td>Transformations, kernels, intermediate stats.</td>
+            <td>Transformations, kernels, intermediate stats, FFT spectra.</td>
+          </tr>
+          <tr>
+            <td><span class="pill matrix">DATASET</span></td>
+            <td><code>pandas.DataFrame</code></td>
+            <td>Labeled tabular data — seismic traces, CV curves, I-V sweeps, spectra. <code>df.attrs</code> carries free-form metadata (sample rate, units, station, …).</td>
           </tr>
           <tr>
             <td><span class="pill bool">BOOL</span></td>
@@ -756,6 +993,120 @@
       </p>
     </section>
 
+    <section id="io-meta">
+      <h2>Frame metadata (IoMeta)</h2>
+      <p>
+        Every <code>IoData</code> envelope carries an
+        <code>IoMeta</code> bag — an open-ended
+        <code>str → Any</code> mapping that travels with the payload.
+        It has <strong>no fixed schema</strong>; any node can stamp
+        any key. The framework follows a few conventions so different
+        nodes recognise each other's stamps. Reserved names —
+        <code>frame_index</code>, <code>source_path</code>,
+        <code>timestamp</code> — are framework-owned, and a port
+        declared with one of those names is rejected at construction.
+      </p>
+
+      <h3>Framework-stamped keys</h3>
+      <p>
+        Every output port stamps these on every emit, with no node
+        code involved.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Key</th><th>Stamped by</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>frame_index</code></td>
+            <td>Every <code>OutputPort.send()</code></td>
+            <td>Per-port emit counter, starting at 0 each run.</td>
+          </tr>
+          <tr>
+            <td><code>&lt;scalar_port_name&gt;</code></td>
+            <td>Every <code>OutputPort.send()</code></td>
+            <td>Current value of every SCALAR input port on the
+              emitting node, stamped under the port's name.
+              Falls back to the port's <code>default_value</code>
+              when no upstream is connected. Lets a downstream
+              filename template reference <code>$tick$</code>
+              against whatever the node read this frame.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Conventional keys stamped by individual nodes</h3>
+      <table>
+        <thead>
+          <tr><th>Key</th><th>Stamped by</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>source_path</code></td>
+            <td><em>Image Source</em>, <em>CSV Source</em>, <em>Directory Source</em></td>
+            <td>Absolute <code>pathlib.Path</code> the frame was loaded from. Filename templates resolve <code>$source_stem$</code> / <code>$source_name$</code> / <code>$source_ext$</code> against this.</td>
+          </tr>
+          <tr>
+            <td><code>tick</code></td>
+            <td><em>Repeat</em></td>
+            <td>Auto-stamped via the SCALAR-port rule above (Repeat's <code>tick</code> input is SCALAR). Read by <code>$tick$</code> in <em>File Sink</em> templates.</td>
+          </tr>
+          <tr>
+            <td><code>window_start</code> / <code>window_end</code></td>
+            <td><em>Sliding Window</em></td>
+            <td>Sample-row indices of the current window, stamped on both output payloads each tick. <em>Plot Series</em> reads these to draw a moving band overlay.</td>
+          </tr>
+          <tr>
+            <td><code>timestamp</code></td>
+            <td>Reserved for the run start time (planned).</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>DATASET-side metadata</h3>
+      <p>
+        For <code>DATASET</code> payloads, a parallel channel exists
+        on the DataFrame itself: <code>df.attrs</code>. Convention:
+      </p>
+      <table>
+        <thead>
+          <tr><th>Attr</th><th>Stamped / read by</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>source_path</code></td>
+            <td><em>CSV Source</em> (write); plotters (read)</td>
+            <td>Path the dataset was loaded from.</td>
+          </tr>
+          <tr>
+            <td><code>units</code></td>
+            <td><em>Directional Projection</em>, plotters</td>
+            <td><code>{column_name: unit_string}</code> mapping consumed by axis labels.</td>
+          </tr>
+          <tr>
+            <td><code>sample_rate</code></td>
+            <td>Forwarded by all DATASET filters; read by <em>Add Index Column</em> and <em>Spectrum</em> docs as a hint.</td>
+            <td>Sample rate in Hz.</td>
+          </tr>
+          <tr>
+            <td><code>thetas_rad</code></td>
+            <td><em>Directional Projection</em> (write); <em>Polar Heatmap</em> (read)</td>
+            <td>Per-column azimuth angles in radians, so polar visualisers can bind columns to angles without parsing column names.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Custom nodes are free to add domain-specific keys to
+        <code>IoMeta</code> or <code>df.attrs</code>; downstream
+        consumers decide whether to read them. To preserve metadata
+        through a pass-through filter, prefer
+        <code>in_data.clone(payload=new_array)</code> over
+        <code>IoData.from_*(...)</code> — the former carries
+        <code>meta</code> forward, the latter starts fresh.
+      </p>
+    </section>
+
     <section id="param-as-port">
       <h2>Param-as-port</h2>
       <p>
@@ -777,6 +1128,30 @@
       <p>
         When a port is driven, the inline widget for that param is
         greyed out — the upstream wins until you disconnect it.
+      </p>
+    </section>
+
+    <section id="held-inputs">
+      <h2>Held inputs</h2>
+      <p>
+        Inputs declared with <code>hold_last=True</code> retain their
+        last received value across both <code>clear()</code> and
+        upstream <code>finish()</code>. Held inputs also do not
+        count as lifecycle drivers — only non-held (clock) inputs
+        propagate finish through the graph.
+      </p>
+      <p>
+        The pattern is "one-shot reference data alongside a
+        streaming clock". <em>Repeat</em> uses it for its
+        <code>data</code> input (any payload kind) so a single image
+        or CSV survives across many ticks of its <code>tick</code>
+        clock; <em>Sliding Window</em> uses it on its
+        <code>dataset</code> input so a one-shot CSV walks alongside
+        a streaming <code>window_index</code> counter.
+      </p>
+      <p>
+        Held ports render with a dashed coloured ring around their
+        socket dot in the editor.
       </p>
     </section>
 
@@ -811,37 +1186,65 @@
         <div class="node-card source">
           <h4>Image Source</h4>
           <p>Reads a single still image (JPEG, PNG, WebP, CR2 RAW)
-            from disk and pushes it into the flow. Reactive.</p>
-          <div class="params">file_path</div>
+            from disk. Reactive — the flow re-runs on any parameter
+            edit. Stamps <code>source_path</code> onto outgoing
+            <code>IoMeta</code>.</p>
+          <div class="params">Out: image (IMAGE) · Param: file_path</div>
         </div>
         <div class="node-card source">
           <h4>Video Source</h4>
           <p>Decodes frames from a video file (MP4, AVI, MOV, MKV)
-            and streams them through the graph. Triggered only by
-            <strong>Run</strong>.</p>
-          <div class="params">file_path · max_num_frames</div>
+            and streams them. Not reactive. <code>max_num_frames = -1</code>
+            decodes the whole stream; positive caps the count.</p>
+          <div class="params">Out: image (IMAGE) · Params: file_path, max_num_frames</div>
         </div>
         <div class="node-card source">
           <h4>Directory Source</h4>
           <p>Streams every image in a folder as frames, sorted
-            lexicographically. Optional recursive walk.</p>
-          <div class="params">directory · include_subdirectories</div>
+            lexicographically. Stamps <code>source_path</code> per
+            frame so file-name templating downstream tracks the
+            originating file.</p>
+          <div class="params">Out: image (IMAGE) · Params: directory, include_subdirectories</div>
+        </div>
+        <div class="node-card source">
+          <h4>CSV Source</h4>
+          <p>Reads a CSV file into a
+            <span class="pill matrix">DATASET</span> (a
+            <code>pandas.DataFrame</code>). Lines beginning with
+            <code>#</code> are skipped, so files with a metadata
+            header (seismic ASCII traces, gnuplot output) load
+            without extra setup. Stamps <code>source_path</code>
+            both on <code>IoMeta</code> and on
+            <code>df.attrs</code>. Reactive.</p>
+          <div class="params">Out: dataset (DATASET) · Params: file_path, has_header, delimiter, …</div>
+        </div>
+        <div class="node-card source">
+          <h4>Gradient Source</h4>
+          <p>Procedurally generates a single-channel gradient image
+            (vertical, horizontal, or radial; symmetric or linear).
+            Useful as a procedural mask for <em>Masked Blend</em>
+            (tilt-shift, vignette, cross-fade) without having to
+            ship a hand-painted PNG. Reactive.</p>
+          <div class="params">Out: image (IMAGE_GREY) · Params: width, height, direction, mode, band_width</div>
         </div>
         <div class="node-card source">
           <h4>Range Source</h4>
           <p>Numeric range source emitting one
             <span class="pill scalar">SCALAR</span> per frame.
             Wire into a Display to watch the value live, or into a
-            param port to ramp it across a stream.</p>
-          <div class="params">min_value · max_value · increment · loop</div>
+            param port to ramp it across a stream. Whole-number
+            increments emit ints; fractional emit floats. Streaming
+            (not reactive).</p>
+          <div class="params">Out: value (SCALAR) · Params: min_value, max_value, increment</div>
         </div>
         <div class="node-card source">
           <h4>Constant Value</h4>
-          <p>Emits a single <span class="pill scalar">SCALAR</span>
-            (latched on streaming consumers). Use as a fixed factor
-            or offset feeding into <em>Math</em> without spinning up
-            a second Range Source.</p>
-          <div class="params">value</div>
+          <p>Reactive source that emits a single
+            <span class="pill scalar">SCALAR</span>, latched on
+            streaming consumers. Use as a fixed factor or offset
+            feeding into <em>Math</em> without spinning up a second
+            Range Source.</p>
+          <div class="params">Out: value (SCALAR) · Param: value</div>
         </div>
       </div>
     </section>
@@ -851,13 +1254,15 @@
       <div class="node-grid">
         <div class="node-card output">
           <h4>Display</h4>
-          <p>Pass-through node that renders each frame inline in its
-            own node body via a live preview. Drop it anywhere in a
-            flow to watch frames flow through. Resize the node to
-            grow the preview. Renders SCALAR / MATRIX payloads as
-            text — the inline preview <em>is</em> the result, no
-            sink required. Image previews show an
-            exponentially-smoothed FPS read-out in the corner.</p>
+          <p>Pass-through node that surfaces each frame in an inline
+            preview rendered inside the node body. Drop it anywhere
+            in a flow to watch frames flow through. Resize the node
+            to grow the preview. Accepts IMAGE, IMAGE_GREY, SCALAR
+            and MATRIX payloads — SCALAR / MATRIX render as text
+            and the inline preview <em>is</em> the result, no sink
+            required. Image previews show an exponentially-smoothed
+            FPS read-out in the corner.</p>
+          <div class="params">In: image (IMAGE / IMAGE_GREY / SCALAR / MATRIX) · Out: image (passthrough)</div>
         </div>
       </div>
     </section>
@@ -873,12 +1278,15 @@
       <div class="node-grid">
         <div class="node-card sink">
           <h4>File Sink</h4>
-          <p>Writes the incoming frame to disk at a configurable
-            path. Paths under the app's output folder are stored
-            relative to it so saved flows stay portable. An eye
-            button next to the path opens the written file in the OS
-            default image viewer.</p>
-          <div class="params">file_path</div>
+          <p>Writes each incoming frame to disk. <code>output_path</code>
+            is a filename template — <code>$frame_index$</code>,
+            <code>$source_stem$</code>, <code>$source_name$</code>,
+            <code>$source_ext$</code>, <code>$flow_name$</code>, plus
+            any SCALAR-port value an upstream filter stamped (e.g.
+            <code>$tick$</code> from <em>Repeat</em>). Width syntax
+            <code>$tok:N$</code> zero-pads; with no placeholders the
+            file is overwritten on every frame.</p>
+          <div class="params">In: image (IMAGE / IMAGE_GREY) · Param: output_path</div>
         </div>
         <div class="node-card sink">
           <h4>Video Sink</h4>
@@ -887,8 +1295,10 @@
             the first frame (dimensions inferred from the data),
             frames are written as they arrive, and the container is
             finalised when the runner signals end-of-stream.
-            Greyscale inputs are promoted to BGR automatically.</p>
-          <div class="params">output_path · fps · codec (MP4V / XVID)</div>
+            Greyscale inputs are promoted to BGR automatically.
+            <code>output_path</code> is a filename template
+            resolved from the first frame's meta.</p>
+          <div class="params">In: image (IMAGE / IMAGE_GREY) · Params: output_path, fps, codec</div>
         </div>
       </div>
     </section>
@@ -901,19 +1311,51 @@
           <p>Converts a BGR colour image to a single-channel
             greyscale image
             (<code>cv2.cvtColor(..., COLOR_BGR2GRAY)</code>).</p>
+          <div class="params">In: image (IMAGE) · Out: image (IMAGE_GREY)</div>
         </div>
         <div class="node-card filter">
           <h4>RGBA Split</h4>
-          <p>Splits an image into its single-channel components
-            (<strong>B</strong>, <strong>G</strong>,
-            <strong>R</strong>, optional <strong>A</strong>) so each
-            channel can be processed independently.</p>
+          <p>Splits a BGR / BGRA image into four single-channel
+            outputs (<strong>B</strong>, <strong>G</strong>,
+            <strong>R</strong>, <strong>A</strong>). Plain BGR
+            inputs emit a constant-255 alpha plane so downstream
+            nodes always see a well-defined alpha.</p>
+          <div class="params">In: image (IMAGE) · Outs: B, G, R, A (IMAGE_GREY each)</div>
         </div>
         <div class="node-card filter">
           <h4>RGBA Join</h4>
           <p>Merges single-channel inputs back into a single
             multi-channel image. The alpha input is optional —
-            connect it for an RGBA output, leave it open for BGR.</p>
+            connect it for a BGRA output, leave it open for BGR.
+            Inverse of <em>RGBA Split</em>.</p>
+          <div class="params">Ins: B, G, R, A (IMAGE_GREY; A optional) · Out: image (IMAGE)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>HSV Split</h4>
+          <p>Splits a BGR / BGRA image into its HSV components.
+            Hue uses the full 0..255 range so <em>HSV Join</em>
+            round-trips back exactly. BGRA inputs drop the alpha
+            channel (HSV has none).</p>
+          <div class="params">In: image (IMAGE) · Outs: H, S, V (IMAGE_GREY each)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>HSV Join</h4>
+          <p>Merges three single-channel inputs (H, S, V) back into
+            a BGR image. Pixel-exact inverse of <em>HSV Split</em>.</p>
+          <div class="params">Ins: H, S, V (IMAGE_GREY) · Out: image (IMAGE)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>HSL Split</h4>
+          <p>Splits a BGR / BGRA image into its HSL components.
+            Same conventions as HSV Split.</p>
+          <div class="params">In: image (IMAGE) · Outs: H, S, L (IMAGE_GREY each)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>HSL Join</h4>
+          <p>Merges three single-channel inputs (H, S, L) back
+            into a BGR image. Pixel-exact inverse of <em>HSL
+            Split</em>.</p>
+          <div class="params">Ins: H, S, L (IMAGE_GREY) · Out: image (IMAGE)</div>
         </div>
       </div>
     </section>
@@ -926,29 +1368,47 @@
           <p>Resizes by a percentage factor (<code>scale_percent</code>,
             100 = no change). Interpolation is selectable: Nearest,
             Linear, Cubic, Area, Lanczos4.</p>
-          <div class="params">scale_percent · interpolation</div>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Params: scale_percent, interpolation</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Resize</h4>
+          <p>Resize to an explicit (width, height) using one of
+            three layout strategies: <code>SCALE</code> (stretch,
+            ignore aspect), <code>CROP_OR_FILL</code> (centre-crop /
+            black-fill at native scale), or <code>BEST_FIT</code>
+            (letterbox / pillarbox). Black is used for fills; on
+            BGRA that means transparent black.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Params: width, height, method</div>
         </div>
         <div class="node-card filter">
           <h4>Shift</h4>
           <p>Translates by integer pixel offsets. Output keeps the
             original canvas size; pixels that move off-frame are
             dropped, newly exposed areas are black.</p>
-          <div class="params">offset_x · offset_y</div>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Params: offset_x, offset_y</div>
         </div>
         <div class="node-card filter">
           <h4>Crop</h4>
-          <p>Cuts a rectangular region out of the input image. Both
-            offsets and the new size are configurable.</p>
+          <p>Cuts a rectangular ROI <code>(x, y, width, height)</code>
+            out of the input. The ROI is clamped to the input
+            bounds, so the node always emits a positive-area image
+            even when the rectangle extends beyond the input.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Params: x, y, width, height</div>
         </div>
         <div class="node-card filter">
           <h4>Rotate</h4>
-          <p>Rotates an image by an arbitrary angle (in degrees) with
-            optional auto-resize so the result frame fits the rotated
-            content. Works on colour or greyscale.</p>
+          <p>Rotates by an arbitrary angle (degrees, CCW) around
+            the image centre. With <code>expand=True</code> the
+            output canvas grows so no pixel is clipped; with
+            <code>expand=False</code> the input dimensions are
+            preserved.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Params: angle, expand</div>
         </div>
         <div class="node-card filter">
           <h4>Flip</h4>
-          <p>Mirrors the image horizontally, vertically, or both.</p>
+          <p>Mirrors the image horizontally, vertically, or both
+            (the latter being equivalent to a 180° rotation).</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Param: mode</div>
         </div>
       </div>
     </section>
@@ -959,9 +1419,10 @@
         <div class="node-card filter">
           <h4>Adaptive Gaussian Threshold</h4>
           <p>Adaptive binary thresholding using a Gaussian-weighted
-            local mean (<code>cv2.adaptiveThreshold</code>). Always
-            emits a greyscale binary image.</p>
-          <div class="params">block_size (odd, &gt; 1) · c</div>
+            local mean (<code>cv2.adaptiveThreshold</code>). Colour
+            inputs are reduced to greyscale first; the output is
+            always a single-channel binary image.</p>
+          <div class="params">In: image (IMAGE / IMAGE_GREY) · Out: image (IMAGE_GREY) · Params: block_size, c</div>
         </div>
         <div class="node-card filter">
           <h4>Dither</h4>
@@ -971,20 +1432,22 @@
             Diffusion-XY. Error-diffusion kernels are JIT-compiled
             via numba for interactive speed. Colour inputs are
             auto-converted to grey; output is always greyscale.</p>
-          <div class="params">method</div>
+          <div class="params">In: image (IMAGE / IMAGE_GREY) · Out: image (IMAGE_GREY) · Param: method</div>
         </div>
         <div class="node-card filter">
           <h4>Median</h4>
           <p>Square-kernel median blur
             (<code>cv2.medianBlur</code>). Works on colour or
             greyscale; output type matches input.</p>
-          <div class="params">size (odd ≥ 1)</div>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Param: size</div>
         </div>
         <div class="node-card filter">
           <h4>Gaussian Blur</h4>
           <p>Configurable Gaussian smoothing
             (<code>cv2.GaussianBlur</code>). Independent kernel
-            radius and sigma; works on colour or greyscale.</p>
+            radius and sigma (sigma=0 derives from the kernel
+            size). Works on colour or greyscale.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Params: ksize, sigma</div>
         </div>
         <div class="node-card filter">
           <h4>Normalize</h4>
@@ -992,23 +1455,36 @@
             (<code>cv2.equalizeHist</code>). Colour inputs are
             equalised per channel; greyscale inputs are equalised
             directly. Output type matches input.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY)</div>
         </div>
         <div class="node-card filter">
           <h4>Invert</h4>
-          <p>Inverts the pixel values
-            (<code>255 - x</code>). Works on colour or greyscale;
-            type-preserving.</p>
+          <p>Per-channel image inversion (<code>255 - pixel</code>).
+            Works on colour or greyscale; type-preserving.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Apply Colormap</h4>
+          <p>Colorize a greyscale image with a chosen colormap and
+            emit a 3-channel BGR image. Palettes include the
+            perceptually-uniform family (Viridis, Plasma, Magma,
+            Inferno), classic FFT / spectrogram palettes (Jet,
+            Turbo) and utility palettes (Hot, Bone, Parula, Ocean,
+            Cool). Expects 0..255 input — apply log compression
+            upstream for HDR sources.</p>
+          <div class="params">In: image (IMAGE_GREY) · Out: image (IMAGE) · Param: colormap</div>
         </div>
         <div class="node-card filter">
           <h4>NCC</h4>
           <p>Normalised cross-correlation template matching
             (<code>cv2.matchTemplate</code> with
-            <code>TM_CCORR_NORMED</code>). Both
-            <code>image</code> and <code>template</code> inputs
-            must be greyscale; the output is an 8-bit score map.
+            <code>TM_CCORR_NORMED</code>). Searches for a
+            file-loaded greyscale template inside the input and
+            emits a uint8 response map.
             <code>retain_size=True</code> (default) pads the score
             map back to the input size and centres each response on
             its corresponding template-centre pixel.</p>
+          <div class="params">In: image (IMAGE_GREY) · Out: image (IMAGE_GREY) · Params: template, retain_size</div>
         </div>
       </div>
     </section>
@@ -1025,19 +1501,65 @@
           <h4>Frame Difference</h4>
           <p>Per-pixel absolute difference between the current frame
             and the previous one. The first frame produces a black
-            output; subsequent frames produce the diff.</p>
+            output; shape changes mid-stream reset the buffer
+            rather than raising.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY)</div>
         </div>
         <div class="node-card filter">
           <h4>Temporal Mean</h4>
-          <p>Running mean over a configurable window of recent
-            frames. Useful for low-frequency noise reduction on
-            steady scenes.</p>
+          <p>Rolling per-pixel arithmetic mean over the last
+            <code>window</code> frames. Reduces additive Gaussian-style
+            noise on a static scene; smears motion. While the buffer
+            fills, the mean of however many frames have arrived
+            so far is emitted.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Param: window</div>
         </div>
         <div class="node-card filter">
           <h4>Temporal Median</h4>
-          <p>Running median over a window of recent frames. Robust
-            against outlier frames (passing cars, sparkles) where
-            mean averaging would smear them in.</p>
+          <p>Rolling per-pixel median over the last
+            <code>window</code> frames. Strong against transient
+            outliers (single-frame spikes, flicker, salt-and-pepper
+            noise) without the smearing a mean would produce.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Param: window</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-frequency">
+      <h2>Frequency</h2>
+      <p>
+        Frequency-domain operations on greyscale images and
+        DATASETs.
+      </p>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>FFT 2D</h4>
+          <p>Computes the 2-D discrete Fourier transform of a
+            greyscale image. Emits the fftshifted complex spectrum
+            on <code>spectrum</code> (MATRIX) and a log-scaled
+            normalised magnitude image on <code>magnitude</code>
+            (IMAGE_GREY) for direct preview. Pairs with
+            <em>Inverse FFT 2D</em> for a pixel-exact round trip.</p>
+          <div class="params">In: image (IMAGE_GREY) · Outs: spectrum (MATRIX), magnitude (IMAGE_GREY)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Inverse FFT 2D</h4>
+          <p>Inverse of <em>FFT 2D</em>. Expects the fftshifted
+            complex spectrum on <code>spectrum</code> and emits a
+            uint8 greyscale image.</p>
+          <div class="params">In: spectrum (MATRIX) · Out: image (IMAGE_GREY)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Spectrum</h4>
+          <p>Per-column magnitude FFT of a DATASET. The output's
+            row index is frequency in Hz
+            (<code>index.name = "frequency_hz"</code>) and the
+            column names match the input — N channels in produces
+            N channels out, ready for <em>Plot Series</em> or
+            <em>Polar Heatmap</em>. Hann window suppresses
+            spectral leakage on short windows; <code>db_scale</code>
+            converts to dB.</p>
+          <div class="params">In/Out: dataset (DATASET) · Params: sample_rate, freq_max, window, db_scale</div>
         </div>
       </div>
     </section>
@@ -1053,17 +1575,24 @@
       <div class="node-grid">
         <div class="node-card filter">
           <h4>Math</h4>
-          <p>Two-input scalar operator: ADD, SUB, MUL, DIV, MIN,
-            MAX. Wire two scalar producers in and route the result
-            wherever a SCALAR is accepted.</p>
-          <div class="params">op</div>
+          <p>Evaluates a small expression DSL over a pool of nine
+            optional SCALAR inputs <code>v_1 … v_9</code>. The
+            grammar permits arithmetic, the
+            <code>min</code> / <code>max</code> / <code>abs</code>
+            family, and a curated subset of <code>math.*</code>;
+            attribute access, subscripts, lambdas and other
+            sandbox-escape primitives are rejected at compile time.
+            Only the connected slots render in the editor (uses
+            <code>SHOW_ONLY_USED_INPUTS</code>).</p>
+          <div class="params">Ins: v_1 … v_9 (SCALAR; optional) · Out: value (SCALAR) · Param: expression</div>
         </div>
         <div class="node-card filter">
           <h4>Clamp</h4>
           <p>Clamps a scalar input to <code>[min_value,
-            max_value]</code>. Use as a guard before driving a
-            slider whose receiver has a stricter range.</p>
-          <div class="params">min_value · max_value</div>
+            max_value]</code>. If the bounds are inverted they're
+            swapped before clamping, so a transient inversion
+            during editing is tolerated.</p>
+          <div class="params">In/Out: value (SCALAR) · Params: min_value, max_value</div>
         </div>
       </div>
     </section>
@@ -1072,25 +1601,222 @@
       <h2>Composit</h2>
       <div class="node-grid">
         <div class="node-card filter">
-          <h4>Merge</h4>
-          <p>Pastes up to four images into a 2 × 2 grid with inputs
-            <code>top_left</code>, <code>top_right</code>,
-            <code>bottom_left</code>,
-            <code>bottom_right</code>. Unconnected quadrants are
-            black; cell sizes are taken per row / per column so
-            mismatched inputs don't distort; mixed colour /
-            greyscale inputs are promoted to colour so nothing is
-            lost.</p>
+          <h4>Mosaic</h4>
+          <p>Variable-layout image composer. The layout is a small
+            descriptor string: rows separated by <code>;</code>,
+            cells inside a row by <code>,</code>, each cell the
+            1-based index of an <code>image_i</code> input (e.g.
+            <code>1,2;3</code>). Within a row, images scale
+            aspect-preserving to the row's max height; rows then
+            scale to the widest row's width. No black bars, no
+            forced grid. Carries a fixed pool of nine optional
+            inputs; only those needed by the layout render in the
+            editor.</p>
+          <div class="params">Ins: image_1 … image_9 (IMAGE / IMAGE_GREY; optional) · Out: image (IMAGE / IMAGE_GREY) · Param: layout</div>
         </div>
         <div class="node-card filter">
           <h4>Overlay</h4>
-          <p>Pastes a foreground image onto a background with
-            per-pixel alpha. Every numeric param
+          <p>Composites an overlay image onto a base. The overlay
+            is optionally rotated and scaled, then blended so its
+            <em>centre</em> lands at <code>(xpos, ypos)</code> with
+            opacity <code>alpha</code>. Every numeric param
             (<em>scale</em>, <em>angle</em>, <em>xpos</em>,
             <em>ypos</em>, <em>alpha</em>) is drivable through its
             socket — wire ramps in for sliding, zooming, fading or
-            rotating animations.</p>
-          <div class="params">scale · angle · xpos · ypos · alpha</div>
+            rotating animations. BGRA overlays use their alpha
+            channel as a per-pixel mask, with <code>alpha</code>
+            as a global multiplier on top.</p>
+          <div class="params">Ins: base, overlay (IMAGE / IMAGE_GREY) · Out: image · Params: scale, angle, xpos, ypos, alpha</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Masked Blend</h4>
+          <p>Per-pixel cross-fade of two images driven by a
+            greyscale mask: <code>out = base*(1-m) + overlay*m</code>
+            with <code>m = mask/255</code>. Unlike <em>Overlay</em>,
+            the mask is a separate input so any greyscale producer
+            (a <em>Gradient Source</em>, an FFT magnitude, a
+            threshold) can drive it. Mismatched shapes are reconciled:
+            mixed colour / greyscale inputs promote to colour, mask
+            is resized to match base.</p>
+          <div class="params">Ins: base, overlay, mask (IMAGE / IMAGE_GREY) · Out: image</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-data">
+      <h2>Data</h2>
+      <p>
+        Data nodes operate on
+        <span class="pill matrix">DATASET</span> payloads —
+        <code>pandas.DataFrame</code> objects with labeled columns
+        and free-form metadata in <code>df.attrs</code>.
+      </p>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Add Index Column</h4>
+          <p>Prepend a synthetic numeric column to the input
+            DATASET. Useful when a downstream renderer needs an
+            explicit X axis but the dataset has no natural one
+            (e.g. a one-column trace from <em>CSV Source</em>).
+            Set <code>step = 1 / sample_rate</code> for a seconds
+            axis.</p>
+          <div class="params">In/Out: dataset (DATASET) · Params: name, start, step</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Join Datasets</h4>
+          <p>Merges two or more DATASET inputs into one. Carries a
+            fixed pool of nine optional <code>dataset_i</code>
+            ports — only the connected ones render in the editor.
+            Optional <code>column_names</code> renames the first
+            column of each input before joining (handy when several
+            single-column sources all carry the generic name
+            <code>c0</code>). <code>df.attrs</code> from the first
+            connected input is forwarded.</p>
+          <div class="params">Ins: dataset_1 … dataset_9 (DATASET; optional) · Out: dataset (DATASET) · Param: column_names</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Directional Projection</h4>
+          <p>Projects a 2-component vector signal onto
+            <code>n_angles</code> directions. For each azimuth
+            <code>θ_j = j · 2π / n_angles</code> emits a column
+            <code>r_j(t) = x·cos θ_j + y·sin θ_j</code>. Output
+            columns are named <code>"&lt;deg&gt;°"</code>; the
+            exact angles in radians are stamped on
+            <code>df.attrs["thetas_rad"]</code> for machine
+            consumers (e.g. <em>Polar Heatmap</em>).</p>
+          <div class="params">In/Out: dataset (DATASET) · Params: x_column, y_column, n_angles</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Sliding Window</h4>
+          <p>Slices a DATASET into a sliding window driven by a
+            SCALAR clock. Each tick re-emits two DATASETs — a
+            slice (<code>dataset_windowed</code>) and the
+            unmodified original (<code>dataset_full</code>) —
+            both stamped with <code>window_start</code> /
+            <code>window_end</code> on <code>IoMeta</code>. The
+            <code>dataset</code> input is held
+            (<code>hold_last=True</code>) so a one-shot CSV
+            survives across the streaming clock's many ticks.</p>
+          <div class="params">Ins: dataset (DATASET, held), window_index (SCALAR) · Outs: dataset_windowed, dataset_full · Params: window_size, step</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-visualization">
+      <h2>Visualization</h2>
+      <p>
+        Visualization nodes render DATASETs to images, suitable for
+        chaining into <em>Display</em>, a <em>Mosaic</em>, or a
+        <em>File Sink</em>.
+      </p>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Plot XY</h4>
+          <p>Renders two columns of a DATASET as an XY line plot,
+            via matplotlib's off-screen Agg backend. Axis labels
+            come from the column names; <code>df.attrs["units"]</code>
+            adds unit suffixes when present.</p>
+          <div class="params">In: dataset (DATASET) · Out: image (IMAGE) · Params: x_column, y_column, width, height, …</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Plot Series</h4>
+          <p>Synthesises a time axis and renders every column of
+            the input DATASET as an independent time-series trace,
+            stacked vertically with a shared time axis. Set
+            <code>step = 1 / sample_rate</code> for a seconds axis.
+            Reads <code>window_start</code> / <code>window_end</code>
+            from <code>IoMeta</code> (typically stamped by
+            <em>Sliding Window</em>) to overlay a moving band
+            spanning every panel.</p>
+          <div class="params">In: dataset (DATASET) · Out: image (IMAGE) · Params: step, y_columns, width, height, …</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Hodogram</h4>
+          <p>Plots two SCALAR-stream DATASETs (two-channel
+            position / particle-motion / displacement traces) as a
+            time-coloured 2-D trajectory with an optional fitted
+            principal axis overlay. Useful for polarisation
+            analysis on seismic / geophone data.</p>
+          <div class="params">Ins: x, y (DATASET) · Out: image (IMAGE) · Params: width, height, principal_axis, …</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Polar Heatmap</h4>
+          <p>Renders a polar heatmap of an N-direction DATASET
+            (typically the output of <em>Directional Projection</em>
+            or <em>Spectrum</em>). Reads angles from
+            <code>df.attrs["thetas_rad"]</code> when present;
+            otherwise parses degrees from column names.</p>
+          <div class="params">In: dataset (DATASET) · Out: image (IMAGE) · Params: width, height, colormap, …</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-streaming">
+      <h2>Streaming</h2>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Repeat</h4>
+          <p>Re-emits a held payload once per clock tick. Pairs a
+            one-shot upstream (an image, a CSV) with a streaming
+            SCALAR clock so the held payload fires once per tick.
+            Each emission carries <code>meta["tick"] = &lt;clock
+            value&gt;</code> automatically (via the SCALAR-port
+            auto-stamp), so a downstream <em>File Sink</em>
+            template can reference <code>$tick$</code> without a
+            tick port of its own. The <code>data</code> input is
+            held (<code>hold_last=True</code>); the <code>tick</code>
+            input drives the lifecycle.</p>
+          <div class="params">Ins: data (any, held), tick (SCALAR) · Out: data (any)</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-ui">
+      <h2>UI</h2>
+      <p>
+        Pass-through nodes that surface a UI side-effect alongside
+        the frame.
+      </p>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Delay</h4>
+          <p>Sleeps for a configurable number of seconds before
+            forwarding each frame. Useful as a "slideshow" knob, or
+            to make per-frame status updates visible during
+            development.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Param: delay_seconds</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Notify</h4>
+          <p>Surfaces a status message in the floating banner.
+            <code>severity</code> chooses INFO (blue) / WARNING
+            (amber) — run continues — or ERROR (red), which raises
+            a <code>RuntimeError</code> and aborts the run. The
+            <code>message</code> is a port-style input: type a
+            literal or wire any STRING source in to drive it per
+            frame.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Params: message, severity</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes-experimental">
+      <h2>Experimental</h2>
+      <p>
+        Effects-style nodes that are not part of the production
+        pipeline but are interesting on their own.
+      </p>
+      <div class="node-grid">
+        <div class="node-card filter">
+          <h4>Subpixel Mosaic</h4>
+          <p>Renders a BGR image as a stylised RGB sub-pixel
+            mosaic, scattering each source pixel across three
+            mono-channel sub-pixels echoing the R/G/B arrangement
+            of a physical display's shadow mask.
+            <code>keep_aspect</code> rescales to the original
+            aspect ratio; <code>output_grayscale</code> drops the
+            colour and emits the per-pixel sample intensity.</p>
+          <div class="params">In: image (IMAGE) · Out: image (IMAGE / IMAGE_GREY) · Params: keep_aspect, output_grayscale</div>
         </div>
       </div>
     </section>
@@ -1105,24 +1831,39 @@
       </p>
       <div class="node-grid">
         <div class="node-card filter">
-          <h4>Delay</h4>
-          <p>Pass-through that sleeps for a configurable number of
-            milliseconds before forwarding each frame. Useful for
-            simulating a slow node and watching how the dispatcher
-            behaves on a multi-source flow.</p>
-        </div>
-        <div class="node-card filter">
           <h4>Debug Params</h4>
-          <p>Exhaustive node exposing one input port for every
-            <code>IoDataType</code>. Wire whatever you want
-            into it to confirm the param-as-port and inline-widget
-            machinery handles every combination.</p>
+          <p>Exhaustive node exposing one parameter of every known
+            <code>NodeParamType</code>. Image is passed through
+            unchanged. Exists so every widget kind can be rendered,
+            edited, saved and loaded through a single node.</p>
+          <div class="params">In/Out: image (IMAGE / IMAGE_GREY) · Params: file_path, count, factor, label, enabled, mode</div>
         </div>
         <div class="node-card filter">
           <h4>Throw Exception</h4>
           <p>Raises on every <code>process_impl</code> call. Use to
             confirm the error banner pops up and that flows
             recover cleanly when a node blows up mid-graph.</p>
+          <div class="params">In/Out: image (IMAGE)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Meta Inspector</h4>
+          <p>Pass-through node that surfaces each frame's
+            <code>IoMeta</code> to a preview widget. Accepts every
+            payload kind so it can sit inline anywhere as a debug
+            probe; the inline preview prints the field-by-field
+            text on the main thread.</p>
+          <div class="params">In/Out: data (any IoDataType)</div>
+        </div>
+        <div class="node-card filter">
+          <h4>Play Gate</h4>
+          <p>Buffers frames until the user clicks the inline Play
+            button. Each click releases <strong>one</strong> frame
+            downstream — the oldest in the queue, so the user steps
+            through the stream in arrival order. The queue is
+            unbounded; honest about memory cost rather than silently
+            dropping. Drains its buffer when toggled into skip
+            mode.</p>
+          <div class="params">In/Out: data (any IoDataType)</div>
         </div>
       </div>
     </section>
@@ -1252,9 +1993,10 @@
     </section>
 
     <footer class="page-foot">
-      Stjörnhorn v0.2.4 — generated documentation.
+      Stjörnhorn v0.3.0 — generated documentation.
       Source: <a href="../README.md">README.md</a> ·
-      <a href="../CHANGELOG.md">CHANGELOG.md</a>.
+      <a href="../CHANGELOG.md">CHANGELOG.md</a> ·
+      <a href="https://github.com/beltoforion/stjornhorn">GitHub repository</a>.
     </footer>
 
   </main>
