@@ -126,7 +126,7 @@ architectural documentation lives under `doc/internal/`.
 - A row of button-style links (`a.button` inside `.links`)
   sits inside the hero header, immediately under the tagline,
   pointing at the hosted documentation
-  (`http://stjornhorn.beltoforion.de`), the GitHub repository,
+  (`https://beltoforion.de/stjornhorn`), the GitHub repository,
   the Issues tracker
   (`https://github.com/beltoforion/stjornhorn/issues`) and the
   Releases page

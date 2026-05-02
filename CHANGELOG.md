@@ -33,7 +33,7 @@ once a first tagged release is cut.
   `doc/welcome.html` is loaded synchronously so the user always sees
   content immediately. In parallel, a short HEAD probe (timeout
   `WELCOME_PROBE_TIMEOUT_MS` = 3 s) is fired against
-  `WELCOME_URL_ONLINE` (`http://stjornhorn.beltoforion.de/welcome.html`); on a
+  `WELCOME_URL_ONLINE` (`https://beltoforion.de/stjornhorn/welcome.txt`); on a
   successful response the `QWebEngineView` swaps to the online URL.
   When offline, DNS-blocked, timed out, or the server returns a
   non-2xx status, the local copy stays put and no further network

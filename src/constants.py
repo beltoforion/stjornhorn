@@ -4,13 +4,13 @@ from pathlib import Path
 
 APP_NAME:         str = "Stjörnhorn"
 APP_DISPLAY_NAME: str = "Stjörnhorn"
-APP_VERSION:      str = "0.3.0.47"
+APP_VERSION:      str = "0.3.0.48"
 API_URL:    str = "https://beltoforion.de"
 
 # Public, online-hosted version of the welcome page. The start page tries
 # to fetch this first and silently falls back to the bundled copy when the
 # host is unreachable (offline, DNS failure, server down, …).
-WELCOME_URL_ONLINE:        str = "http://stjornhorn.beltoforion.de/welcome.html"
+WELCOME_URL_ONLINE:        str = "https://beltoforion.de/stjornhorn/welcome.txt"
 WELCOME_PROBE_TIMEOUT_MS:  int = 3000
 
 # Path resolution -----------------------------------------------------------
