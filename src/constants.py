@@ -4,7 +4,7 @@ from pathlib import Path
 
 APP_NAME:         str = "Stjörnhorn"
 APP_DISPLAY_NAME: str = "Stjörnhorn"
-APP_VERSION:      str = "0.3.0.40"
+APP_VERSION:      str = "0.3.0.41"
 API_URL:    str = "https://beltoforion.de"
 
 # Path resolution -----------------------------------------------------------
