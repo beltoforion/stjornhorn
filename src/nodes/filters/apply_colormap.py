@@ -67,7 +67,8 @@ class ApplyColormap(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        image: np.ndarray = self.inputs[0].data.image
+        in_data = self.inputs[0].data
+        image: np.ndarray = in_data.image
         if image.ndim != 2:
             raise ValueError(
                 f"ApplyColormap expects a single-channel image, got shape {image.shape}"
@@ -76,4 +77,4 @@ class ApplyColormap(NodeBase):
             image = image.astype(np.uint8, copy=False)
 
         coloured = cv2.applyColorMap(image, int(self._colormap))
-        self.outputs[0].send(IoData.from_image(coloured))
+        self.outputs[0].send(IoData.from_image(coloured, meta=in_data.meta))

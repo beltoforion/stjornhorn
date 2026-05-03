@@ -107,7 +107,8 @@ class PlotXY(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        df: pd.DataFrame = self.inputs[0].data.payload
+        in_data = self.inputs[0].data
+        df: pd.DataFrame = in_data.payload
         x_col = self._resolve_column(df, self._x_column, default_index=0)
         y_col = self._resolve_column(df, self._y_column, default_index=1)
 
@@ -121,7 +122,7 @@ class PlotXY(NodeBase):
             title=self._title,
             grid=self._grid,
         )
-        self.outputs[0].send(IoData.from_image(bgr))
+        self.outputs[0].send(IoData.from_image(bgr, meta=in_data.meta))
 
     # ── Pure helpers (testable without rendering) ─────────────────────────────
 

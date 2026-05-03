@@ -33,7 +33,8 @@ class Fft2D(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        image: np.ndarray = self.inputs[0].data.image
+        in_data = self.inputs[0].data
+        image: np.ndarray = in_data.image
         if image.ndim != 2:
             raise ValueError(
                 f"Fft2D expects a single-channel image, got shape {image.shape}"
@@ -47,5 +48,5 @@ class Fft2D(NodeBase):
             magnitude = (magnitude * (255.0 / peak))
         magnitude_u8 = magnitude.astype(np.uint8, copy=False)
 
-        self.outputs[0].send(IoData.from_matrix(spectrum))
-        self.outputs[1].send(IoData.from_greyscale(magnitude_u8))
+        self.outputs[0].send(IoData.from_matrix(spectrum, meta=in_data.meta))
+        self.outputs[1].send(IoData.from_greyscale(magnitude_u8, meta=in_data.meta))

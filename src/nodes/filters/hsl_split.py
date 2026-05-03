@@ -30,7 +30,8 @@ class HslSplit(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        image: np.ndarray = self.inputs[0].data.image
+        in_data = self.inputs[0].data
+        image: np.ndarray = in_data.image
         channels = image.shape[2] if image.ndim == 3 else 1
 
         if channels == 4:
@@ -42,6 +43,8 @@ class HslSplit(NodeBase):
 
         hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
         h, l, s = cv2.split(hls)
-        self.outputs[0].send(IoData.from_greyscale(h))
-        self.outputs[1].send(IoData.from_greyscale(s))
-        self.outputs[2].send(IoData.from_greyscale(l))
+        # Forward the upstream meta on every output so source_path,
+        # custom annotations etc. survive the channel split.
+        self.outputs[0].send(IoData.from_greyscale(h, meta=in_data.meta))
+        self.outputs[1].send(IoData.from_greyscale(s, meta=in_data.meta))
+        self.outputs[2].send(IoData.from_greyscale(l, meta=in_data.meta))

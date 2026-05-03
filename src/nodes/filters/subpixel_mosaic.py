@@ -49,7 +49,8 @@ class SubpixelMosaic(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        image: np.ndarray = self.inputs[0].data.image
+        in_data = self.inputs[0].data
+        image: np.ndarray = in_data.image
         if image.ndim != 3 or image.shape[2] != 3:
             raise ValueError("Subpixel Mosaic requires a 3-channel BGR image")
 
@@ -65,9 +66,9 @@ class SubpixelMosaic(NodeBase):
             # without luminance weighting — this preserves the raw sample
             # intensity in a single-channel image.
             grey = mosaic.max(axis=2).astype(np.uint8)
-            self.outputs[0].send(IoData.from_greyscale(grey))
+            self.outputs[0].send(IoData.from_greyscale(grey, meta=in_data.meta))
         else:
-            self.outputs[0].send(IoData.from_image(mosaic))
+            self.outputs[0].send(IoData.from_image(mosaic, meta=in_data.meta))
 
 
 @numba.njit(cache=True)

@@ -155,7 +155,7 @@ class PlotSeries(NodeBase):
             assert self._cache_base is not None
             result = self._cache_base.copy()
 
-        self.outputs[0].send(IoData.from_image(result))
+        self.outputs[0].send(IoData.from_image(result, meta=in_io.meta))
 
     # ── Internals ──────────────────────────────────────────────────────────────
 

@@ -52,7 +52,8 @@ class AddIndexColumn(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        df: pd.DataFrame = self.inputs[0].data.payload
+        in_data = self.inputs[0].data
+        df: pd.DataFrame = in_data.payload
 
         if self._name in df.columns:
             raise ValueError(
@@ -71,4 +72,4 @@ class AddIndexColumn(NodeBase):
         # reason ``DATASET`` exists as a typed payload, and a regression
         # here would silently strip ``sample_rate`` and friends.
         new_df.attrs = dict(df.attrs)
-        self.outputs[0].send(IoData.from_dataset(new_df))
+        self.outputs[0].send(IoData.from_dataset(new_df, meta=in_data.meta))
