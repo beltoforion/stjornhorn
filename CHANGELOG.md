@@ -10,6 +10,24 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Fixed (Flow run failure no longer aborts the process on Windows)
+
+- **`_finalize_run` is now wired to `QThread.finished` instead of
+  being called inline from `runner.failed` / `runner.finished`.** The
+  previous wiring exposed a race: when the worker emitted `failed`,
+  the UI-thread queued slot could run *before* the worker thread
+  processed its own `runner.deleteLater` event. Setting
+  `self._run_runner = None` then dropped the only Python ref to a
+  still-alive C++ `FlowRunner` whose thread affinity was the worker,
+  so PySide's wrapper destructor invoked Qt's delete from the wrong
+  thread and the process died with a `Fatal Python error: Aborted`
+  (observed on Windows when a node in `image_bulk_fft.flowjs`
+  raised). Deferring teardown to `thread.finished` guarantees the
+  worker's event loop has drained — the C++ runner is already gone
+  by the time the Python wrapper is released. The single-arg
+  `runner.failed → thread.quit` connection replaces the previous
+  `lambda _msg: thread.quit()` adapter (Qt drops the extra arg).
+
 ### Changed (Step-over button moved to the right of the title)
 
 - **The skip / step-over button now sits to the right of the

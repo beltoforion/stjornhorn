@@ -500,30 +500,47 @@ class NodeEditorPage(PageBase):
         runner.moveToThread(thread)
 
         thread.started.connect(runner.run)
-        runner.finished.connect(self._on_run_finished)
-        runner.failed.connect(self._on_run_failed)
+        # Status updates fire from the worker's terminal signals — they
+        # only touch the status bar / scene refresh, no teardown. The
+        # actual destruction + UI re-enable is deferred to
+        # thread.finished (see below) to avoid a race that aborts on
+        # Windows: if the UI thread processes the queued failed/finished
+        # slot *before* the worker thread processes its own pending
+        # ``runner.deleteLater`` event, dropping ``self._run_runner``
+        # here would invoke PySide's wrapper destructor, which calls
+        # delete on a QObject whose affinity is the worker thread —
+        # Qt asserts and the process abort()s (Issue: threading abort).
+        runner.finished.connect(self._on_run_finished_status)
+        runner.failed.connect(self._on_run_failed_status)
         # Queued cross-thread signal — the worker fires node_started on
         # its own thread, Qt marshals it onto the UI thread slot.
         runner.node_started.connect(self._flow_status_widget.set_current_node)
         # Connection order matters: Qt invokes slots in the order they were
         # connected. We want deleteLater to post on the worker's event loop
         # *before* quit stops that same loop, so the runner is actually
-        # destroyed. thread.deleteLater can then run on the UI thread after
-        # the worker has terminated.
+        # destroyed before the loop exits. ``failed`` carries a str arg
+        # but ``thread.quit`` is a no-arg slot — Qt drops the extra.
         runner.finished.connect(runner.deleteLater)
         runner.failed.connect(runner.deleteLater)
         runner.finished.connect(thread.quit)
-        runner.failed.connect(lambda _msg: thread.quit())
+        runner.failed.connect(thread.quit)
+        # Once the worker's event loop has fully exited, the runner's
+        # deleteLater has been processed (C++ object gone) and it is
+        # safe to drop our Python references. ``_finalize_run`` runs on
+        # the UI thread via the queued connection from QThread.finished.
+        thread.finished.connect(self._finalize_run)
         thread.finished.connect(thread.deleteLater)
 
         self._run_thread = thread
         self._run_runner = runner
         thread.start()
 
-    def _on_run_finished(self) -> None:
+    def _on_run_finished_status(self) -> None:
         # Sinks may have just written output files; let every node's
         # param widgets re-evaluate filesystem-dependent state (e.g.
-        # the FilePathParamWidget "view" button).
+        # the FilePathParamWidget "view" button). UI re-enable +
+        # reference teardown happens later, in ``_finalize_run`` once
+        # the worker thread has fully exited.
         for item in self._scene.iter_node_items():
             item.refresh_param_widgets()
 
@@ -532,11 +549,8 @@ class NodeEditorPage(PageBase):
             kind="ok",
         )
 
-        self._finalize_run()
-
-    def _on_run_failed(self, detail: str) -> None:
+    def _on_run_failed_status(self, detail: str) -> None:
         self._set_status(f"Run failed ({detail})", kind="fail")
-        self._finalize_run()
 
     def _on_stop_clicked(self) -> None:
         """Ask the running flow to stop after its current step.
@@ -555,10 +569,12 @@ class NodeEditorPage(PageBase):
     def _finalize_run(self) -> None:
         """Drop references to the worker thread and re-enable the Run action.
 
-        Called from both terminal slots. The QThread itself is torn down
-        via the ``thread.finished`` → ``deleteLater`` connections set up
-        in :meth:`_on_run_clicked`; this just clears our handles so the
-        next click starts a fresh thread.
+        Wired to ``QThread.finished`` so it fires on the UI thread *after*
+        the worker's event loop has fully exited — by that point the
+        runner's queued ``deleteLater`` has been processed and the C++
+        ``FlowRunner`` is gone, so dropping the Python wrapper here
+        cannot trigger a cross-thread ``QObject`` delete (Issue: threading
+        abort on Windows in image_bulk_fft.flowjs runs).
         """
         self._run_thread = None
         self._run_runner = None
