@@ -855,13 +855,14 @@ class NodeItem(QGraphicsItem):
         """Sync the visibility of every body-content child item to the
         node's current :attr:`show_meta` flag.
 
-        Hidden when meta is on: every visible input port socket,
-        every per-row inline param widget, every constant-param
-        widget, and the regular preview (Display's image, PlayGate's
-        button). Output port sockets stay visible so a meta-mode
-        node can still be wired and link rerouting on drag keeps
-        working — the sockets paint to the body rim, well clear of
-        the overlay's scroll area.
+        Hidden when meta is on: the per-row inline param widgets, the
+        constants block widgets, and the regular preview (Display's
+        image, PlayGate's button) — anything that paints inside the
+        body rectangle and would bleed through the overlay's scroll
+        area. Port sockets on **both** sides stay visible: they sit
+        on the body rim (input dots at ``x = 0``, output dots at
+        ``x = width``), well clear of the overlay's ``PADDING`` inset,
+        so the user can keep wiring connections while reading meta.
 
         Recomputes the per-row "would normally be visible" mask via
         :meth:`_visible_input_count` rather than reading each
@@ -874,8 +875,6 @@ class NodeItem(QGraphicsItem):
         """
         meta_on = self._node.show_meta
         n_visible = self._visible_input_count()
-        for i, port in enumerate(self._input_ports):
-            port.setVisible(not meta_on and i < n_visible)
         for i, proxy in self._param_proxies_by_row.items():
             proxy.setVisible(not meta_on and i < n_visible)
         for proxy in self._constant_proxies_by_row.values():
