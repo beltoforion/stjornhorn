@@ -31,18 +31,22 @@ once a first tagged release is cut.
   `QTextBrowser` body — no per-frame repositioning, no overlay
   parenting tricks.
 
-### Changed (Sink write failures now name the offending non-ASCII characters)
+### Fixed (FileSink writes succeed on paths with non-ASCII characters)
 
-- **`FileSink` and `VideoSink` failure messages now list the
-  non-ASCII characters in the path.** OpenCV's writers
-  (`cv2.imwrite`, `cv2.VideoWriter`) silently fail on Windows when
-  the path contains characters outside the active ANSI code page —
-  `C:\Users\…\stjörnhorn\output\…` was reported as a generic
-  "filename invalid for the current OS" with no pointer to the real
-  cause. A new `core.path_utils.write_failure_hint` helper appends
-  `The path contains non-ASCII characters ('ö')` to the message
-  when the path has any; ASCII-only paths still get the generic
-  note. Both sinks share the helper.
+- **`FileSink` now writes correctly when the output path contains
+  umlauts or other non-ASCII characters** (the
+  `C:\Users\…\stjörnhorn\output\…` case that triggered the
+  recent diagnostic-only round). `cv2.imwrite` opens the
+  destination through the C runtime's ANSI `fopen` on Windows
+  and silently fails for any path outside the active code page;
+  the sink now encodes via `cv2.imencode` and streams the bytes
+  via `Path.write_bytes`, mirroring the read-side trick already
+  used by `ImageSource`. If the encoder itself refuses the
+  format (unsupported extension), the sink raises an `OSError`
+  that names the offending suffix instead of writing a
+  placeholder. `VideoSink` keeps its diagnostic-only treatment
+  for now — the underlying `cv2.VideoWriter` Unicode-path bug
+  is harder to fix and tracked as a follow-up.
 
 ### Added (Copy-to-clipboard button on the error/notification banner)
 

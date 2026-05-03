@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import cv2
+import numpy as np
 from typing_extensions import override
 
 from constants import OUTPUT_DIR
@@ -12,7 +13,7 @@ from core.filename_template import expand as expand_template
 from core.io_data import IMAGE_TYPES
 from core.node_base import SinkNodeBase
 from core.params import FilePathParam
-from core.path_utils import resolve_against, write_failure_hint
+from core.path_utils import resolve_against
 from core.port import InputPort
 
 
@@ -83,14 +84,29 @@ class FileSink(SinkNodeBase):
             raise ValueError(f"Unsupported output format: {self._output_format}")
 
         output.parent.mkdir(parents=True, exist_ok=True)
-        written = cv2.imwrite(str(output), self.inputs[0].data.image)
-        if not written:
-            raise OSError(
-                f"File Sink failed to write image to {output!s}. "
-                f"{write_failure_hint(output)}"
-            )
+        self._encode_and_write(output, self.inputs[0].data.image)
 
     # ── Internals ──────────────────────────────────────────────────────────────
+
+    def _encode_and_write(self, output: Path, image: np.ndarray) -> None:
+        """Encode *image* in memory then stream the bytes to *output*.
+
+        ``cv2.imwrite`` opens the destination through the C runtime's
+        ANSI ``fopen`` on Windows and silently fails on any path with
+        characters outside the active code page (the ``ö`` in
+        ``stjörnhorn`` was a real-world reproducer). Encoding via
+        ``cv2.imencode`` and writing through Python's ``open()``
+        sidesteps that limitation — the same trick lives on the read
+        side in :class:`~nodes.sources.image_source.ImageSource`.
+        """
+        ok, buf = cv2.imencode(output.suffix, image)
+        if not ok:
+            raise OSError(
+                f"File Sink failed to encode image for {output!s}. "
+                f"The extension {output.suffix!r} may not be supported "
+                "by OpenCV's encoders."
+            )
+        output.write_bytes(buf.tobytes())
 
     def _resolved_template(self, meta: dict[str, Any]) -> Path:
         """Expand the user's template against *meta*, then resolve
