@@ -1122,7 +1122,12 @@ class NodeItem(QGraphicsItem):
             return len(all_inputs)
         last_connected = -1
         for i, port_item in enumerate(all_inputs):
-            if port_item.model.upstream is not None:
+            # ``PortItem.model`` is typed ``InputPort | OutputPort``;
+            # ``_input_ports`` only ever holds input-side items so
+            # ``upstream`` is always defined here. ``getattr`` keeps
+            # the static checker quiet without a redundant runtime
+            # ``isinstance`` narrow.
+            if getattr(port_item.model, "upstream", None) is not None:
                 last_connected = i
         # Show one row beyond the last connection — capped at the pool
         # size — and never less than one so the node has at least one
