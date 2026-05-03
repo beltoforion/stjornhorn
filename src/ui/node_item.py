@@ -221,7 +221,7 @@ class _HeaderButtonItem(QGraphicsItem):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         active = isinstance(self._item, Toggle) and self._item.is_active()
         if self._hovered or self._pressed or active:
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             alpha = 120 if active else 70
             painter.setBrush(QBrush(QColor(255, 255, 255, alpha)))
             painter.drawRoundedRect(self.boundingRect(), 2, 2)
@@ -588,7 +588,7 @@ class NodeItem(QGraphicsItem):
             glow = QColor(glow_color)
             glow.setAlpha(alpha)
             painter.setPen(QPen(glow, 1.0))
-            painter.setBrush(Qt.NoBrush)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRoundedRect(
                 body_rect.adjusted(-offset, -offset, offset, offset),
                 self.CORNER_RADIUS + offset,
@@ -596,7 +596,7 @@ class NodeItem(QGraphicsItem):
             )
 
         # ── body fill ──
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(NODE_BODY_COLOR))
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
@@ -606,7 +606,7 @@ class NodeItem(QGraphicsItem):
             # path with rounded top corners only so it tucks under
             # the body's rounded outline. Drawn before the border so
             # the border's stroke clips the strip's edges cleanly.
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(accent))
             painter.drawPath(self._header_path())
         else:
@@ -623,7 +623,7 @@ class NodeItem(QGraphicsItem):
 
         # ── border (stroked last so nothing covers it) ──
         painter.setPen(border_pen)
-        painter.setBrush(Qt.NoBrush)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
         # ── header icon (declared by the node class via HEADER_ICON) ──
@@ -709,9 +709,9 @@ class NodeItem(QGraphicsItem):
                 break
             y = inputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT
             label_right = self._width - label_inset
-            proxy = self._param_proxies_by_row.get(i)
-            if proxy is not None:
-                label_right = proxy.pos().x() - self.WIDGET_INSET
+            input_proxy = self._param_proxies_by_row.get(i)
+            if input_proxy is not None:
+                label_right = input_proxy.pos().x() - self.WIDGET_INSET
             painter.drawText(
                 QRectF(label_inset, y - self.PORT_ROW_HEIGHT / 2,
                        max(0.0, label_right - label_inset),
@@ -1033,8 +1033,11 @@ class NodeItem(QGraphicsItem):
         # Per input-port-index → editor (if param-style) and proxy.
         # Using parallel dicts keyed by port index so a layout pass
         # can find the right widget for row N without walking lists.
-        self._param_widgets_by_row: dict[int, ParamWidgetBase] = {}
-        self._param_proxies_by_row: dict[int, QGraphicsProxyWidget] = {}
+        # Annotated on the instance attributes in ``__init__``; this
+        # method is the canonical (re)builder, so it just resets to
+        # empty dicts.
+        self._param_widgets_by_row = {}
+        self._param_proxies_by_row = {}
 
         for i, port_model in enumerate(self._node.inputs):
             port_item = PortItem(self, "input", i, port_model)
