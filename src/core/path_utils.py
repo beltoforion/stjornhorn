@@ -51,3 +51,37 @@ def resolve_against(path: Path, base_dir: Path) -> Path:
     if path.is_absolute():
         return path
     return base_dir / path
+
+
+_GENERIC_WRITE_HINT = (
+    "This often means the rendered filename/path is invalid for the "
+    "current OS."
+)
+
+
+def non_ascii_chars(path: Path | str) -> list[str]:
+    """Return the sorted, de-duplicated non-ASCII characters in *path*."""
+    return sorted({c for c in str(path) if ord(c) > 127})
+
+
+def write_failure_hint(path: Path | str) -> str:
+    """Diagnostic hint for OpenCV file-write failures on *path*.
+
+    OpenCV's writers (``cv2.imwrite``, ``cv2.VideoWriter``) on Windows
+    route through the C runtime's ANSI ``fopen``, which silently fails
+    on any path containing characters outside the active code page —
+    most commonly umlauts and accented letters in the user profile or
+    project directory. The sinks call this helper to turn that opaque
+    failure into an actionable error message; if the path is plain
+    ASCII, the generic 'invalid filename' note is returned instead.
+    """
+    bad = non_ascii_chars(path)
+    if not bad:
+        return _GENERIC_WRITE_HINT
+    rendered = ", ".join(f"'{c}'" for c in bad)
+    return (
+        f"The path contains non-ASCII characters ({rendered}) — OpenCV's "
+        "file writer uses the C runtime's ANSI encoding on Windows and "
+        "silently fails on umlauts / accented letters. Move the output "
+        "directory to an ASCII-only path."
+    )
