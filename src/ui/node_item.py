@@ -33,7 +33,7 @@ from ui import clipboard
 from ui.icons import paint_material_glyph
 from ui.param_widgets import ParamWidgetBase, build_param_widget
 from ui.port_item import PortItem
-from ui.preview_widgets import build_preview_widget
+from ui.preview_widgets import build_meta_overlay, build_preview_widget
 from ui.theme import (
     BORDER_FROM_CATEGORY,
     FILTER_HEADER_COLOR,
@@ -221,7 +221,7 @@ class _HeaderButtonItem(QGraphicsItem):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         active = isinstance(self._item, Toggle) and self._item.is_active()
         if self._hovered or self._pressed or active:
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             alpha = 120 if active else 70
             painter.setBrush(QBrush(QColor(255, 255, 255, alpha)))
             painter.drawRoundedRect(self.boundingRect(), 2, 2)
@@ -427,6 +427,15 @@ class NodeItem(QGraphicsItem):
         self._param_proxies_by_row: dict[int, QGraphicsProxyWidget] = {}
         self._preview_widget: QWidget | None = None
         self._preview_proxy: QGraphicsProxyWidget | None = None
+        # Meta overlay for the auto-injected info toggle. Always built
+        # for non-source nodes (``HAS_INFO_TOGGLE``); positioned to
+        # cover the entire body area below the header whenever
+        # ``show_meta`` is on, hidden otherwise. Decoupled from
+        # ``_preview_widget`` so a node like Display keeps its image
+        # preview between toggle flips and the overlay simply rises
+        # on top of the rest of the body.
+        self._meta_overlay_widget: QWidget | None = None
+        self._meta_overlay_proxy: QGraphicsProxyWidget | None = None
         self._body_height: float = 0.0
         self._width: float = self.MAX_WIDTH
         # User-chosen overrides (from resize grip or flow load). None
@@ -457,6 +466,14 @@ class NodeItem(QGraphicsItem):
         self._resize_grip = _ResizeGripItem(self)
 
         self._build_ports()
+        # Subscribe to the node's :attr:`show_meta` flag. The preview
+        # widget (if any) handles the visual swap; the layout pass
+        # re-runs so a preview that's only active in meta mode (see
+        # :class:`GenericMetaPreview`) can grow into the body or
+        # collapse out of it on the toggle flip. NodeItem owns this
+        # single subscription so the node-side API stays a one-callback
+        # contract.
+        node.set_show_meta_callback(self._on_show_meta_changed)
         self._relayout()
         # Repaint the header badge whenever a constant param changes so the
         # tick count stays in sync with the current param values.
@@ -571,7 +588,7 @@ class NodeItem(QGraphicsItem):
             glow = QColor(glow_color)
             glow.setAlpha(alpha)
             painter.setPen(QPen(glow, 1.0))
-            painter.setBrush(Qt.NoBrush)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRoundedRect(
                 body_rect.adjusted(-offset, -offset, offset, offset),
                 self.CORNER_RADIUS + offset,
@@ -579,7 +596,7 @@ class NodeItem(QGraphicsItem):
             )
 
         # ── body fill ──
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(NODE_BODY_COLOR))
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
@@ -589,7 +606,7 @@ class NodeItem(QGraphicsItem):
             # path with rounded top corners only so it tucks under
             # the body's rounded outline. Drawn before the border so
             # the border's stroke clips the strip's edges cleanly.
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(accent))
             painter.drawPath(self._header_path())
         else:
@@ -606,7 +623,7 @@ class NodeItem(QGraphicsItem):
 
         # ── border (stroked last so nothing covers it) ──
         painter.setPen(border_pen)
-        painter.setBrush(Qt.NoBrush)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRoundedRect(body_rect, self.CORNER_RADIUS, self.CORNER_RADIUS)
 
         # ── header icon (declared by the node class via HEADER_ICON) ──
@@ -641,6 +658,11 @@ class NodeItem(QGraphicsItem):
         )
 
         # ── port labels ──
+        # Skipped entirely when the info toggle is on: the meta
+        # overlay covers the body section below the header, so port
+        # labels would just bleed through.
+        if self._node.show_meta:
+            return
         painter.setPen(QPen(NODE_PARAM_LABEL_COLOR))
         label_inset = PortItem.LABEL_OFFSET
 
@@ -687,9 +709,9 @@ class NodeItem(QGraphicsItem):
                 break
             y = inputs_top + (i + 0.5) * self.PORT_ROW_HEIGHT
             label_right = self._width - label_inset
-            proxy = self._param_proxies_by_row.get(i)
-            if proxy is not None:
-                label_right = proxy.pos().x() - self.WIDGET_INSET
+            input_proxy = self._param_proxies_by_row.get(i)
+            if input_proxy is not None:
+                label_right = input_proxy.pos().x() - self.WIDGET_INSET
             painter.drawText(
                 QRectF(label_inset, y - self.PORT_ROW_HEIGHT / 2,
                        max(0.0, label_right - label_inset),
@@ -818,6 +840,50 @@ class NodeItem(QGraphicsItem):
         if scene is not None and hasattr(scene, "remove_node_item"):
             QTimer.singleShot(0, lambda: scene.remove_node_item(self))
 
+    def _on_show_meta_changed(self) -> None:
+        """Apply the node's :attr:`show_meta` flip: raise / hide the
+        meta overlay and dim the body content (ports + inline widgets
+        + regular preview) underneath. The node's outer dimensions are
+        intentionally untouched so the toggle never grows or shrinks
+        the node — the overlay simply fills whatever the body already
+        is and the user trades port-label visibility for a roomy meta
+        view at the existing size."""
+        self._apply_show_meta()
+        self.update()  # repaint to drop / restore port labels
+
+    def _apply_show_meta(self) -> None:
+        """Sync the visibility of every body-content child item to the
+        node's current :attr:`show_meta` flag.
+
+        Hidden when meta is on: the per-row inline param widgets, the
+        constants block widgets, and the regular preview (Display's
+        image, PlayGate's button) — anything that paints inside the
+        body rectangle and would bleed through the overlay's scroll
+        area. Port sockets on **both** sides stay visible: they sit
+        on the body rim (input dots at ``x = 0``, output dots at
+        ``x = width``), well clear of the overlay's ``PADDING`` inset,
+        so the user can keep wiring connections while reading meta.
+
+        Recomputes the per-row "would normally be visible" mask via
+        :meth:`_visible_input_count` rather than reading each
+        widget's current ``isVisible``: a previous meta-on pass set
+        them all to False, so reading current state would strand
+        rows hidden after the toggle flips back off. Called from
+        both :meth:`_on_show_meta_changed` (on toggle flip) and
+        :meth:`_relayout` (so a freshly built or rebuilt node lands
+        in the right state).
+        """
+        meta_on = self._node.show_meta
+        n_visible = self._visible_input_count()
+        for i, proxy in self._param_proxies_by_row.items():
+            proxy.setVisible(not meta_on and i < n_visible)
+        for proxy in self._constant_proxies_by_row.values():
+            proxy.setVisible(not meta_on)
+        if self._preview_proxy is not None:
+            self._preview_proxy.setVisible(not meta_on)
+        if self._meta_overlay_proxy is not None:
+            self._meta_overlay_proxy.setVisible(meta_on)
+
     def _header_path(self) -> QPainterPath:
         """Path for the header strip: top corners rounded, bottom
         corners square. Used by themes that opt into the classic
@@ -914,7 +980,10 @@ class NodeItem(QGraphicsItem):
             port_need = max(port_need, row_need)
 
         # Preview widget asks for as much width as it can get; cap at
-        # MAX_WIDTH via the outer min() below.
+        # MAX_WIDTH via the outer min() below. The meta overlay is
+        # explicitly excluded from sizing — its footprint is the body
+        # the rest of the node already establishes, so the toggle
+        # never grows or shrinks the node.
         preview_need = 0.0
         if self._preview_widget is not None:
             preview_need = float(self._preview_widget.sizeHint().width()) + 2 * self.PADDING
@@ -963,8 +1032,11 @@ class NodeItem(QGraphicsItem):
         # Per input-port-index → editor (if param-style) and proxy.
         # Using parallel dicts keyed by port index so a layout pass
         # can find the right widget for row N without walking lists.
-        self._param_widgets_by_row: dict[int, ParamWidgetBase] = {}
-        self._param_proxies_by_row: dict[int, QGraphicsProxyWidget] = {}
+        # Annotated on the instance attributes in ``__init__``; this
+        # method is the canonical (re)builder, so it just resets to
+        # empty dicts.
+        self._param_widgets_by_row = {}
+        self._param_proxies_by_row = {}
 
         for i, port_model in enumerate(self._node.inputs):
             port_item = PortItem(self, "input", i, port_model)
@@ -1022,6 +1094,19 @@ class NodeItem(QGraphicsItem):
         else:
             self._preview_proxy = None
 
+        # Info-toggle meta overlay (every non-source node). Built once,
+        # positioned over the body in :meth:`_relayout`, visibility
+        # driven by the node's :attr:`show_meta` flag in
+        # :meth:`_apply_show_meta`. Sits at a higher Z than the rest of
+        # the body proxies so it cleanly covers them when raised.
+        overlay = build_meta_overlay(self._node)
+        if overlay is not None:
+            self._meta_overlay_widget = overlay
+            self._meta_overlay_proxy = QGraphicsProxyWidget(self)
+            self._meta_overlay_proxy.setWidget(overlay)
+            self._meta_overlay_proxy.setZValue(self.Z_VALUE + 1)
+            self._meta_overlay_proxy.setVisible(self._node.show_meta)
+
     def _visible_input_count(self) -> int:
         """Return how many input rows the body should render.
 
@@ -1036,7 +1121,12 @@ class NodeItem(QGraphicsItem):
             return len(all_inputs)
         last_connected = -1
         for i, port_item in enumerate(all_inputs):
-            if port_item.model.upstream is not None:
+            # ``PortItem.model`` is typed ``InputPort | OutputPort``;
+            # ``_input_ports`` only ever holds input-side items so
+            # ``upstream`` is always defined here. ``getattr`` keeps
+            # the static checker quiet without a redundant runtime
+            # ``isinstance`` narrow.
+            if getattr(port_item.model, "upstream", None) is not None:
                 last_connected = i
         # Show one row beyond the last connection — capped at the pool
         # size — and never less than one so the node has at least one
@@ -1109,10 +1199,17 @@ class NodeItem(QGraphicsItem):
         )
 
         # ── Body height ────────────────────────────────────────────────────────
-        if self._user_height is not None and self._preview_widget is not None:
-            # Only nodes that have something that can stretch (a preview)
-            # honour vertical resize. For others the grip's Y drag is
-            # absorbed without effect.
+        # Honour the user's vertical resize on every node, not just
+        # nodes with a regular preview. The meta overlay added by the
+        # info toggle wants room to render its scrollable dump on
+        # filters and sinks that have no other body content to
+        # stretch — a Grayscale or FileSink should be growable so the
+        # user can read meta without scrolling.  The natural height
+        # is still the floor (the grip can never shrink past
+        # everything the body needs to show its ports / widgets /
+        # preview), and ``MAX_USER_HEIGHT`` still caps the top so a
+        # runaway drag doesn't turn the canvas into a wall.
+        if self._user_height is not None:
             self._body_height = max(
                 natural_body_h,
                 min(self.MAX_USER_HEIGHT, self._user_height),
@@ -1166,6 +1263,21 @@ class NodeItem(QGraphicsItem):
             self._preview_widget.setFixedWidth(int(self._width - 2 * self.PADDING))
             self._preview_widget.setFixedHeight(int(preview_h))
             self._preview_proxy.setPos(self.PADDING, preview_top)
+
+        # ── Meta overlay (covers the body section below the header) ───────────
+        # Sized to whatever the body already is (never pushes the
+        # node larger). Visibility flips with ``show_meta`` via
+        # :meth:`_apply_show_meta`, which also dims the body content
+        # underneath so the overlay doesn't have to be opaque-sized
+        # to hide ports.
+        if self._meta_overlay_widget is not None and self._meta_overlay_proxy is not None:
+            overlay_top = self.HEADER_HEIGHT
+            overlay_h = self._body_height - overlay_top - self.PADDING
+            overlay_w = self._width - 2 * self.PADDING
+            self._meta_overlay_widget.setFixedWidth(int(max(0.0, overlay_w)))
+            self._meta_overlay_widget.setFixedHeight(int(max(0.0, overlay_h)))
+            self._meta_overlay_proxy.setPos(self.PADDING, overlay_top)
+        self._apply_show_meta()
 
         self.refresh_all_links()
         self.update()

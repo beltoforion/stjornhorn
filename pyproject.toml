@@ -28,3 +28,15 @@ py-modules = ["main", "constants", "log"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.mypy]
+# Treat ``src/`` as the package root so type checkers recognise the
+# in-tree namespace packages (``core``, ``nodes``, ``ui``, ``ocvl``)
+# as the same module names runtime imports use. Without this the
+# checker resolves ``from ui.theme import ...`` against an installed
+# distribution of the same name and reports every project-internal
+# import as ``import-untyped``. Mirrors the runtime ``PYTHONPATH=src``
+# convention used by the test suite and the entry-point shim.
+mypy_path = "src"
+explicit_package_bases = true
+namespace_packages = true

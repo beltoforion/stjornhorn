@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 from constants import INPUT_DIR, OUTPUT_DIR
 from core.filename_template import expand as expand_template
 from core.io_data import IoDataType
-from core.node_base import NodeBase, NodeParamType
+from core.node_base import NodeBase, NodeParam, NodeParamType
 from core.port import InputPort
 from ui.controls.scene_aware_combobox import SceneAwareComboBox
 from ui.icons import material_icon
@@ -830,8 +830,16 @@ def _install_description_tooltip(
             child.setToolTip(desc)
 
 
-def build_param_widget(node: NodeBase, port: InputPort) -> ParamWidgetBase | None:
+def build_param_widget(
+    node: NodeBase, port: InputPort | NodeParam,
+) -> ParamWidgetBase | None:
     """Return a :class:`ParamWidgetBase` that edits *port* on *node*.
+
+    *port* may be either a port-style :class:`InputPort` (driveable
+    from upstream, rendered on its own port row) or a constant-style
+    :class:`NodeParam` (no socket, italic caption); both expose the
+    same ``name`` / ``metadata`` / ``upstream`` surface this builder
+    relies on.
 
     Returns ``None`` for unsupported param types, so callers can render a
     placeholder label instead of crashing.  Also returns ``None`` (with

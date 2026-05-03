@@ -14,13 +14,12 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
-    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from core import notifications
-from core.io_data import IoData, IoDataType
+from core.io_data import IoDataType
 from core.node_base import NodeBase
 from nodes.debug.meta_inspector import MetaInspector, format_meta
 from nodes.debug.play_gate import PlayGate
@@ -50,20 +49,16 @@ class _PreviewWidgetBase(QWidget):
 class DisplayPreview(_PreviewWidgetBase):
     """Inline preview for :class:`~nodes.filters.display.Display`.
 
-    Two modes, switched by the node's "show metadata" header toggle:
+    Every frame the Display sees is rendered as a scaled pixmap (or
+    formatted text for SCALAR / MATRIX payloads), with a status line
+    beneath listing FPS, running frame number, and payload shape.
+    Frames arrive on the worker thread via the node's
+    ``frame_callback``; queued :class:`Signal`-s hop them to the UI
+    thread before any QLabel updates.
 
-    - **Image mode (default).** Every frame the Display sees is
-      rendered as a scaled pixmap (or formatted text for SCALAR /
-      MATRIX payloads), with a status line beneath listing FPS,
-      running frame number, and payload shape.
-    - **Meta mode.** A scrollable text dump of the IoMeta + payload
-      summary — the same rendering the standalone
-      :class:`MetaInspector` provides.
-
-    Both pages stay in sync with each frame so toggling the header
-    swap is instant. Frames arrive on the worker thread via the
-    node's ``frame_callback``; queued :class:`Signal`-s hop them to
-    the UI thread before any QLabel updates.
+    Meta-text rendering lives in the overlaid :class:`MetaOverlay`
+    that ``NodeItem`` raises whenever the info toggle is on — this
+    preview only ever shows the image (or scalar / matrix text).
     """
 
     #: Worker thread emits a ready QImage and the status string for
@@ -73,21 +68,14 @@ class DisplayPreview(_PreviewWidgetBase):
     #: Worker thread emits formatted text and the status string for
     #: SCALAR / MATRIX payloads.
     _text_ready = Signal(str, str)
-    #: Worker thread emits the formatted meta dump for the meta page.
-    _meta_ready = Signal(str)
-    #: UI thread emits when the node's ``show_meta`` flag flips so
-    #: the stacked widget can swap pages without polling.
-    _mode_changed = Signal()
 
     _PREVIEW_MIN_W: int = 180
     _PREVIEW_MIN_H: int = 100
 
     _STATUS_PLACEHOLDER: str = "—"
-    _META_PLACEHOLDER: str = "(run the flow to see meta)"
 
     def __init__(self, node: Display) -> None:
         super().__init__(node)
-        # ── Image page ──────────────────────────────────────────────
         self._label = QLabel()
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
@@ -117,52 +105,15 @@ class DisplayPreview(_PreviewWidgetBase):
             "         font-size: 11px; padding: 2px 6px; }"
         )
 
-        self._image_page = QWidget()
-        image_layout = QVBoxLayout(self._image_page)
-        image_layout.setContentsMargins(0, 0, 0, 0)
-        image_layout.setSpacing(0)
-        image_layout.addWidget(self._label, 1)
-        image_layout.addWidget(self._status, 0)
-
-        # ── Meta page ───────────────────────────────────────────────
-        self._meta_label = QLabel()
-        self._meta_label.setAlignment(
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft,
-        )
-        self._meta_label.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding,
-        )
-        self._meta_label.setStyleSheet(
-            "QLabel { background: #111; color: #d6d6d6; padding: 4px;"
-            "         font-family: 'Consolas','Menlo',monospace;"
-            "         font-size: 11px; }"
-        )
-        # Word-wrap so a long source_path doesn't blow out the body
-        # width and force the user to resize the node.
-        self._meta_label.setWordWrap(True)
-        self._meta_label.setText(self._META_PLACEHOLDER)
-
-        self._meta_scroll = QScrollArea()
-        self._meta_scroll.setWidget(self._meta_label)
-        self._meta_scroll.setWidgetResizable(True)
-        self._meta_scroll.setFrameShape(QFrame.Shape.Box)
-        self._meta_scroll.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
-        self._meta_scroll.setStyleSheet(
-            "QScrollArea { background: #111; border: 1px solid #333; }"
-        )
-
-        # ── Stack ───────────────────────────────────────────────────
-        self._stack = QStackedWidget()
-        self._stack.addWidget(self._image_page)
-        self._stack.addWidget(self._meta_scroll)
-
         # Mirror Expanding on the enclosing widget so its parent layout
         # honours vertical stretch rather than collapsing to sizeHint.
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._stack)
+        layout.setSpacing(0)
+        layout.addWidget(self._label, 1)
+        layout.addWidget(self._status, 0)
 
         # Original-resolution frame; we always scale from this to avoid
         # losing quality on successive resizes.
@@ -170,14 +121,7 @@ class DisplayPreview(_PreviewWidgetBase):
 
         self._frame_ready.connect(self._on_frame_ready)
         self._text_ready.connect(self._on_text_ready)
-        self._meta_ready.connect(self._on_meta_ready)
-        self._mode_changed.connect(self._on_mode_changed)
         node.set_frame_callback(self._emit_from_worker)
-        node.set_show_meta_callback(self._mode_changed.emit)
-        # Show whichever page matches the node's current flag (defaults
-        # to image, but a flow loaded with the toggle on would land
-        # straight on meta).
-        self._on_mode_changed()
 
     @override
     def resizeEvent(self, event) -> None:  # type: ignore[override]
@@ -186,28 +130,26 @@ class DisplayPreview(_PreviewWidgetBase):
 
     # ── Worker thread ──────────────────────────────────────────────────────────
 
-    def _emit_from_worker(self, in_data: IoData) -> None:
+    def _emit_from_worker(self, node: NodeBase) -> None:
         """Called from whichever thread runs the Display node's process.
 
-        Updates both pages of the stack so the toggle is instant. The
-        meta-text emit is unconditional; image-mode dispatches on
-        payload kind: image payloads convert to a self-owning QImage
-        (so the underlying numpy buffer can be freed without tearing
-        the pixmap) and hop across threads via ``_frame_ready``;
-        SCALAR / MATRIX payloads format to a string and hop via
-        ``_text_ready``. The current FPS and frame count are read
-        from the node here, on the worker thread, so the snapshot
-        stays consistent with the payload being sent.
+        Image-mode dispatches on payload kind: image payloads convert
+        to a self-owning QImage (so the underlying numpy buffer can
+        be freed without tearing the pixmap) and hop across threads
+        via ``_frame_ready``; SCALAR / MATRIX payloads format to a
+        string and hop via ``_text_ready``. The current FPS and
+        frame count are read from the node here, on the worker
+        thread, so the snapshot stays consistent with the payload
+        being sent.
         """
-        node = self._node
         assert isinstance(node, Display)
+        last = node.last_inputs
+        in_data = last[0] if last else None
+        if in_data is None:
+            return
         status = _format_status(
             node.current_fps, node.frames_processed, in_data.payload,
         )
-
-        # Keep the meta page in lockstep with the image page so
-        # toggling the header switches instantly to the right text.
-        self._meta_ready.emit(format_meta(in_data))
 
         if in_data.type is IoDataType.SCALAR:
             self._text_ready.emit(format_scalar(in_data.payload), status)
@@ -247,22 +189,6 @@ class DisplayPreview(_PreviewWidgetBase):
         self._label.setPixmap(QPixmap())
         self._label.setText(text)
         self._status.setText(status)
-
-    @Slot(str)
-    def _on_meta_ready(self, text: str) -> None:
-        self._meta_label.setText(text)
-        # Same belt-and-braces nudge as the standalone MetaInspector
-        # widget — same-thread emits during click handlers can leave
-        # the proxy widget without a fresh paint until the next
-        # event-loop turn.
-        self._meta_label.update()
-
-    @Slot()
-    def _on_mode_changed(self) -> None:
-        node = self._node
-        assert isinstance(node, Display)
-        target = self._meta_scroll if node.show_meta else self._image_page
-        self._stack.setCurrentWidget(target)
 
     def _render_scaled(self) -> None:
         if self._source_image is None:
@@ -414,7 +340,11 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         self._text_ready.connect(self._on_text_ready)
         node.set_frame_callback(self._emit_from_worker)
 
-    def _emit_from_worker(self, data: IoData) -> None:
+    def _emit_from_worker(self, node: NodeBase) -> None:
+        last = node.last_inputs
+        data = last[0] if last else None
+        if data is None:
+            return
         self._text_ready.emit(format_meta(data))
 
     @Slot(str)
@@ -493,6 +423,95 @@ class PlayGatePreview(_PreviewWidgetBase):
         node.request_emit()
 
 
+# ── Meta overlay (info-toggle target) ─────────────────────────────────────────
+
+
+class MetaOverlay(QWidget):
+    """Scrollable text dump that fills the body area below a node's
+    header whenever the auto-injected info toggle is on.
+
+    Always present on every non-source node, never contributes to the
+    node's natural width / height — :class:`ui.node_item.NodeItem`
+    sizes it to whatever the body already is and toggles its
+    visibility (plus the visibility of the body's ports / inline
+    widgets / regular preview) on the show-meta flip. When visible
+    it covers the section below the header completely; the user
+    accepts losing port labels in exchange for a roomy meta view at
+    the node's existing dimensions.
+
+    Renders one section per input port (with ``format_meta``); empty
+    inputs are skipped. The text is re-emitted on every frame so
+    flipping the toggle back on shows the most recent meta without
+    waiting for the next dispatch.
+    """
+
+    _text_ready = Signal(str)
+
+    _EMPTY_PLACEHOLDER: str = "(no frame yet)"
+
+    def __init__(self, node: NodeBase) -> None:
+        super().__init__()
+        self._node = node
+
+        self._label = QLabel()
+        self._label.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft,
+        )
+        self._label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding,
+        )
+        self._label.setStyleSheet(
+            "QLabel { background: #111; color: #d6d6d6; padding: 4px;"
+            "         font-family: 'Consolas','Menlo',monospace;"
+            "         font-size: 11px; }"
+        )
+        self._label.setWordWrap(True)
+        self._label.setText(self._EMPTY_PLACEHOLDER)
+
+        self._scroll = QScrollArea()
+        self._scroll.setWidget(self._label)
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.Shape.Box)
+        self._scroll.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        self._scroll.setStyleSheet(
+            "QScrollArea { background: #111; border: 1px solid #333; }"
+        )
+
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._scroll)
+
+        self._text_ready.connect(self._on_text_ready)
+        # The owning node's :meth:`set_frame_callback` is single-slot,
+        # so the overlay subscribes through a dedicated meta-tap on
+        # ``NodeBase`` (see :meth:`add_meta_listener`) instead of
+        # competing with whichever preview widget needs the primary
+        # frame callback for image rendering.
+        node.add_meta_listener(self._emit_from_worker)
+        self.setVisible(node.show_meta)
+
+    def _emit_from_worker(self, node: NodeBase) -> None:
+        sections: list[str] = []
+        last = node.last_inputs
+        for i, port in enumerate(node.inputs):
+            data = last[i] if i < len(last) else None
+            if data is None:
+                continue
+            sections.append(f"── {port.name} ──\n{format_meta(data)}")
+        text = "\n\n".join(sections) if sections else self._EMPTY_PLACEHOLDER
+        self._text_ready.emit(text)
+
+    @Slot(str)
+    def _on_text_ready(self, text: str) -> None:
+        self._label.setText(text)
+        self._label.update()
+
+
 # ── Registry ───────────────────────────────────────────────────────────────────
 
 _PREVIEW_WIDGET_CLASSES: dict[type[NodeBase], type[_PreviewWidgetBase]] = {
@@ -508,7 +527,10 @@ def build_preview_widget(node: NodeBase) -> _PreviewWidgetBase | None:
 
     :class:`~ui.node_item.NodeItem` calls this after building the
     param widgets; a non-``None`` result is embedded in the node body
-    below the params.
+    below the params. The meta-info overlay (:class:`MetaOverlay`)
+    is built independently and raised on top of this preview when
+    the info toggle is on, so a node with a registered preview keeps
+    it for the image / button / etc. and only swaps to meta on demand.
     """
     cls = _PREVIEW_WIDGET_CLASSES.get(type(node))
     if cls is None:
@@ -519,5 +541,22 @@ def build_preview_widget(node: NodeBase) -> _PreviewWidgetBase | None:
         logger.exception(
             "Failed to build %s preview widget for %s",
             cls.__name__, type(node).__name__,
+        )
+        return None
+
+
+def build_meta_overlay(node: NodeBase) -> MetaOverlay | None:
+    """Return the meta overlay for *node* — ``None`` for nodes whose
+    class opts out of the info toggle (sources, MetaInspector). The
+    overlay is always built (not just when the toggle is on) so the
+    incoming frame stream stays subscribed and the user sees current
+    meta the instant the toggle flips."""
+    if not node.HAS_INFO_TOGGLE:
+        return None
+    try:
+        return MetaOverlay(node)
+    except Exception:
+        logger.exception(
+            "Failed to build MetaOverlay for %s", type(node).__name__,
         )
         return None

@@ -245,6 +245,15 @@ class NodeBase(ABC):
     #: is rendered, matching the behaviour of every existing node.
     SHOW_ONLY_USED_INPUTS: bool = False
 
+    #: When True, :meth:`header_items` auto-injects an "info" :class:`Toggle`
+    #: that flips :attr:`show_meta`. Non-source nodes inherit ``True`` so
+    #: every filter / sink / debug probe surfaces the latest input frame's
+    #: meta on demand. :class:`SourceNodeBase` overrides to ``False`` (a
+    #: source has no input meta to show); nodes whose dedicated preview is
+    #: already a meta dump (``MetaInspector``) override to ``False`` to
+    #: avoid a redundant toggle.
+    HAS_INFO_TOGGLE: bool = True
+
     def __init__(self, display_name: str, section: str | None = None) -> None:
         self._display_name = display_name
         self._section = section if section is not None else self.DEFAULT_SECTION
@@ -260,6 +269,34 @@ class NodeBase(ABC):
         # for skippable nodes), so the storage list is the *node's
         # contribution*, not the full rendered list.
         self._header_items: list[HeaderItem] = []
+        # ── "Show meta" toggle state ────────────────────────────────────
+        # Flipped by the auto-injected info :class:`Toggle` (see
+        # :meth:`header_items`). Preview widgets poll :attr:`show_meta`
+        # on each repaint and re-subscribe to mode flips via
+        # :meth:`set_show_meta_callback`. Generic state lives here so
+        # every non-source node can surface frame meta without each one
+        # re-implementing the same toggle plumbing.
+        self._show_meta: bool = False
+        self._show_meta_callback: Callable[[], None] | None = None
+        # Per-input snapshot of the most recent :class:`IoData` envelope
+        # captured by :meth:`process` before :meth:`process_impl` runs.
+        # Preview widgets read this in their frame callback (after
+        # :meth:`process_impl` returns) to render meta / image without
+        # the node having to track the latest payload itself.
+        self._last_inputs: list[IoData | None] = []
+        # Generic per-frame callback fired after :meth:`process_impl`
+        # completes; preview widgets register here to refresh on each
+        # processed frame. Carries the node so a single subscription
+        # can reach :attr:`last_inputs` and any node-specific state.
+        self._frame_callback: Callable[["NodeBase"], None] | None = None
+        # Secondary per-frame fan-out reserved for the info-toggle
+        # meta overlay. Kept separate from :attr:`_frame_callback` so
+        # a node with a primary preview (DisplayPreview's image
+        # rendering, PlayGatePreview's button state) and an overlay
+        # (the meta dump) don't have to compete for the single-slot
+        # callback. Multiple listeners are fine — each runs on
+        # whichever thread :meth:`process` is on.
+        self._meta_listeners: list[Callable[["NodeBase"], None]] = []
         # Initialise every descriptor's backing slot to its declared
         # default before subclass ``__init__`` runs, so ``self._<name>``
         # exists from the first line after ``super().__init__()``. The
@@ -469,14 +506,78 @@ class NodeBase(ABC):
         """Action handler for the auto-injected step-over toggle."""
         self.skipped = not self._skipped
 
+    # ── "Show meta" toggle (rendered as the info button) ────────────────────────
+
+    @property
+    def show_meta(self) -> bool:
+        """True when the node's inline preview should render frame
+        metadata instead of (or in addition to) its normal contents.
+        Flipped by the auto-injected info :class:`Toggle`; preview
+        widgets poll this on each repaint."""
+        return self._show_meta
+
+    def set_show_meta_callback(
+        self, callback: Callable[[], None] | None,
+    ) -> None:
+        """Attach (or clear) a callback fired when :attr:`show_meta`
+        flips. The preview widget uses it to swap which page of its
+        stack is visible (or to grow / shrink the preview area)
+        without polling."""
+        self._show_meta_callback = callback
+
+    def _toggle_show_meta(self) -> None:
+        """Action handler for the auto-injected info toggle: flip
+        :attr:`show_meta` and notify the preview widget so it can
+        repaint in the new mode."""
+        self._show_meta = not self._show_meta
+        if self._show_meta_callback is not None:
+            self._show_meta_callback()
+
+    @property
+    def last_inputs(self) -> list[IoData | None]:
+        """Per-input snapshot of the most recent :class:`IoData`
+        envelope each input port carried into :meth:`process_impl`.
+        Indexed parallel to :attr:`inputs`; entries are ``None`` for
+        ports that had no data on the last dispatch (e.g. an
+        unconnected optional input)."""
+        return list(self._last_inputs)
+
+    def set_frame_callback(
+        self, callback: Callable[["NodeBase"], None] | None,
+    ) -> None:
+        """Attach (or clear) a callback invoked after every
+        :meth:`process_impl` call. The callback receives the node
+        itself; it can read :attr:`last_inputs` (and any node-specific
+        accessors) to render the new frame.
+
+        Fires on whichever thread :meth:`process` runs on — the UI
+        widget is responsible for marshalling back to the main
+        thread, typically via a queued Qt signal.
+        """
+        self._frame_callback = callback
+
+    def add_meta_listener(
+        self, callback: Callable[["NodeBase"], None],
+    ) -> None:
+        """Register a per-frame meta listener (multi-cast).
+
+        Used by the info-toggle :class:`~ui.preview_widgets.MetaOverlay`
+        so it can update its meta dump per frame without colliding
+        with the single-slot :meth:`set_frame_callback` that the
+        node's primary preview already owns. Fires on whichever
+        thread :meth:`process` is on; listeners marshal across to
+        the UI thread themselves (queued Qt signal)."""
+        self._meta_listeners.append(callback)
+
     # ── Header items (rendered in the title bar) ───────────────────────────────
 
     def header_items(self) -> list[HeaderItem]:
         """Return the items :class:`ui.node_item.NodeItem` should render
         in this node's title bar, left-to-right.
 
-        Default: a step-over :class:`Toggle` (only when
-        :attr:`is_skippable`) followed by everything the subclass
+        Default order: the step-over :class:`Toggle` (only when
+        :attr:`is_skippable`), the info :class:`Toggle` (only when
+        :attr:`HAS_INFO_TOGGLE`), then everything the subclass
         appended to ``self._header_items``. Override (calling
         ``super().header_items()``) to weave in additional items;
         :class:`SourceNodeBase` does this to inject a frame-count
@@ -491,6 +592,13 @@ class NodeBase(ABC):
                 tooltip="Step over this node (pass inputs straight through)",
                 handler=self._toggle_skipped,
                 is_active=lambda: self._skipped,
+            ))
+        if self.HAS_INFO_TOGGLE:
+            items.append(Toggle(
+                glyph="info",
+                tooltip="Show frame metadata for this node",
+                handler=self._toggle_show_meta,
+                is_active=lambda: self._show_meta,
             ))
         items.extend(self._header_items)
         return items
@@ -570,6 +678,18 @@ class NodeBase(ABC):
                 # carry on so a buggy UI hook can't kill a flow.
                 logger.exception("Process observer raised; ignoring")
 
+        # Snapshot every input's current envelope before dispatch so
+        # post-process listeners (preview widgets reading
+        # :attr:`last_inputs` from the frame callback) see exactly the
+        # data the node operated on, not whatever a downstream
+        # ``InputPort.clear`` leaves behind. Captured before the
+        # port-driven attribute populate so the snapshot reflects
+        # raw inputs irrespective of how the node consumes them.
+        self._last_inputs = [
+            port.data if port.has_data else None
+            for port in self._inputs
+        ]
+
         try:
             # Populate self._<port_name> from any port currently driven
             # by an upstream, so process_impl can read its attributes
@@ -588,6 +708,28 @@ class NodeBase(ABC):
         except Exception:
             logger.exception(f"Exception in {type(self).__name__}.process_impl ({self._display_name})")
             raise
+
+        # Frame-callback fires after a successful process_impl so a
+        # preview widget never sees a half-computed state. A failed
+        # process_impl re-raises before we get here — the run is
+        # already coming down, so a missed preview repaint is moot.
+        if self._frame_callback is not None:
+            try:
+                self._frame_callback(self)
+            except Exception:
+                # A buggy preview must not bring down the flow.
+                logger.exception(
+                    f"Frame callback raised on {type(self).__name__} "
+                    f"({self._display_name}); ignoring"
+                )
+        for listener in self._meta_listeners:
+            try:
+                listener(self)
+            except Exception:
+                logger.exception(
+                    f"Meta listener raised on {type(self).__name__} "
+                    f"({self._display_name}); ignoring"
+                )
 
     # ── Port-driven attribute population ────────────────────────────────────────
 
@@ -705,6 +847,10 @@ class NodeBase(ABC):
     def _before_run_impl(self) -> None:
         """Prepare node data before a run."""
         logger.debug(f"_before_run_impl: {self._display_name} ({type(self).__name__})")
+        # Clear the input snapshot so a preview widget doesn't render
+        # stale meta from the previous run before any new frame
+        # arrives. Populated again on the first :meth:`process` call.
+        self._last_inputs = []
 
     @final
     def after_run(self, run_success: bool) -> None:
@@ -774,6 +920,10 @@ class SourceNodeBase(NodeBase, ABC):
 
     DEFAULT_SECTION: str = "Sources"
     HEADER_ICON: str = "play_arrow"
+    # A source has no input meta to surface, so the auto-injected info
+    # toggle would have nothing to show. Opt out so the source's
+    # title-bar cluster stays the per-frame tick badge + close button.
+    HAS_INFO_TOGGLE: bool = False
 
     @property
     def is_reactive(self) -> bool:

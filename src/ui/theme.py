@@ -192,6 +192,58 @@ def _reexport(theme: Theme) -> None:
 _reexport(_active_theme)
 
 
+# ── Static hints for the dynamically populated re-exports ──────────────────────
+#
+# ``_reexport`` writes the active theme's fields into ``globals()`` at
+# import time, which is invisible to static checkers — they only see
+# ``ui.theme`` lacking every name a downstream module imports
+# (``from ui.theme import NODE_BODY_COLOR`` etc.). Bare module-level
+# annotations are a PEP 526 no-op at runtime (they don't create or
+# shadow a value, so the dynamic write above stays authoritative)
+# while making the symbols visible to mypy / Pylance.
+SOURCE_HEADER_COLOR:        QColor
+FILTER_HEADER_COLOR:        QColor
+SINK_HEADER_COLOR:          QColor
+NODE_SKIPPED_HEADER_COLOR:  QColor
+NODE_BODY_COLOR:            QColor
+NODE_HEADER_DIVIDER_COLOR:  QColor
+NODE_BORDER_COLOR:          QColor
+NODE_BORDER_SELECTED:       QColor
+NODE_TITLE_TEXT_COLOR:      QColor
+NODE_PARAM_LABEL_COLOR:     QColor
+HEADER_AS_STRIP:            bool
+BORDER_FROM_CATEGORY:       bool
+NODE_GLOW_COLOR:            QColor
+NODE_GLOW_SELECTED_COLOR:   QColor
+NODE_GLOW_STROKES:          tuple[tuple[float, int], ...]
+LINK_GLOW_STROKES:          tuple[tuple[float, int], ...]
+LINK_STROKE_WIDTH:          float
+PORT_INPUT_COLOR:           QColor
+PORT_OUTPUT_COLOR:          QColor
+PORT_HOVER_COLOR:           QColor
+PORT_TYPE_COLORS:           Mapping[IoDataType, QColor]
+PORT_TYPE_DEFAULT_COLOR:    QColor
+PORT_DIRECTION_GLYPH_COLOR: QColor
+LINK_COLOR:                 QColor
+LINK_SELECTED_COLOR:        QColor
+LINK_PENDING_COLOR:         QColor
+CANVAS_BACKGROUND_COLOR:    QColor
+CANVAS_GRID_COLOR:          QColor
+STATUS_OK_COLOR:            QColor
+STATUS_FAIL_COLOR:          QColor
+STATUS_MUTED_COLOR:         QColor
+STATUS_WARN_COLOR:          QColor
+PALETTE_WINDOW:             QColor
+PALETTE_WINDOW_TEXT:        QColor
+PALETTE_BASE:               QColor
+PALETTE_ALT_BASE:           QColor
+PALETTE_TEXT:               QColor
+PALETTE_BUTTON:             QColor
+PALETTE_BUTTON_TEXT:        QColor
+PALETTE_HIGHLIGHT:          QColor
+PALETTE_HIGHLIGHTED_TEXT:   QColor
+
+
 def _resolve_qss(theme: Theme) -> str:
     """Substitute asset-path placeholders in the theme's QSS template
     with absolute paths to the bundled SVGs.
