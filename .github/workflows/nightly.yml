@@ -6,8 +6,6 @@ name: nightly
 # see the latest build under the same URL. The job is skipped automatically
 # when there have been no commits to `main` in the last 24 hours.
 on:
-  schedule:
-    - cron: '17 3 * * *'   # 03:17 UTC daily
   workflow_dispatch:
 
 permissions:
