@@ -130,15 +130,24 @@ class HeaderItem:
 
 @dataclass(frozen=True)
 class Command(HeaderItem):
-    """One-shot header button. Click runs ``handler``; if it returns a
-    non-empty string, the editor copies it to the clipboard and
-    surfaces a brief notification. Use this for fire-and-forget
-    affordances like "copy meta", "reset cache", or "delete node"."""
+    """One-shot header button. Click runs ``handler``; the editor
+    dispatches on the return type:
+
+    - ``str`` (non-empty) → text is pushed to the clipboard.
+    - ``numpy.ndarray`` → pixels are pushed to the clipboard as an
+      image (uint8 greyscale / BGR / BGRA, matching the convention
+      already used by the preview widgets).
+    - falsy (``None``, ``""``) → silent no-op.
+
+    Use this for fire-and-forget affordances like "copy meta",
+    "copy image", "reset cache", or "delete node". The return-type
+    contract keeps the node side Qt-free — the node never touches
+    the clipboard or constructs a QImage itself."""
 
     #: Material Icons name (must exist in ``ui.icons._CODEPOINTS``).
     glyph: str
     tooltip: str
-    handler: Callable[[], str | None]
+    handler: Callable[[], object]
 
 
 @dataclass(frozen=True)

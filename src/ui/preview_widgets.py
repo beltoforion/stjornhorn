@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -23,7 +24,7 @@ from core.io_data import IoData, IoDataType
 from core.node_base import NodeBase
 from nodes.debug.meta_inspector import MetaInspector, format_meta
 from nodes.debug.play_gate import PlayGate
-from nodes.filters.display import Display
+from nodes.filters.display import Display, format_matrix, format_scalar
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +50,20 @@ class _PreviewWidgetBase(QWidget):
 class DisplayPreview(_PreviewWidgetBase):
     """Inline preview for :class:`~nodes.filters.display.Display`.
 
-    Shows every frame the Display sees as a scaled pixmap inside the
-    node body, with a status line beneath the image listing FPS,
-    running frame number, and image resolution. Frames arrive on the
-    worker thread via the node's ``frame_callback``; a queued
-    :class:`Signal` hops them to the UI thread where the pixmap and
-    status line are swapped in.
+    Two modes, switched by the node's "show metadata" header toggle:
+
+    - **Image mode (default).** Every frame the Display sees is
+      rendered as a scaled pixmap (or formatted text for SCALAR /
+      MATRIX payloads), with a status line beneath listing FPS,
+      running frame number, and payload shape.
+    - **Meta mode.** A scrollable text dump of the IoMeta + payload
+      summary — the same rendering the standalone
+      :class:`MetaInspector` provides.
+
+    Both pages stay in sync with each frame so toggling the header
+    swap is instant. Frames arrive on the worker thread via the
+    node's ``frame_callback``; queued :class:`Signal`-s hop them to
+    the UI thread before any QLabel updates.
     """
 
     #: Worker thread emits a ready QImage and the status string for
@@ -64,14 +73,21 @@ class DisplayPreview(_PreviewWidgetBase):
     #: Worker thread emits formatted text and the status string for
     #: SCALAR / MATRIX payloads.
     _text_ready = Signal(str, str)
+    #: Worker thread emits the formatted meta dump for the meta page.
+    _meta_ready = Signal(str)
+    #: UI thread emits when the node's ``show_meta`` flag flips so
+    #: the stacked widget can swap pages without polling.
+    _mode_changed = Signal()
 
     _PREVIEW_MIN_W: int = 180
     _PREVIEW_MIN_H: int = 100
 
     _STATUS_PLACEHOLDER: str = "—"
+    _META_PLACEHOLDER: str = "(run the flow to see meta)"
 
     def __init__(self, node: Display) -> None:
         super().__init__(node)
+        # ── Image page ──────────────────────────────────────────────
         self._label = QLabel()
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
@@ -101,15 +117,52 @@ class DisplayPreview(_PreviewWidgetBase):
             "         font-size: 11px; padding: 2px 6px; }"
         )
 
+        self._image_page = QWidget()
+        image_layout = QVBoxLayout(self._image_page)
+        image_layout.setContentsMargins(0, 0, 0, 0)
+        image_layout.setSpacing(0)
+        image_layout.addWidget(self._label, 1)
+        image_layout.addWidget(self._status, 0)
+
+        # ── Meta page ───────────────────────────────────────────────
+        self._meta_label = QLabel()
+        self._meta_label.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft,
+        )
+        self._meta_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding,
+        )
+        self._meta_label.setStyleSheet(
+            "QLabel { background: #111; color: #d6d6d6; padding: 4px;"
+            "         font-family: 'Consolas','Menlo',monospace;"
+            "         font-size: 11px; }"
+        )
+        # Word-wrap so a long source_path doesn't blow out the body
+        # width and force the user to resize the node.
+        self._meta_label.setWordWrap(True)
+        self._meta_label.setText(self._META_PLACEHOLDER)
+
+        self._meta_scroll = QScrollArea()
+        self._meta_scroll.setWidget(self._meta_label)
+        self._meta_scroll.setWidgetResizable(True)
+        self._meta_scroll.setFrameShape(QFrame.Shape.Box)
+        self._meta_scroll.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
+        self._meta_scroll.setStyleSheet(
+            "QScrollArea { background: #111; border: 1px solid #333; }"
+        )
+
+        # ── Stack ───────────────────────────────────────────────────
+        self._stack = QStackedWidget()
+        self._stack.addWidget(self._image_page)
+        self._stack.addWidget(self._meta_scroll)
+
         # Mirror Expanding on the enclosing widget so its parent layout
         # honours vertical stretch rather than collapsing to sizeHint.
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.addWidget(self._label, 1)
-        layout.addWidget(self._status, 0)
+        layout.addWidget(self._stack)
 
         # Original-resolution frame; we always scale from this to avoid
         # losing quality on successive resizes.
@@ -117,7 +170,14 @@ class DisplayPreview(_PreviewWidgetBase):
 
         self._frame_ready.connect(self._on_frame_ready)
         self._text_ready.connect(self._on_text_ready)
+        self._meta_ready.connect(self._on_meta_ready)
+        self._mode_changed.connect(self._on_mode_changed)
         node.set_frame_callback(self._emit_from_worker)
+        node.set_show_meta_callback(self._mode_changed.emit)
+        # Show whichever page matches the node's current flag (defaults
+        # to image, but a flow loaded with the toggle on would land
+        # straight on meta).
+        self._on_mode_changed()
 
     @override
     def resizeEvent(self, event) -> None:  # type: ignore[override]
@@ -129,13 +189,15 @@ class DisplayPreview(_PreviewWidgetBase):
     def _emit_from_worker(self, in_data: IoData) -> None:
         """Called from whichever thread runs the Display node's process.
 
-        Dispatches on payload kind: image payloads convert to a
-        self-owning QImage (so the underlying numpy buffer can be freed
-        without tearing the pixmap) and hop across threads via
-        ``_frame_ready``; SCALAR / MATRIX payloads format to a string
-        and hop via ``_text_ready``. The current FPS and frame count
-        are read from the node here, on the worker thread, so the
-        snapshot stays consistent with the payload being sent.
+        Updates both pages of the stack so the toggle is instant. The
+        meta-text emit is unconditional; image-mode dispatches on
+        payload kind: image payloads convert to a self-owning QImage
+        (so the underlying numpy buffer can be freed without tearing
+        the pixmap) and hop across threads via ``_frame_ready``;
+        SCALAR / MATRIX payloads format to a string and hop via
+        ``_text_ready``. The current FPS and frame count are read
+        from the node here, on the worker thread, so the snapshot
+        stays consistent with the payload being sent.
         """
         node = self._node
         assert isinstance(node, Display)
@@ -143,15 +205,19 @@ class DisplayPreview(_PreviewWidgetBase):
             node.current_fps, node.frames_processed, in_data.payload,
         )
 
+        # Keep the meta page in lockstep with the image page so
+        # toggling the header switches instantly to the right text.
+        self._meta_ready.emit(format_meta(in_data))
+
         if in_data.type is IoDataType.SCALAR:
-            self._text_ready.emit(_format_scalar(in_data.payload), status)
+            self._text_ready.emit(format_scalar(in_data.payload), status)
             return
         if in_data.type is IoDataType.MATRIX:
-            self._text_ready.emit(_format_matrix(in_data.payload), status)
+            self._text_ready.emit(format_matrix(in_data.payload), status)
             return
 
         try:
-            qimg = _numpy_to_qimage(in_data.payload)
+            qimg = numpy_to_qimage(in_data.payload)
         except Exception as exc:
             # Don't crash the run on a single bad frame; surface the
             # failure as a non-blocking warning so the user notices
@@ -181,6 +247,22 @@ class DisplayPreview(_PreviewWidgetBase):
         self._label.setPixmap(QPixmap())
         self._label.setText(text)
         self._status.setText(status)
+
+    @Slot(str)
+    def _on_meta_ready(self, text: str) -> None:
+        self._meta_label.setText(text)
+        # Same belt-and-braces nudge as the standalone MetaInspector
+        # widget — same-thread emits during click handlers can leave
+        # the proxy widget without a fresh paint until the next
+        # event-loop turn.
+        self._meta_label.update()
+
+    @Slot()
+    def _on_mode_changed(self) -> None:
+        node = self._node
+        assert isinstance(node, Display)
+        target = self._meta_scroll if node.show_meta else self._image_page
+        self._stack.setCurrentWidget(target)
 
     def _render_scaled(self) -> None:
         if self._source_image is None:
@@ -224,35 +306,10 @@ def _format_status(
     return f"FPS {fps_text}   N {frame_count}   {size_text}"
 
 
-# ── Scalar / matrix formatting ────────────────────────────────────────────────
-
-
-def _format_scalar(arr: np.ndarray) -> str:
-    """Format a 0-d numpy array for the Display preview label.
-
-    Integers render without a decimal point; floats use up to 4
-    decimals so a multiplier like 0.5 stays legible without trailing
-    zero-noise.
-    """
-    value = arr.item()
-    if isinstance(value, (int, np.integer)):
-        return str(int(value))
-    return f"{float(value):.4g}"
-
-
-def _format_matrix(arr: np.ndarray) -> str:
-    """Format a 2-D numpy array as a compact text grid for the preview.
-
-    Caps the rendered shape so a large matrix doesn't blow out the
-    preview label; truncated rows/cols are indicated with an ellipsis.
-    """
-    return np.array2string(arr, precision=3, suppress_small=True, threshold=64)
-
-
 # ── numpy → QImage ─────────────────────────────────────────────────────────────
 
 
-def _numpy_to_qimage(frame: np.ndarray) -> QImage:
+def numpy_to_qimage(frame: np.ndarray) -> QImage:
     """Wrap a uint8 numpy frame as a self-owning :class:`QImage`.
 
     Supports single-channel greyscale, 3-channel BGR, and 4-channel
