@@ -12,7 +12,7 @@ from core.filename_template import expand as expand_template
 from core.io_data import IMAGE_TYPES, IoData
 from core.node_base import SinkNodeBase
 from core.params import EnumParam, FilePathParam, FloatParam
-from core.path_utils import resolve_against
+from core.path_utils import resolve_against, write_failure_hint
 from core.port import InputPort
 
 
@@ -141,7 +141,10 @@ class VideoSink(SinkNodeBase):
         )
         if not self._writer.isOpened():
             self._writer = None
-            raise OSError(f"cv2.VideoWriter failed to open: {path}")
+            raise OSError(
+                f"cv2.VideoWriter failed to open: {path}. "
+                f"{write_failure_hint(path)}"
+            )
 
     def _release_writer(self) -> None:
         if self._writer is not None:

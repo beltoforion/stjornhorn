@@ -3,7 +3,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from core.path_utils import resolve_against, store_relative_to
+from core.path_utils import (
+    non_ascii_chars,
+    resolve_against,
+    store_relative_to,
+    write_failure_hint,
+)
 
 
 # ── store_relative_to ────────────────────────────────────────────────────────
@@ -91,6 +96,56 @@ def test_resolve_absolute_passes_through() -> None:
     abs_path = Path("/elsewhere/video.mp4")
     out = resolve_against(abs_path, Path("/input"))
     assert out == abs_path
+
+
+# ── non_ascii_chars / write_failure_hint ─────────────────────────────────────
+
+
+def test_non_ascii_chars_returns_empty_for_pure_ascii() -> None:
+    assert non_ascii_chars(Path("/home/user/output/frame_0001.png")) == []
+
+
+def test_non_ascii_chars_collects_unique_sorted_offenders() -> None:
+    """Multiple occurrences of the same offender collapse; the result
+    is sorted so the message is stable across runs."""
+    out = non_ascii_chars(Path(r"C:\Users\jürgen\stjörnhorn\öutput\f.png"))
+    assert out == ["ö", "ü"]
+    assert non_ascii_chars("äöüäö") == ["ä", "ö", "ü"]
+
+
+def test_non_ascii_chars_accepts_string_input() -> None:
+    assert non_ascii_chars("plain") == []
+    assert non_ascii_chars("café") == ["é"]
+
+
+def test_write_failure_hint_pure_ascii_falls_back_to_generic() -> None:
+    """An ASCII path yields the generic 'invalid filename' note —
+    we have no specific diagnosis to offer in that case."""
+    hint = write_failure_hint(Path("/tmp/output/frame.png"))
+    assert "non-ASCII" not in hint
+    assert "invalid" in hint.lower()
+
+
+def test_write_failure_hint_flags_non_ascii_path_with_offending_chars() -> None:
+    """A path with umlauts / accents must surface the actual offending
+    characters so the user can map the message to a fix without guessing."""
+    hint = write_failure_hint(
+        Path(r"C:\Users\user\Documents\GitHub\stjörnhorn\output\00017.png"),
+    )
+    assert "non-ASCII" in hint
+    assert "'ö'" in hint
+
+
+def test_write_failure_hint_lists_each_offending_char_once() -> None:
+    """Repeated offenders collapse to one mention each; sorted order
+    keeps the message deterministic."""
+    hint = write_failure_hint("/tmp/öäöä/ä.png")
+    assert hint.count("'ä'") == 1
+    assert hint.count("'ö'") == 1
+    assert hint.index("'ä'") < hint.index("'ö'")
+
+
+# ── resolve_against ──────────────────────────────────────────────────────────
 
 
 def test_round_trip_inside_base(tmp_path: Path) -> None:

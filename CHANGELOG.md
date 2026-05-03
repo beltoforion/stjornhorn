@@ -31,6 +31,19 @@ once a first tagged release is cut.
   `QTextBrowser` body — no per-frame repositioning, no overlay
   parenting tricks.
 
+### Changed (Sink write failures now name the offending non-ASCII characters)
+
+- **`FileSink` and `VideoSink` failure messages now list the
+  non-ASCII characters in the path.** OpenCV's writers
+  (`cv2.imwrite`, `cv2.VideoWriter`) silently fail on Windows when
+  the path contains characters outside the active ANSI code page —
+  `C:\Users\…\stjörnhorn\output\…` was reported as a generic
+  "filename invalid for the current OS" with no pointer to the real
+  cause. A new `core.path_utils.write_failure_hint` helper appends
+  `The path contains non-ASCII characters ('ö')` to the message
+  when the path has any; ASCII-only paths still get the generic
+  note. Both sinks share the helper.
+
 ### Added (Copy-to-clipboard button on the error/notification banner)
 
 - **The floating message banner now exposes a Copy button to the

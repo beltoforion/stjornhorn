@@ -274,3 +274,85 @@ def test_output_path_template_with_no_tokens_is_unchanged(
     up.finish()
 
     assert (tmp_path / "static.mp4").exists()
+
+
+# ── Error handling: cv2.VideoWriter failure ──────────────────────────────────
+#
+# ``cv2.VideoWriter`` reports failures via ``isOpened()`` rather than
+# raising — the writer object is constructed either way. When the
+# backend fails to open the container (most often: a non-ASCII path on
+# Windows), the sink's job is to translate that into an OSError whose
+# message names the likely cause. Tests monkeypatch ``cv2.VideoWriter``
+# with a stub so they run identically on every platform.
+
+
+class _FakeVideoWriter:
+    """Stand-in for ``cv2.VideoWriter`` whose ``isOpened()`` is
+    parameterised — the constructor accepts and ignores the same
+    positional args as the real class. The ``fourcc`` static method
+    is preserved because the sink calls it before constructing."""
+
+    opened: bool = False
+    fourcc = staticmethod(cv2.VideoWriter.fourcc)
+
+    def __init__(self, *_args, **_kwargs) -> None:
+        pass
+
+    def isOpened(self) -> bool:  # noqa: N802 — matches OpenCV API
+        return type(self).opened
+
+    def write(self, _frame: np.ndarray) -> None:
+        pass
+
+    def release(self) -> None:
+        pass
+
+
+def _drive_one_video_frame(node: VideoSink) -> None:
+    up = _wire(node)
+    node.before_run()
+    up.send(IoData.from_image(_bgr_frame()))
+
+
+def test_videowriter_failure_on_ascii_path_raises_generic_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The non-umlaut counterpart: a writer that won't open with an
+    ASCII path produces the generic 'invalid for the current OS' note
+    rather than the umlaut-specific hint."""
+    _FakeVideoWriter.opened = False
+    monkeypatch.setattr(cv2, "VideoWriter", _FakeVideoWriter)
+    node = VideoSink()
+    node.output_path = tmp_path / "out.mp4"
+
+    with pytest.raises(OSError) as exc_info:
+        _drive_one_video_frame(node)
+
+    msg = str(exc_info.value)
+    assert "VideoWriter failed to open" in msg
+    assert "out.mp4" in msg
+    assert "invalid" in msg.lower()
+    assert "non-ASCII" not in msg
+    # Writer was reset so a retry on the next frame won't see stale state.
+    assert node._writer is None
+
+
+def test_videowriter_failure_on_umlaut_path_calls_out_offending_chars(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same regression as FileSink, just for video output: a path
+    with ``ö`` must surface an error that names the offender and
+    points at Windows ANSI encoding."""
+    _FakeVideoWriter.opened = False
+    monkeypatch.setattr(cv2, "VideoWriter", _FakeVideoWriter)
+    node = VideoSink()
+    node.output_path = tmp_path / "stjörnhorn" / "out.mp4"
+
+    with pytest.raises(OSError) as exc_info:
+        _drive_one_video_frame(node)
+
+    msg = str(exc_info.value)
+    assert "VideoWriter failed to open" in msg
+    assert "non-ASCII" in msg
+    assert "'ö'" in msg
+    assert node._writer is None
