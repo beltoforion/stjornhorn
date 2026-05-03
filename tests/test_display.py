@@ -64,7 +64,7 @@ def test_display_invokes_frame_callback_per_frame() -> None:
     up, _ = _wire(node)
 
     received: list[IoData] = []
-    node.set_frame_callback(received.append)
+    node.set_frame_callback(lambda n: received.append(n.last_inputs[0]))
 
     node.before_run()
     for v in (10, 50, 130):
@@ -80,7 +80,7 @@ def test_display_can_clear_frame_callback() -> None:
     up, _ = _wire(node)
 
     received: list[IoData] = []
-    node.set_frame_callback(received.append)
+    node.set_frame_callback(lambda n: received.append(n.last_inputs[0]))
     node.set_frame_callback(None)
 
     node.before_run()
@@ -175,7 +175,7 @@ def test_display_does_not_mutate_image_payload() -> None:
     up, captured = _wire(node)
 
     received: list[IoData] = []
-    node.set_frame_callback(received.append)
+    node.set_frame_callback(lambda n: received.append(n.last_inputs[0]))
 
     node.before_run()
     big = lambda v: np.full((128, 256, 3), v, dtype=np.uint8)
@@ -257,7 +257,7 @@ def test_display_invokes_callback_with_scalar_iodata() -> None:
     up.connect(node.inputs[0])
 
     received: list[IoData] = []
-    node.set_frame_callback(received.append)
+    node.set_frame_callback(lambda n: received.append(n.last_inputs[0]))
 
     node.before_run()
     up.send(IoData.from_scalar(42))
@@ -297,7 +297,7 @@ def test_display_skips_overlay_for_scalar_payload() -> None:
     up.connect(node.inputs[0])
 
     received: list[IoData] = []
-    node.set_frame_callback(received.append)
+    node.set_frame_callback(lambda n: received.append(n.last_inputs[0]))
 
     node.before_run()
     for v in (10, 20, 30):

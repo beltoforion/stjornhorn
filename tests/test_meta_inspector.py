@@ -40,7 +40,7 @@ def test_callback_receives_each_frame_with_meta() -> None:
     node.before_run()
 
     seen: list[IoData] = []
-    node.set_frame_callback(lambda d: seen.append(d))
+    node.set_frame_callback(lambda n: seen.append(n.last_inputs[0]))
 
     meta = IoMeta(source_path=Path("ship.jpg"))
     feeder.send(IoData.from_scalar(0, meta=meta))

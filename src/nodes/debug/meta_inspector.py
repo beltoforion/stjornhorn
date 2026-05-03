@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Callable
-
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
@@ -33,16 +31,15 @@ class MetaInspector(NodeBase):
     """
 
     HEADER_ICON = "info"
+    # The inspector's preview *is* the meta dump, so the auto-injected
+    # info :class:`Toggle` would be redundant — opt out so the title
+    # bar stays uncluttered.
+    HAS_INFO_TOGGLE: bool = False
 
     def __init__(self) -> None:
         super().__init__("Meta Inspector", section="Debug")
-        self._frame_callback: Callable[[IoData], None] | None = None
         self._add_input(InputPort("data", set(_ALL_TYPES)))
         self._add_output(OutputPort("data", set(_ALL_TYPES)))
-        # Snapshot of the most recent frame so the "copy meta" header
-        # button can re-format it on demand. Held by reference; the
-        # node never mutates the envelope.
-        self._last_data: IoData | None = None
         self._header_items.append(Command(
             glyph="content_copy",
             tooltip="Copy meta to clipboard",
@@ -51,35 +48,20 @@ class MetaInspector(NodeBase):
 
     # ── UI integration ─────────────────────────────────────────────────────────
 
-    def set_frame_callback(
-        self, callback: Callable[[IoData], None] | None,
-    ) -> None:
-        """Attach (or clear) a callback invoked with each new IoData.
-
-        The full envelope is handed over so the preview can render
-        meta fields, payload kind, and payload shape side by side.
-        Fires on whichever thread :meth:`process_impl` runs on; the
-        UI widget is responsible for marshalling back to the main
-        thread.
-        """
-        self._frame_callback = callback
-
     def _copy_meta_text(self) -> str | None:
         """Return the formatted meta text for the most recent frame, or
         ``None`` if no frame has been seen yet (so the header button
         is a no-op before the flow runs)."""
-        if self._last_data is None:
+        data = self._last_inputs[0] if self._last_inputs else None
+        if data is None:
             return None
-        return format_meta(self._last_data)
+        return format_meta(data)
 
     # ── NodeBase interface ─────────────────────────────────────────────────────
 
     @override
     def process_impl(self) -> None:
         in_data = self.inputs[0].data
-        self._last_data = in_data
-        if self._frame_callback is not None:
-            self._frame_callback(in_data)
         self.outputs[0].send(in_data)
 
 

@@ -46,6 +46,24 @@ class _PreviewWidgetBase(QWidget):
         super().__init__()
         self._node = node
 
+    def is_active(self) -> bool:
+        """Return ``True`` when the preview wants to occupy body
+        space, ``False`` to collapse to zero height. ``NodeItem`` polls
+        this on every layout pass so a preview that's only relevant
+        when the node's info toggle is on (see
+        :class:`GenericMetaPreview`) doesn't take up vertical room
+        the rest of the time. Default: always active — most previews
+        are unconditional."""
+        return True
+
+    def on_show_meta_changed(self) -> None:
+        """Hook invoked when the owning node's :attr:`show_meta` flag
+        flips. Default: no-op. Override to swap which page of a stacked
+        widget is current (e.g. :class:`DisplayPreview` flips between
+        image and meta) or to refresh content the toggle should now
+        surface (e.g. :class:`GenericMetaPreview` re-emits the latest
+        meta when becoming visible)."""
+
 
 class DisplayPreview(_PreviewWidgetBase):
     """Inline preview for :class:`~nodes.filters.display.Display`.
@@ -173,11 +191,18 @@ class DisplayPreview(_PreviewWidgetBase):
         self._meta_ready.connect(self._on_meta_ready)
         self._mode_changed.connect(self._on_mode_changed)
         node.set_frame_callback(self._emit_from_worker)
-        node.set_show_meta_callback(self._mode_changed.emit)
         # Show whichever page matches the node's current flag (defaults
         # to image, but a flow loaded with the toggle on would land
         # straight on meta).
         self._on_mode_changed()
+
+    @override
+    def on_show_meta_changed(self) -> None:
+        # Swap the stacked page when the auto-injected info toggle
+        # flips. The :class:`NodeItem` driving this preview owns the
+        # node's single show-meta callback and forwards the signal
+        # here.
+        self._mode_changed.emit()
 
     @override
     def resizeEvent(self, event) -> None:  # type: ignore[override]
@@ -186,7 +211,7 @@ class DisplayPreview(_PreviewWidgetBase):
 
     # ── Worker thread ──────────────────────────────────────────────────────────
 
-    def _emit_from_worker(self, in_data: IoData) -> None:
+    def _emit_from_worker(self, node: NodeBase) -> None:
         """Called from whichever thread runs the Display node's process.
 
         Updates both pages of the stack so the toggle is instant. The
@@ -199,8 +224,11 @@ class DisplayPreview(_PreviewWidgetBase):
         from the node here, on the worker thread, so the snapshot
         stays consistent with the payload being sent.
         """
-        node = self._node
         assert isinstance(node, Display)
+        last = node.last_inputs
+        in_data = last[0] if last else None
+        if in_data is None:
+            return
         status = _format_status(
             node.current_fps, node.frames_processed, in_data.payload,
         )
@@ -414,7 +442,11 @@ class MetaInspectorPreview(_PreviewWidgetBase):
         self._text_ready.connect(self._on_text_ready)
         node.set_frame_callback(self._emit_from_worker)
 
-    def _emit_from_worker(self, data: IoData) -> None:
+    def _emit_from_worker(self, node: NodeBase) -> None:
+        last = node.last_inputs
+        data = last[0] if last else None
+        if data is None:
+            return
         self._text_ready.emit(format_meta(data))
 
     @Slot(str)
@@ -493,6 +525,104 @@ class PlayGatePreview(_PreviewWidgetBase):
         node.request_emit()
 
 
+# ── Generic meta preview ──────────────────────────────────────────────────────
+
+
+class GenericMetaPreview(_PreviewWidgetBase):
+    """Inline meta preview for any non-source node that doesn't ship
+    its own preview widget.
+
+    Visible only while the node's auto-injected info toggle is on; in
+    that mode it renders one section per input port, formatted like
+    the standalone :class:`MetaInspector` (see :func:`format_meta`).
+    When the toggle is off, :meth:`is_active` returns ``False`` and
+    ``NodeItem`` collapses the preview area so a non-source node
+    looks unchanged whenever the user isn't asking for meta.
+
+    The text snapshot is held by the widget and re-emitted whenever
+    the toggle flips back on, so the user sees the most recent frame's
+    meta even if the flow finished while the toggle was off.
+    """
+
+    _text_ready = Signal(str)
+
+    _PREVIEW_MIN_W: int = 220
+    _PREVIEW_MIN_H: int = 90
+    _EMPTY_PLACEHOLDER: str = "(no frame yet)"
+
+    def __init__(self, node: NodeBase) -> None:
+        super().__init__(node)
+        self._label = QLabel()
+        self._label.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft,
+        )
+        self._label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding,
+        )
+        self._label.setStyleSheet(
+            "QLabel { background: #111; color: #d6d6d6; padding: 4px;"
+            "         font-family: 'Consolas','Menlo',monospace;"
+            "         font-size: 11px; }"
+        )
+        self._label.setWordWrap(True)
+        self._label.setText(self._EMPTY_PLACEHOLDER)
+
+        self._scroll = QScrollArea()
+        self._scroll.setWidget(self._label)
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.Shape.Box)
+        self._scroll.setMinimumSize(self._PREVIEW_MIN_W, self._PREVIEW_MIN_H)
+        self._scroll.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        self._scroll.setStyleSheet(
+            "QScrollArea { background: #111; border: 1px solid #333; }"
+        )
+
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding,
+        )
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._scroll)
+
+        self._text_ready.connect(self._on_text_ready)
+        node.set_frame_callback(self._emit_from_worker)
+        # Hidden until the toggle flips on; ``NodeItem`` calls
+        # ``setVisible(True)`` via its layout pass when ``is_active``
+        # turns True.
+        self.setVisible(node.show_meta)
+
+    @override
+    def is_active(self) -> bool:
+        return self._node.show_meta
+
+    @override
+    def on_show_meta_changed(self) -> None:
+        # ``NodeItem`` re-runs its layout pass right after this returns
+        # so the preview swaps in / out without a one-frame lag.
+        self.setVisible(self._node.show_meta)
+
+    def _emit_from_worker(self, node: NodeBase) -> None:
+        # Always render — even when the toggle is currently off — so
+        # flipping it back on shows the most recent frame's meta
+        # without waiting for the next dispatch.
+        sections: list[str] = []
+        last = node.last_inputs
+        for i, port in enumerate(node.inputs):
+            data = last[i] if i < len(last) else None
+            if data is None:
+                continue
+            sections.append(f"── {port.name} ──\n{format_meta(data)}")
+        text = "\n\n".join(sections) if sections else self._EMPTY_PLACEHOLDER
+        self._text_ready.emit(text)
+
+    @Slot(str)
+    def _on_text_ready(self, text: str) -> None:
+        self._label.setText(text)
+        self._label.update()
+
+
 # ── Registry ───────────────────────────────────────────────────────────────────
 
 _PREVIEW_WIDGET_CLASSES: dict[type[NodeBase], type[_PreviewWidgetBase]] = {
@@ -506,11 +636,18 @@ def build_preview_widget(node: NodeBase) -> _PreviewWidgetBase | None:
     """Return an inline preview for *node*, or ``None`` if the node
     doesn't have one registered.
 
-    :class:`~ui.node_item.NodeItem` calls this after building the
-    param widgets; a non-``None`` result is embedded in the node body
-    below the params.
+    Falls back to :class:`GenericMetaPreview` for any node that
+    advertises ``HAS_INFO_TOGGLE`` (every non-source node by default,
+    minus the few that opt out): the auto-injected info toggle would
+    have nothing to drive without a preview, so the framework
+    provides a meta-dump preview that lives dormant until the user
+    flips the toggle on. :class:`~ui.node_item.NodeItem` calls this
+    after building the param widgets; a non-``None`` result is
+    embedded in the node body below the params.
     """
     cls = _PREVIEW_WIDGET_CLASSES.get(type(node))
+    if cls is None and node.HAS_INFO_TOGGLE:
+        cls = GenericMetaPreview
     if cls is None:
         return None
     try:

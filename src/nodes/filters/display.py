@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import time
-from typing import Callable
 
 import numpy as np
 from typing_extensions import override
 
-from core.io_data import IMAGE_TYPES, IoData, IoDataType
-from core.node_base import Command, NodeBase, Toggle
+from core.io_data import IMAGE_TYPES, IoDataType
+from core.node_base import Command, NodeBase
 from core.port import InputPort, OutputPort
 from nodes.debug.meta_inspector import format_meta
 
@@ -39,28 +38,16 @@ class Display(NodeBase):
     def __init__(self) -> None:
         super().__init__("Display", section="Output")
         self._latest_frame:    np.ndarray | None = None
-        self._last_data:       IoData | None = None
-        self._frame_callback:  Callable[[IoData], None] | None = None
         self._last_frame_ts:   float | None = None
         self._fps_ema:         float | None = None
         self._frame_count:     int = 0
-        # Header toggle: when on, the preview swaps the image / status
-        # bar for a scrollable meta-text view (the same rendering as
-        # the standalone MetaInspector). The widget polls
-        # :attr:`show_meta` on each repaint and re-subscribes to mode
-        # flips via :meth:`set_show_meta_callback`.
-        self._show_meta:                bool = False
-        self._show_meta_callback:       Callable[[], None] | None = None
 
         self._add_input(InputPort("image", set(_DISPLAY_TYPES)))
         self._add_output(OutputPort("image", set(_DISPLAY_TYPES)))
 
-        self._header_items.append(Toggle(
-            glyph="info",
-            tooltip="Show frame metadata instead of image",
-            handler=self._toggle_show_meta,
-            is_active=lambda: self._show_meta,
-        ))
+        # The info :class:`Toggle` (show frame meta instead of image)
+        # is auto-injected by :class:`NodeBase.header_items` for every
+        # non-source node — Display gets it for free.
         self._header_items.append(Command(
             glyph="content_copy",
             tooltip="Copy what's shown in the preview to the clipboard",
@@ -93,46 +80,7 @@ class Display(NodeBase):
         """
         return self._fps_ema
 
-    @property
-    def show_meta(self) -> bool:
-        """True when the preview should render frame metadata instead
-        of the image / status bar. Flipped by the header toggle; the
-        widget polls this on each repaint."""
-        return self._show_meta
-
     # ── UI integration ─────────────────────────────────────────────────────────
-
-    def set_frame_callback(
-        self, callback: Callable[[IoData], None] | None,
-    ) -> None:
-        """Attach (or clear) a callback invoked with each new IoData.
-
-        Receives the full :class:`IoData` envelope (not just the array)
-        so the preview widget can dispatch on payload kind — image
-        pixmap vs. scalar/matrix text. The widget can read
-        :attr:`current_fps` and :attr:`frames_processed` from the node
-        at callback time to render the status line.
-
-        The callback fires on whichever thread :meth:`process_impl`
-        runs on — the UI widget is responsible for marshalling back
-        to the main thread, typically via a queued Qt signal.
-        """
-        self._frame_callback = callback
-
-    def set_show_meta_callback(
-        self, callback: Callable[[], None] | None,
-    ) -> None:
-        """Attach (or clear) a callback fired when :attr:`show_meta`
-        flips. The preview widget uses it to swap which page of its
-        stack is visible without polling."""
-        self._show_meta_callback = callback
-
-    def _toggle_show_meta(self) -> None:
-        """Header-toggle handler: flip ``show_meta`` and notify the
-        widget so it can repaint in the new mode."""
-        self._show_meta = not self._show_meta
-        if self._show_meta_callback is not None:
-            self._show_meta_callback()
 
     def _copy_visible(self) -> object:
         """Header-command handler: return whatever the preview is
@@ -146,7 +94,7 @@ class Display(NodeBase):
           (str), matching what's drawn in the preview label.
         - No frame seen yet → ``None`` (silent no-op).
         """
-        data = self._last_data
+        data = self._last_inputs[0] if self._last_inputs else None
         if data is None:
             return None
         if self._show_meta:
@@ -165,7 +113,6 @@ class Display(NodeBase):
     def _before_run_impl(self) -> None:
         super()._before_run_impl()
         self._latest_frame  = None
-        self._last_data     = None
         self._last_frame_ts = None
         self._fps_ema       = None
         self._frame_count   = 0
@@ -173,7 +120,6 @@ class Display(NodeBase):
     @override
     def process_impl(self) -> None:
         in_data = self.inputs[0].data
-        self._last_data = in_data
 
         self._frame_count += 1
 
@@ -195,10 +141,6 @@ class Display(NodeBase):
         self._last_frame_ts = now
 
         self._latest_frame = in_data.payload
-
-        if self._frame_callback is not None:
-            self._frame_callback(in_data)
-
         self.outputs[0].send(in_data)
 
 

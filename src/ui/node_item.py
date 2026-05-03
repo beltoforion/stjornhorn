@@ -457,6 +457,14 @@ class NodeItem(QGraphicsItem):
         self._resize_grip = _ResizeGripItem(self)
 
         self._build_ports()
+        # Subscribe to the node's :attr:`show_meta` flag. The preview
+        # widget (if any) handles the visual swap; the layout pass
+        # re-runs so a preview that's only active in meta mode (see
+        # :class:`GenericMetaPreview`) can grow into the body or
+        # collapse out of it on the toggle flip. NodeItem owns this
+        # single subscription so the node-side API stays a one-callback
+        # contract.
+        node.set_show_meta_callback(self._on_show_meta_changed)
         self._relayout()
         # Repaint the header badge whenever a constant param changes so the
         # tick count stays in sync with the current param values.
@@ -818,6 +826,16 @@ class NodeItem(QGraphicsItem):
         if scene is not None and hasattr(scene, "remove_node_item"):
             QTimer.singleShot(0, lambda: scene.remove_node_item(self))
 
+    def _on_show_meta_changed(self) -> None:
+        """Forward the node's :attr:`show_meta` flip to the preview
+        widget (so it can swap pages or refresh content) and re-run
+        the layout pass so a preview whose footprint depends on the
+        flag (see :class:`GenericMetaPreview`) grows into or collapses
+        out of the body in lock-step with the toggle."""
+        if self._preview_widget is not None:
+            self._preview_widget.on_show_meta_changed()
+        self._relayout()
+
     def _header_path(self) -> QPainterPath:
         """Path for the header strip: top corners rounded, bottom
         corners square. Used by themes that opt into the classic
@@ -914,9 +932,14 @@ class NodeItem(QGraphicsItem):
             port_need = max(port_need, row_need)
 
         # Preview widget asks for as much width as it can get; cap at
-        # MAX_WIDTH via the outer min() below.
+        # MAX_WIDTH via the outer min() below. A preview that's
+        # currently inactive (e.g. :class:`GenericMetaPreview` with
+        # the info toggle off) reserves no extra width — otherwise
+        # a long port name on a non-source node would force every
+        # node to a wider footprint just because the dormant preview
+        # exists.
         preview_need = 0.0
-        if self._preview_widget is not None:
+        if self._preview_widget is not None and self._preview_widget.is_active():
             preview_need = float(self._preview_widget.sizeHint().width()) + 2 * self.PADDING
 
         content = max(header_need, port_need, preview_need)
@@ -1093,8 +1116,15 @@ class NodeItem(QGraphicsItem):
 
         # Preview (if any) gets a natural minimum and stretches to fill
         # whatever vertical space the user dragged the resize grip to.
+        # An *inactive* preview (the info-toggle-off case for
+        # :class:`GenericMetaPreview`) collapses to zero so a non-source
+        # node looks unchanged whenever the user isn't asking for meta.
+        preview_active = (
+            self._preview_widget is not None
+            and self._preview_widget.is_active()
+        )
         natural_preview_h = 0.0
-        if self._preview_widget is not None:
+        if preview_active:
             natural_preview_h = max(
                 float(self._preview_widget.sizeHint().height()),
                 100.0,  # don't collapse below something legible
@@ -1109,10 +1139,10 @@ class NodeItem(QGraphicsItem):
         )
 
         # ── Body height ────────────────────────────────────────────────────────
-        if self._user_height is not None and self._preview_widget is not None:
-            # Only nodes that have something that can stretch (a preview)
+        if self._user_height is not None and preview_active:
+            # Only nodes whose preview is currently allocating space
             # honour vertical resize. For others the grip's Y drag is
-            # absorbed without effect.
+            # absorbed without effect — there's nothing to stretch.
             self._body_height = max(
                 natural_body_h,
                 min(self.MAX_USER_HEIGHT, self._user_height),
@@ -1160,12 +1190,14 @@ class NodeItem(QGraphicsItem):
 
         # ── Preview widget below the IO rows ───────────────────────────────────
         if self._preview_widget is not None and self._preview_proxy is not None:
-            preview_top = inputs_top + n_inputs * self.PORT_ROW_HEIGHT + gap_before_preview
-            preview_h = self._body_height - preview_top - self.PADDING
-            preview_h = max(natural_preview_h, preview_h)
-            self._preview_widget.setFixedWidth(int(self._width - 2 * self.PADDING))
-            self._preview_widget.setFixedHeight(int(preview_h))
-            self._preview_proxy.setPos(self.PADDING, preview_top)
+            self._preview_proxy.setVisible(preview_active)
+            if preview_active:
+                preview_top = inputs_top + n_inputs * self.PORT_ROW_HEIGHT + gap_before_preview
+                preview_h = self._body_height - preview_top - self.PADDING
+                preview_h = max(natural_preview_h, preview_h)
+                self._preview_widget.setFixedWidth(int(self._width - 2 * self.PADDING))
+                self._preview_widget.setFixedHeight(int(preview_h))
+                self._preview_proxy.setPos(self.PADDING, preview_top)
 
         self.refresh_all_links()
         self.update()

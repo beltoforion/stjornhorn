@@ -10,6 +10,27 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Added (Info button on every non-source node)
+
+- **Every filter and sink now carries the same "info" header
+  toggle the Display node introduced.** Clicking it surfaces a
+  scrollable dump of the latest input frame's
+  :class:`IoMeta` — payload kind, shape, and every meta key the
+  upstream stamped — directly inside the node body, with one
+  section per input port. Toggling it off collapses the preview
+  back to zero so the node looks unchanged when the user isn't
+  asking for meta. Source nodes stay unaffected: they have no
+  input meta to surface, so the toggle is intentionally absent.
+- The toggle plumbing (``show_meta`` flag, ``set_show_meta_callback``,
+  per-frame input snapshot, generic ``set_frame_callback``) moved
+  from ``Display`` up into ``NodeBase`` so every non-source node
+  inherits it without re-implementing the same wiring. The
+  ``Display`` and ``MetaInspector`` nodes shed their hand-rolled
+  copies in the process. ``MetaInspector`` opts out of the
+  auto-injected toggle (its preview is already a meta dump);
+  every other non-source node gets a ``GenericMetaPreview`` for
+  free that's only visible while the toggle is on.
+
 ### Changed (Port legend moved into the Node Documentation dock)
 
 - **The floating "Port types / Port roles" legend that used to
