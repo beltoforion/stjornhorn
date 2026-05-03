@@ -12,17 +12,16 @@ once a first tagged release is cut.
 
 ### Changed (Sink write failures now name the offending non-ASCII characters)
 
-- **`FileSink` and `VideoSink` failure messages explicitly call out
-  umlauts / accented letters in the path.** OpenCV's writers
+- **`FileSink` and `VideoSink` failure messages now list the
+  non-ASCII characters in the path.** OpenCV's writers
   (`cv2.imwrite`, `cv2.VideoWriter`) silently fail on Windows when
   the path contains characters outside the active ANSI code page —
   `C:\Users\…\stjörnhorn\output\…` was reported as a generic
-  "filename invalid for the current OS", giving no hint at the real
-  cause. A new `core.path_utils.write_failure_hint` helper inspects
-  the path and produces an actionable message that lists the
-  offending characters and points at the Windows ANSI-encoding
-  cause; ASCII-only paths still get the generic note. Both sinks
-  share the helper so the diagnostic stays consistent.
+  "filename invalid for the current OS" with no pointer to the real
+  cause. A new `core.path_utils.write_failure_hint` helper appends
+  `The path contains non-ASCII characters ('ö')` to the message
+  when the path has any; ASCII-only paths still get the generic
+  note. Both sinks share the helper.
 
 ### Added (Copy-to-clipboard button on the error/notification banner)
 

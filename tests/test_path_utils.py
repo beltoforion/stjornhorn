@@ -128,15 +128,12 @@ def test_write_failure_hint_pure_ascii_falls_back_to_generic() -> None:
 
 def test_write_failure_hint_flags_non_ascii_path_with_offending_chars() -> None:
     """A path with umlauts / accents must surface the actual offending
-    characters and explicitly mention the Windows ANSI-encoding cause,
-    so the user can map the message to a fix without guessing."""
+    characters so the user can map the message to a fix without guessing."""
     hint = write_failure_hint(
         Path(r"C:\Users\user\Documents\GitHub\stjörnhorn\output\00017.png"),
     )
     assert "non-ASCII" in hint
     assert "'ö'" in hint
-    assert "umlaut" in hint.lower()
-    assert "ANSI" in hint or "encoding" in hint.lower()
 
 
 def test_write_failure_hint_lists_each_offending_char_once() -> None:

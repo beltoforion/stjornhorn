@@ -144,7 +144,6 @@ def test_imwrite_failure_on_ascii_path_raises_generic_oserror(
     assert "out.png" in msg
     assert "invalid" in msg.lower()
     assert "non-ASCII" not in msg
-    assert "umlaut" not in msg.lower()
 
 
 def test_imwrite_failure_on_umlaut_path_calls_out_offending_chars(
@@ -165,8 +164,6 @@ def test_imwrite_failure_on_umlaut_path_calls_out_offending_chars(
     assert "File Sink failed to write image" in msg
     assert "non-ASCII" in msg
     assert "'ö'" in msg
-    assert "umlaut" in msg.lower()
-    assert "ANSI" in msg or "encoding" in msg.lower()
 
 
 def test_imwrite_failure_message_lists_each_offender_once(

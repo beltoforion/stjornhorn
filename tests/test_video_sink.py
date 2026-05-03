@@ -355,6 +355,4 @@ def test_videowriter_failure_on_umlaut_path_calls_out_offending_chars(
     assert "VideoWriter failed to open" in msg
     assert "non-ASCII" in msg
     assert "'ö'" in msg
-    assert "umlaut" in msg.lower()
-    assert "ANSI" in msg or "encoding" in msg.lower()
     assert node._writer is None

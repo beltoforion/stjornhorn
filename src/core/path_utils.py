@@ -79,9 +79,4 @@ def write_failure_hint(path: Path | str) -> str:
     if not bad:
         return _GENERIC_WRITE_HINT
     rendered = ", ".join(f"'{c}'" for c in bad)
-    return (
-        f"The path contains non-ASCII characters ({rendered}) — OpenCV's "
-        "file writer uses the C runtime's ANSI encoding on Windows and "
-        "silently fails on umlauts / accented letters. Move the output "
-        "directory to an ASCII-only path."
-    )
+    return f"The path contains non-ASCII characters ({rendered})."
