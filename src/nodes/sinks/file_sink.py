@@ -12,7 +12,7 @@ from core.filename_template import expand as expand_template
 from core.io_data import IMAGE_TYPES
 from core.node_base import SinkNodeBase
 from core.params import FilePathParam
-from core.path_utils import resolve_against
+from core.path_utils import resolve_against, write_failure_hint
 from core.port import InputPort
 
 
@@ -87,8 +87,7 @@ class FileSink(SinkNodeBase):
         if not written:
             raise OSError(
                 f"File Sink failed to write image to {output!s}. "
-                "This often means the rendered filename/path is invalid "
-                "for the current OS."
+                f"{write_failure_hint(output)}"
             )
 
     # ── Internals ──────────────────────────────────────────────────────────────

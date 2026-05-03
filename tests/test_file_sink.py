@@ -11,7 +11,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cv2
 import numpy as np
+import pytest
 
 from core.io_data import IoData, IoDataType, IoMeta
 from core.port import OutputPort
@@ -105,3 +107,86 @@ def test_sink_has_no_tick_port(tmp_path: Path) -> None:
     sink = FileSink()
     assert len(sink.inputs) == 1
     assert sink.inputs[0].name == "image"
+
+
+# ── Error handling: cv2.imwrite failure ──────────────────────────────────────
+#
+# ``cv2.imwrite`` returns False instead of raising when the underlying
+# C-runtime ``fopen`` rejects the path. The sink's job is to translate
+# that opaque False into an OSError whose message points at the most
+# likely cause — non-ASCII characters in the path on Windows. The tests
+# here monkeypatch ``cv2.imwrite`` to simulate the failure so they run
+# the same way on every platform (Linux's GLIBC fopen accepts UTF-8).
+
+
+def _drive_one_frame(sink: FileSink) -> None:
+    image_feeder = OutputPort("img", {IoDataType.IMAGE})
+    image_feeder.connect(sink.inputs[0])
+    sink.before_run()
+    image_feeder.send(IoData.from_image(_make_image()))
+
+
+def test_imwrite_failure_on_ascii_path_raises_generic_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When cv2 refuses an ASCII path the message stays generic — we
+    have no specific diagnosis, so the user gets the 'invalid for the
+    current OS' fallback instead of a misleading umlaut hint."""
+    monkeypatch.setattr(cv2, "imwrite", lambda _path, _img: False)
+    sink = FileSink()
+    sink.output_path = tmp_path / "out.png"
+
+    with pytest.raises(OSError) as exc_info:
+        _drive_one_frame(sink)
+
+    msg = str(exc_info.value)
+    assert "File Sink failed to write image" in msg
+    assert "out.png" in msg
+    assert "invalid" in msg.lower()
+    assert "non-ASCII" not in msg
+
+
+def test_imwrite_failure_on_umlaut_path_calls_out_offending_chars(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The headline regression: a path with ``ö`` (e.g. the user's
+    home folder ``stjörnhorn``) must produce an error message that
+    explicitly names the offending character and the encoding cause,
+    so the user can act on it without consulting the source."""
+    monkeypatch.setattr(cv2, "imwrite", lambda _path, _img: False)
+    sink = FileSink()
+    sink.output_path = tmp_path / "stjörnhorn" / "out.png"
+
+    with pytest.raises(OSError) as exc_info:
+        _drive_one_frame(sink)
+
+    msg = str(exc_info.value)
+    assert "File Sink failed to write image" in msg
+    assert "non-ASCII" in msg
+    assert "'ö'" in msg
+
+
+def test_imwrite_failure_message_lists_each_offender_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``ä`` and ``ö`` both present → both surface, each exactly once.
+    Sorted order keeps the message deterministic across runs."""
+    monkeypatch.setattr(cv2, "imwrite", lambda _path, _img: False)
+    sink = FileSink()
+    sink.output_path = tmp_path / "äöäö" / "out.png"
+
+    with pytest.raises(OSError) as exc_info:
+        _drive_one_frame(sink)
+
+    msg = str(exc_info.value)
+    assert msg.count("'ä'") == 1
+    assert msg.count("'ö'") == 1
+
+
+def test_imwrite_success_does_not_raise(tmp_path: Path) -> None:
+    """Sanity counterpart to the failure tests: when cv2 actually
+    writes the file, no error path triggers."""
+    sink = FileSink()
+    sink.output_path = tmp_path / "ok.png"
+    _drive_one_frame(sink)
+    assert (tmp_path / "ok.png").exists()
