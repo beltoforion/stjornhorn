@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
@@ -40,111 +41,72 @@ class MessageBanner(QFrame):
     MIN_HEIGHT: int = 120
     OPACITY: float = 0.85
 
-    # Per-severity palette. Both share the same shape so swapping
-    # styles at show-time is a single setStyleSheet call. The
-    # warning palette stays warm-amber so it reads as "attention
-    # needed" without the "something is broken" weight of red.
-    _ERROR_STYLE: str = """
-        QFrame#MessageBanner {
-            background: #5a1e22;
-            border: 1px solid #e05050;
+    # Per-severity palette. Each style is built from the same template so
+    # adding a new state (tweaking the header buttons, separator, etc.)
+    # only edits one place. The warning palette stays warm-amber so it
+    # reads as "attention needed" without the "something is broken"
+    # weight of red. Selectors target every QToolButton inside the banner
+    # so the copy and close buttons share the same look without per-name
+    # rules.
+    _STYLE_TEMPLATE: str = """
+        QFrame#MessageBanner {{
+            background: {bg};
+            border: 1px solid {border};
             border-radius: 4px;
-        }
-        QLabel#MessageBannerTitle {
-            color: #ffdcdc;
+        }}
+        QLabel#MessageBannerTitle {{
+            color: {title_fg};
             font-weight: bold;
             background: transparent;
-        }
-        QLabel#MessageBannerMessage {
-            color: #ffeaea;
+        }}
+        QLabel#MessageBannerMessage {{
+            color: {message_fg};
             background: transparent;
-        }
-        QToolButton#MessageBannerClose {
-            color: #ffdcdc;
+        }}
+        QFrame#MessageBanner QToolButton {{
+            color: {title_fg};
             background: transparent;
             border: none;
             padding: 0 6px;
             font-size: 14px;
-        }
-        QToolButton#MessageBannerClose:hover {
+        }}
+        QFrame#MessageBanner QToolButton:hover {{
             color: #ffffff;
-        }
-        QScrollArea#MessageBannerScroll {
+        }}
+        QFrame#MessageBannerSeparator {{
+            color: {border};
+            background: {border};
+            max-width: 1px;
+        }}
+        QScrollArea#MessageBannerScroll {{
             background: transparent;
             border: none;
-        }
-        QScrollArea#MessageBannerScroll > QWidget > QWidget {
+        }}
+        QScrollArea#MessageBannerScroll > QWidget > QWidget {{
             background: transparent;
-        }
+        }}
     """
 
-    _WARNING_STYLE: str = """
-        QFrame#MessageBanner {
-            background: #5a4a1e;
-            border: 1px solid #e0b850;
-            border-radius: 4px;
-        }
-        QLabel#MessageBannerTitle {
-            color: #fff0c8;
-            font-weight: bold;
-            background: transparent;
-        }
-        QLabel#MessageBannerMessage {
-            color: #fff5d8;
-            background: transparent;
-        }
-        QToolButton#MessageBannerClose {
-            color: #fff0c8;
-            background: transparent;
-            border: none;
-            padding: 0 6px;
-            font-size: 14px;
-        }
-        QToolButton#MessageBannerClose:hover {
-            color: #ffffff;
-        }
-        QScrollArea#MessageBannerScroll {
-            background: transparent;
-            border: none;
-        }
-        QScrollArea#MessageBannerScroll > QWidget > QWidget {
-            background: transparent;
-        }
-    """
+    _ERROR_STYLE: str = _STYLE_TEMPLATE.format(
+        bg="#5a1e22",
+        border="#e05050",
+        title_fg="#ffdcdc",
+        message_fg="#ffeaea",
+    )
 
-    _INFO_STYLE: str = """
-        QFrame#MessageBanner {
-            background: #1e3a5a;
-            border: 1px solid #5090e0;
-            border-radius: 4px;
-        }
-        QLabel#MessageBannerTitle {
-            color: #d8e8ff;
-            font-weight: bold;
-            background: transparent;
-        }
-        QLabel#MessageBannerMessage {
-            color: #e8f0ff;
-            background: transparent;
-        }
-        QToolButton#MessageBannerClose {
-            color: #d8e8ff;
-            background: transparent;
-            border: none;
-            padding: 0 6px;
-            font-size: 14px;
-        }
-        QToolButton#MessageBannerClose:hover {
-            color: #ffffff;
-        }
-        QScrollArea#MessageBannerScroll {
-            background: transparent;
-            border: none;
-        }
-        QScrollArea#MessageBannerScroll > QWidget > QWidget {
-            background: transparent;
-        }
-    """
+    _WARNING_STYLE: str = _STYLE_TEMPLATE.format(
+        bg="#5a4a1e",
+        border="#e0b850",
+        title_fg="#fff0c8",
+        message_fg="#fff5d8",
+    )
+
+    _INFO_STYLE: str = _STYLE_TEMPLATE.format(
+        bg="#1e3a5a",
+        border="#5090e0",
+        title_fg="#d8e8ff",
+        message_fg="#e8f0ff",
+    )
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
@@ -164,6 +126,21 @@ class MessageBanner(QFrame):
         self._title = QLabel("Error")
         self._title.setObjectName("MessageBannerTitle")
 
+        self._copy = QToolButton()
+        self._copy.setObjectName("MessageBannerCopy")
+        self._copy.setText("⧉")
+        self._copy.setToolTip("Copy message to clipboard")
+        self._copy.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._copy.clicked.connect(self._copy_to_clipboard)
+
+        # Vertical hairline keeps a visual gap between Copy and Close so a
+        # mis-aimed click on the copy button does not dismiss the banner.
+        self._separator = QFrame()
+        self._separator.setObjectName("MessageBannerSeparator")
+        self._separator.setFrameShape(QFrame.Shape.VLine)
+        self._separator.setFrameShadow(QFrame.Shadow.Plain)
+        self._separator.setFixedWidth(1)
+
         self._close = QToolButton()
         self._close.setObjectName("MessageBannerClose")
         self._close.setText("✕")
@@ -176,6 +153,8 @@ class MessageBanner(QFrame):
         header.setSpacing(8)
         header.addWidget(self._title)
         header.addStretch(1)
+        header.addWidget(self._copy)
+        header.addWidget(self._separator)
         header.addWidget(self._close)
 
         self._message = QLabel("")
@@ -222,6 +201,12 @@ class MessageBanner(QFrame):
         no problem implied.
         """
         self._show(message, title, self._INFO_STYLE)
+
+    def _copy_to_clipboard(self) -> None:
+        """Copy the current banner message text onto the system clipboard."""
+        clipboard = QGuiApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(self._message.text())
 
     def _show(self, message: str, title: str, style: str) -> None:
         # setStyleSheet on each show so the palette flips correctly
