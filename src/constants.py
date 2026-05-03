@@ -4,7 +4,7 @@ from pathlib import Path
 
 APP_NAME:         str = "Stjörnhorn"
 APP_DISPLAY_NAME: str = "Stjörnhorn"
-APP_VERSION:      str = "0.3.0.72"
+APP_VERSION:      str = "0.4.0.0"
 API_URL:    str = "https://beltoforion.de"
 
 # Public, online-hosted version of the welcome page. The start page tries
