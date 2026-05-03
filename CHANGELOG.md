@@ -23,6 +23,14 @@ once a first tagged release is cut.
   parameterised by palette, dropping ~60 lines of duplication and
   keeping the new Copy button / separator styled in lockstep with
   the existing Close button.
+- **Both header buttons now have visible hover and pressed
+  states.** The previous stylesheet only nudged the text colour
+  one shade on hover, which read as flat — the buttons did not
+  feel clickable. They now grow a translucent white background on
+  hover (`rgba(255,255,255,0.18)`) and a stronger one when
+  pressed (`0.32`), with a 3px border-radius and 2px vertical
+  padding so the highlighted region reads as a proper button
+  surface.
 
 ### Changed (Clipboard writes go through a shared helper)
 

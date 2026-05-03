@@ -68,11 +68,17 @@ class MessageBanner(QFrame):
             color: {title_fg};
             background: transparent;
             border: none;
-            padding: 0 6px;
+            border-radius: 3px;
+            padding: 2px 6px;
             font-size: 14px;
         }}
         QFrame#MessageBanner QToolButton:hover {{
             color: #ffffff;
+            background: rgba(255, 255, 255, 0.18);
+        }}
+        QFrame#MessageBanner QToolButton:pressed {{
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.32);
         }}
         QFrame#MessageBannerSeparator {{
             color: {border};
