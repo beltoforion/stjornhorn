@@ -10,6 +10,44 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Added (Copy-to-clipboard button on the error/notification banner)
+
+- **The floating message banner now exposes a Copy button to the
+  left of the Close button**, with a thin vertical separator
+  between the two so a slightly off-target click on Copy cannot
+  accidentally dismiss the banner. Copy puts the current message
+  text on the system clipboard, which makes long stack traces and
+  node-error messages much easier to paste into bug reports. The
+  three per-severity stylesheets (`_ERROR_STYLE` / `_WARNING_STYLE`
+  / `_INFO_STYLE`) were collapsed into a single `_STYLE_TEMPLATE`
+  parameterised by palette, dropping ~60 lines of duplication and
+  keeping the new Copy button / separator styled in lockstep with
+  the existing Close button.
+- **Both header buttons now have visible hover and pressed
+  states.** The previous stylesheet only nudged the text colour
+  one shade on hover, which read as flat — the buttons did not
+  feel clickable. They now grow a translucent white background on
+  hover (`rgba(255,255,255,0.18)`) and a stronger one when
+  pressed (`0.32`), with a 3px border-radius and 2px vertical
+  padding so the highlighted region reads as a proper button
+  surface.
+
+### Changed (Clipboard writes go through a shared helper)
+
+- **New `ui.clipboard` module centralises every copy-to-clipboard
+  call site.** The previous implementation had duplicated
+  `QGuiApplication.clipboard().setText/setImage` logic in
+  `ui.node_item._HeaderButtonItem._dispatch_command_result` and
+  ad-hoc in the new banner copy button. Both now route through
+  `clipboard.copy_text` / `clipboard.copy_image` /
+  `clipboard.dispatch_command_result`, which collapses the None
+  guard, the numpy → QImage conversion, and the user-visible
+  notifications into one place. Pure refactor — no user-visible
+  change beyond the new banner button itself. Drops the now-unused
+  `numpy`, `QGuiApplication`, `notifications`, and `logging`
+  imports from `ui.node_item` and removes the static
+  `_dispatch_command_result` wrapper.
+
 ### Fixed (Flow run failure no longer aborts the process on Windows)
 
 - **`_finalize_run` is now wired to `QThread.finished` instead of
