@@ -118,6 +118,7 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "vertical_align_center": "e240",
     # Header-action buttons
     "content_copy":       "e14d",
+    "close":              "e5cd",
 }
 
 

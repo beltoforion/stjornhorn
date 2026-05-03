@@ -5,7 +5,7 @@ from typing import Callable
 from typing_extensions import override
 
 from core.io_data import IoData, IoDataType
-from core.node_base import HeaderAction, NodeBase
+from core.node_base import Command, NodeBase
 from core.port import InputPort, OutputPort
 
 
@@ -27,8 +27,8 @@ class MetaInspector(NodeBase):
 
     The node itself is Qt-free; the worker-thread → main-thread hop
     is the preview widget's responsibility (queued signal). The
-    "copy meta" header button declared in :attr:`header_actions`
-    is also Qt-free at the node level: the handler returns the text,
+    "copy meta" :class:`Command` declared in ``_header_items`` is
+    also Qt-free at the node level: the handler returns the text,
     and :class:`ui.node_item.NodeItem` performs the clipboard write.
     """
 
@@ -43,7 +43,7 @@ class MetaInspector(NodeBase):
         # button can re-format it on demand. Held by reference; the
         # node never mutates the envelope.
         self._last_data: IoData | None = None
-        self.header_actions.append(HeaderAction(
+        self._header_items.append(Command(
             glyph="content_copy",
             tooltip="Copy meta to clipboard",
             handler=self._copy_meta_text,
