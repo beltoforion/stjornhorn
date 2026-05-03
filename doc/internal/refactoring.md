@@ -17,7 +17,9 @@ Status markers:
 **Last reviewed:** 2026-05-03 (single-input filters now forward
 `IoData.meta` to their outputs and Mosaic propagates from the first
 non-empty cell — PR #293; the multi-input merge convention itself
-is now tracked as M14 / #294).
+is now tracked as M14 / #294; clipboard writes routed through new
+`ui.clipboard` helper, branch
+`claude/error-window-copy-button-Hn9um`).
 
 ## High
 
@@ -193,6 +195,21 @@ key dispatch to a Qt implementation detail.
 flag from `NodeItem`.
 
 ## Resolved
+
+### DONE — Duplicated clipboard write logic across the UI
+
+Resolved 2026-05-03 on branch
+`claude/error-window-copy-button-Hn9um`.
+
+`ui.node_item._HeaderButtonItem._dispatch_command_result` had its
+own `QGuiApplication.clipboard().setText / setImage` plumbing, the
+new message-banner Copy button was about to grow another, and the
+`numpy → QImage` failure path was duplicated alongside. Centralised
+into `ui.clipboard` (`copy_text`, `copy_image`,
+`dispatch_command_result`); both call sites now delegate. Frees
+`ui.node_item` of `numpy`, `QGuiApplication`, `notifications`, and
+`logging` imports along with the static `_dispatch_command_result`
+wrapper.
 
 ### DONE — PolarSpectrum was a too-special monolith
 

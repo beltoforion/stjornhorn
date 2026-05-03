@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import logging
 from typing_extensions import override
-
-import numpy as np
 
 from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (
@@ -11,7 +8,6 @@ from PySide6.QtGui import (
     QColor,
     QFont,
     QFontMetricsF,
-    QGuiApplication,
     QPainter,
     QPainterPath,
     QPen,
@@ -23,7 +19,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core import notifications
 from core.node_base import (
     Command,
     HeaderItem,
@@ -34,10 +29,11 @@ from core.node_base import (
     TickBadge,
     Toggle,
 )
+from ui import clipboard
 from ui.icons import paint_material_glyph
 from ui.param_widgets import ParamWidgetBase, build_param_widget
 from ui.port_item import PortItem
-from ui.preview_widgets import build_preview_widget, numpy_to_qimage
+from ui.preview_widgets import build_preview_widget
 from ui.theme import (
     BORDER_FROM_CATEGORY,
     FILTER_HEADER_COLOR,
@@ -53,9 +49,6 @@ from ui.theme import (
     SINK_HEADER_COLOR,
     SOURCE_HEADER_COLOR,
 )
-
-logger = logging.getLogger(__name__)
-
 
 class _NodeSignals(QObject):
     """QObject signal carrier for :class:`NodeItem`.
@@ -264,7 +257,7 @@ class _HeaderButtonItem(QGraphicsItem):
             if self.boundingRect().contains(event.pos()):
                 result = self._item.handler()
                 if isinstance(self._item, Command):
-                    self._dispatch_command_result(result)
+                    clipboard.dispatch_command_result(result)
                 if isinstance(self._item, Toggle):
                     # A toggle flips node state that affects what the
                     # flow does on the next run; emit ``param_changed``
@@ -277,30 +270,6 @@ class _HeaderButtonItem(QGraphicsItem):
             event.accept()
             return
         super().mouseReleaseEvent(event)
-
-    @staticmethod
-    def _dispatch_command_result(result: object) -> None:
-        """Send a :class:`Command` handler's return value to the
-        clipboard. Strings go as text, ndarrays as images; anything
-        falsy (``None``, ``""``) is a silent no-op so the click costs
-        nothing when there's nothing to copy yet."""
-        if isinstance(result, str):
-            if not result:
-                return
-            QGuiApplication.clipboard().setText(result)
-            notifications.info("Copied to clipboard")
-            return
-        if isinstance(result, np.ndarray):
-            try:
-                qimg = numpy_to_qimage(result)
-            except Exception as exc:
-                logger.exception("Header command: image-copy conversion failed")
-                notifications.warn(f"Could not copy image: {exc}")
-                return
-            QGuiApplication.clipboard().setImage(qimg)
-            notifications.info("Image copied to clipboard")
-            return
-        # Everything else (None, falsy str, …) is a deliberate no-op.
 
 
 class _HeaderSeparatorItem(QGraphicsItem):

@@ -16,14 +16,29 @@ once a first tagged release is cut.
   left of the Close button**, with a thin vertical separator
   between the two so a slightly off-target click on Copy cannot
   accidentally dismiss the banner. Copy puts the current message
-  text on the system clipboard (`QGuiApplication.clipboard()`),
-  which makes long stack traces and node-error messages much
-  easier to paste into bug reports. The three per-severity
-  stylesheets (`_ERROR_STYLE` / `_WARNING_STYLE` / `_INFO_STYLE`)
-  were collapsed into a single `_STYLE_TEMPLATE` parameterised by
-  palette, dropping ~60 lines of duplication and keeping the new
-  Copy button / separator styled in lockstep with the existing
-  Close button.
+  text on the system clipboard, which makes long stack traces and
+  node-error messages much easier to paste into bug reports. The
+  three per-severity stylesheets (`_ERROR_STYLE` / `_WARNING_STYLE`
+  / `_INFO_STYLE`) were collapsed into a single `_STYLE_TEMPLATE`
+  parameterised by palette, dropping ~60 lines of duplication and
+  keeping the new Copy button / separator styled in lockstep with
+  the existing Close button.
+
+### Changed (Clipboard writes go through a shared helper)
+
+- **New `ui.clipboard` module centralises every copy-to-clipboard
+  call site.** The previous implementation had duplicated
+  `QGuiApplication.clipboard().setText/setImage` logic in
+  `ui.node_item._HeaderButtonItem._dispatch_command_result` and
+  ad-hoc in the new banner copy button. Both now route through
+  `clipboard.copy_text` / `clipboard.copy_image` /
+  `clipboard.dispatch_command_result`, which collapses the None
+  guard, the numpy → QImage conversion, and the user-visible
+  notifications into one place. Pure refactor — no user-visible
+  change beyond the new banner button itself. Drops the now-unused
+  `numpy`, `QGuiApplication`, `notifications`, and `logging`
+  imports from `ui.node_item` and removes the static
+  `_dispatch_command_result` wrapper.
 
 ### Fixed (Flow run failure no longer aborts the process on Windows)
 

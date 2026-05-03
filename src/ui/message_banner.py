@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt
-from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
@@ -12,6 +11,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from ui import clipboard
 
 
 class MessageBanner(QFrame):
@@ -203,10 +204,14 @@ class MessageBanner(QFrame):
         self._show(message, title, self._INFO_STYLE)
 
     def _copy_to_clipboard(self) -> None:
-        """Copy the current banner message text onto the system clipboard."""
-        clipboard = QGuiApplication.clipboard()
-        if clipboard is not None:
-            clipboard.setText(self._message.text())
+        """Copy the current banner message text onto the system clipboard.
+
+        Routed through :mod:`ui.clipboard` so the same write path is
+        used everywhere (banner, node header buttons, future call
+        sites). No notification is fired — that would just clobber
+        the very banner the user clicked on.
+        """
+        clipboard.copy_text(self._message.text())
 
     def _show(self, message: str, title: str, style: str) -> None:
         # setStyleSheet on each show so the palette flips correctly
