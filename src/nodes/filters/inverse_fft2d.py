@@ -26,7 +26,8 @@ class InverseFft2D(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        spectrum: np.ndarray = self.inputs[0].data.payload
+        in_data = self.inputs[0].data
+        spectrum: np.ndarray = in_data.payload
         if spectrum.ndim != 2:
             raise ValueError(
                 f"InverseFft2D expects a 2-D spectrum, got shape {spectrum.shape}"
@@ -36,4 +37,4 @@ class InverseFft2D(NodeBase):
         np.round(recon, out=recon)
         np.clip(recon, 0.0, 255.0, out=recon)
         image = recon.astype(np.uint8, copy=False)
-        self.outputs[0].send(IoData.from_greyscale(image))
+        self.outputs[0].send(IoData.from_greyscale(image, meta=in_data.meta))

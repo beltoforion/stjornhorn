@@ -191,10 +191,18 @@ class Mosaic(NodeBase):
         scaled = [self._scale_to_width(img, target_w) for img in row_imgs]
         canvas = np.vstack(scaled)
 
+        # Forward meta from the first non-empty cell of the first row.
+        # In typical use every cell traces back to the same upstream
+        # frame (e.g. the bulk-FFT flow runs an image through
+        # HsvSplit → Fft2D → ApplyColormap and feeds the result back
+        # into Mosaic alongside the original); picking the first cell
+        # is a deterministic choice that preserves source_path /
+        # frame_index without trying to reconcile divergent metas.
+        head_meta = rows_data[0][0].meta
         if any_color:
-            self.outputs[0].send(IoData.from_image(canvas))
+            self.outputs[0].send(IoData.from_image(canvas, meta=head_meta))
         else:
-            self.outputs[0].send(IoData.from_greyscale(canvas))
+            self.outputs[0].send(IoData.from_greyscale(canvas, meta=head_meta))
 
     @classmethod
     def _build_row(

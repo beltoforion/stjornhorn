@@ -168,9 +168,12 @@ class PolarHeatmap(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        df: pd.DataFrame = self.inputs[0].data.payload
+        in_data = self.inputs[0].data
+        df: pd.DataFrame = in_data.payload
         if len(df.columns) < 2 or len(df) < 1:
-            self.outputs[0].send(IoData.from_image(self._blank_image()))
+            self.outputs[0].send(
+                IoData.from_image(self._blank_image(), meta=in_data.meta),
+            )
             return
 
         thetas = self._resolve_thetas(df)
@@ -196,7 +199,7 @@ class PolarHeatmap(NodeBase):
             colorbar_label=self._colorbar_label or self._auto_colorbar_label(df),
             radial_label=self._radial_label(df),
         )
-        self.outputs[0].send(IoData.from_image(bgr))
+        self.outputs[0].send(IoData.from_image(bgr, meta=in_data.meta))
 
     # ── Pure helpers ──────────────────────────────────────────────────────────
 

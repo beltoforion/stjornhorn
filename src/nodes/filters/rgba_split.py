@@ -30,7 +30,8 @@ class RgbaSplit(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        image: np.ndarray = self.inputs[0].data.image
+        in_data = self.inputs[0].data
+        image: np.ndarray = in_data.image
         channels = image.shape[2] if image.ndim == 3 else 1
 
         if channels == 4:
@@ -45,7 +46,9 @@ class RgbaSplit(NodeBase):
                 f"RgbaSplit expects a 3- or 4-channel image, got {channels}"
             )
 
-        self.outputs[0].send(IoData.from_greyscale(b))
-        self.outputs[1].send(IoData.from_greyscale(g))
-        self.outputs[2].send(IoData.from_greyscale(r))
-        self.outputs[3].send(IoData.from_greyscale(a))
+        # Forward the upstream meta on every output so source_path and
+        # custom annotations survive the channel split.
+        self.outputs[0].send(IoData.from_greyscale(b, meta=in_data.meta))
+        self.outputs[1].send(IoData.from_greyscale(g, meta=in_data.meta))
+        self.outputs[2].send(IoData.from_greyscale(r, meta=in_data.meta))
+        self.outputs[3].send(IoData.from_greyscale(a, meta=in_data.meta))

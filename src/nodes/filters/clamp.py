@@ -40,9 +40,10 @@ class Clamp(NodeBase):
 
     @override
     def process_impl(self) -> None:
-        v: np.ndarray = self.inputs[0].data.payload
+        in_data = self.inputs[0].data
+        v: np.ndarray = in_data.payload
         lo, hi = self._min_value, self._max_value
         if lo > hi:
             lo, hi = hi, lo
         clamped = np.clip(v, lo, hi)
-        self.outputs[0].send(IoData.from_scalar(clamped))
+        self.outputs[0].send(IoData.from_scalar(clamped, meta=in_data.meta))

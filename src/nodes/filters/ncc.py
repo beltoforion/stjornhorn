@@ -71,7 +71,8 @@ class Ncc(NodeBase):
             # before_run wasn't called (e.g. direct unit-test use); load lazily.
             self._template_image = self._load_template()
 
-        image: np.ndarray = self.inputs[0].data.image
+        in_data = self.inputs[0].data
+        image: np.ndarray = in_data.image
         template = self._template_image
 
         res = cv2.matchTemplate(image, template, cv2.TM_CCORR_NORMED)
@@ -97,7 +98,7 @@ class Ncc(NodeBase):
         else:
             out = res
 
-        self.outputs[0].send(IoData.from_greyscale(out))
+        self.outputs[0].send(IoData.from_greyscale(out, meta=in_data.meta))
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
