@@ -113,28 +113,61 @@ NODE_PARAM_TYPE_TO_PORT_TYPE: dict[NodeParamType, IoDataType] = {
 }
 
 
-@dataclass(frozen=True)
-class HeaderAction:
-    """Declarative spec for a clickable button in a node's header.
+class HeaderItem:
+    """Marker base for entries in a node's header items list.
 
-    A node populates ``self.header_actions`` with these so the editor
-    can render small Material-glyph buttons in the title bar without
-    the node module having to depend on Qt. The handler runs on the
-    UI thread when the user clicks; if it returns a non-empty string,
-    the editor copies that string to the system clipboard.
-
-    Keeping the contract this narrow (glyph + tooltip + handler) means
-    every node-specific affordance — copy meta, reset cache, dump
-    matrix — can live alongside the rest of the node's logic, and the
-    editor stays a generic renderer.
+    A node declares what to render in the right cluster of its painted
+    title bar by returning a list of these from :meth:`header_items`.
+    Most entries are actions — :class:`Command` (one-shot button) or
+    :class:`Toggle` (stateful button) — but the list also carries
+    purely visual elements: :class:`Separator` (a hairline divider)
+    and :class:`TickBadge` (a status text label, e.g. a source's frame
+    count). Keeping all of them in one uniform list reduces
+    :class:`ui.node_item.NodeItem` to a single layout pass; the node
+    module never imports Qt.
     """
+
+
+@dataclass(frozen=True)
+class Command(HeaderItem):
+    """One-shot header button. Click runs ``handler``; if it returns a
+    non-empty string, the editor copies it to the clipboard and
+    surfaces a brief notification. Use this for fire-and-forget
+    affordances like "copy meta", "reset cache", or "delete node"."""
 
     #: Material Icons name (must exist in ``ui.icons._CODEPOINTS``).
     glyph: str
     tooltip: str
-    #: Invoked on click. Return a string to push to the clipboard, or
-    #: ``None`` for a side-effect-only action.
     handler: Callable[[], str | None]
+
+
+@dataclass(frozen=True)
+class Toggle(HeaderItem):
+    """Stateful header button. ``handler`` flips the underlying flag;
+    ``is_active`` is polled on each repaint so the button renders in
+    an "active" style when the flag is on. Use this for binary state
+    toggles like "step over" (mute) or "pin output"."""
+
+    glyph: str
+    tooltip: str
+    handler: Callable[[], None]
+    is_active: Callable[[], bool]
+
+
+@dataclass(frozen=True)
+class Separator(HeaderItem):
+    """Thin vertical hairline drawn between adjacent header items.
+    Carries no glyph or handler — purely visual."""
+
+
+@dataclass(frozen=True)
+class TickBadge(HeaderItem):
+    """Status text label in the header (e.g. a source's "100×" frame
+    count). ``label`` is polled on each repaint and an empty result
+    hides the badge so the cluster has no gap when there's no count
+    to show."""
+
+    label: Callable[[], str]
 
 
 class NodeBase(ABC):
@@ -210,11 +243,14 @@ class NodeBase(ABC):
         self._outputs: list[OutputPort] = []
         self._params: list[NodeParam] = []
         self._skipped: bool = False
-        # Per-instance list of header buttons. Subclasses append
-        # :class:`HeaderAction` entries in their own ``__init__`` to add
-        # node-specific affordances (e.g. MetaInspector's "copy meta"
-        # button) without the editor needing class-by-class knowledge.
-        self.header_actions: list[HeaderAction] = []
+        # Per-instance list of node-declared header items. Subclasses
+        # append :class:`HeaderItem` entries (typically :class:`Command`
+        # or :class:`Toggle`) in their own ``__init__`` to add
+        # node-specific affordances. The framework augments this in
+        # :meth:`header_items` (e.g. auto-prepends the step-over toggle
+        # for skippable nodes), so the storage list is the *node's
+        # contribution*, not the full rendered list.
+        self._header_items: list[HeaderItem] = []
         # Initialise every descriptor's backing slot to its declared
         # default before subclass ``__init__`` runs, so ``self._<name>``
         # exists from the first line after ``super().__init__()``. The
@@ -419,6 +455,36 @@ class NodeBase(ABC):
         when entering skip mode so downstream sinks don't sit on
         stale data while the user toggles skipping back and forth.
         """
+
+    def _toggle_skipped(self) -> None:
+        """Action handler for the auto-injected step-over toggle."""
+        self.skipped = not self._skipped
+
+    # ── Header items (rendered in the title bar) ───────────────────────────────
+
+    def header_items(self) -> list[HeaderItem]:
+        """Return the items :class:`ui.node_item.NodeItem` should render
+        in this node's title bar, left-to-right.
+
+        Default: a step-over :class:`Toggle` (only when
+        :attr:`is_skippable`) followed by everything the subclass
+        appended to ``self._header_items``. Override (calling
+        ``super().header_items()``) to weave in additional items;
+        :class:`SourceNodeBase` does this to inject a frame-count
+        :class:`TickBadge`. The list is recomputed on each access so
+        dynamic visibility (e.g. ``is_skippable`` flipping) takes
+        effect without bookkeeping.
+        """
+        items: list[HeaderItem] = []
+        if self.is_skippable:
+            items.append(Toggle(
+                glyph="redo",
+                tooltip="Step over this node (pass inputs straight through)",
+                handler=self._toggle_skipped,
+                is_active=lambda: self._skipped,
+            ))
+        items.extend(self._header_items)
+        return items
 
     # ── Internal signal handling ───────────────────────────────────────────────
 
@@ -740,6 +806,18 @@ class SourceNodeBase(NodeBase, ABC):
         (file size, directory contents) return ``None``.
         """
         return None
+
+    @override
+    def header_items(self) -> list[HeaderItem]:
+        # Prepend a frame-count badge so the source's tick count sits
+        # leftmost in the title-bar cluster (closest to the title text)
+        # — independent of whichever skip / custom items the base
+        # class provides.
+        return [TickBadge(label=self._tick_badge_label), *super().header_items()]
+
+    def _tick_badge_label(self) -> str:
+        count = self.tick_count()
+        return f"{count}×" if count is not None else ""
 
     @final
     def start(self) -> None:
