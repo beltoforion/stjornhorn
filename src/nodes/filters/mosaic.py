@@ -217,8 +217,11 @@ class Mosaic(NodeBase):
     @staticmethod
     def _promote(data: IoData, to_color: bool) -> np.ndarray:
         img = data.image
-        if to_color and data.type == IoDataType.IMAGE_GREY:
-            return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        if to_color:
+            if data.type == IoDataType.IMAGE_GREY:
+                return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+            if img.ndim == 3 and img.shape[2] == 4:
+                return cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
         return img
 
     @staticmethod
