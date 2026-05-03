@@ -217,8 +217,21 @@ class Mosaic(NodeBase):
     @staticmethod
     def _promote(data: IoData, to_color: bool) -> np.ndarray:
         img = data.image
-        if to_color and data.type == IoDataType.IMAGE_GREY:
-            return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        if to_color:
+            try:
+                if data.type == IoDataType.IMAGE_GREY:
+                    return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+                if img.ndim == 3 and img.shape[2] == 4:
+                    return cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+            except Exception as exc:
+                source_path = data.meta.get("source_path")
+                source_hint = (
+                    f" source={source_path!s}" if source_path is not None else ""
+                )
+                raise ValueError(
+                    "Mosaic image promotion to target format failed:"
+                    f" type={data.type.name} shape={img.shape!r}.{source_hint}"
+                ) from exc
         return img
 
     @staticmethod
