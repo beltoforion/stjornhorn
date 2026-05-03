@@ -25,7 +25,6 @@ SETTINGS_FILE: Path = USER_CONFIG_DIR / "settings.json"
 _SETTINGS_VERSION: int = 1
 
 _DEFAULT_DEBUG_LOGGING: bool = False
-_DEFAULT_PORT_LEGEND_VISIBLE: bool = True
 #: Default theme key. ``ui.theme`` resolves the name against
 #: :data:`ui.theme.AVAILABLE_THEMES` at module-import time, so an
 #: unrecognised value silently falls back to the registered default.
@@ -65,7 +64,6 @@ class AppSettings(QObject):
     """
 
     debug_logging_changed = Signal(bool)
-    port_legend_visible_changed = Signal(bool)
     #: Emitted when the user picks a different theme on the Settings
     #: page. The change only takes visual effect on next launch — the
     #: theme is locked at ``ui.theme`` import time, so consumers
@@ -79,9 +77,6 @@ class AppSettings(QObject):
         data = _read_settings_file(path)
         self._debug_logging: bool = bool(
             data.get("debug_logging", _DEFAULT_DEBUG_LOGGING)
-        )
-        self._port_legend_visible: bool = bool(
-            data.get("port_legend_visible", _DEFAULT_PORT_LEGEND_VISIBLE)
         )
         raw_theme = data.get("theme_name", _DEFAULT_THEME_NAME)
         self._theme_name: str = (
@@ -104,19 +99,6 @@ class AppSettings(QObject):
         self.debug_logging_changed.emit(value)
 
     @property
-    def port_legend_visible(self) -> bool:
-        return self._port_legend_visible
-
-    @port_legend_visible.setter
-    def port_legend_visible(self, value: bool) -> None:
-        value = bool(value)
-        if value == self._port_legend_visible:
-            return
-        self._port_legend_visible = value
-        self._save()
-        self.port_legend_visible_changed.emit(value)
-
-    @property
     def theme_name(self) -> str:
         return self._theme_name
 
@@ -134,7 +116,6 @@ class AppSettings(QObject):
         payload = {
             "version": _SETTINGS_VERSION,
             "debug_logging": self._debug_logging,
-            "port_legend_visible": self._port_legend_visible,
             "theme_name": self._theme_name,
         }
         try:

@@ -55,12 +55,12 @@ architectural documentation lives under `doc/internal/`.
   parameters, source/filter/sink colour stripe. It links to
   the editor's port-legend section rather than repeating the
   legend itself.
-- The port-legend screenshot (`doc/images/node_editor_legend.png`)
-  belongs in the `Node editor` section under a "Port legend"
-  sub-heading, alongside the description of how connections work.
-  Display it via the `figure.screenshot.legend` class so it
-  renders at roughly its on-canvas size, not at full content
-  width.
+- The port legend lives in the `Node editor` section under a
+  "Port legend" sub-heading, alongside the description of how
+  connections work. The legend itself is embedded in the
+  Node Documentation dock's empty state inside the running app —
+  the docs explain that surface in prose rather than re-shipping
+  a screenshot of a floating overlay that no longer exists.
 - The `Frame metadata` section lists every metadata key the user
   is expected to encounter — `frame_index`, `source_path`, the
   scalar-port auto-stamp rule, plus dataset attribute conventions

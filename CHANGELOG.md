@@ -10,6 +10,27 @@ once a first tagged release is cut.
 
 ## [Unreleased]
 
+### Changed (Port legend moved into the Node Documentation dock)
+
+- **The floating "Port types / Port roles" legend that used to
+  hover in the bottom-left of the canvas is gone.** The same
+  swatches and labels now live in the empty state of the
+  *Node Documentation* dock, directly under the
+  "Select a node…" hint. Selecting a node in the palette or on
+  the canvas swaps the legend out for that node's documentation;
+  clicking empty canvas brings it back. One surface, no overlay
+  to fight for screen space with the canvas, and the legend is
+  always reachable through the dock instead of through a
+  *View ▸ Port Legend* toggle.
+- The `View ▸ Port Legend` menu entry, the `port_legend_visible`
+  user setting, and the floating overlay's close-button + event-
+  filter machinery were removed; `PortLegend` was reshaped into a
+  chrome-less `PortLegendContent` widget that any layout can host.
+  `NodeDocPanel` now uses a `QStackedWidget` to flip between the
+  empty-state widget (hint label + legend) and its existing
+  `QTextBrowser` body — no per-frame repositioning, no overlay
+  parenting tricks.
+
 ### Added (Copy-to-clipboard button on the error/notification banner)
 
 - **The floating message banner now exposes a Copy button to the

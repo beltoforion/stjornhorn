@@ -43,7 +43,7 @@ def registry() -> NodeRegistry:
 
 def test_panel_starts_in_empty_state(qapp: QApplication) -> None:
     panel = NodeDocPanel()
-    assert "Select a node" in panel._body.toHtml()
+    assert panel._stack.currentWidget() is panel._empty
 
 
 # ── show_class ─────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ def test_clear_returns_to_empty_state(qapp: QApplication) -> None:
     panel = NodeDocPanel()
     panel.show_class(GaussianBlur)
     panel.clear()
-    assert "Select a node" in panel._body.toHtml()
+    assert panel._stack.currentWidget() is panel._empty
 
 
 # ── show_entry (palette path) ──────────────────────────────────────────────────
