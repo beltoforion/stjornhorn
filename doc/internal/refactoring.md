@@ -14,11 +14,10 @@ Status markers:
 - **DONE** — landed on main; references PR/commit
 - **WITHDRAWN** — reconsidered, no longer pursued (with reason)
 
-**Last reviewed:** 2026-05-01 (Output Inspector removed —
-`ViewerPanel`, `selected_node_changed` signal, dock layout presets
-and the toolbar-mirroring entries in the Node Editor menu went
-away; the inline `Display` node already covers the inspection use
-case).
+**Last reviewed:** 2026-05-03 (single-input filters now forward
+`IoData.meta` to their outputs and Mosaic propagates from the first
+non-empty cell — PR #293; the multi-input merge convention itself
+is now tracked as M14 / #294).
 
 ## High
 
@@ -108,6 +107,21 @@ SRP. `src/ui/node_editor_page.py` `_on_run_clicked` /
 **Direction:** a `FlowRunController` `QObject` owning thread/runner
 lifecycle and exposing started / finished / failed signals; page
 becomes a thin observer.
+
+### OPEN — M14. Multi-input nodes have no shared meta-merge convention
+
+Tracked as issue #294. Single-input filters now forward
+`IoData.meta` consistently (PR #293 — `src/nodes/filters/*.py`); the
+multi-input nodes (`hsv_join` / `hsl_join` / `rgba_join` /
+`masked_blend` / `math` / `hodogram` / `join_datasets` / `overlay`,
+plus `sliding_window`'s clock path) each make their own ad-hoc
+choice and most of them silently drop meta entirely.
+
+**Direction:** introduce a `NodeBase._merge_meta(*sources)` helper
+("first non-None input's meta wins" — matches Mosaic's already-
+landed rule and TickStep1's #250 design note). Route every
+multi-input transform's outgoing meta through it; document the
+convention in `dataflow.md`. See #294 for the full proposal.
 
 ### OPEN — M12. `FlowScene.connect_ports` mixes raise-on-error with return-None
 
