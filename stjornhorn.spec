@@ -72,7 +72,6 @@ a = Analysis(
         ('assets/icons',         'assets/icons'),
         ('assets/fonts',         'assets/fonts'),
         ('assets/title.png',     'assets'),
-        ('assets/_title.png',    'assets'),
         ('assets/app_icon.ico',  'assets'),
         ('assets/app_icon.png',  'assets'),
         ('doc/welcome.html',     'doc'),
