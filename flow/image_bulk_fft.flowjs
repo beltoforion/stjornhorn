@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.57",
+  "app_version": "0.3.0.63",
   "name": "image_bulk_fft",
   "nodes": [
     {
@@ -99,7 +99,7 @@
         -61.56960585552811
       ],
       "port_defaults": {
-        "output_path": "$source_stem$_fft.png"
+        "output_path": "$source_stem$_fft_hsv.png"
       },
       "size": [
         390.375,
@@ -115,7 +115,7 @@
         -1052.154064676993
       ],
       "port_defaults": {
-        "colormap": 16
+        "colormap": 14
       }
     },
     {
@@ -127,7 +127,7 @@
         -900.1540646769927
       ],
       "port_defaults": {
-        "colormap": 16
+        "colormap": 14
       }
     },
     {
@@ -139,7 +139,7 @@
         -748.1540646769927
       ],
       "port_defaults": {
-        "colormap": 16
+        "colormap": 14
       }
     },
     {
@@ -155,6 +155,16 @@
         412.39438211526647,
         345.70312692677214
       ]
+    },
+    {
+      "id": 12,
+      "module": "nodes.filters.hsl_split",
+      "class": "HslSplit",
+      "position": [
+        -1361.3833150191517,
+        -1086.4711526845522
+      ],
+      "port_defaults": {}
     }
   ],
   "connections": [
@@ -162,24 +172,6 @@
       "src_node": 0,
       "src_output": 0,
       "dst_node": 4,
-      "dst_input": 0
-    },
-    {
-      "src_node": 4,
-      "src_output": 0,
-      "dst_node": 3,
-      "dst_input": 0
-    },
-    {
-      "src_node": 4,
-      "src_output": 1,
-      "dst_node": 5,
-      "dst_input": 0
-    },
-    {
-      "src_node": 4,
-      "src_output": 2,
-      "dst_node": 6,
       "dst_input": 0
     },
     {
@@ -240,6 +232,30 @@
       "src_node": 11,
       "src_output": 0,
       "dst_node": 7,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 12,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 1,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 2,
+      "dst_node": 6,
       "dst_input": 0
     }
   ],
