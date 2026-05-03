@@ -83,7 +83,13 @@ class FileSink(SinkNodeBase):
             raise ValueError(f"Unsupported output format: {self._output_format}")
 
         output.parent.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(str(output), self.inputs[0].data.image)
+        written = cv2.imwrite(str(output), self.inputs[0].data.image)
+        if not written:
+            raise OSError(
+                f"File Sink failed to write image to {output!s}. "
+                "This often means the rendered filename/path is invalid "
+                "for the current OS."
+            )
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
