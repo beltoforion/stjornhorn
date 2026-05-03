@@ -289,6 +289,14 @@ class NodeBase(ABC):
         # processed frame. Carries the node so a single subscription
         # can reach :attr:`last_inputs` and any node-specific state.
         self._frame_callback: Callable[["NodeBase"], None] | None = None
+        # Secondary per-frame fan-out reserved for the info-toggle
+        # meta overlay. Kept separate from :attr:`_frame_callback` so
+        # a node with a primary preview (DisplayPreview's image
+        # rendering, PlayGatePreview's button state) and an overlay
+        # (the meta dump) don't have to compete for the single-slot
+        # callback. Multiple listeners are fine — each runs on
+        # whichever thread :meth:`process` is on.
+        self._meta_listeners: list[Callable[["NodeBase"], None]] = []
         # Initialise every descriptor's backing slot to its declared
         # default before subclass ``__init__`` runs, so ``self._<name>``
         # exists from the first line after ``super().__init__()``. The
@@ -548,6 +556,19 @@ class NodeBase(ABC):
         """
         self._frame_callback = callback
 
+    def add_meta_listener(
+        self, callback: Callable[["NodeBase"], None],
+    ) -> None:
+        """Register a per-frame meta listener (multi-cast).
+
+        Used by the info-toggle :class:`~ui.preview_widgets.MetaOverlay`
+        so it can update its meta dump per frame without colliding
+        with the single-slot :meth:`set_frame_callback` that the
+        node's primary preview already owns. Fires on whichever
+        thread :meth:`process` is on; listeners marshal across to
+        the UI thread themselves (queued Qt signal)."""
+        self._meta_listeners.append(callback)
+
     # ── Header items (rendered in the title bar) ───────────────────────────────
 
     def header_items(self) -> list[HeaderItem]:
@@ -699,6 +720,14 @@ class NodeBase(ABC):
                 # A buggy preview must not bring down the flow.
                 logger.exception(
                     f"Frame callback raised on {type(self).__name__} "
+                    f"({self._display_name}); ignoring"
+                )
+        for listener in self._meta_listeners:
+            try:
+                listener(self)
+            except Exception:
+                logger.exception(
+                    f"Meta listener raised on {type(self).__name__} "
                     f"({self._display_name}); ignoring"
                 )
 
