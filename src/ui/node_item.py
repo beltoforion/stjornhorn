@@ -1200,10 +1200,17 @@ class NodeItem(QGraphicsItem):
         )
 
         # ── Body height ────────────────────────────────────────────────────────
-        if self._user_height is not None and self._preview_widget is not None:
-            # Only nodes that have something that can stretch (a preview)
-            # honour vertical resize. For others the grip's Y drag is
-            # absorbed without effect.
+        # Honour the user's vertical resize on every node, not just
+        # nodes with a regular preview. The meta overlay added by the
+        # info toggle wants room to render its scrollable dump on
+        # filters and sinks that have no other body content to
+        # stretch — a Grayscale or FileSink should be growable so the
+        # user can read meta without scrolling.  The natural height
+        # is still the floor (the grip can never shrink past
+        # everything the body needs to show its ports / widgets /
+        # preview), and ``MAX_USER_HEIGHT`` still caps the top so a
+        # runaway drag doesn't turn the canvas into a wall.
+        if self._user_height is not None:
             self._body_height = max(
                 natural_body_h,
                 min(self.MAX_USER_HEIGHT, self._user_height),
