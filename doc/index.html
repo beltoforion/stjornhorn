@@ -628,15 +628,14 @@
 
       <h3>Port legend</h3>
       <p>
-        A floating legend in the bottom-left of the canvas explains
-        the visual language of the ports. <em>View ▸ Port Legend</em>
-        toggles it; the small <kbd>✕</kbd> on the legend hides it
-        until the menu re-enables it.
+        The visual language of the ports is documented in the
+        <em>Node Documentation</em> dock: when no node is selected,
+        the dock shows a hint line followed by the port-type and
+        port-role legend. Pick a node in the palette or on the
+        canvas and the dock switches to that node's documentation;
+        click empty canvas to clear the selection and the legend
+        comes back.
       </p>
-      <figure class="screenshot legend">
-        <img src="images/node_editor_legend.png" alt="Port legend overlay on the canvas">
-        <figcaption>Port type and role legend, anchored to the bottom-left of the canvas.</figcaption>
-      </figure>
       <p>The legend covers two axes:</p>
       <ul>
         <li><strong>Port types</strong> — each
@@ -938,8 +937,9 @@
       <p>
         Each input and output port carries a colour for its data
         type and a ring style for its role (required, optional,
-        latched). The full visual key — together with a
-        screenshot of the on-canvas legend — is in
+        latched). The full visual key — embedded in the
+        <em>Node Documentation</em> dock whenever no node is
+        selected — is described in
         <a href="#node-editor">Node editor ▸ Port legend</a>.
       </p>
 

@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject, QRectF, Qt, Signal
+from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
-    QFrame,
     QGridLayout,
-    QHBoxLayout,
     QLabel,
-    QToolButton,
     QWidget,
 )
 
@@ -108,54 +105,32 @@ class _Swatch(QWidget):
             painter.drawPath(path)
 
 
-class PortLegend(QFrame):
-    """Floating legend explaining the port visual language.
+class PortLegendContent(QWidget):
+    """Embeddable port-language legend.
 
-    Parented to :class:`~ui.flow_view.FlowView` (the
-    :class:`QAbstractScrollArea`, *not* its ``viewport()``) and pinned
-    to the bottom-left corner of that widget. The view's viewport is
-    just one of FlowView's children, so the legend sits as a sibling
-    that overlays the canvas through normal Qt widget compositing —
-    no scene item, no proxy, no per-frame repositioning. Pan and zoom
-    only repaint the viewport, so the legend stays put automatically;
-    only window resizes need a reposition (handled via an event
-    filter on the parent).
+    Pure content widget — no chrome, no overlay positioning, no close
+    button. Renders two sections:
 
-    Two sections:
       * **Port types** — one row per :class:`IoDataType` showing the
         colour used for that type's ring and (darker) fill.
       * **Port roles** — required / optional / latched input
         variants and the output glyph, all rendered in the neutral
         default colour so the variation is purely about ring stroke
         and direction marker rather than type colour.
+
+    Embed it directly in any layout. Used by the Node Documentation
+    panel as part of its empty-state hint.
     """
-
-    MARGIN: int = 12
-
-    #: Background opacity for the legend panel. Baked into the
-    #: stylesheet's rgba() rather than applied via
-    #: :class:`QGraphicsOpacityEffect`; the effect-based path interacts
-    #: badly with :class:`~PySide6.QtWidgets.QGraphicsView`'s
-    #: incremental update modes.
-    _BG_ALPHA: int = 220
 
     @staticmethod
     def _build_style() -> str:
-        """Compose the legend's stylesheet from the active theme so
-        the panel chrome (background, border, text) tracks the rest
-        of the app — navy-on-navy under neon, grey-on-grey under
-        classic."""
+        """Compose label colours from the active theme so the legend
+        tracks the rest of the app — navy text under neon, grey text
+        under classic — without needing a dedicated panel background."""
         theme = get_active_theme()
-        bg = theme.PALETTE_BASE
-        border = theme.PALETTE_HIGHLIGHT
         text = theme.PALETTE_TEXT
         title_text = theme.NODE_TITLE_TEXT_COLOR
         return f"""
-        QFrame#PortLegend {{
-            background: rgba({bg.red()}, {bg.green()}, {bg.blue()}, {PortLegend._BG_ALPHA});
-            border: 1px solid {border.name()};
-            border-radius: 4px;
-        }}
         QLabel#PortLegendTitle {{
             color: {title_text.name()};
             font-weight: bold;
@@ -165,50 +140,21 @@ class PortLegend(QFrame):
             color: {text.name()};
             background: transparent;
         }}
-        QToolButton#PortLegendClose {{
-            color: {text.name()};
-            background: transparent;
-            border: none;
-            padding: 0 4px;
-            font-size: 12px;
-        }}
-        QToolButton#PortLegendClose:hover {{
-            color: {title_text.name()};
-        }}
         """
 
-    #: Emitted when the user clicks the close button. The owning page
-    #: handles this by flipping ``AppSettings.port_legend_visible``,
-    #: which then propagates back to actually hide the widget — keeps
-    #: the close click and the View-menu toggle on a single source of
-    #: truth.
-    close_requested = Signal()
-
-    def __init__(self, parent: QWidget) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setObjectName("PortLegend")
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setStyleSheet(self._build_style())
 
         layout = QGridLayout(self)
-        layout.setContentsMargins(10, 8, 12, 8)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setHorizontalSpacing(8)
         layout.setVerticalSpacing(4)
 
         row = 0
-        row = self._add_section(
-            layout, row, "Port types", self._type_rows(), with_close_button=True,
-        )
+        row = self._add_section(layout, row, "Port types", self._type_rows())
         row = self._add_section(layout, row, "Port roles", self._role_rows())
-
-        self.adjustSize()
-        # Stay anchored to the parent's bottom-left edge through window
-        # resizes. Pan and zoom don't fire a Resize on the parent
-        # (only on its viewport child), so this filter keeps the
-        # legend completely still during canvas interaction.
-        parent.installEventFilter(self)
-        self._reposition()
 
     # ── Row builders ───────────────────────────────────────────────────────────
 
@@ -253,8 +199,6 @@ class PortLegend(QFrame):
         start_row: int,
         title_text: str,
         rows: list[tuple[_Swatch, str]],
-        *,
-        with_close_button: bool = False,
     ) -> int:
         # First section sits flush; subsequent ones leave a small gap by
         # adding extra vertical room on the title row.
@@ -262,25 +206,7 @@ class PortLegend(QFrame):
         title.setObjectName("PortLegendTitle")
         if start_row > 0:
             title.setContentsMargins(0, 8, 0, 0)
-
-        if with_close_button:
-            # Wrap title + close button in a horizontal sub-layout so
-            # the close glyph anchors to the right edge of the legend.
-            header = QHBoxLayout()
-            header.setContentsMargins(0, 0, 0, 0)
-            header.setSpacing(8)
-            header.addWidget(title)
-            header.addStretch(1)
-            close = QToolButton(self)
-            close.setObjectName("PortLegendClose")
-            close.setText("✕")  # multiplication X
-            close.setToolTip("Hide legend (View ▸ Port Legend to show)")
-            close.setCursor(Qt.CursorShape.PointingHandCursor)
-            close.clicked.connect(self.close_requested)
-            header.addWidget(close)
-            layout.addLayout(header, start_row, 0, 1, 2)
-        else:
-            layout.addWidget(title, start_row, 0, 1, 2)
+        layout.addWidget(title, start_row, 0, 1, 2)
 
         next_row = start_row + 1
         for swatch, text in rows:
@@ -290,19 +216,3 @@ class PortLegend(QFrame):
             layout.addWidget(label, next_row, 1)
             next_row += 1
         return next_row
-
-    # ── Parent resize tracking ─────────────────────────────────────────────────
-
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
-        if obj is self.parent() and event.type() == QEvent.Type.Resize:
-            self._reposition()
-        return super().eventFilter(obj, event)
-
-    def _reposition(self) -> None:
-        parent = self.parentWidget()
-        if parent is None:
-            return
-        margin = self.MARGIN
-        x = margin
-        y = parent.height() - self.height() - margin
-        self.move(x, max(margin, y))

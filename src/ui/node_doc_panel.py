@@ -28,23 +28,24 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
     QFrame,
+    QLabel,
+    QStackedWidget,
     QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
 
 from core.node_doc import describe_node
+from ui.port_legend import PortLegendContent
 
 if TYPE_CHECKING:
     from core.node_base import NodeBase
     from core.node_registry import NodeEntry
 
 
-_EMPTY_STATE_HTML: str = (
-    '<span style="color: #9a9a9f; font-style: italic;">'
+_EMPTY_STATE_HINT: str = (
     "Select a node in the palette or on the canvas to see its "
     "documentation here."
-    "</span>"
 )
 
 #: CSS for the rendered body. Tuned for a narrow dock (≈ 220 px is
@@ -294,10 +295,12 @@ _PANEL_MIN_HINT: QSize = QSize(180, 80)
 class NodeDocPanel(QWidget):
     """Dockable panel that renders the docs of the currently selected node.
 
-    Hosts a single :class:`QTextBrowser` whose body is built by
-    :func:`render_node_html`. The browser scrolls internally when
-    content overflows, so the panel's reported size stays constant
-    across selection changes (issue #233).
+    Two stacked views: a :class:`QTextBrowser` for the per-node
+    documentation, and an empty-state widget (a hint label plus the
+    embedded :class:`PortLegendContent`) that shows when nothing is
+    selected. The browser scrolls internally when content overflows,
+    so the panel's reported size stays constant across selection
+    changes (issue #233).
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -321,9 +324,38 @@ class NodeDocPanel(QWidget):
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
             | Qt.TextInteractionFlag.LinksAccessibleByMouse
         )
-        outer.addWidget(self._body)
+
+        self._empty = self._build_empty_state()
+
+        self._stack = QStackedWidget(self)
+        self._stack.addWidget(self._empty)
+        self._stack.addWidget(self._body)
+        outer.addWidget(self._stack)
 
         self.clear()
+
+    def _build_empty_state(self) -> QWidget:
+        """Compose the empty-state view: hint text on top, port legend below.
+
+        The hint reuses the panel's muted-italic styling so it reads
+        as a placeholder rather than a heading; the legend underneath
+        is the same content that used to live in a floating overlay
+        on the canvas, now consolidated into one place that's only
+        visible when no node steals attention from it.
+        """
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(12)
+
+        hint = QLabel(_EMPTY_STATE_HINT, widget)
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #9a9a9f; font-style: italic;")
+        layout.addWidget(hint)
+
+        layout.addWidget(PortLegendContent(widget))
+        layout.addStretch(1)
+        return widget
 
     # ── Size negotiation ──────────────────────────────────────────────────────
 
@@ -355,6 +387,7 @@ class NodeDocPanel(QWidget):
             )
             return
         self._body.setHtml(render_node_html(desc))
+        self._stack.setCurrentWidget(self._body)
 
     def show_entry(self, entry: NodeEntry) -> None:
         """Render documentation for a palette :class:`NodeEntry`."""
@@ -371,8 +404,8 @@ class NodeDocPanel(QWidget):
         self.show_class(cls)
 
     def clear(self) -> None:
-        """Show the empty-state hint."""
-        self._body.setHtml(_PANEL_CSS + _EMPTY_STATE_HTML)
+        """Show the empty-state hint + port legend."""
+        self._stack.setCurrentWidget(self._empty)
 
     # ── Internals ──────────────────────────────────────────────────────────────
 
@@ -381,3 +414,4 @@ class NodeDocPanel(QWidget):
             _PANEL_CSS
             + f'<span style="color: #e8a86b;">{message_html}</span>'
         )
+        self._stack.setCurrentWidget(self._body)
