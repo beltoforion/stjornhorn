@@ -21,6 +21,10 @@ Typical uses:
 - Batch-convert and composite images by wiring up file sources and
   sinks.
 
+How this project started:
+* In German: https://beltoforion.de/de/adventures-in-vibe-coding/
+* In English: https://beltoforion.de/en/adventures-in-vibe-coding/
+
 ## Installation
 
 Prerequisites: **Python 3.10** or newer.
