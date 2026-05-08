@@ -94,6 +94,7 @@ _CODEPOINTS: Final[dict[str, str]] = {
     "compare":            "e915",
     # Frequency / signal
     "graphic_eq":         "e1b8",
+    "add":                "e145",
     # Visualization
     "show_chart":         "e6e1",
     "scatter_plot":       "e268",
