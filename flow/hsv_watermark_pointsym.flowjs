@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "app_version": "0.4.0.0",
+  "name": "hsv_watermark_pointsym",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [-2000, -1500],
+      "port_defaults": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [-2000, -1380],
+      "port_defaults": {
+        "file_path": "logo.png"
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.rgba_split",
+      "class": "RgbaSplit",
+      "position": [-1740, -1380],
+      "port_defaults": {}
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.flip",
+      "class": "Flip",
+      "position": [-1480, -1300],
+      "port_defaults": {
+        "mode": -1
+      }
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.overlay",
+      "class": "Overlay",
+      "position": [-1220, -1380],
+      "port_defaults": {
+        "angle": 0.0,
+        "scale": 1.0,
+        "xpos": 330,
+        "ypos": 326,
+        "alpha": 0.5
+      }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.hsv_split",
+      "class": "HsvSplit",
+      "position": [-1740, -1500],
+      "port_defaults": {}
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.overlay",
+      "class": "Overlay",
+      "position": [-940, -1620],
+      "port_defaults": {
+        "angle": 0.0,
+        "scale": 0.4,
+        "xpos": 960,
+        "ypos": 538,
+        "alpha": 0.4
+      }
+    },
+    {
+      "id": 7,
+      "module": "nodes.filters.overlay",
+      "class": "Overlay",
+      "position": [-940, -1480],
+      "port_defaults": {
+        "angle": 0.0,
+        "scale": 0.4,
+        "xpos": 960,
+        "ypos": 538,
+        "alpha": 0.4
+      }
+    },
+    {
+      "id": 8,
+      "module": "nodes.filters.overlay",
+      "class": "Overlay",
+      "position": [-940, -1340],
+      "port_defaults": {
+        "angle": 0.0,
+        "scale": 0.4,
+        "xpos": 960,
+        "ypos": 538,
+        "alpha": 0.4
+      }
+    },
+    {
+      "id": 9,
+      "module": "nodes.filters.hsv_join",
+      "class": "HsvJoin",
+      "position": [-660, -1500],
+      "port_defaults": {}
+    },
+    {
+      "id": 10,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [-400, -1560],
+      "port_defaults": {},
+      "size": [702, 570]
+    }
+  ],
+  "connections": [
+    {"src_node": 1, "src_output": 0, "dst_node": 2, "dst_input": 0},
+    {"src_node": 2, "src_output": 3, "dst_node": 3, "dst_input": 0},
+    {"src_node": 2, "src_output": 3, "dst_node": 4, "dst_input": 0},
+    {"src_node": 3, "src_output": 0, "dst_node": 4, "dst_input": 1},
+
+    {"src_node": 0, "src_output": 0, "dst_node": 5, "dst_input": 0},
+
+    {"src_node": 5, "src_output": 0, "dst_node": 6, "dst_input": 0},
+    {"src_node": 5, "src_output": 1, "dst_node": 7, "dst_input": 0},
+    {"src_node": 5, "src_output": 2, "dst_node": 8, "dst_input": 0},
+
+    {"src_node": 4, "src_output": 0, "dst_node": 6, "dst_input": 1},
+    {"src_node": 4, "src_output": 0, "dst_node": 7, "dst_input": 1},
+    {"src_node": 4, "src_output": 0, "dst_node": 8, "dst_input": 1},
+
+    {"src_node": 6, "src_output": 0, "dst_node": 9, "dst_input": 0},
+    {"src_node": 7, "src_output": 0, "dst_node": 9, "dst_input": 1},
+    {"src_node": 8, "src_output": 0, "dst_node": 9, "dst_input": 2},
+
+    {"src_node": 9, "src_output": 0, "dst_node": 10, "dst_input": 0}
+  ],
+  "backdrops": [
+    {
+      "position": [-2030, -1550],
+      "size": [320, 280],
+      "title": "Sources",
+      "color": [70, 60, 40, 140]
+    },
+    {
+      "position": [-1770, -1430],
+      "size": [620, 230],
+      "title": "Symmetrise watermark (A + flip180(A)) / 2",
+      "color": [40, 60, 70, 140]
+    },
+    {
+      "position": [-970, -1670],
+      "size": [320, 480],
+      "title": "Stamp on H / S / V",
+      "color": [60, 40, 60, 140]
+    }
+  ]
+}
