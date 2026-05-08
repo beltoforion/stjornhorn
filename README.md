@@ -368,4 +368,5 @@ label the node carries in the **Node List**.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+GPL-3.0-or-later — GNU General Public License v3.0 or any later
+version. See [LICENSE](LICENSE) for the full text.

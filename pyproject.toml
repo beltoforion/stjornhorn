@@ -8,7 +8,7 @@ version = "0.2.4"
 description = "Stjörnhorn (Image-Inquest) — node-based image and video processing editor"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "Beltoforion" }]
 dependencies = [
     "numpy",
