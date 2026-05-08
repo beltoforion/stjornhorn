@@ -27,5 +27,8 @@ class Grayscale(NodeBase):
     def process_impl(self) -> None:
         in_data = self.inputs[0].data
         image: np.ndarray = in_data.image
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if image.ndim == 3 and image.shape[2] == 4:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
+        else:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         self.outputs[0].send(IoData.from_greyscale(gray, meta=in_data.meta))

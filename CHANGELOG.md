@@ -10,6 +10,36 @@ once a first tagged release is cut.
 
 ## [0.4.0] — 2026-05-03
 
+### Added (ImageToMatrix bridge for spatial → frequency-domain injection)
+
+- **`ImageToMatrix` reinterprets a greyscale image as a MATRIX
+  payload** so a spatial-domain image can be fed directly into
+  `MatrixAdd` as a perturbation of a base spectrum, without an
+  intermediate FFT. A real, point-symmetric image is automatically
+  Hermitian on the spectrum, so the inverse FFT stays real — the
+  cleanest path to a stealthy frequency-domain watermark whose
+  spatial form is a recognisable composition (logo + 180°-rotated
+  copy side-by-side via `Mosaic`) rather than averaged-into-mush.
+  Sample flow `flow/freq_watermark_invisible.flowjs` rebuilt around
+  this node: it injects the point-symmetric watermark into the
+  S-channel spectrum, IFFTs, and rejoins HSV.
+
+### Fixed (Grayscale accepts BGRA input)
+
+- **`Grayscale` no longer crashes on 4-channel BGRA inputs** (e.g.
+  RGBA PNGs from `ImageSource`). The conversion picks
+  `COLOR_BGRA2GRAY` when the input has an alpha channel and falls
+  back to `COLOR_BGR2GRAY` otherwise.
+
+### Fixed (Missing Material Icons codepoint for "add")
+
+- **`MatrixAdd` (and any future node using `HEADER_ICON = "add"`)
+  now renders its title.** The codepoint table in `ui.icons` was
+  missing the `"add"` entry, so `_glyph_for("add")` raised
+  `KeyError` mid-`NodeItem.paint()` and aborted the paint pass
+  before the title text drew — the node rendered with an empty
+  header. Added `"add": "e145"`.
+
 ### Added (Frequency-domain primitives: MatrixAdd + BandpassMask)
 
 - **Two new nodes in the *Frequency* section bridge the gap between

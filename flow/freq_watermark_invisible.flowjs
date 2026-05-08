@@ -1,16 +1,13 @@
 {
   "version": 1,
-  "app_version": "0.4.0.1",
+  "app_version": "0.4.0.3",
   "name": "freq_watermark_invisible",
   "nodes": [
     {
       "id": 0,
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
-      "position": [
-        -2205.9491346162577,
-        -1462.0170636038956
-      ],
+      "position": [-2200, -1500],
       "port_defaults": {
         "file_path": "ship.jpg"
       }
@@ -19,10 +16,7 @@
       "id": 1,
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
-      "position": [
-        -2205.9491346162577,
-        -1338.0170636038956
-      ],
+      "position": [-2200, -1300],
       "port_defaults": {
         "file_path": "logo.png"
       }
@@ -31,276 +25,151 @@
       "id": 2,
       "module": "nodes.filters.grayscale",
       "class": "Grayscale",
-      "position": [
-        -1900.0,
-        -1500.0
-      ],
+      "position": [-1900, -1300],
       "port_defaults": {}
     },
     {
       "id": 3,
-      "module": "nodes.filters.rgba_split",
-      "class": "RgbaSplit",
-      "position": [
-        -1900.0,
-        -1380.0
-      ],
-      "port_defaults": {}
-    },
-    {
-      "id": 4,
       "module": "nodes.filters.resize",
       "class": "Resize",
-      "position": [
-        -1648.7777950402535,
-        -1373.2895774596163
-      ],
+      "position": [-1640, -1300],
       "port_defaults": {
-        "width": 1920,
-        "height": 1076,
+        "width": 200,
+        "height": 200,
         "method": 0
       }
     },
     {
-      "id": 5,
-      "module": "nodes.filters.fft2d",
-      "class": "Fft2D",
-      "position": [
-        -1648.7777950402535,
-        -1525.2895774596163
-      ],
-      "port_defaults": {}
-    },
-    {
-      "id": 6,
-      "module": "nodes.filters.fft2d",
-      "class": "Fft2D",
-      "position": [
-        -1433.3098202820336,
-        -1356.4545313307015
-      ],
-      "port_defaults": {}
-    },
-    {
-      "id": 7,
-      "module": "nodes.filters.bandpass_mask",
-      "class": "BandpassMask",
-      "position": [
-        -1220.4580087092916,
-        -1379.9999999999995
-      ],
+      "id": 4,
+      "module": "nodes.filters.flip",
+      "class": "Flip",
+      "position": [-1380, -1240],
       "port_defaults": {
-        "radius_low": 0.1,
-        "radius_high": 0.3
+        "mode": -1
       }
     },
     {
-      "id": 8,
-      "module": "nodes.filters.matrix_add",
-      "class": "MatrixAdd",
-      "position": [
-        -919.9586879229222,
-        -1510.4939236607104
-      ],
+      "id": 5,
+      "module": "nodes.filters.mosaic",
+      "class": "Mosaic",
+      "position": [-1140, -1300],
       "port_defaults": {
-        "weight": 0.05
-      },
-      "size": [
-        165.640625,
-        180.81600143561104
-      ]
+        "layout": "1,2"
+      }
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.resize",
+      "class": "Resize",
+      "position": [-880, -1300],
+      "port_defaults": {
+        "width": 1920,
+        "height": 1076,
+        "method": 1
+      }
+    },
+    {
+      "id": 7,
+      "module": "nodes.filters.image_to_matrix",
+      "class": "ImageToMatrix",
+      "position": [-620, -1300],
+      "port_defaults": {}
+    },
+    {
+      "id": 8,
+      "module": "nodes.filters.hsv_split",
+      "class": "HsvSplit",
+      "position": [-1900, -1500],
+      "port_defaults": {}
     },
     {
       "id": 9,
-      "module": "nodes.filters.inverse_fft2d",
-      "class": "InverseFft2D",
-      "position": [
-        -625.1856060327616,
-        -1623.0294996483804
-      ],
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [-1640, -1480],
       "port_defaults": {}
     },
     {
       "id": 10,
-      "module": "nodes.filters.display",
-      "class": "Display",
-      "position": [
-        -180.24611977541323,
-        -1711.263306119146
-      ],
-      "port_defaults": {},
-      "size": [
-        702.0,
-        570.0
-      ]
+      "module": "nodes.filters.matrix_add",
+      "class": "MatrixAdd",
+      "position": [-340, -1500],
+      "port_defaults": {
+        "weight": 0.05
+      }
     },
     {
       "id": 11,
-      "module": "nodes.filters.fft2d",
-      "class": "Fft2D",
-      "position": [
-        -634.4799888695698,
-        -1431.807502758885
-      ],
+      "module": "nodes.filters.inverse_fft2d",
+      "class": "InverseFft2D",
+      "position": [-100, -1500],
       "port_defaults": {}
     },
     {
       "id": 12,
+      "module": "nodes.filters.hsv_join",
+      "class": "HsvJoin",
+      "position": [180, -1500],
+      "port_defaults": {}
+    },
+    {
+      "id": 13,
       "module": "nodes.filters.display",
       "class": "Display",
-      "position": [
-        -179.82885193066426,
-        -1102.8728551536121
-      ],
+      "position": [460, -1620],
       "port_defaults": {},
-      "size": [
-        702.0,
-        570.0
-      ]
+      "size": [702, 570]
+    },
+    {
+      "id": 14,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [-620, -1100],
+      "port_defaults": {},
+      "size": [400, 320]
     }
   ],
   "connections": [
-    {
-      "src_node": 0,
-      "src_output": 0,
-      "dst_node": 2,
-      "dst_input": 0
-    },
-    {
-      "src_node": 2,
-      "src_output": 0,
-      "dst_node": 5,
-      "dst_input": 0
-    },
-    {
-      "src_node": 1,
-      "src_output": 0,
-      "dst_node": 3,
-      "dst_input": 0
-    },
-    {
-      "src_node": 3,
-      "src_output": 3,
-      "dst_node": 4,
-      "dst_input": 0
-    },
-    {
-      "src_node": 4,
-      "src_output": 0,
-      "dst_node": 6,
-      "dst_input": 0
-    },
-    {
-      "src_node": 6,
-      "src_output": 0,
-      "dst_node": 7,
-      "dst_input": 0
-    },
-    {
-      "src_node": 5,
-      "src_output": 0,
-      "dst_node": 8,
-      "dst_input": 0
-    },
-    {
-      "src_node": 7,
-      "src_output": 0,
-      "dst_node": 8,
-      "dst_input": 1
-    },
-    {
-      "src_node": 8,
-      "src_output": 0,
-      "dst_node": 9,
-      "dst_input": 0
-    },
-    {
-      "src_node": 9,
-      "src_output": 0,
-      "dst_node": 10,
-      "dst_input": 0
-    },
-    {
-      "src_node": 9,
-      "src_output": 0,
-      "dst_node": 11,
-      "dst_input": 0
-    },
-    {
-      "src_node": 11,
-      "src_output": 1,
-      "dst_node": 12,
-      "dst_input": 0
-    }
+    {"src_node": 1, "src_output": 0, "dst_node": 2, "dst_input": 0},
+    {"src_node": 2, "src_output": 0, "dst_node": 3, "dst_input": 0},
+    {"src_node": 3, "src_output": 0, "dst_node": 4, "dst_input": 0},
+    {"src_node": 3, "src_output": 0, "dst_node": 5, "dst_input": 0},
+    {"src_node": 4, "src_output": 0, "dst_node": 5, "dst_input": 1},
+    {"src_node": 5, "src_output": 0, "dst_node": 6, "dst_input": 0},
+    {"src_node": 6, "src_output": 0, "dst_node": 7, "dst_input": 0},
+    {"src_node": 6, "src_output": 0, "dst_node": 14, "dst_input": 0},
+
+    {"src_node": 0, "src_output": 0, "dst_node": 8, "dst_input": 0},
+    {"src_node": 8, "src_output": 1, "dst_node": 9, "dst_input": 0},
+
+    {"src_node": 9, "src_output": 0, "dst_node": 10, "dst_input": 0},
+    {"src_node": 7, "src_output": 0, "dst_node": 10, "dst_input": 1},
+    {"src_node": 10, "src_output": 0, "dst_node": 11, "dst_input": 0},
+
+    {"src_node": 8, "src_output": 0, "dst_node": 12, "dst_input": 0},
+    {"src_node": 11, "src_output": 0, "dst_node": 12, "dst_input": 1},
+    {"src_node": 8, "src_output": 2, "dst_node": 12, "dst_input": 2},
+
+    {"src_node": 12, "src_output": 0, "dst_node": 13, "dst_input": 0}
   ],
   "backdrops": [
     {
-      "position": [
-        -2235.9491346162577,
-        -1496.4577884536843
-      ],
-      "size": [
-        279.5934023580023,
-        274.4407248497887
-      ],
-      "title": "Sources + prep",
-      "color": [
-        70,
-        60,
-        40,
-        140
-      ]
+      "position": [-2230, -1340],
+      "size": [1640, 250],
+      "title": "Build point-symmetric watermark (logo + flip180(logo) side-by-side, letterboxed onto canvas)",
+      "color": [60, 50, 70, 140]
     },
     {
-      "position": [
-        -1689.8231808893127,
-        -1555.0397034030075
-      ],
-      "size": [
-        701.0886472021404,
-        395.8060841645297
-      ],
-      "title": "Embed: Fft\u2192Bandpass\u2192MatrixAdd\u2192IFft",
-      "color": [
-        40,
-        60,
-        70,
-        140
-      ]
+      "position": [-2230, -1550],
+      "size": [620, 230],
+      "title": "Base image → HSV split → S channel → FFT",
+      "color": [70, 60, 40, 140]
     },
     {
-      "position": [
-        -667.7845944351526,
-        -1665.6397280242043
-      ],
-      "size": [
-        235.00842998007462,
-        162.6046083891074
-      ],
-      "title": "Watermarked image",
-      "color": [
-        40,
-        70,
-        50,
-        140
-      ]
-    },
-    {
-      "position": [
-        -664.4799888695698,
-        -1481.807502758885
-      ],
-      "size": [
-        212.6102283758239,
-        210.00561998671628
-      ],
-      "title": "Verify: spectrum of watermarked image (band visible)",
-      "color": [
-        60,
-        40,
-        60,
-        140
-      ]
+      "position": [-380, -1560],
+      "size": [560, 220],
+      "title": "Inject watermark into spectrum, IFFT, rejoin HSV",
+      "color": [40, 60, 70, 140]
     }
   ]
 }
