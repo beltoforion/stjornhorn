@@ -7,7 +7,10 @@
       "id": 0,
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
-      "position": [-2200, -1500],
+      "position": [
+        -2040.0972121608204,
+        -1695.3098337178549
+      ],
       "port_defaults": {
         "file_path": "ship.jpg"
       }
@@ -16,7 +19,10 @@
       "id": 1,
       "module": "nodes.sources.image_source",
       "class": "ImageSource",
-      "position": [-2200, -1300],
+      "position": [
+        -2333.1022922567263,
+        -1309.9685980219988
+      ],
       "port_defaults": {
         "file_path": "logo.png"
       }
@@ -25,14 +31,20 @@
       "id": 2,
       "module": "nodes.filters.grayscale",
       "class": "Grayscale",
-      "position": [-1900, -1300],
+      "position": [
+        -2076.321042256726,
+        -1309.9685980219988
+      ],
       "port_defaults": {}
     },
     {
       "id": 3,
       "module": "nodes.filters.resize",
       "class": "Resize",
-      "position": [-1640, -1300],
+      "position": [
+        -1905.1647922567258,
+        -1309.9685980219988
+      ],
       "port_defaults": {
         "width": 200,
         "height": 200,
@@ -43,7 +55,10 @@
       "id": 4,
       "module": "nodes.filters.flip",
       "class": "Flip",
-      "position": [-1380, -1240],
+      "position": [
+        -1717.6199122919952,
+        -1309.9685980219988
+      ],
       "port_defaults": {
         "mode": -1
       }
@@ -52,7 +67,10 @@
       "id": 5,
       "module": "nodes.filters.mosaic",
       "class": "Mosaic",
-      "position": [-1140, -1300],
+      "position": [
+        -1538.9324122919952,
+        -1309.9685980219988
+      ],
       "port_defaults": {
         "layout": "1,2"
       }
@@ -61,7 +79,10 @@
       "id": 6,
       "module": "nodes.filters.resize",
       "class": "Resize",
-      "position": [-880, -1300],
+      "position": [
+        -1358.2605372919952,
+        -1309.9685980219988
+      ],
       "port_defaults": {
         "width": 1920,
         "height": 1076,
@@ -72,28 +93,40 @@
       "id": 7,
       "module": "nodes.filters.image_to_matrix",
       "class": "ImageToMatrix",
-      "position": [-620, -1300],
+      "position": [
+        -1168.7292872919952,
+        -1309.9685980219988
+      ],
       "port_defaults": {}
     },
     {
       "id": 8,
       "module": "nodes.filters.hsv_split",
       "class": "HsvSplit",
-      "position": [-1900, -1500],
+      "position": [
+        -1783.3159621608204,
+        -1695.3098337178549
+      ],
       "port_defaults": {}
     },
     {
       "id": 9,
       "module": "nodes.filters.fft2d",
       "class": "Fft2D",
-      "position": [-1640, -1480],
+      "position": [
+        -1079.2296320391208,
+        -1796.7868394765098
+      ],
       "port_defaults": {}
     },
     {
       "id": 10,
       "module": "nodes.filters.matrix_add",
       "class": "MatrixAdd",
-      "position": [-340, -1500],
+      "position": [
+        -337.74408575835105,
+        -1697.9655049291014
+      ],
       "port_defaults": {
         "weight": 0.05
       }
@@ -102,74 +135,306 @@
       "id": 11,
       "module": "nodes.filters.inverse_fft2d",
       "class": "InverseFft2D",
-      "position": [-100, -1500],
+      "position": [
+        -97.74408575835105,
+        -1697.9655049291014
+      ],
       "port_defaults": {}
     },
     {
       "id": 12,
       "module": "nodes.filters.hsv_join",
       "class": "HsvJoin",
-      "position": [180, -1500],
+      "position": [
+        155.9861705252123,
+        -1720.2947870880723
+      ],
       "port_defaults": {}
     },
     {
       "id": 13,
       "module": "nodes.filters.display",
       "class": "Display",
-      "position": [460, -1620],
+      "position": [
+        489.13038640048,
+        -1535.9196043516597
+      ],
       "port_defaults": {},
-      "size": [702, 570]
+      "size": [
+        1481.5630182660666,
+        1000.0
+      ]
     },
     {
       "id": 14,
       "module": "nodes.filters.display",
       "class": "Display",
-      "position": [-620, -1100],
+      "position": [
+        -426.57916073384155,
+        -1466.147687919694
+      ],
       "port_defaults": {},
-      "size": [400, 320]
+      "size": [
+        819.9218533072395,
+        585.8498064103387
+      ]
+    },
+    {
+      "id": 15,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        638.7705112968961,
+        -2136.511917158715
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 16,
+      "module": "nodes.filters.hsl_split",
+      "class": "HslSplit",
+      "position": [
+        423.2558560896507,
+        -1918.398838690016
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 17,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        638.7705112968961,
+        -1984.5119171587148
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 18,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [
+        638.7705112968961,
+        -1832.5119171587148
+      ],
+      "port_defaults": {}
+    },
+    {
+      "id": 19,
+      "module": "nodes.filters.mosaic",
+      "class": "Mosaic",
+      "position": [
+        1078.2600962557394,
+        -1938.1175737489632
+      ],
+      "port_defaults": {
+        "layout": "1,2"
+      }
     }
   ],
   "connections": [
-    {"src_node": 1, "src_output": 0, "dst_node": 2, "dst_input": 0},
-    {"src_node": 2, "src_output": 0, "dst_node": 3, "dst_input": 0},
-    {"src_node": 3, "src_output": 0, "dst_node": 4, "dst_input": 0},
-    {"src_node": 3, "src_output": 0, "dst_node": 5, "dst_input": 0},
-    {"src_node": 4, "src_output": 0, "dst_node": 5, "dst_input": 1},
-    {"src_node": 5, "src_output": 0, "dst_node": 6, "dst_input": 0},
-    {"src_node": 6, "src_output": 0, "dst_node": 7, "dst_input": 0},
-    {"src_node": 6, "src_output": 0, "dst_node": 14, "dst_input": 0},
-
-    {"src_node": 0, "src_output": 0, "dst_node": 8, "dst_input": 0},
-    {"src_node": 8, "src_output": 1, "dst_node": 9, "dst_input": 0},
-
-    {"src_node": 9, "src_output": 0, "dst_node": 10, "dst_input": 0},
-    {"src_node": 7, "src_output": 0, "dst_node": 10, "dst_input": 1},
-    {"src_node": 10, "src_output": 0, "dst_node": 11, "dst_input": 0},
-
-    {"src_node": 8, "src_output": 0, "dst_node": 12, "dst_input": 0},
-    {"src_node": 11, "src_output": 0, "dst_node": 12, "dst_input": 1},
-    {"src_node": 8, "src_output": 2, "dst_node": 12, "dst_input": 2},
-
-    {"src_node": 12, "src_output": 0, "dst_node": 13, "dst_input": 0}
+    {
+      "src_node": 1,
+      "src_output": 0,
+      "dst_node": 2,
+      "dst_input": 0
+    },
+    {
+      "src_node": 2,
+      "src_output": 0,
+      "dst_node": 3,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 4,
+      "dst_input": 0
+    },
+    {
+      "src_node": 3,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 0
+    },
+    {
+      "src_node": 4,
+      "src_output": 0,
+      "dst_node": 5,
+      "dst_input": 1
+    },
+    {
+      "src_node": 5,
+      "src_output": 0,
+      "dst_node": 6,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 7,
+      "dst_input": 0
+    },
+    {
+      "src_node": 6,
+      "src_output": 0,
+      "dst_node": 14,
+      "dst_input": 0
+    },
+    {
+      "src_node": 0,
+      "src_output": 0,
+      "dst_node": 8,
+      "dst_input": 0
+    },
+    {
+      "src_node": 8,
+      "src_output": 1,
+      "dst_node": 9,
+      "dst_input": 0
+    },
+    {
+      "src_node": 9,
+      "src_output": 0,
+      "dst_node": 10,
+      "dst_input": 0
+    },
+    {
+      "src_node": 7,
+      "src_output": 0,
+      "dst_node": 10,
+      "dst_input": 1
+    },
+    {
+      "src_node": 10,
+      "src_output": 0,
+      "dst_node": 11,
+      "dst_input": 0
+    },
+    {
+      "src_node": 8,
+      "src_output": 0,
+      "dst_node": 12,
+      "dst_input": 0
+    },
+    {
+      "src_node": 11,
+      "src_output": 0,
+      "dst_node": 12,
+      "dst_input": 1
+    },
+    {
+      "src_node": 8,
+      "src_output": 2,
+      "dst_node": 12,
+      "dst_input": 2
+    },
+    {
+      "src_node": 12,
+      "src_output": 0,
+      "dst_node": 16,
+      "dst_input": 0
+    },
+    {
+      "src_node": 16,
+      "src_output": 0,
+      "dst_node": 15,
+      "dst_input": 0
+    },
+    {
+      "src_node": 16,
+      "src_output": 1,
+      "dst_node": 17,
+      "dst_input": 0
+    },
+    {
+      "src_node": 16,
+      "src_output": 2,
+      "dst_node": 18,
+      "dst_input": 0
+    },
+    {
+      "src_node": 15,
+      "src_output": 1,
+      "dst_node": 19,
+      "dst_input": 0
+    },
+    {
+      "src_node": 17,
+      "src_output": 1,
+      "dst_node": 19,
+      "dst_input": 1
+    },
+    {
+      "src_node": 18,
+      "src_output": 1,
+      "dst_node": 19,
+      "dst_input": 2
+    },
+    {
+      "src_node": 12,
+      "src_output": 0,
+      "dst_node": 19,
+      "dst_input": 3
+    },
+    {
+      "src_node": 19,
+      "src_output": 0,
+      "dst_node": 13,
+      "dst_input": 0
+    }
   ],
   "backdrops": [
     {
-      "position": [-2230, -1340],
-      "size": [1640, 250],
+      "position": [
+        -2371.047772397803,
+        -1352.0840821095608
+      ],
+      "size": [
+        1435.5429322697298,
+        251.1222990699273
+      ],
       "title": "Build point-symmetric watermark (logo + flip180(logo) side-by-side, letterboxed onto canvas)",
-      "color": [60, 50, 70, 140]
+      "color": [
+        60,
+        50,
+        70,
+        140
+      ]
     },
     {
-      "position": [-2230, -1550],
-      "size": [620, 230],
-      "title": "Base image → HSV split → S channel → FFT",
-      "color": [70, 60, 40, 140]
+      "position": [
+        -2070.09721216082,
+        -1745.3098337178549
+      ],
+      "size": [
+        472.66100263389876,
+        230.0
+      ],
+      "title": "Base image \u2192 HSV split \u2192 S channel \u2192 FFT",
+      "color": [
+        70,
+        60,
+        40,
+        140
+      ]
     },
     {
-      "position": [-380, -1560],
-      "size": [560, 220],
+      "position": [
+        -377.74408575835093,
+        -1757.9655049291014
+      ],
+      "size": [
+        708.1613545607026,
+        226.56743592910925
+      ],
       "title": "Inject watermark into spectrum, IFFT, rejoin HSV",
-      "color": [40, 60, 70, 140]
+      "color": [
+        40,
+        60,
+        70,
+        140
+      ]
     }
   ]
 }
