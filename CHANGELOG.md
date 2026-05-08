@@ -10,6 +10,22 @@ once a first tagged release is cut.
 
 ## [0.4.0] — 2026-05-03
 
+### Added (Frequency-domain primitives: MatrixAdd + BandpassMask)
+
+- **Two new nodes in the *Frequency* section bridge the gap between
+  `Fft2D` and `InverseFft2D`** so spectra can be modified in-flow.
+  `MatrixAdd` computes ``out = a + weight * b`` on two MATRIX
+  payloads, promoting real + complex mixes automatically;
+  `BandpassMask` zeroes coefficients outside an annular
+  ``[radius_low, radius_high]`` band on an fftshifted spectrum,
+  with radii normalised to the corner distance and the mask
+  centro-symmetric so a real image's spectrum stays Hermitian
+  through it. Together they make frequency-domain watermarking
+  expressible as a flow: `Fft2D` the watermark, `BandpassMask` it
+  to mid-band, `MatrixAdd` it into the base spectrum with a small
+  weight, `InverseFft2D` back. Sample flow:
+  `flow/freq_watermark_invisible.flowjs`.
+
 ### Changed (Project relicensed to GPL-3.0-or-later)
 
 - **Stjörnhorn is now distributed under the GNU General Public

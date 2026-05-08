@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "app_version": "0.4.0.1",
+  "name": "freq_watermark_invisible",
+  "nodes": [
+    {
+      "id": 0,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [-2200, -1500],
+      "port_defaults": {
+        "file_path": "ship.jpg"
+      }
+    },
+    {
+      "id": 1,
+      "module": "nodes.sources.image_source",
+      "class": "ImageSource",
+      "position": [-2200, -1380],
+      "port_defaults": {
+        "file_path": "logo.png"
+      }
+    },
+    {
+      "id": 2,
+      "module": "nodes.filters.grayscale",
+      "class": "Grayscale",
+      "position": [-1900, -1500],
+      "port_defaults": {}
+    },
+    {
+      "id": 3,
+      "module": "nodes.filters.rgba_split",
+      "class": "RgbaSplit",
+      "position": [-1900, -1380],
+      "port_defaults": {}
+    },
+    {
+      "id": 4,
+      "module": "nodes.filters.resize",
+      "class": "Resize",
+      "position": [-1620, -1380],
+      "port_defaults": {
+        "width": 1920,
+        "height": 1076,
+        "method": 0
+      }
+    },
+    {
+      "id": 5,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [-1620, -1500],
+      "port_defaults": {}
+    },
+    {
+      "id": 6,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [-1340, -1380],
+      "port_defaults": {}
+    },
+    {
+      "id": 7,
+      "module": "nodes.filters.bandpass_mask",
+      "class": "BandpassMask",
+      "position": [-1060, -1380],
+      "port_defaults": {
+        "radius_low": 0.1,
+        "radius_high": 0.3
+      }
+    },
+    {
+      "id": 8,
+      "module": "nodes.filters.matrix_add",
+      "class": "MatrixAdd",
+      "position": [-780, -1440],
+      "port_defaults": {
+        "weight": 0.05
+      }
+    },
+    {
+      "id": 9,
+      "module": "nodes.filters.inverse_fft2d",
+      "class": "InverseFft2D",
+      "position": [-500, -1500],
+      "port_defaults": {}
+    },
+    {
+      "id": 10,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [-200, -1620],
+      "port_defaults": {},
+      "size": [702, 570]
+    },
+    {
+      "id": 11,
+      "module": "nodes.filters.fft2d",
+      "class": "Fft2D",
+      "position": [-500, -1200],
+      "port_defaults": {}
+    },
+    {
+      "id": 12,
+      "module": "nodes.filters.display",
+      "class": "Display",
+      "position": [-200, -1000],
+      "port_defaults": {},
+      "size": [702, 570]
+    }
+  ],
+  "connections": [
+    {"src_node": 0, "src_output": 0, "dst_node": 2, "dst_input": 0},
+    {"src_node": 2, "src_output": 0, "dst_node": 5, "dst_input": 0},
+
+    {"src_node": 1, "src_output": 0, "dst_node": 3, "dst_input": 0},
+    {"src_node": 3, "src_output": 3, "dst_node": 4, "dst_input": 0},
+    {"src_node": 4, "src_output": 0, "dst_node": 6, "dst_input": 0},
+    {"src_node": 6, "src_output": 0, "dst_node": 7, "dst_input": 0},
+
+    {"src_node": 5, "src_output": 0, "dst_node": 8, "dst_input": 0},
+    {"src_node": 7, "src_output": 0, "dst_node": 8, "dst_input": 1},
+    {"src_node": 8, "src_output": 0, "dst_node": 9, "dst_input": 0},
+
+    {"src_node": 9, "src_output": 0, "dst_node": 10, "dst_input": 0},
+
+    {"src_node": 9, "src_output": 0, "dst_node": 11, "dst_input": 0},
+    {"src_node": 11, "src_output": 1, "dst_node": 12, "dst_input": 0}
+  ],
+  "backdrops": [
+    {
+      "position": [-2230, -1550],
+      "size": [340, 290],
+      "title": "Sources + prep",
+      "color": [70, 60, 40, 140]
+    },
+    {
+      "position": [-1650, -1550],
+      "size": [620, 290],
+      "title": "Embed: Fft→Bandpass→MatrixAdd→IFft",
+      "color": [40, 60, 70, 140]
+    },
+    {
+      "position": [-530, -1670],
+      "size": [340, 220],
+      "title": "Watermarked image",
+      "color": [40, 70, 50, 140]
+    },
+    {
+      "position": [-530, -1250],
+      "size": [340, 280],
+      "title": "Verify: spectrum of watermarked image (band visible)",
+      "color": [60, 40, 60, 140]
+    }
+  ]
+}
