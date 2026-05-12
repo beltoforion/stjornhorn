@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.1.35",
+  "app_version": "0.4.0.0",
   "name": "video_ncc",
   "nodes": [
     {
@@ -12,7 +12,7 @@
         -1302.3371941604958
       ],
       "port_defaults": {
-        "file_path": "/home/user/Dokumente/GitHub/image-inquest/input/video.mp4",
+        "file_path": "video.mp4",
         "max_num_frames": -1
       },
       "size": [
@@ -121,5 +121,6 @@
       "dst_node": 5,
       "dst_input": 1
     }
-  ]
+  ],
+  "backdrops": []
 }

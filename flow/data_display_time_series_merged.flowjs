@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "app_version": "0.3.0.54",
+  "app_version": "0.4.0.0",
   "name": "data_display_time_series_merged",
   "nodes": [
     {
@@ -146,8 +146,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        135.23337775227697,
-        208.23797945431755
+        275.1874490639992,
+        208.23797945431758
       ],
       "port_defaults": {
         "output_path": "ground_motion_merged.mp4",
@@ -164,8 +164,8 @@
       "module": "nodes.filters.directional_projection",
       "class": "DirectionalProjection",
       "position": [
-        -1404.8967955232897,
-        98.38290419683369
+        -1317.4255009534634,
+        110.04574347281056
       ],
       "port_defaults": {
         "x_column": "",
@@ -178,8 +178,8 @@
       "module": "nodes.filters.spectrum",
       "class": "Spectrum",
       "position": [
-        -1096.647488705856,
-        125.20299454998575
+        -1009.1761941360294,
+        136.8658338259626
       ],
       "port_defaults": {
         "sample_rate": 8.0,
@@ -193,8 +193,8 @@
       "module": "nodes.filters.polar_heatmap",
       "class": "PolarHeatmap",
       "position": [
-        -828.496346000224,
-        83.29660337318566
+        -741.0250514303973,
+        94.95944264916253
       ],
       "port_defaults": {
         "colormap": 2,
