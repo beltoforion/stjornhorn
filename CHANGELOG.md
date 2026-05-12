@@ -10,6 +10,15 @@ once a first tagged release is cut.
 
 ## [0.4.0] — 2026-05-03
 
+### Changed (Project relicensed to GPL-3.0-or-later)
+
+- **Stjörnhorn is now distributed under the GNU General Public
+  License v3.0 or later** instead of the MIT License. The
+  `LICENSE` file holds the canonical GPL-3.0 text;
+  `pyproject.toml` advertises `GPL-3.0-or-later`; the README
+  License section and the public docs (`doc/index.html`) point
+  at the new terms.
+
 ### Added (Info button on every non-source node)
 
 - **Every filter and sink now carries the same "info" header

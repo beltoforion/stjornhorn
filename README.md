@@ -3,7 +3,7 @@
   <img src="assets/title.png" alt="Stjörnhorn"/>
 </p>
 
-[![Github All Releases](https://img.shields.io/github/downloads/beltoforion/stjornhorn/total.svg)](https://github.com/beltoforion/stjornhorn/releases/tag/v.0.2.16)
+[![Github All Releases](https://img.shields.io/github/downloads/beltoforion/stjornhorn/total.svg)](https://github.com/beltoforion/stjornhorn/releases/tag/v0.4.0)
 # Stjörnhorn
 
 A desktop application for building image-, video- and data-processing
@@ -20,6 +20,10 @@ Typical uses:
 - Compose filters into reusable flows and save them to disk.
 - Batch-convert and composite images by wiring up file sources and
   sinks.
+
+How this project started:
+* In German: https://beltoforion.de/de/adventures-in-vibe-coding/
+* In English: https://beltoforion.de/en/adventures-in-vibe-coding/
 
 ## Installation
 
@@ -364,4 +368,5 @@ label the node carries in the **Node List**.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+GPL-3.0-or-later — GNU General Public License v3.0 or any later
+version. See [LICENSE](LICENSE) for the full text.
