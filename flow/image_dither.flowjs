@@ -18,8 +18,8 @@
       "module": "nodes.filters.rgba_join",
       "class": "RgbaJoin",
       "position": [
-        -1261.1891451801037,
-        -760.598536936498
+        -1254.7407939500897,
+        -633.243600143723
       ],
       "port_defaults": {}
     },
@@ -88,8 +88,8 @@
       "module": "nodes.filters.subpixel_mosaic",
       "class": "SubpixelMosaic",
       "position": [
-        -1052.5982807710338,
-        -837.0755758594397
+        -1031.6411392734885,
+        -716.1689902966787
       ],
       "port_defaults": {
         "keep_aspect": true,
@@ -101,8 +101,8 @@
       "module": "nodes.filters.mosaic",
       "class": "Mosaic",
       "position": [
-        -1122.817116989209,
-        -1150.2888901568426
+        -1098.635799876657,
+        -1287.3163537946384
       ],
       "port_defaults": {
         "layout": "1,2;3,4"
