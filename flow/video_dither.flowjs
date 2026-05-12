@@ -64,8 +64,8 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1578.3288399772184,
-        -1295.1852457166883
+        -1540.0180351768063,
+        -1297.4388224696536
       ],
       "port_defaults": {},
       "size": [
@@ -78,8 +78,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -2228.927665901959,
-        -903.1927203305031
+        -2272.8724125847843,
+        -917.8409692247784
       ],
       "port_defaults": {
         "file_path": "video.mp4",
@@ -91,8 +91,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -1158.5702002019946,
-        -718.648329692578
+        -1089.8361092365492,
+        -727.6626367044398
       ],
       "port_defaults": {
         "output_path": "out.mp4",
