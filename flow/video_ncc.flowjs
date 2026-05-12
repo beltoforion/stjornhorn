@@ -8,8 +8,8 @@
       "module": "nodes.sources.video_source",
       "class": "VideoSource",
       "position": [
-        -2524.823780904452,
-        -1302.3371941604958
+        -2645.4485459617713,
+        -1277.2567974654096
       ],
       "port_defaults": {
         "file_path": "video.mp4",
@@ -25,8 +25,8 @@
       "module": "nodes.sinks.video_sink",
       "class": "VideoSink",
       "position": [
-        -1114.57221435474,
-        -804.7969993725771
+        -758.8915053641031,
+        -1407.182555089161
       ],
       "port_defaults": {
         "output_path": "out.mp4",
@@ -39,13 +39,13 @@
       "module": "nodes.filters.display",
       "class": "Display",
       "position": [
-        -1668.0036667728032,
-        -1499.0667991229038
+        -1647.5224622244623,
+        -1495.22657327009
       ],
       "port_defaults": {},
       "size": [
-        800.0,
-        598.3631556954801
+        850.5884505970881,
+        451.1967539584965
       ]
     },
     {
@@ -53,8 +53,8 @@
       "module": "nodes.filters.ncc",
       "class": "Ncc",
       "position": [
-        -2093.2526457757485,
-        -1080.1505548865382
+        -2115.944433261779,
+        -1072.9847272593706
       ],
       "port_defaults": {
         "template": "pad.jpg",
@@ -66,8 +66,8 @@
       "module": "nodes.filters.grayscale",
       "class": "Grayscale",
       "position": [
-        -2275.275073475514,
-        -1004.1695111343208
+        -2314.687125424935,
+        -1013.7239479705441
       ],
       "port_defaults": {}
     },
